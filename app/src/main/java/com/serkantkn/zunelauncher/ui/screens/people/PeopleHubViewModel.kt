@@ -1,0 +1,115 @@
+package com.serkantkn.zunelauncher.ui.screens.people
+
+import android.app.Application
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.serkantkn.zunelauncher.data.model.ContactDetailModel
+import com.serkantkn.zunelauncher.data.model.ContactModel
+import com.serkantkn.zunelauncher.data.repository.ContactRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+class PeopleHubViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val contactRepository = ContactRepository(application)
+
+    private val _hasPermission = MutableStateFlow(checkPermission())
+    val hasPermission: StateFlow<Boolean> = _hasPermission.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _allContacts = MutableStateFlow<List<ContactModel>>(emptyList())
+    
+    // Derived flows
+    private val _groupedContacts = MutableStateFlow<Map<Char, List<ContactModel>>>(emptyMap())
+    val groupedContacts: StateFlow<Map<Char, List<ContactModel>>> = _groupedContacts.asStateFlow()
+
+    private val _favoriteContacts = MutableStateFlow<List<ContactModel>>(emptyList())
+    val favoriteContacts: StateFlow<List<ContactModel>> = _favoriteContacts.asStateFlow()
+
+    private val _recentContacts = MutableStateFlow<List<ContactModel>>(emptyList())
+    val recentContacts: StateFlow<List<ContactModel>> = _recentContacts.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _selectedContactDetail = MutableStateFlow<ContactDetailModel?>(null)
+    val selectedContactDetail: StateFlow<ContactDetailModel?> = _selectedContactDetail.asStateFlow()
+
+    init {
+        if (_hasPermission.value) {
+            loadContacts()
+        }
+    }
+
+    fun onPermissionResult(granted: Boolean) {
+        _hasPermission.value = granted
+        if (granted) {
+            loadContacts()
+        }
+    }
+
+    private fun checkPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            getApplication(),
+            android.Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun loadContacts() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val contacts = contactRepository.getContacts()
+            _allContacts.value = contacts
+            
+            updateGroupedContacts(contacts, _searchQuery.value)
+            
+            _favoriteContacts.value = contacts.filter { it.isFavorite }
+            _recentContacts.value = contacts.filter { it.lastTimeContacted > 0 }
+                .sortedByDescending { it.lastTimeContacted }
+                .take(20) // Show top 20 recent
+            
+            _isLoading.value = false
+        }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        updateGroupedContacts(_allContacts.value, query)
+    }
+
+    private fun updateGroupedContacts(contacts: List<ContactModel>, query: String) {
+        val filtered = if (query.isBlank()) {
+            contacts
+        } else {
+            contacts.filter { it.name.contains(query, ignoreCase = true) }
+        }
+
+        val grouped = filtered.groupBy { contact ->
+            val firstChar = contact.name.firstOrNull()?.uppercaseChar() ?: '#'
+            if (firstChar.isLetter()) firstChar else '#'
+        }.toSortedMap()
+        
+        _groupedContacts.value = grouped
+    }
+
+    fun selectContact(contact: ContactModel?) {
+        if (contact == null) {
+            _selectedContactDetail.value = null
+            return
+        }
+        
+        viewModelScope.launch {
+            val phoneNumbers = contactRepository.getPhoneNumbers(contact.id)
+            _selectedContactDetail.value = ContactDetailModel(
+                contact = contact,
+                phoneNumbers = phoneNumbers
+            )
+        }
+    }
+}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="zune_black">#FF0A0A0A</color>
+    <color name="zune_dark_navy">#FF1A1A2E</color>
+    <color name="zune_pink">#FFE91E90</color>
+    <color name="zune_magenta">#FFD81B60</color>
+    <color name="zune_orange">#FFFF6D00</color>
+    <color name="zune_purple">#FF9C27B0</color>
+    <color name="zune_blue">#FF2196F3</color>
+    <color name="zune_green">#FF4CAF50</color>
+    <color name="zune_white">#FFFFFFFF</color>
+    <color name="zune_white_muted">#FFB0B0B0</color>
+    <color name="transparent">#00000000</color>
+</resources>

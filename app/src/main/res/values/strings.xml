@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Zune Launcher</string>
+    <string name="home_hub">home</string>
+    <string name="apps_hub">apps</string>
+    <string name="music_hub">music</string>
+    <string name="people_hub">people</string>
+    <string name="pictures_hub">pictures</string>
+    <string name="settings_hub">settings</string>
+    <string name="search_apps">search apps</string>
+    <string name="recent_apps">recent</string>
+    <string name="favorite_apps">favorites</string>
+    <string name="coming_soon">coming soon</string>
+    <string name="theme_setting">theme</string>
+    <string name="theme_light">light</string>
+    <string name="theme_dark">dark</string>
+    <string name="theme_system">system</string>
+    <string name="font_scale">font scale</string>
+    <string name="animations">animations</string>
+    <string name="about">about</string>
+    <string name="version">version</string>
+    <string name="weather_placeholder">18°</string>
+    <string name="weather_condition">partly cloudy</string>
+    <string name="usage_permission_title">Usage Access Required</string>
+    <string name="usage_permission_message">Zune Launcher needs usage access permission to show your recent apps.</string>
+    <string name="grant_permission">izin ver</string>
+    <string name="all_apps">tüm uygulamalar</string>
+    <string name="storage_permission_title">Depolama İzni Gerekli</string>
+    <string name="storage_permission_message">Zune Launcher fotoğraflarını gösterebilmek için depolama iznine ihtiyaç duyar.</string>
+    <string name="no_photos">fotoğraf bulunamadı</string>
+    <string name="no_albums">albüm bulunamadı</string>
+    <string name="no_favorites">favori fotoğrafın yok</string>
+    <string name="contacts_permission_title">Rehber İzni Gerekli</string>
+    <string name="contacts_permission_message">Zune Launcher kişilerini gösterebilmek için rehber iznine ihtiyaç duyar.</string>
+    <string name="no_contacts">kişi bulunamadı</string>
+    <string name="no_recent_contacts">son kullanılan kişi yok</string>
+    <string name="no_favorite_contacts">favori kişi yok</string>
+    <string name="call">ara</string>
+    <string name="message">mesaj gönder</string>
+    <string name="search_contacts">kişi ara</string>
+    
+    <!-- Social Hub -->
+    <string name="social_hub">social</string>
+    <string name="notification_permission_title">Bildirim İzni Gerekli</string>
+    <string name="notification_permission_message">Social Hub\'ın bildirimlerini gösterebilmesi ve yanıtlayabilmen için Zune Launcher\'a bildirim erişimi vermelisin.</string>
+    <string name="open_settings">ayarları aç</string>
+    <string name="no_notifications">yeni mesaj yok</string>
+    <string name="reply">cevapla</string>
+    <string name="type_message">mesaj yaz...</string>
+    <string name="send">gönder</string>
+</resources>
