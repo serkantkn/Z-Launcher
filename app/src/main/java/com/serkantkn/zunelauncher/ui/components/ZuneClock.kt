@@ -12,6 +12,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +58,7 @@ import java.util.Locale
 @Composable
 fun ZuneClock(
     notification: SocialMessageModel? = null,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var currentTime by remember { mutableStateOf(getCurrentTime()) }
@@ -75,7 +78,16 @@ fun ZuneClock(
     )
 
     Row(
-        modifier = modifier,
+        modifier = modifier
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null, // No ripple for Zune style
+                        onClick = onClick
+                    )
+                } else Modifier
+            ),
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {

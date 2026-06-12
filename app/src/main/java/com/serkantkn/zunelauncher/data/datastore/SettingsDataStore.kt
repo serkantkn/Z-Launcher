@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.ThemeMode
@@ -22,6 +23,9 @@ class SettingsDataStore(private val context: Context) {
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
         val DIRECT_CALL_ENABLED = booleanPreferencesKey("direct_call_enabled")
         val HUB_ORDER = stringPreferencesKey("hub_order")
+        val CUSTOM_WALLPAPER_PATH = stringPreferencesKey("custom_wallpaper_path")
+        val DYNAMIC_THEME_COLOR = intPreferencesKey("dynamic_theme_color")
+
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -121,6 +125,33 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setHubOrder(order: List<com.serkantkn.zunelauncher.data.model.HubType>) {
         context.settingsDataStore.edit { prefs ->
             prefs[HUB_ORDER] = order.joinToString(",") { it.name }
+        }
+    }
+    val customWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[CUSTOM_WALLPAPER_PATH]
+    }
+
+    val dynamicThemeColor: Flow<Int?> = context.settingsDataStore.data.map { prefs ->
+        prefs[DYNAMIC_THEME_COLOR]
+    }
+
+    suspend fun setCustomWallpaperPath(path: String?) {
+        context.settingsDataStore.edit { prefs ->
+            if (path == null) {
+                prefs.remove(CUSTOM_WALLPAPER_PATH)
+            } else {
+                prefs[CUSTOM_WALLPAPER_PATH] = path
+            }
+        }
+    }
+
+    suspend fun setDynamicThemeColor(color: Int?) {
+        context.settingsDataStore.edit { prefs ->
+            if (color == null) {
+                prefs.remove(DYNAMIC_THEME_COLOR)
+            } else {
+                prefs[DYNAMIC_THEME_COLOR] = color
+            }
         }
     }
 }

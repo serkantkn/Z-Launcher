@@ -19,6 +19,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -39,6 +41,7 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 
 enum class BackgroundMode {
     GRADIENT,
@@ -75,10 +78,21 @@ fun ZuneBackground(
     // Track wallpaper changes so blur surfaces stay up-to-date
     var wallpaperVersion by remember { mutableStateOf(0) }
 
+    val settingsDataStore = remember { com.serkantkn.zunelauncher.data.datastore.SettingsDataStore(context) }
+    val customWallpaperPath by settingsDataStore.customWallpaperPath.collectAsState(initial = null)
+
+    val coroutineScope = rememberCoroutineScope()
+    
     DisposableEffect(Unit) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(ctx: android.content.Context?, intent: android.content.Intent?) {
                 Log.d(TAG, "Wallpaper changed, reloading…")
+                if (System.currentTimeMillis() - ZuneWallpaperManager.lastInternalWallpaperChangeTime > 5000) {
+                    // External wallpaper change: clear our internal custom wallpaper
+                    coroutineScope.launch {
+                        settingsDataStore.setCustomWallpaperPath(null)
+                    }
+                }
                 wallpaperVersion++
             }
         }
@@ -89,30 +103,39 @@ fun ZuneBackground(
         onDispose { context.unregisterReceiver(receiver) }
     }
 
-    // Reload wallpaper whenever version changes (initial load + after each change)
-    LaunchedEffect(wallpaperVersion) {
+    // Reload wallpaper whenever version or custom path changes
+    LaunchedEffect(wallpaperVersion, customWallpaperPath) {
         val wallpapers = withContext(Dispatchers.IO) {
             try {
-                val wallpaperManager = WallpaperManager.getInstance(context)
-                loadWallpaperBitmap(wallpaperManager, context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels)
-                    ?.let { bitmap ->
+                val bitmap = if (customWallpaperPath != null) {
+                    val file = java.io.File(customWallpaperPath!!)
+                    if (file.exists()) {
+                        android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                    } else {
+                        val wallpaperManager = WallpaperManager.getInstance(context)
+                        loadWallpaperBitmap(wallpaperManager, context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels)
+                    }
+                } else {
+                    val wallpaperManager = WallpaperManager.getInstance(context)
+                    loadWallpaperBitmap(wallpaperManager, context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels)
+                }
+
+                bitmap?.let { b ->
                     val blurred = try {
                         val scaleDown = Bitmap.createScaledBitmap(
-                            bitmap,
-                            (bitmap.width / 6).coerceAtLeast(1),
-                            (bitmap.height / 6).coerceAtLeast(1),
+                            b,
+                            (b.width / 6).coerceAtLeast(1),
+                            (b.height / 6).coerceAtLeast(1),
                             true
                         )
                         SimpleBlur.blur(scaleDown, radius = 3, iterations = 2)
                     } catch (e: Exception) {
                         e.printStackTrace()
-                        bitmap
+                        b
                     }
-                    Log.d(TAG, "Loaded wallpaper=${bitmap.width}x${bitmap.height}, blurred=${blurred.width}x${blurred.height}")
-                    bitmap to blurred
+                    b to blurred
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Unable to load wallpaper bitmap; falling back to system wallpaper window", e)
                 null
             }
         }
@@ -134,8 +157,7 @@ fun ZuneBackground(
         Crossfade(
             targetState = mode,
             modifier = Modifier
-                .fillMaxSize()
-                .hazeSource(hazeState),
+                .fillMaxSize(),
             label = "background_transition"
         ) { currentMode ->
             when (currentMode) {
@@ -161,6 +183,10 @@ fun ZuneBackground(
             content()
         }
     }
+}
+
+object ZuneWallpaperManager {
+    var lastInternalWallpaperChangeTime: Long = 0L
 }
 
 private fun loadWallpaperBitmap(

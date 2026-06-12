@@ -8,6 +8,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -154,7 +155,7 @@ fun W10MAppTile(
                     .size(24.dp)
                     .clip(CircleShape)
                     .background(Color.White)
-                    .combinedClickable(onClick = onRemoveClick),
+                    .clickable(onClick = onRemoveClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -174,7 +175,7 @@ fun W10MAppTile(
                     .clip(CircleShape)
                     .border(1.dp, Color.White, CircleShape)
                     .background(Color.Black.copy(alpha = 0.5f))
-                    .combinedClickable(onClick = onResizeClick),
+                    .clickable(onClick = onResizeClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

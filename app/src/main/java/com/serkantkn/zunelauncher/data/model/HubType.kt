@@ -7,5 +7,6 @@ enum class HubType(val title: String) {
     PEOPLE("kişiler"),
     PICTURES("fotoğraflar"),
     SETTINGS("ayarlar"),
-    PHONE("telefon")
+    PHONE("telefon"),
+    CLOCK("saat")
 }

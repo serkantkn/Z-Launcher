@@ -15,6 +15,8 @@ class SettingsRepository(private val dataStore: SettingsDataStore) {
     val accentColor: Flow<AccentColor> = dataStore.accentColor
     val directCallEnabled: Flow<Boolean> = dataStore.directCallEnabled
     val hubOrder: Flow<List<com.serkantkn.zunelauncher.data.model.HubType>> = dataStore.hubOrder
+    val customWallpaperPath: Flow<String?> = dataStore.customWallpaperPath
+    val dynamicThemeColor: Flow<Int?> = dataStore.dynamicThemeColor
 
     suspend fun setThemeMode(mode: ThemeMode) = dataStore.setThemeMode(mode)
     suspend fun setFontScale(scale: Float) = dataStore.setFontScale(scale)
@@ -23,4 +25,6 @@ class SettingsRepository(private val dataStore: SettingsDataStore) {
     suspend fun setAccentColor(color: AccentColor) = dataStore.setAccentColor(color)
     suspend fun setDirectCallEnabled(enabled: Boolean) = dataStore.setDirectCallEnabled(enabled)
     suspend fun setHubOrder(order: List<com.serkantkn.zunelauncher.data.model.HubType>) = dataStore.setHubOrder(order)
+    suspend fun setCustomWallpaperPath(path: String?) = dataStore.setCustomWallpaperPath(path)
+    suspend fun setDynamicThemeColor(color: Int?) = dataStore.setDynamicThemeColor(color)
 }

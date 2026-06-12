@@ -20,10 +20,6 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val settingsRepository = SettingsRepository(
-        SettingsDataStore(application)
-    )
-
     init {
         viewModelScope.launch {
             val path = settingsRepository.customWallpaperPath.firstOrNull()
@@ -48,6 +44,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+
+
+    private val settingsRepository = SettingsRepository(
+        SettingsDataStore(application)
+    )
 
     private val systemSettings = SystemSettingsManager(application)
 

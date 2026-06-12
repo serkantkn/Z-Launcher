@@ -51,11 +51,13 @@ class MainActivity : ComponentActivity() {
             val settingsViewModel: SettingsViewModel = viewModel()
             val themeMode by settingsViewModel.themeMode.collectAsState()
             val accentColor by settingsViewModel.accentColor.collectAsState()
+            val dynamicThemeColor by settingsViewModel.dynamicThemeColor.collectAsState()
             val fontScale by settingsViewModel.fontScale.collectAsState()
 
             ZuneLauncherTheme(
                 themeMode = themeMode,
                 accentColor = accentColor,
+                dynamicThemeColor = dynamicThemeColor,
                 fontScale = fontScale
             ) {
                 LauncherScreen()

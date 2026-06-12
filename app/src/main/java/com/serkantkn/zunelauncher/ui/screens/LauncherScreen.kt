@@ -1,4 +1,12 @@
 package com.serkantkn.zunelauncher.ui.screens
+import android.annotation.SuppressLint
+import android.content.Context
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
@@ -51,6 +59,25 @@ import com.serkantkn.zunelauncher.ui.screens.social.SocialHubScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import kotlinx.coroutines.launch
+
+@SuppressLint("WrongConstant")
+fun expandNotificationPanel(context: Context) {
+    try {
+        val statusBarService = context.getSystemService("statusbar")
+        val statusBarManager = Class.forName("android.app.StatusBarManager")
+        val expand = statusBarManager.getMethod("expandNotificationsPanel")
+        expand.invoke(statusBarService)
+    } catch (e: Exception) {
+        try {
+            val statusBarService = context.getSystemService("statusbar")
+            val statusBarManager = Class.forName("android.app.StatusBarManager")
+            val expand = statusBarManager.getMethod("expand")
+            expand.invoke(statusBarService)
+        } catch (ex: Exception) {
+            ex.printStackTrace()
+        }
+    }
+}
 
 /**
  * Main launcher screen composable.
@@ -106,8 +133,40 @@ fun LauncherScreen(
         }
     }
 
+    var accumulatedOverscroll by remember { mutableStateOf(0f) }
+    val context = LocalContext.current
+    val globalNestedScrollConnection = remember(context) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(
+                available: androidx.compose.ui.geometry.Offset,
+                source: androidx.compose.ui.input.nestedscroll.NestedScrollSource
+            ): androidx.compose.ui.geometry.Offset {
+                if (available.y < 0) accumulatedOverscroll = 0f
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: androidx.compose.ui.geometry.Offset,
+                available: androidx.compose.ui.geometry.Offset,
+                source: androidx.compose.ui.input.nestedscroll.NestedScrollSource
+            ): androidx.compose.ui.geometry.Offset {
+                if (source == androidx.compose.ui.input.nestedscroll.NestedScrollSource.UserInput) {
+                    if (available.y > 0 && navState.currentHub == null) {
+                        accumulatedOverscroll += available.y
+                        if (accumulatedOverscroll > 100f) {
+                            expandNotificationPanel(context)
+                            accumulatedOverscroll = 0f
+                        }
+                        return available
+                    }
+                }
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+        }
+    }
+
     Box(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize().nestedScroll(globalNestedScrollConnection)
     ) {
             ZuneBackground(
                 mode = BackgroundMode.GRADIENT,
@@ -194,6 +253,7 @@ fun LauncherScreen(
                             HubType.PICTURES -> PicturesHubScreen(onBack = { navState.closeHub() })
                             HubType.PHONE -> PhoneHubScreen(onBack = { navState.closeHub() })
                             HubType.SETTINGS -> SettingsScreen(onBack = { navState.closeHub() })
+                            HubType.CLOCK -> com.serkantkn.zunelauncher.ui.screens.clock.ClockHubScreen(onBack = { navState.closeHub() })
                             else -> {}
                         }
                     }

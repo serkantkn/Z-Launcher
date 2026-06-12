@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.data.model
 
 enum class AccentColor {
+    DYNAMIC,
     MAGENTA,
     PINK,
     ORANGE,

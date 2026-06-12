@@ -4,6 +4,8 @@ import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -11,12 +13,14 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.serkantkn.zunelauncher.data.model.AccentColor
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 
 fun AccentColor.toColor(): Color = when (this) {
+    AccentColor.DYNAMIC -> Color.Transparent
     AccentColor.MAGENTA -> ZuneColors.Magenta
     AccentColor.PINK -> ZuneColors.Pink
     AccentColor.ORANGE -> ZuneColors.Orange
@@ -79,6 +83,7 @@ val LocalZuneColors = staticCompositionLocalOf { ZuneExtendedColors() }
 fun ZuneLauncherTheme(
     themeMode: ThemeMode = ThemeMode.DARK,
     accentColor: AccentColor = AccentColor.MAGENTA,
+    dynamicThemeColor: Int? = null,
     fontScale: Float = 1.0f,
     content: @Composable () -> Unit
 ) {
@@ -88,12 +93,26 @@ fun ZuneLauncherTheme(
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
+    val context = LocalContext.current
+    val resolvedAccentColor = if (accentColor == AccentColor.DYNAMIC) {
+        if (dynamicThemeColor != null) {
+            Color(dynamicThemeColor)
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            val dynamicScheme = if (isDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            dynamicScheme.primary
+        } else {
+            ZuneColors.Magenta // Fallback
+        }
+    } else {
+        accentColor.toColor()
+    }
+
     val colorScheme = if (isDarkTheme) ZuneDarkColorScheme else ZuneLightColorScheme
 
     val zuneColors = if (isDarkTheme) {
         ZuneExtendedColors(
             isDark = true,
-            accentColor = accentColor.toColor()
+            accentColor = resolvedAccentColor
         )
     } else {
         ZuneExtendedColors(
@@ -102,7 +121,7 @@ fun ZuneLauncherTheme(
             overlay = Color(0x1A000000),
             darkOverlay = Color(0xCCFFFFFF),
             isDark = false,
-            accentColor = accentColor.toColor()
+            accentColor = resolvedAccentColor
         )
     }
 

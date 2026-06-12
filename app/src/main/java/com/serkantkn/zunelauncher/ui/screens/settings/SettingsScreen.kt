@@ -152,6 +152,7 @@ fun SettingsScreen(
         ) { page ->
             when (tabs[page]) {
                 SettingsTab.LOOK -> LookSettingsPage(
+                    viewModel = viewModel,
                     themeMode = themeMode,
                     accentColor = accentColor,
                     fontScale = fontScale,
@@ -178,6 +179,7 @@ fun SettingsScreen(
 
 @Composable
 private fun LookSettingsPage(
+    viewModel: SettingsViewModel,
     themeMode: ThemeMode,
     accentColor: AccentColor,
     fontScale: Float,
@@ -187,6 +189,37 @@ private fun LookSettingsPage(
     onFontScaleChanged: (Float) -> Unit,
     onAnimationsChanged: (Boolean) -> Unit
 ) {
+    val customWallpaperPath by viewModel.customWallpaperPath.collectAsState()
+    var cropUri by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<android.net.Uri?>(null) }
+    
+    val wallpaperPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                cropUri = uri
+            }
+        }
+    )
+
+    if (cropUri != null) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { cropUri = null },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            WallpaperCropScreen(
+                uri = cropUri!!,
+                onApply = { bitmap ->
+                    viewModel.saveCroppedWallpaper(bitmap)
+                    cropUri = null
+                },
+                onCancel = { cropUri = null }
+            )
+        }
+    }
+
     SettingsLazyColumn {
         item(key = "theme") {
             SettingGroup(title = "tema") {
@@ -194,6 +227,49 @@ private fun LookSettingsPage(
                     selectedMode = themeMode,
                     onSelected = onThemeModeChanged
                 )
+            }
+        }
+
+        item(key = "wallpaper") {
+            SettingGroup(title = "duvar kağıdı") {
+                GlassPanel {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp)
+                    ) {
+                        Text(
+                            text = if (customWallpaperPath != null) "Özel Duvar Kağıdı" else "Sistem Duvar Kağıdı",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row {
+                            androidx.compose.material3.Button(
+                                onClick = { 
+                                    wallpaperPicker.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    containerColor = LocalZuneColors.current.accentColor,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text("Resim Seç")
+                            }
+                            if (customWallpaperPath != null) {
+                                Spacer(modifier = Modifier.width(12.dp))
+                                androidx.compose.material3.OutlinedButton(
+                                    onClick = { viewModel.clearCustomWallpaper() },
+                                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                        contentColor = LocalZuneColors.current.textMuted
+                                    )
+                                ) {
+                                    Text("Temizle")
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -546,14 +622,25 @@ private fun AccentColorChoiceRow(
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         items(AccentColor.entries.toTypedArray()) { color ->
-            val composeColor = color.toColor()
             val isSelected = selectedColor == color
             
+            val baseModifier = Modifier
+                .size(if (isSelected) 48.dp else 40.dp)
+                .clickable { onSelected(color) }
+
+            val coloredModifier = if (color == AccentColor.DYNAMIC) {
+                baseModifier.background(
+                    brush = androidx.compose.ui.graphics.Brush.sweepGradient(
+                        listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+                    ),
+                    shape = CircleShape
+                )
+            } else {
+                baseModifier.background(color = color.toColor(), shape = CircleShape)
+            }
+
             Box(
-                modifier = Modifier
-                    .size(if (isSelected) 48.dp else 40.dp)
-                    .background(color = composeColor, shape = CircleShape)
-                    .clickable { onSelected(color) },
+                modifier = coloredModifier,
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {
