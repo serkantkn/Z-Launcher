@@ -10,6 +10,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -30,8 +32,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
@@ -68,6 +68,7 @@ fun PeopleHubScreen(
     viewModel: PeopleHubViewModel = viewModel()
 ) {
     val zuneColors = LocalZuneColors.current
+    val isWideScreen = LocalIsWideScreen.current
     val hasPermission by viewModel.hasPermission.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val groupedContacts by viewModel.groupedContacts.collectAsState()
@@ -80,6 +81,7 @@ fun PeopleHubScreen(
 
     val hubHingeAnim = remember { Animatable(1f) }
     val newContactHingeAnim = remember { Animatable(0f) }
+    val detailHingeAnim = remember { Animatable(0f) }
     var isTransitioning by remember { mutableStateOf(false) }
 
     val tabs = listOf("tümü", "favoriler", "son kullanılanlar")
@@ -115,6 +117,38 @@ fun PeopleHubScreen(
         }
     }
 
+    val selectContactWithAnimation: (ContactModel) -> Unit = { contact ->
+        if (isWideScreen) {
+            viewModel.selectContact(contact)
+        } else {
+            if (!isTransitioning) {
+                isTransitioning = true
+                viewModel.selectContact(contact)
+                coroutineScope.launch {
+                    hubHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                    detailHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                    isTransitioning = false
+                }
+            }
+        }
+    }
+
+    val closeDetailWithAnimation: () -> Unit = {
+        if (isWideScreen) {
+            viewModel.selectContact(null)
+        } else {
+            if (!isTransitioning) {
+                isTransitioning = true
+                coroutineScope.launch {
+                    detailHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                    viewModel.selectContact(null)
+                    hubHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                    isTransitioning = false
+                }
+            }
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions ->
@@ -123,11 +157,11 @@ fun PeopleHubScreen(
         }
     )
 
-    BackHandler(enabled = newContactHingeAnim.value > 0f || selectedContactDetail != null) {
+    BackHandler(enabled = newContactHingeAnim.value > 0f || detailHingeAnim.value > 0f || selectedContactDetail != null) {
         if (newContactHingeAnim.value > 0f) {
             closeNewContactScreen()
-        } else if (selectedContactDetail != null) {
-            viewModel.selectContact(null)
+        } else if (detailHingeAnim.value > 0f || selectedContactDetail != null) {
+            closeDetailWithAnimation()
         }
     }
 
@@ -162,7 +196,6 @@ fun PeopleHubScreen(
         val screenWidthPx = with(density) { screenWidthDp.toPx() }
         val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
         val overflowYPx = with(density) { (-24).dp.toPx() }
-        val isWideScreen = LocalIsWideScreen.current
 
         val renderPage: @Composable (String) -> Unit = { tabName ->
             ZunePageTransition {
@@ -198,7 +231,7 @@ fun PeopleHubScreen(
                                             }
                                             items(contactsInGroup, key = { it.id }) { contact ->
                                                 ContactListItem(contact = contact) {
-                                                    viewModel.selectContact(it)
+                                                    selectContactWithAnimation(it)
                                                 }
                                             }
                                         }
@@ -235,7 +268,7 @@ fun PeopleHubScreen(
                             ) {
                                 items(favoriteContacts, key = { it.id }) { contact ->
                                     ContactListItem(contact = contact) {
-                                        viewModel.selectContact(it)
+                                        selectContactWithAnimation(it)
                                     }
                                 }
                             }
@@ -251,7 +284,7 @@ fun PeopleHubScreen(
                             ) {
                                 items(recentContacts, key = { it.id }) { contact ->
                                     ContactListItem(contact = contact) {
-                                        viewModel.selectContact(it)
+                                        selectContactWithAnimation(it)
                                     }
                                 }
                             }
@@ -328,7 +361,7 @@ fun PeopleHubScreen(
                         }
                     }
                 } else {
-                    // Header — Zune large typography
+                    // Mobile Header — Zune large typography
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -450,11 +483,30 @@ fun PeopleHubScreen(
             }
         }
 
-        // Contact Detail Screen Overlay
-        ContactDetailScreen(
-            detail = selectedContactDetail,
-            onBack = { viewModel.selectContact(null) }
-        )
+        // Contact Detail Screen Overlay (Tablet Card or Mobile Hinge)
+        if (isWideScreen) {
+            ContactDetailScreen(
+                detail = selectedContactDetail,
+                onBack = { closeDetailWithAnimation() }
+            )
+        } else if (detailHingeAnim.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = detailHingeAnim.value
+                        rotationY = 90f * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = 12f * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                    }
+            ) {
+                ContactDetailScreen(
+                    detail = selectedContactDetail,
+                    onBack = { closeDetailWithAnimation() }
+                )
+            }
+        }
 
         // 3D Door Hinge Animated New Contact Screen Overlay
         if (newContactHingeAnim.value > 0f) {
