@@ -78,6 +78,7 @@ class SettingsDataStore(private val context: Context) {
         val defaultOrder = listOf(
             com.serkantkn.zunelauncher.data.model.HubType.MUSIC,
             com.serkantkn.zunelauncher.data.model.HubType.PEOPLE,
+            com.serkantkn.zunelauncher.data.model.HubType.MESSAGING,
             com.serkantkn.zunelauncher.data.model.HubType.PICTURES,
             com.serkantkn.zunelauncher.data.model.HubType.PHONE,
             com.serkantkn.zunelauncher.data.model.HubType.INTERNET,

@@ -9,5 +9,6 @@ enum class HubType(val title: String) {
     PHONE("telefon"),
     CLOCK("saat"),
     INTERNET("internet"),
-    CALENDAR("takvim")
+    CALENDAR("takvim"),
+    MESSAGING("mesajlar")
 }
