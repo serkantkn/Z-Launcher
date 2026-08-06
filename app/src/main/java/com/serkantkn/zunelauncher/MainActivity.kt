@@ -52,6 +52,15 @@ class MainActivity : ComponentActivity() {
         setLauncherContent()
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (newConfig.smallestScreenWidthDp < 600) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+        }
+    }
+
     override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
         if (ev != null) {
             when (ev.action) {
