@@ -30,6 +30,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
@@ -171,6 +173,7 @@ fun PeopleHubScreen(
                                 SearchBar(
                                     query = searchQuery,
                                     onQueryChange = { viewModel.updateSearchQuery(it) },
+                                    isVisible = isSearchVisible,
                                     modifier = Modifier.padding(bottom = ZuneDimens.SpacingLg)
                                 )
                             }
@@ -680,12 +683,21 @@ private fun InputFieldGroup(
 private fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
+    isVisible: Boolean,
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
     val bgColor = if (zuneColors.isDark) Color(0xFF1A1A1A) else Color(0xFFF5F5F5)
     val textColor = MaterialTheme.colorScheme.onBackground
     val hintColor = zuneColors.textDim
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            kotlinx.coroutines.delay(100)
+            focusRequester.requestFocus()
+        }
+    }
 
     Box(
         modifier = modifier
@@ -720,7 +732,9 @@ private fun SearchBar(
                     textStyle = MaterialTheme.typography.bodyMedium.copy(color = textColor),
                     singleLine = true,
                     cursorBrush = SolidColor(zuneColors.accentColor),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
                 )
             }
         }

@@ -27,6 +27,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
@@ -271,13 +273,21 @@ fun MessagingHubScreen(
 
                 // Optional Search Bar
                 AnimatedVisibility(visible = isSearchActive) {
+                    val searchFocusRequester = remember { FocusRequester() }
+                    LaunchedEffect(isSearchActive) {
+                        if (isSearchActive) {
+                            kotlinx.coroutines.delay(100)
+                            searchFocusRequester.requestFocus()
+                        }
+                    }
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         placeholder = { Text("sohbetlerde ara...", color = zuneColors.textMuted) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 4.dp),
+                            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 4.dp)
+                            .focusRequester(searchFocusRequester),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = zuneColors.accentColor,
