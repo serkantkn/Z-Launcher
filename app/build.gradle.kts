@@ -52,10 +52,6 @@ android {
     }
 }
 
-kotlin {
-    jvmToolchain(21)
-}
-
 dependencies {
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
