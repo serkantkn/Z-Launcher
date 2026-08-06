@@ -1,67 +1,47 @@
 package com.serkantkn.zunelauncher.ui.screens
-import android.annotation.SuppressLint
+
 import android.content.Context
-import com.serkantkn.zunelauncher.MainActivityEvents
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.statusBars
+import android.os.Build
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-
-
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.serkantkn.zunelauncher.MainActivityEvents
 import com.serkantkn.zunelauncher.data.model.HubType
-import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
-import com.serkantkn.zunelauncher.ui.components.WpActionCenterPanel
-import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.components.BackgroundMode
+import com.serkantkn.zunelauncher.ui.components.WpActionCenterPanel
+import com.serkantkn.zunelauncher.ui.components.WpToastNotification
 import com.serkantkn.zunelauncher.ui.components.ZuneBackground
 import com.serkantkn.zunelauncher.ui.components.ZuneWallpaperOverlay
-import com.serkantkn.zunelauncher.ui.components.WpToastNotification
+import com.serkantkn.zunelauncher.ui.navigation.ZuneNavigationState
 import com.serkantkn.zunelauncher.ui.navigation.rememberZuneNavigationState
 import com.serkantkn.zunelauncher.ui.screens.apps.AppsHubScreen
 import com.serkantkn.zunelauncher.ui.screens.home.HomeHubScreen
@@ -70,84 +50,53 @@ import com.serkantkn.zunelauncher.ui.screens.people.PeopleHubScreen
 import com.serkantkn.zunelauncher.ui.screens.phone.PhoneHubScreen
 import com.serkantkn.zunelauncher.ui.screens.pictures.PicturesHubScreen
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingsScreen
+import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 import com.serkantkn.zunelauncher.ui.screens.social.SocialHubScreen
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
-import kotlinx.coroutines.launch
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.collectAsState
-import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 
-@SuppressLint("WrongConstant")
-fun expandNotificationPanel(context: Context) {
+private fun setStatusBarExpandDisabled(context: Context, disabled: Boolean) {
     try {
         val statusBarService = context.getSystemService("statusbar")
         val statusBarManager = Class.forName("android.app.StatusBarManager")
-        val expand = statusBarManager.getMethod("expandNotificationsPanel")
-        expand.invoke(statusBarService)
-    } catch (e: Exception) {
-        try {
-            val statusBarService = context.getSystemService("statusbar")
-            val statusBarManager = Class.forName("android.app.StatusBarManager")
-            val expand = statusBarManager.getMethod("expand")
-            expand.invoke(statusBarService)
-        } catch (ex: Exception) {
-            ex.printStackTrace()
+        val disableMethod = statusBarManager.getMethod("disable", Int::class.javaPrimitiveType)
+
+        val flag = if (disabled) {
+            val field = statusBarManager.getField("DISABLE_EXPAND")
+            field.getInt(null)
+        } else {
+            0
         }
-    }
-}
-
-fun setStatusBarExpandDisabled(context: Context, disabled: Boolean) {
-    try {
-        val statusBarService = context.getSystemService("statusbar")
-        val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
-        val disableMethod = statusBarManagerClass.getMethod("disable", Int::class.javaPrimitiveType)
-        disableMethod.invoke(statusBarService, if (disabled) 0x00010000 else 0)
+        disableMethod.invoke(statusBarService, flag)
     } catch (e: Exception) {
-        // Ignored if restricted
+        e.printStackTrace()
     }
 }
 
-/**
- * Main launcher screen composable.
- *
- * Structure:
- * - HorizontalPager with Home Hub (page 0) and Apps Hub (page 1)
- * - Hub detail overlays (Music, People, Pictures, Settings)
- * - 3D hinge animation: left edge is the pivot, screens rotate like a door
- * - Page indicator dots
- * - Background gradient interpolates between hub accent colors
- */
 @Composable
 fun LauncherScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val navState = rememberZuneNavigationState()
-    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
-    val coroutineScope = rememberCoroutineScope()
-    
-    val settingsViewModel: SettingsViewModel = viewModel()
-    val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
+    val pagerState = rememberPagerState(
+        initialPage = 1,
+        pageCount = { 3 }
+    )
+
     val notificationStyle by settingsViewModel.notificationStyle.collectAsState()
     val notificationCenterStyle by settingsViewModel.notificationCenterStyle.collectAsState()
-    val currentCenterStyle by rememberUpdatedState(notificationCenterStyle)
-    
-    var isActionCenterOpen by remember { mutableStateOf(false) }
-    val latestToastMessage by SocialRepository.latestToastMessage.collectAsState()
+    val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
+
+    val isActionCenterOpenState = remember { mutableStateOf(false) }
+    var isActionCenterOpen by isActionCenterOpenState
+    val latestNotification by SocialRepository.latestToastMessage.collectAsState()
     val context = LocalContext.current
-    
-    val triggerActionCenter by MainActivityEvents.triggerActionCenter.collectAsState()
-    LaunchedEffect(triggerActionCenter) {
-        if (triggerActionCenter) {
-            if (currentCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
-                isActionCenterOpen = true
-            } else {
-                expandNotificationPanel(context)
-            }
-            MainActivityEvents.triggerActionCenter.value = false
-        }
-    }
-    
+    val coroutineScope = rememberCoroutineScope()
+    val isWideScreen = LocalIsWideScreen.current
+    val currentCenterStyle = notificationCenterStyle
+
     var wallpaperOverlayAlpha by remember { mutableStateOf(1f) }
     val density = LocalDensity.current.density
 
@@ -162,10 +111,8 @@ fun LauncherScreen(
         val targetHub = navState.currentHub
         if (targetHub != activeHub) {
             if (activeHub != null && targetHub != null) {
-                // Stage 1: Active hub hinges AWAY to -90°
                 hingeProgress.animateTo(0f, animationSpec = tween(280, easing = FastOutSlowInEasing))
                 activeHub = targetHub
-                // Stage 2: Target hub hinges IN from +90° to 0°
                 hingeProgress.animateTo(1f, animationSpec = tween(280, easing = FastOutSlowInEasing))
             } else if (targetHub != null) {
                 activeHub = targetHub
@@ -177,8 +124,8 @@ fun LauncherScreen(
         }
     }
 
-    // Handle back press when a hub overlay is open
-    BackHandler(enabled = navState.currentHub != null) {
+    // Handle back press
+    BackHandler(enabled = navState.currentHub != null || navState.isSplitMode) {
         val popped = navState.popHub()
         if (!popped) {
             navState.closeHub()
@@ -229,27 +176,6 @@ fun LauncherScreen(
         }
     }
 
-    LaunchedEffect(isActionCenterOpen) {
-        if (isActionCenterOpen) {
-            try {
-                val statusBarService = context.getSystemService("statusbar")
-                val statusBarManager = Class.forName("android.app.StatusBarManager")
-                val collapse = statusBarManager.getMethod("collapsePanels")
-                collapse.invoke(statusBarService)
-            } catch (e: Exception) {
-                try {
-                    val statusBarService = context.getSystemService("statusbar")
-                    val statusBarManager = Class.forName("android.app.StatusBarManager")
-                    val collapse = statusBarManager.getMethod("collapse")
-                    collapse.invoke(statusBarService)
-                } catch (ex: Exception) {
-                    ex.printStackTrace()
-                }
-            }
-        }
-    }
-
-    val isWideScreen = LocalIsWideScreen.current
     LaunchedEffect(notificationCenterStyle) {
         if (notificationCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
             setStatusBarExpandDisabled(context, true)
@@ -258,140 +184,273 @@ fun LauncherScreen(
         }
     }
 
+    // 4-finger swipe gesture detection to trigger split screen mode on Tablet
+    val multiTouchGestureModifier = if (isWideScreen && navState.currentHub != null && !navState.isSplitMode) {
+        Modifier.pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    if (event.changes.size >= 4) {
+                        var totalDragX = 0f
+                        var hasRightDrag = false
+                        event.changes.forEach { change ->
+                            val dragAmount = change.position.x - change.previousPosition.x
+                            totalDragX += dragAmount
+                            if (dragAmount > 0) hasRightDrag = true
+                        }
+                        if (hasRightDrag && totalDragX > 60f) {
+                            event.changes.forEach { it.consume() }
+                            navState.enterSplitMode()
+                        }
+                    }
+                }
+            }
+        }
+    } else Modifier
+
     Box(
-        modifier = modifier.fillMaxSize().nestedScroll(globalNestedScrollConnection)
+        modifier = modifier
+            .fillMaxSize()
+            .then(multiTouchGestureModifier)
+            .nestedScroll(globalNestedScrollConnection)
     ) {
-            ZuneBackground(
-                mode = if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER,
-                accentColor = accentColor
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (!solidBackgroundEnabled) {
-                        ZuneWallpaperOverlay(alpha = wallpaperOverlayAlpha)
-                    }
+        ZuneBackground(
+            mode = if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER,
+            accentColor = accentColor
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (!solidBackgroundEnabled) {
+                    ZuneWallpaperOverlay(alpha = wallpaperOverlayAlpha)
+                }
 
-            // ════════════════════════════════════════════
-            // LAYER 1 — Main pager (Home + Apps)
-            // Hinges BACKWARD when a hub opens:
-            //   rotation: 0° → −90°  (swings away from viewer)
-            //   alpha: 1 → 0
-            // ════════════════════════════════════════════
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        val progress = hingeProgress.value
-                        rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * progress
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
-                        // Fade out during the first 2/3 of the animation
-                        alpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
-                    }
-            ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.weight(1f),
-                    userScrollEnabled = navState.currentHub == null
-                ) { page ->
-                    when (page) {
-                        0 -> SocialHubScreen()
-                        1 -> HomeHubScreen(
-                            isHubOpen = isHubOpen,
-                            isCurrentPage = pagerState.currentPage == 1,
-                            onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
-                            onHubSelected = { hub ->
-                                when (hub) {
-                                    HubType.HOME -> { /* Already on home */ }
-                                    else -> navState.openHub(hub)
+                val messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel = viewModel()
+
+                if (isWideScreen && navState.isSplitMode) {
+                    // ════════════════════════════════════════════════════════
+                    // TABLET SPLIT SCREEN DUAL-HUB MODE (50% / 50%)
+                    // ════════════════════════════════════════════════════════
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        // ── Left Pane (50% width) ──
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            if (navState.leftHub == null) {
+                                // Main Launcher Pager on the left side
+                                HorizontalPager(
+                                    state = pagerState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    userScrollEnabled = true
+                                ) { page ->
+                                    when (page) {
+                                        0 -> SocialHubScreen()
+                                        1 -> HomeHubScreen(
+                                            isHubOpen = false,
+                                            isCurrentPage = pagerState.currentPage == 1,
+                                            onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
+                                            onHubSelected = { hub -> navState.openHub(hub) }
+                                        )
+                                        2 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
+                                    }
+                                }
+                            } else {
+                                // Left Docked Hub
+                                ZuneBackground(mode = BackgroundMode.GRADIENT, accentColor = zuneColors.accentColor) {
+                                    RenderHubScreen(
+                                        hub = navState.leftHub!!,
+                                        navState = navState,
+                                        messagingViewModel = messagingViewModel,
+                                        context = context
+                                    )
+                                }
+
+                                // Close Button for Left Hub
+                                IconButton(
+                                    onClick = { navState.closeLeftSplitHub() },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .statusBarsPadding()
+                                        .padding(16.dp)
+                                        .size(40.dp)
+                                        .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Hubı Kapat",
+                                        tint = Color.White
+                                    )
                                 }
                             }
-                        )
-                        2 -> AppsHubScreen(
-                            isCurrentPage = pagerState.currentPage == 2
-                        )
-                    }
-                }
-            }
-
-            // ════════════════════════════════════════════
-            // LAYER 2 — Hub overlay
-            // Hinges IN from the front when a hub opens:
-            //   rotation: +90° → 0°  (swings toward viewer)
-            //   alpha: 0 → 1
-            // During close animation (progress 1→0), the reverse occurs.
-            // ════════════════════════════════════════════
-            if (hingeProgress.value > 0f) {
-                val hub = activeHub
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val progress = hingeProgress.value
-                            rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - progress)
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                            cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
-                            // Fade in starting ~13% into the animation
-                            alpha = (progress * 1.5f - 0.2f).coerceIn(0f, 1f)
                         }
-                ) {
-                    ZuneBackground(
-                        mode = BackgroundMode.GRADIENT,
-                        accentColor = zuneColors.accentColor
+
+                        // Divider line
+                        Box(
+                            modifier = Modifier
+                                .width(2.dp)
+                                .fillMaxHeight()
+                                .background(zuneColors.accentColor.copy(alpha = 0.6f))
+                        )
+
+                        // ── Right Pane (50% width) ──
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            if (navState.rightHub != null) {
+                                ZuneBackground(mode = BackgroundMode.GRADIENT, accentColor = zuneColors.accentColor) {
+                                    RenderHubScreen(
+                                        hub = navState.rightHub!!,
+                                        navState = navState,
+                                        messagingViewModel = messagingViewModel,
+                                        context = context
+                                    )
+                                }
+
+                                // Close Button for Right Hub
+                                IconButton(
+                                    onClick = { navState.closeRightSplitHub() },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .statusBarsPadding()
+                                        .padding(16.dp)
+                                        .size(40.dp)
+                                        .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Hubı Kapat",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // ════════════════════════════════════════════════════════
+                    // NORMAL SINGLE HUB LAUNCHER MODE
+                    // ════════════════════════════════════════════════════════
+                    // LAYER 1 — Main pager (Home + Apps)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                val progress = hingeProgress.value
+                                rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * progress
+                                transformOrigin = TransformOrigin(0f, 0.5f)
+                                cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
+                                alpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
+                            }
                     ) {
-                        val messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel = viewModel()
-                        when (hub) {
-                            HubType.MUSIC -> MusicHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
-                            HubType.PEOPLE -> PeopleHubScreen(
-                                onBack = { if (!navState.popHub()) navState.closeHub() },
-                                onOpenMessaging = { contactName, phoneNumber ->
-                                    messagingViewModel.openConversationWithContact(context, contactName, phoneNumber)
-                                    navState.openHub(HubType.MESSAGING)
-                                }
-                            )
-                            HubType.PICTURES -> PicturesHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
-                            HubType.PHONE -> PhoneHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
-                            HubType.SETTINGS -> SettingsScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
-                            HubType.CLOCK -> com.serkantkn.zunelauncher.ui.screens.clock.ClockHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
-                            HubType.INTERNET -> com.serkantkn.zunelauncher.ui.screens.browser.BrowserHubScreen(onClose = { if (!navState.popHub()) navState.closeHub() })
-                            HubType.CALENDAR -> com.serkantkn.zunelauncher.ui.screens.calendar.CalendarHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
-                            HubType.MESSAGING -> com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubScreen(
-                                onClose = { if (!navState.popHub()) navState.closeHub() },
-                                viewModel = messagingViewModel
-                            )
-                            else -> {}
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.weight(1f),
+                            userScrollEnabled = navState.currentHub == null
+                        ) { page ->
+                            when (page) {
+                                0 -> SocialHubScreen()
+                                1 -> HomeHubScreen(
+                                    isHubOpen = isHubOpen,
+                                    isCurrentPage = pagerState.currentPage == 1,
+                                    onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
+                                    onHubSelected = { hub ->
+                                        when (hub) {
+                                            HubType.HOME -> { /* Already on home */ }
+                                            else -> navState.openHub(hub)
+                                        }
+                                    }
+                                )
+                                2 -> AppsHubScreen(
+                                    isCurrentPage = pagerState.currentPage == 2
+                                )
+                            }
                         }
                     }
-                }
-            }
 
-            // Top Status Bar Gesture Interceptor Area
-            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(statusBarTop + 40.dp)
-                    .pointerInput(currentCenterStyle) {
-                        detectVerticalDragGestures { _, dragAmount ->
-                            if (dragAmount > 8f) {
-                                if (currentCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
-                                    isActionCenterOpen = true
-                                } else {
-                                    expandNotificationPanel(context)
+                    // LAYER 2 — Hub overlay
+                    if (hingeProgress.value > 0f) {
+                        val hub = activeHub
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    val progress = hingeProgress.value
+                                    rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - progress)
+                                    transformOrigin = TransformOrigin(0f, 0.5f)
+                                    cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
+                                    alpha = (progress * 1.5f - 0.2f).coerceIn(0f, 1f)
+                                }
+                        ) {
+                            ZuneBackground(
+                                mode = BackgroundMode.GRADIENT,
+                                accentColor = zuneColors.accentColor
+                            ) {
+                                if (hub != null) {
+                                    RenderHubScreen(
+                                        hub = hub,
+                                        navState = navState,
+                                        messagingViewModel = messagingViewModel,
+                                        context = context
+                                    )
                                 }
                             }
                         }
                     }
-            )
+                }
 
-            WpActionCenterPanel(
-                isOpen = isActionCenterOpen,
-                onClose = { isActionCenterOpen = false }
-            )
+                // Windows Phone Custom Action Center Panel
+                WpActionCenterPanel(
+                    isOpen = isActionCenterOpen,
+                    onClose = { isActionCenterOpen = false }
+                )
+
+                // Windows Phone Toast Notification Banner
+                if (notificationStyle == NotificationStyle.WINDOWS_PHONE) {
+                    WpToastNotification(
+                        message = latestNotification,
+                        onDismiss = { SocialRepository.clearToast() }
+                    )
+                }
+            }
         }
     }
 }
+
+@Composable
+private fun RenderHubScreen(
+    hub: HubType,
+    navState: ZuneNavigationState,
+    messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel,
+    context: Context
+) {
+    when (hub) {
+        HubType.MUSIC -> MusicHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+        HubType.PEOPLE -> PeopleHubScreen(
+            onBack = { if (!navState.popHub()) navState.closeHub() },
+            onOpenMessaging = { contactName, phoneNumber ->
+                messagingViewModel.openConversationWithContact(context, contactName, phoneNumber)
+                navState.openHub(HubType.MESSAGING)
+            }
+        )
+        HubType.PICTURES -> PicturesHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+        HubType.PHONE -> PhoneHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+        HubType.SETTINGS -> SettingsScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+        HubType.CLOCK -> com.serkantkn.zunelauncher.ui.screens.clock.ClockHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+        HubType.INTERNET -> com.serkantkn.zunelauncher.ui.screens.browser.BrowserHubScreen(onClose = { if (!navState.popHub()) navState.closeHub() })
+        HubType.CALENDAR -> com.serkantkn.zunelauncher.ui.screens.calendar.CalendarHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+        HubType.MESSAGING -> com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubScreen(
+            onClose = { if (!navState.popHub()) navState.closeHub() },
+            viewModel = messagingViewModel
+        )
+        else -> {}
+    }
 }
 
-
-
+private fun expandNotificationPanel(context: Context) {
+    try {
+        val statusBarService = context.getSystemService("statusbar")
+        val statusBarManager = Class.forName("android.app.StatusBarManager")
+        val expand = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            statusBarManager.getMethod("expandNotificationsPanel")
+        } else {
+            statusBarManager.getMethod("expand")
+        }
+        expand.invoke(statusBarService)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}

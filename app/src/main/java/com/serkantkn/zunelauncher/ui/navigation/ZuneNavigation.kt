@@ -9,29 +9,79 @@ import com.serkantkn.zunelauncher.data.model.HubType
 
 /**
  * Manages hub navigation stack for the launcher.
- * Hubs behave like applets in a backstack (e.g. PEOPLE -> MESSAGING -> back to PEOPLE).
+ * Hubs behave like applets in a backstack, and support Tablet Split Screen Mode.
  */
 class ZuneNavigationState {
     /** Stack of currently open hubs. */
     var hubStack by mutableStateOf<List<HubType>>(emptyList())
         private set
 
+    /** In tablet split screen mode, rightHub is docked on the right 50% pane. */
+    var rightHub by mutableStateOf<HubType?>(null)
+        private set
+
+    /** In tablet split screen mode, leftHub is docked on the left 50% pane. */
+    var leftHub by mutableStateOf<HubType?>(null)
+        private set
+
+    /** Indicates whether tablet dual-hub split mode is active. */
+    var isSplitMode by mutableStateOf(false)
+        private set
+
     /** Currently active hub at the top of the stack, or null if on main pager. */
     val currentHub: HubType?
-        get() = hubStack.lastOrNull()
+        get() = if (isSplitMode) (leftHub ?: rightHub) else hubStack.lastOrNull()
 
     /** Last active hub — used during exit animations. */
     var lastHub by mutableStateOf(HubType.MUSIC)
         private set
 
-    fun openHub(hub: HubType) {
-        if (currentHub != hub) {
-            lastHub = hub
-            hubStack = hubStack + hub
+    fun enterSplitMode() {
+        val current = hubStack.lastOrNull()
+        if (current != null) {
+            rightHub = current
+            leftHub = null
+            isSplitMode = true
         }
     }
 
+    fun exitSplitMode() {
+        isSplitMode = false
+        rightHub = null
+        leftHub = null
+    }
+
+    fun openHub(hub: HubType) {
+        if (isSplitMode) {
+            if (rightHub == hub) return
+            leftHub = hub
+        } else {
+            if (currentHub != hub) {
+                lastHub = hub
+                hubStack = hubStack + hub
+            }
+        }
+    }
+
+    fun closeRightSplitHub() {
+        rightHub = null
+        if (leftHub != null) {
+            hubStack = listOf(leftHub!!)
+            exitSplitMode()
+        } else {
+            exitSplitMode()
+        }
+    }
+
+    fun closeLeftSplitHub() {
+        leftHub = null
+    }
+
     fun popHub(): Boolean {
+        if (isSplitMode) {
+            exitSplitMode()
+            return true
+        }
         if (hubStack.size > 1) {
             val newStack = hubStack.dropLast(1)
             hubStack = newStack
@@ -46,6 +96,7 @@ class ZuneNavigationState {
 
     fun closeHub() {
         hubStack = emptyList()
+        exitSplitMode()
     }
 }
 
