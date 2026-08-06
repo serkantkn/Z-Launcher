@@ -5,8 +5,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -74,8 +74,11 @@ fun PeopleHubScreen(
     val selectedContactDetail by viewModel.selectedContactDetail.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
-    var showNewContactScreen by remember { mutableStateOf(false) }
     var isSearchVisible by remember { mutableStateOf(false) }
+
+    val hubHingeAnim = remember { Animatable(1f) }
+    val newContactHingeAnim = remember { Animatable(0f) }
+    var isTransitioning by remember { mutableStateOf(false) }
 
     val tabs = listOf("tümü", "favoriler", "son kullanılanlar")
     val actualPageCount = tabs.size
@@ -88,6 +91,28 @@ fun PeopleHubScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
+    val openNewContactScreen: () -> Unit = {
+        if (!isTransitioning) {
+            isTransitioning = true
+            coroutineScope.launch {
+                hubHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                newContactHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                isTransitioning = false
+            }
+        }
+    }
+
+    val closeNewContactScreen: () -> Unit = {
+        if (!isTransitioning) {
+            isTransitioning = true
+            coroutineScope.launch {
+                newContactHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                hubHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                isTransitioning = false
+            }
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions ->
@@ -96,9 +121,9 @@ fun PeopleHubScreen(
         }
     )
 
-    BackHandler(enabled = showNewContactScreen || selectedContactDetail != null) {
-        if (showNewContactScreen) {
-            showNewContactScreen = false
+    BackHandler(enabled = newContactHingeAnim.value > 0f || selectedContactDetail != null) {
+        if (newContactHingeAnim.value > 0f) {
+            closeNewContactScreen()
         } else if (selectedContactDetail != null) {
             viewModel.selectContact(null)
         }
@@ -109,7 +134,7 @@ fun PeopleHubScreen(
             WpBarAction(
                 icon = Icons.Default.Add,
                 label = "yeni kişi",
-                onClick = { showNewContactScreen = true }
+                onClick = { openNewContactScreen() }
             ),
             WpBarAction(
                 icon = Icons.Default.Search,
@@ -233,179 +258,192 @@ fun PeopleHubScreen(
             }
         }
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            if (isWideScreen) {
-                Text(
-                    text = "kişiler",
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 96.sp,
-                        letterSpacing = (-4).sp,
-                        lineHeight = 96.sp
-                    ),
-                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                    modifier = Modifier.padding(
-                        start = 72.dp,
-                        top = 4.dp,
-                        bottom = 24.dp
-                    ).graphicsLayer { translationY = overflowYPx }
-                )
-
-                if (!hasPermission) {
-                    PermissionRequestView(
-                        onRequestPermission = {
-                            permissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.READ_CONTACTS,
-                                    Manifest.permission.WRITE_CONTACTS
-                                )
-                            )
-                        }
-                    )
-                } else if (isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = zuneColors.accentColor)
+        // People Hub Content Layer with Hinge Animation
+        if (hubHingeAnim.value > 0f) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = hubHingeAnim.value
+                        rotationY = -90f * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = 12f * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
                     }
-                } else {
-                    LazyRow(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentPadding = PaddingValues(start = 72.dp, end = 48.dp),
-                        horizontalArrangement = Arrangement.spacedBy(48.dp)
-                    ) {
-                        items(tabs.size) { index ->
-                            Column(modifier = Modifier.width(360.dp).fillMaxHeight()) {
-                                Text(
-                                    text = tabs[index],
-                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
-                                    color = zuneColors.accentColor,
-                                    modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                if (isWideScreen) {
+                    Text(
+                        text = "kişiler",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 96.sp,
+                            letterSpacing = (-4).sp,
+                            lineHeight = 96.sp
+                        ),
+                        color = if (zuneColors.isDark) Color.White else Color.Black,
+                        modifier = Modifier.padding(
+                            start = 72.dp,
+                            top = 4.dp,
+                            bottom = 24.dp
+                        ).graphicsLayer { translationY = overflowYPx }
+                    )
+
+                    if (!hasPermission) {
+                        PermissionRequestView(
+                            onRequestPermission = {
+                                permissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.READ_CONTACTS,
+                                        Manifest.permission.WRITE_CONTACTS
+                                    )
                                 )
-                                Box(modifier = Modifier.weight(1f)) {
-                                    renderPage(tabs[index])
+                            }
+                        )
+                    } else if (isLoading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = zuneColors.accentColor)
+                        }
+                    } else {
+                        LazyRow(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentPadding = PaddingValues(start = 72.dp, end = 48.dp),
+                            horizontalArrangement = Arrangement.spacedBy(48.dp)
+                        ) {
+                            items(tabs.size) { index ->
+                                Column(modifier = Modifier.width(360.dp).fillMaxHeight()) {
+                                    Text(
+                                        text = tabs[index],
+                                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
+                                        color = zuneColors.accentColor,
+                                        modifier = Modifier.padding(bottom = 16.dp)
+                                    )
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        renderPage(tabs[index])
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            } else {
-                // Header — Zune large typography
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            top = 28.dp,
-                            bottom = 4.dp,
-                            start = ZuneDimens.ScreenPaddingHorizontal
-                        )
-                ) {
-                    val cycle = (pagerState.currentPage + pagerState.currentPageOffsetFraction) % actualPageCount
-                    val actualCycle = if (cycle < 0) cycle + actualPageCount else cycle
-                    val threshold = (actualPageCount - 1).toFloat()
-
-                    val translationX1: Float
-                    val translationX2: Float
-
-                    if (actualCycle <= threshold) {
-                        translationX1 = -actualCycle * parallaxMultiplierPx
-                        translationX2 = screenWidthPx
-                    } else {
-                        val fraction = actualCycle - threshold
-                        translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
-                        translationX2 = screenWidthPx - fraction * screenWidthPx
-                    }
-
-                    Text(
-                        text = "kişiler",
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Light,
-                            fontSize = 96.sp,
-                            letterSpacing = (-4).sp,
-                            lineHeight = 96.sp
-                        ),
-                        color = if (zuneColors.isDark) Color.White else Color.Black,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.graphicsLayer {
-                            translationX = translationX1
-                            translationY = overflowYPx
-                        }
-                    )
-                    Text(
-                        text = "kişiler",
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Light,
-                            fontSize = 96.sp,
-                            letterSpacing = (-4).sp,
-                            lineHeight = 96.sp
-                        ),
-                        color = if (zuneColors.isDark) Color.White else Color.Black,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.graphicsLayer {
-                            translationX = translationX2
-                            translationY = overflowYPx
-                        }
-                    )
-                }
-
-                // Tabs — Zune Pivot
-                ZunePivotTabs(
-                    tabs = tabs,
-                    pagerState = pagerState,
-                    onSelected = { index ->
-                        val current = pagerState.currentPage
-                        val size = actualPageCount
-                        val currentActual = ((current % size) + size) % size
-                        var diff = index - currentActual
-                        if (diff > size / 2) {
-                            diff -= size
-                        } else if (diff < -size / 2) {
-                            diff += size
-                        }
-                        val targetPage = current + diff
-                        coroutineScope.launch { pagerState.animateScrollToPage(targetPage) }
-                    },
-                    modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
-                )
-
-                // Content area
-                if (!hasPermission) {
-                    PermissionRequestView(
-                        onRequestPermission = {
-                            permissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.READ_CONTACTS,
-                                    Manifest.permission.WRITE_CONTACTS
-                                )
-                            )
-                        }
-                    )
-                } else if (isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = zuneColors.accentColor)
-                    }
                 } else {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentPadding = PaddingValues(
-                            start = ZuneDimens.ScreenPaddingHorizontal,
-                            end = 48.dp
-                        ),
-                        pageSpacing = 24.dp
-                    ) { page ->
-                        val actualPage = page % actualPageCount
-                        renderPage(tabs[actualPage])
+                    // Header — Zune large typography
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                top = 28.dp,
+                                bottom = 4.dp,
+                                start = ZuneDimens.ScreenPaddingHorizontal
+                            )
+                    ) {
+                        val cycle = (pagerState.currentPage + pagerState.currentPageOffsetFraction) % actualPageCount
+                        val actualCycle = if (cycle < 0) cycle + actualPageCount else cycle
+                        val threshold = (actualPageCount - 1).toFloat()
+
+                        val translationX1: Float
+                        val translationX2: Float
+
+                        if (actualCycle <= threshold) {
+                            translationX1 = -actualCycle * parallaxMultiplierPx
+                            translationX2 = screenWidthPx
+                        } else {
+                            val fraction = actualCycle - threshold
+                            translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
+                            translationX2 = screenWidthPx - fraction * screenWidthPx
+                        }
+
+                        Text(
+                            text = "kişiler",
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontWeight = FontWeight.Light,
+                                fontSize = 96.sp,
+                                letterSpacing = (-4).sp,
+                                lineHeight = 96.sp
+                            ),
+                            color = if (zuneColors.isDark) Color.White else Color.Black,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.graphicsLayer {
+                                translationX = translationX1
+                                translationY = overflowYPx
+                            }
+                        )
+                        Text(
+                            text = "kişiler",
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontWeight = FontWeight.Light,
+                                fontSize = 96.sp,
+                                letterSpacing = (-4).sp,
+                                lineHeight = 96.sp
+                            ),
+                            color = if (zuneColors.isDark) Color.White else Color.Black,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.graphicsLayer {
+                                translationX = translationX2
+                                translationY = overflowYPx
+                            }
+                        )
+                    }
+
+                    // Tabs — Zune Pivot
+                    ZunePivotTabs(
+                        tabs = tabs,
+                        pagerState = pagerState,
+                        onSelected = { index ->
+                            val current = pagerState.currentPage
+                            val size = actualPageCount
+                            val currentActual = ((current % size) + size) % size
+                            var diff = index - currentActual
+                            if (diff > size / 2) {
+                                diff -= size
+                            } else if (diff < -size / 2) {
+                                diff += size
+                            }
+                            val targetPage = current + diff
+                            coroutineScope.launch { pagerState.animateScrollToPage(targetPage) }
+                        },
+                        modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
+                    )
+
+                    // Content area
+                    if (!hasPermission) {
+                        PermissionRequestView(
+                            onRequestPermission = {
+                                permissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.READ_CONTACTS,
+                                        Manifest.permission.WRITE_CONTACTS
+                                    )
+                                )
+                            }
+                        )
+                    } else if (isLoading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = zuneColors.accentColor)
+                        }
+                    } else {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentPadding = PaddingValues(
+                                start = ZuneDimens.ScreenPaddingHorizontal,
+                                end = 48.dp
+                            ),
+                            pageSpacing = 24.dp
+                        ) { page ->
+                            val actualPage = page % actualPageCount
+                            renderPage(tabs[actualPage])
+                        }
                     }
                 }
-            }
 
-            // Windows Phone Bottom Bar
-            if (hasPermission) {
-                WindowsPhoneBottomBar(
-                    actions = bottomBarActions,
-                    menuItems = bottomBarMenuItems
-                )
+                // Windows Phone Bottom Bar
+                if (hasPermission) {
+                    WindowsPhoneBottomBar(
+                        actions = bottomBarActions,
+                        menuItems = bottomBarMenuItems
+                    )
+                }
             }
         }
 
@@ -416,29 +454,24 @@ fun PeopleHubScreen(
         )
 
         // 3D Door Hinge Animated New Contact Screen Overlay
-        val hingeProgress by animateFloatAsState(
-            targetValue = if (showNewContactScreen) 1f else 0f,
-            animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing),
-            label = "new_contact_hinge"
-        )
-
-        if (hingeProgress > 0f) {
+        if (newContactHingeAnim.value > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        rotationY = 90f * (1f - hingeProgress)
+                        val p = newContactHingeAnim.value
+                        rotationY = 90f * (1f - p)
                         transformOrigin = TransformOrigin(0f, 0.5f)
                         cameraDistance = 12f * density.density
-                        alpha = (hingeProgress * 1.5f - 0.2f).coerceIn(0f, 1f)
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
                     }
             ) {
                 NewContactScreen(
-                    onClose = { showNewContactScreen = false },
+                    onClose = { closeNewContactScreen() },
                     onSave = { firstName, lastName, phone, email, saveToGoogle ->
                         viewModel.createContact(firstName, lastName, phone, email, saveToGoogle) { success ->
                             if (success) {
-                                showNewContactScreen = false
+                                closeNewContactScreen()
                             }
                         }
                     }
