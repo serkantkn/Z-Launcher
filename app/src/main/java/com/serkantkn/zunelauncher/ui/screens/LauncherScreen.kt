@@ -519,6 +519,9 @@ private fun RenderHubScreen(
             onClose = { if (!navState.popHub()) navState.closeHub() },
             viewModel = messagingViewModel
         )
+        HubType.FILES -> com.serkantkn.zunelauncher.ui.screens.files.FilesHubScreen(
+            onClose = { if (!navState.popHub()) navState.closeHub() }
+        )
         else -> {}
     }
 }

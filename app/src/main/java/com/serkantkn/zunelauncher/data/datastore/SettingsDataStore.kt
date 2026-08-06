@@ -80,6 +80,7 @@ class SettingsDataStore(private val context: Context) {
             com.serkantkn.zunelauncher.data.model.HubType.PEOPLE,
             com.serkantkn.zunelauncher.data.model.HubType.MESSAGING,
             com.serkantkn.zunelauncher.data.model.HubType.PICTURES,
+            com.serkantkn.zunelauncher.data.model.HubType.FILES,
             com.serkantkn.zunelauncher.data.model.HubType.PHONE,
             com.serkantkn.zunelauncher.data.model.HubType.INTERNET,
             com.serkantkn.zunelauncher.data.model.HubType.SETTINGS
