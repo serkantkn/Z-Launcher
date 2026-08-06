@@ -421,8 +421,8 @@ fun HomeHubScreen(
                                 maxLines = 1,
                                 softWrap = false,
                                 modifier = Modifier
+                                    .w10mStaggeredAnimation(animationProgress.value, 8)
                                     .graphicsLayer {
-                                        translationX = translationX
                                         translationY = with(localDensity) { (-24).dp.toPx() }
                                     }
                                     .padding(bottom = 4.dp)
