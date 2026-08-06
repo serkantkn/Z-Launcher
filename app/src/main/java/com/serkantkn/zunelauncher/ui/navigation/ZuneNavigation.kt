@@ -8,25 +8,44 @@ import androidx.compose.runtime.setValue
 import com.serkantkn.zunelauncher.data.model.HubType
 
 /**
- * Manages hub navigation state for the launcher.
- * Used for opening/closing hub detail screens as overlays.
+ * Manages hub navigation stack for the launcher.
+ * Hubs behave like applets in a backstack (e.g. PEOPLE -> MESSAGING -> back to PEOPLE).
  */
 class ZuneNavigationState {
-    /** Currently opened hub, or null if showing the main pager. */
-    var currentHub by mutableStateOf<HubType?>(null)
+    /** Stack of currently open hubs. */
+    var hubStack by mutableStateOf<List<HubType>>(emptyList())
         private set
 
-    /** Last opened hub — used to retain content during exit animation. */
+    /** Currently active hub at the top of the stack, or null if on main pager. */
+    val currentHub: HubType?
+        get() = hubStack.lastOrNull()
+
+    /** Last active hub — used during exit animations. */
     var lastHub by mutableStateOf(HubType.MUSIC)
         private set
 
     fun openHub(hub: HubType) {
-        lastHub = hub
-        currentHub = hub
+        if (currentHub != hub) {
+            lastHub = hub
+            hubStack = hubStack + hub
+        }
+    }
+
+    fun popHub(): Boolean {
+        if (hubStack.size > 1) {
+            val newStack = hubStack.dropLast(1)
+            hubStack = newStack
+            lastHub = newStack.last()
+            return true
+        } else if (hubStack.isNotEmpty()) {
+            hubStack = emptyList()
+            return true
+        }
+        return false
     }
 
     fun closeHub() {
-        currentHub = null
+        hubStack = emptyList()
     }
 }
 

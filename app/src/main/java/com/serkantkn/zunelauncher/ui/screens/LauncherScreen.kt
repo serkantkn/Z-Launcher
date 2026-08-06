@@ -152,26 +152,37 @@ fun LauncherScreen(
     val density = LocalDensity.current.density
 
     // ── Hinge animation state ──
-    // 0f = pager fully visible (hub closed)
-    // 1f = hub fully visible (pager hinged away)
     val hingeProgress = remember { Animatable(0f) }
+    var activeHub by remember { mutableStateOf(navState.currentHub) }
     val isHubOpen = navState.currentHub != null
     val zuneColors = LocalZuneColors.current
 
-    // Drive the hinge animation when hub opens/closes
-    LaunchedEffect(isHubOpen) {
-        hingeProgress.animateTo(
-            targetValue = if (isHubOpen) 1f else 0f,
-            animationSpec = tween(
-                durationMillis = HingeAnimation.DURATION_MS,
-                easing = FastOutSlowInEasing
-            )
-        )
+    // Drive 2-stage hinge animation when switching hubs or returning to home screen
+    LaunchedEffect(navState.currentHub) {
+        val targetHub = navState.currentHub
+        if (targetHub != activeHub) {
+            if (activeHub != null && targetHub != null) {
+                // Stage 1: Active hub hinges AWAY to -90°
+                hingeProgress.animateTo(0f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+                activeHub = targetHub
+                // Stage 2: Target hub hinges IN from +90° to 0°
+                hingeProgress.animateTo(1f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+            } else if (targetHub != null) {
+                activeHub = targetHub
+                hingeProgress.animateTo(1f, animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing))
+            } else {
+                hingeProgress.animateTo(0f, animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing))
+                activeHub = null
+            }
+        }
     }
 
     // Handle back press when a hub overlay is open
     BackHandler(enabled = navState.currentHub != null) {
-        navState.closeHub()
+        val popped = navState.popHub()
+        if (!popped) {
+            navState.closeHub()
+        }
     }
 
     // Interpolate accent color based on pager scroll position
@@ -310,7 +321,7 @@ fun LauncherScreen(
             // During close animation (progress 1→0), the reverse occurs.
             // ════════════════════════════════════════════
             if (hingeProgress.value > 0f) {
-                val hub = navState.lastHub
+                val hub = activeHub
 
                 Box(
                     modifier = Modifier
@@ -330,22 +341,22 @@ fun LauncherScreen(
                     ) {
                         val messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel = viewModel()
                         when (hub) {
-                            HubType.MUSIC -> MusicHubScreen(onBack = { navState.closeHub() })
+                            HubType.MUSIC -> MusicHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
                             HubType.PEOPLE -> PeopleHubScreen(
-                                onBack = { navState.closeHub() },
+                                onBack = { if (!navState.popHub()) navState.closeHub() },
                                 onOpenMessaging = { contactName, phoneNumber ->
                                     messagingViewModel.openConversationWithContact(context, contactName, phoneNumber)
                                     navState.openHub(HubType.MESSAGING)
                                 }
                             )
-                            HubType.PICTURES -> PicturesHubScreen(onBack = { navState.closeHub() })
-                            HubType.PHONE -> PhoneHubScreen(onBack = { navState.closeHub() })
-                            HubType.SETTINGS -> SettingsScreen(onBack = { navState.closeHub() })
-                            HubType.CLOCK -> com.serkantkn.zunelauncher.ui.screens.clock.ClockHubScreen(onBack = { navState.closeHub() })
-                            HubType.INTERNET -> com.serkantkn.zunelauncher.ui.screens.browser.BrowserHubScreen(onClose = { navState.closeHub() })
-                            HubType.CALENDAR -> com.serkantkn.zunelauncher.ui.screens.calendar.CalendarHubScreen(onBack = { navState.closeHub() })
+                            HubType.PICTURES -> PicturesHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+                            HubType.PHONE -> PhoneHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+                            HubType.SETTINGS -> SettingsScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+                            HubType.CLOCK -> com.serkantkn.zunelauncher.ui.screens.clock.ClockHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+                            HubType.INTERNET -> com.serkantkn.zunelauncher.ui.screens.browser.BrowserHubScreen(onClose = { if (!navState.popHub()) navState.closeHub() })
+                            HubType.CALENDAR -> com.serkantkn.zunelauncher.ui.screens.calendar.CalendarHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
                             HubType.MESSAGING -> com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubScreen(
-                                onClose = { navState.closeHub() },
+                                onClose = { if (!navState.popHub()) navState.closeHub() },
                                 viewModel = messagingViewModel
                             )
                             else -> {}
