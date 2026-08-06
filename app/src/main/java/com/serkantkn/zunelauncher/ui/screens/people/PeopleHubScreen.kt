@@ -80,9 +80,10 @@ fun PeopleHubScreen(
 
     var isSearchVisible by remember { mutableStateOf(false) }
 
-    val hubHingeAnim = remember { Animatable(1f) }
+    val hasInitialDetail = remember { selectedContactDetail != null && !isWideScreen }
+    val hubHingeAnim = remember { Animatable(if (hasInitialDetail) 0f else 1f) }
     val newContactHingeAnim = remember { Animatable(0f) }
-    val detailHingeAnim = remember { Animatable(0f) }
+    val detailHingeAnim = remember { Animatable(if (hasInitialDetail) 1f else 0f) }
     var isTransitioning by remember { mutableStateOf(false) }
 
     val tabs = listOf("tümü", "favoriler", "son kullanılanlar")
