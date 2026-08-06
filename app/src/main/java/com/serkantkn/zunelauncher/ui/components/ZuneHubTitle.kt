@@ -31,7 +31,8 @@ fun ZuneHubTitle(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
-    fontSize: TextUnit = ZuneDimens.HubTitleFontSize
+    fontSize: TextUnit = ZuneDimens.HubTitleFontSize,
+    verticalPadding: androidx.compose.ui.unit.Dp = ZuneDimens.SpacingXs
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -44,7 +45,7 @@ fun ZuneHubTitle(
 
     Text(
         text = title,
-        style = MaterialTheme.typography.displayMedium.copy(
+        style = MaterialTheme.typography.displayLarge.copy(
             fontWeight = FontWeight.Light,
             fontSize = fontSize
         ),
@@ -57,6 +58,6 @@ fun ZuneHubTitle(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(vertical = ZuneDimens.SpacingXs)
+            .padding(vertical = verticalPadding)
     )
 }

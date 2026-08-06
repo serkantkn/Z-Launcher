@@ -36,19 +36,23 @@ fun ZunePivotTabs(
     val listState = rememberLazyListState()
     val density = LocalDensity.current
 
-    LaunchedEffect(pagerState) {
+    LaunchedEffect(pagerState, tabs.size) {
         snapshotFlow { pagerState.currentPage + pagerState.currentPageOffsetFraction }
             .collect { currentFloatPage ->
-                val clampedPage = currentFloatPage.coerceIn(0f, (tabs.size - 1).toFloat())
-                val index = clampedPage.toInt()
-                val fraction = clampedPage - index
-                val spacingPx = with(density) { 24.dp.toPx() }
-                
-                val itemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
-                val itemWidth = itemInfo?.size?.toFloat() ?: 0f
-                val offsetPixels = (fraction * (itemWidth + spacingPx)).toInt()
-                
-                listState.scrollToItem(index, offsetPixels)
+                val size = tabs.size
+                if (size > 0) {
+                    val actualFloatPage = (currentFloatPage % size).let { if (it < 0) it + size else it }
+                    val clampedPage = actualFloatPage.coerceIn(0f, (size - 1).toFloat())
+                    val index = clampedPage.toInt()
+                    val fraction = clampedPage - index
+                    val spacingPx = with(density) { 24.dp.toPx() }
+                    
+                    val itemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
+                    val itemWidth = itemInfo?.size?.toFloat() ?: 0f
+                    val offsetPixels = (fraction * (itemWidth + spacingPx)).toInt()
+                    
+                    listState.scrollToItem(index, offsetPixels)
+                }
             }
     }
 
@@ -63,7 +67,8 @@ fun ZunePivotTabs(
         userScrollEnabled = false
     ) {
         itemsIndexed(tabs) { index, tabTitle ->
-            val isSelected = index == pagerState.currentPage
+            val actualCurrentPage = (pagerState.currentPage % tabs.size).let { if (it < 0) it + tabs.size else it }
+            val isSelected = index == actualCurrentPage
             
             val alpha by animateFloatAsState(
                 targetValue = if (isSelected) 1f else 0.45f,
@@ -74,8 +79,8 @@ fun ZunePivotTabs(
                 text = tabTitle,
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontWeight = FontWeight.Light,
-                    fontSize = 56.sp,
-                    letterSpacing = (-2).sp
+                    fontSize = 36.sp,
+                    letterSpacing = (-1).sp
                 ),
                 color = if (isSelected) {
                     MaterialTheme.colorScheme.onBackground

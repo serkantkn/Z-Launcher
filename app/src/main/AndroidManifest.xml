@@ -21,6 +21,11 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".ZuneLauncherApp"
@@ -74,6 +79,40 @@
             android:turnScreenOn="true"
             android:theme="@style/Theme.ZuneLauncher"
             android:exported="false" />
+
+        <service android:name=".service.ZuneLockScreenService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="lock_screen_listener" />
+        </service>
+
+        <receiver android:name=".service.BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".ui.screens.lock.LockScreenActivity"
+            android:showWhenLocked="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:theme="@style/Theme.ZuneLauncher"
+            android:exported="false" />
+
+        <service
+            android:name=".service.ZuneNotificationAccessibilityService"
+            android:label="Zune Windows Phone Bildirim Paneli"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
 
     </application>
 

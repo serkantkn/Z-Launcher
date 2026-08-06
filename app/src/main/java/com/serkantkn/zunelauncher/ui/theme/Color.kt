@@ -22,6 +22,12 @@ object ZuneColors {
     val Green = Color(0xFF4CAF50)
     val Teal = Color(0xFF00BCD4)
     val Red = Color(0xFFE53935)
+    val Yellow = Color(0xFFFFEB3B)
+    val Lime = Color(0xFFCDDC39)
+    val Crimson = Color(0xFFDC143C)
+    val Cobalt = Color(0xFF0050EF)
+    val Amber = Color(0xFFF0A30A)
+    val Brown = Color(0xFF825A2C)
 
     // Text
     val White = Color(0xFFFFFFFF)

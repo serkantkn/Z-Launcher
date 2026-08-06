@@ -15,7 +15,13 @@ import com.serkantkn.zunelauncher.data.repository.SocialRepository
 
 class SocialNotificationListener : NotificationListenerService() {
 
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        updateAllNotificationCounts()
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        updateAllNotificationCounts()
         val notification = sbn.notification
         val category = notification.category
         
@@ -70,10 +76,11 @@ class SocialNotificationListener : NotificationListenerService() {
             openIntent = notification.contentIntent
         )
 
-        SocialRepository.addOrUpdateMessage(messageModel)
+        SocialRepository.addOrUpdateMessage(messageModel, this)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        updateAllNotificationCounts()
         SocialRepository.removeMessage(sbn.key)
     }
 
@@ -116,5 +123,23 @@ class SocialNotificationListener : NotificationListenerService() {
         drawable.setBounds(0, 0, canvas.width, canvas.height)
         drawable.draw(canvas)
         return bitmap
+    }
+
+    private fun updateAllNotificationCounts() {
+        try {
+            val active = activeNotifications ?: return
+            val counts = active.groupBy { it.packageName }
+                .mapValues { entry ->
+                    entry.value.filter { isNotificationValid(it) }.size
+                }
+            SocialRepository.updateNotificationCounts(counts)
+        } catch (e: Exception) {}
+    }
+
+    private fun isNotificationValid(sbn: StatusBarNotification): Boolean {
+        val n = sbn.notification
+        val isOngoing = (n.flags and Notification.FLAG_ONGOING_EVENT) != 0
+        val isGroupHeader = (n.flags and Notification.FLAG_GROUP_SUMMARY) != 0
+        return !isOngoing && !isGroupHeader
     }
 }

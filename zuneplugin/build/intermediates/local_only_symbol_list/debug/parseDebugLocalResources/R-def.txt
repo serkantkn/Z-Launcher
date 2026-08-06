@@ -1,0 +1,7 @@
+R_DEF: Internal format may change without notice
+local
+mipmap ic_launcher
+mipmap ic_launcher_round
+string accessibility_service_description
+string app_name
+xml accessibility_service_config

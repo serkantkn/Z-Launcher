@@ -9,7 +9,11 @@ import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.AccentColor
+import com.serkantkn.zunelauncher.data.model.LockScreenMode
+import com.serkantkn.zunelauncher.data.model.NotificationStyle
+import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
 import com.serkantkn.zunelauncher.data.repository.SettingsRepository
+import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.util.SystemSettingsManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -73,6 +77,48 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val directCallEnabled: StateFlow<Boolean> = settingsRepository.directCallEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val notificationStyle: StateFlow<NotificationStyle> = settingsRepository.notificationStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationStyle.WINDOWS_PHONE)
+
+    val notificationCenterStyle: StateFlow<NotificationCenterStyle> = settingsRepository.notificationCenterStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationCenterStyle.WINDOWS_PHONE)
+
+    val hubOrder: StateFlow<List<HubType>> = settingsRepository.hubOrder
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            listOf(
+                HubType.MUSIC,
+                HubType.PEOPLE,
+                HubType.PICTURES,
+                HubType.PHONE,
+                HubType.INTERNET,
+                HubType.SETTINGS
+            )
+        )
+
+    fun moveHub(index: Int, direction: Int) {
+        val current = hubOrder.value.toMutableList()
+        val targetIndex = index + direction
+        if (index in current.indices && targetIndex in current.indices) {
+            val item = current.removeAt(index)
+            current.add(targetIndex, item)
+            viewModelScope.launch { settingsRepository.setHubOrder(current) }
+        }
+    }
+
+    fun resetHubOrder() {
+        val defaultOrder = listOf(
+            HubType.MUSIC,
+            HubType.PEOPLE,
+            HubType.PICTURES,
+            HubType.PHONE,
+            HubType.INTERNET,
+            HubType.SETTINGS
+        )
+        viewModelScope.launch { settingsRepository.setHubOrder(defaultOrder) }
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     }
@@ -93,8 +139,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepository.setDirectCallEnabled(enabled) }
     }
 
+    fun setNotificationStyle(style: NotificationStyle) {
+        viewModelScope.launch { settingsRepository.setNotificationStyle(style) }
+    }
+
+    fun setNotificationCenterStyle(style: NotificationCenterStyle) {
+        viewModelScope.launch { settingsRepository.setNotificationCenterStyle(style) }
+    }
+
     fun setAccentColor(color: AccentColor) {
         viewModelScope.launch { settingsRepository.setAccentColor(color) }
+    }
+
+    fun setCustomThemeColor(color: Int?) {
+        viewModelScope.launch { settingsRepository.setCustomThemeColor(color) }
+    }
+
+    fun setSolidBackgroundEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setSolidBackgroundEnabled(enabled) }
     }
 
     fun setBrightness(value: Float) {
@@ -148,6 +210,26 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val dynamicThemeColor: StateFlow<Int?> = settingsRepository.dynamicThemeColor
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val customThemeColor: StateFlow<Int?> = settingsRepository.customThemeColor
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val solidBackgroundEnabled: StateFlow<Boolean> = settingsRepository.solidBackgroundEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val lockScreenMode: StateFlow<LockScreenMode> = settingsRepository.lockScreenMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LockScreenMode.DISABLED)
+
+    val customPin: StateFlow<String?> = settingsRepository.customPin
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun setLockScreenMode(mode: LockScreenMode) {
+        viewModelScope.launch { settingsRepository.setLockScreenMode(mode) }
+    }
+
+    fun setCustomPin(pin: String?) {
+        viewModelScope.launch { settingsRepository.setCustomPin(pin) }
+    }
+
     fun saveCroppedWallpaper(bitmap: android.graphics.Bitmap) {
         viewModelScope.launch {
             try {
@@ -192,6 +274,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             settingsRepository.setCustomWallpaperPath(null)
             settingsRepository.setDynamicThemeColor(null)
 
+        }
+    }
+
+    fun clearBrowserHistory() {
+        viewModelScope.launch {
+            settingsRepository.setBrowserHistory("[]")
         }
     }
 }

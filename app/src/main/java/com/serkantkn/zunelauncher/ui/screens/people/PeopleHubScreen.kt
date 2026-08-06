@@ -21,11 +21,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -52,7 +55,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,6 +72,7 @@ import com.serkantkn.zunelauncher.ui.components.ZuneAlphabetIndex
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
@@ -86,7 +93,13 @@ fun PeopleHubScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     val tabs = listOf("tümü", "favoriler", "son kullanılanlar")
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val actualPageCount = tabs.size
+    val loopCount = 1000
+    val initialPage = (loopCount / 2) * actualPageCount
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { loopCount * actualPageCount }
+    )
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -102,34 +115,242 @@ fun PeopleHubScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        val configuration = LocalConfiguration.current
+        val screenWidthDp = configuration.screenWidthDp.dp
+        val density = LocalDensity.current
+        val screenWidthPx = with(density) { screenWidthDp.toPx() }
+        val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
+        val overflowYPx = with(density) { (-24).dp.toPx() }
+        val isWideScreen = LocalIsWideScreen.current
+
+        val renderPage: @Composable (String) -> Unit = { tabName ->
+            ZunePageTransition {
+                when (tabName) {
+                    "tümü" -> {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            SearchBar(
+                                query = searchQuery,
+                                onQueryChange = { viewModel.updateSearchQuery(it) },
+                                modifier = Modifier.padding(bottom = ZuneDimens.SpacingLg)
+                            )
+                            
+                            if (groupedContacts.isEmpty()) {
+                                EmptyStateView(
+                                    if (searchQuery.isNotBlank()) "sonuç bulunamadı"
+                                    else stringResource(R.string.no_contacts)
+                                )
+                            } else {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    LazyColumn(
+                                        state = listState,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(end = 28.dp),
+                                        contentPadding = PaddingValues(bottom = 80.dp)
+                                    ) {
+                                        groupedContacts.forEach { (letter, contactsInGroup) ->
+                                            item(key = "header_$letter") {
+                                                LetterHeader(letter = letter)
+                                            }
+                                            items(contactsInGroup, key = { it.id }) { contact ->
+                                                ContactListItem(contact = contact) {
+                                                    viewModel.selectContact(it)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    ZuneAlphabetIndex(
+                                        availableLetters = groupedContacts.keys,
+                                        onLetterSelected = { letter ->
+                                            val index = groupedContacts.keys.indexOf(letter)
+                                            if (index >= 0) {
+                                                coroutineScope.launch {
+                                                    var flatIndex = 0
+                                                    for ((l, list) in groupedContacts) {
+                                                        if (l == letter) break
+                                                        flatIndex += 1 + list.size
+                                                    }
+                                                    listState.scrollToItem(flatIndex)
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.align(Alignment.CenterEnd)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    "favoriler" -> {
+                        if (favoriteContacts.isEmpty()) {
+                            EmptyStateView(stringResource(R.string.no_favorite_contacts))
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 80.dp)
+                            ) {
+                                items(favoriteContacts, key = { it.id }) { contact ->
+                                    ContactListItem(contact = contact) {
+                                        viewModel.selectContact(it)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    "son kullanılanlar" -> {
+                        if (recentContacts.isEmpty()) {
+                            EmptyStateView(stringResource(R.string.no_recent_contacts))
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 80.dp)
+                            ) {
+                                items(recentContacts, key = { it.id }) { contact ->
+                                    ContactListItem(contact = contact) {
+                                        viewModel.selectContact(it)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header — Zune large typography
-            Text(
-                text = "kişiler",
-                style = MaterialTheme.typography.displaySmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-1).sp
-                ),
-                color = zuneColors.accentColor,
-                modifier = Modifier.padding(
-                    top = 60.dp,
-                    bottom = 4.dp,
-                    start = ZuneDimens.ScreenPaddingHorizontal,
-                    end = ZuneDimens.ScreenPaddingHorizontal
+            if (isWideScreen) {
+                Text(
+                    text = "kişiler",
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 96.sp,
+                        letterSpacing = (-4).sp,
+                        lineHeight = 96.sp
+                    ),
+                    color = if (zuneColors.isDark) Color.White else Color.Black,
+                    modifier = Modifier.padding(
+                            start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
+                        top = 4.dp,
+                        bottom = 24.dp
+                    ).graphicsLayer { translationY = overflowYPx }
                 )
-            )
 
-            // Tabs — W10M style -> Zune Pivot
-            ZunePivotTabs(
-                tabs = tabs,
-                pagerState = pagerState,
-                onSelected = { index ->
-                    coroutineScope.launch { pagerState.animateScrollToPage(index) }
-                },
-                modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
-            )
+                if (!hasPermission) {
+                    PermissionRequestView(
+                        onRequestPermission = {
+                            permissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+                        }
+                    )
+                } else if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = zuneColors.accentColor)
+                    }
+                } else {
+                    LazyRow(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                                start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
+                            end = 48.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(48.dp)
+                    ) {
+                        items(tabs.size) { index ->
+                            Column(modifier = Modifier.width(360.dp).fillMaxHeight()) {
+                                Text(
+                                    text = tabs[index],
+                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
+                                    color = zuneColors.accentColor,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+                                Box(modifier = Modifier.weight(1f)) {
+                                    renderPage(tabs[index])
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+            // Header — Zune large typography
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        top = 28.dp,
+                        bottom = 4.dp,
+                        start = ZuneDimens.ScreenPaddingHorizontal
+                    )
+            ) {
+                val cycle = (pagerState.currentPage + pagerState.currentPageOffsetFraction) % actualPageCount
+                val actualCycle = if (cycle < 0) cycle + actualPageCount else cycle
+                val threshold = (actualPageCount - 1).toFloat()
+
+                val translationX1: Float
+                val translationX2: Float
+
+                if (actualCycle <= threshold) {
+                    translationX1 = -actualCycle * parallaxMultiplierPx
+                    translationX2 = screenWidthPx
+                } else {
+                    val fraction = actualCycle - threshold
+                    translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
+                    translationX2 = screenWidthPx - fraction * screenWidthPx
+                }
+
+                Text(
+                    text = "kişiler",
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 96.sp,
+                        letterSpacing = (-4).sp,
+                        lineHeight = 96.sp
+                    ),
+                    color = if (zuneColors.isDark) Color.White else Color.Black,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.graphicsLayer {
+                        translationX = translationX1
+                        translationY = overflowYPx
+                    }
+                )
+                Text(
+                    text = "kişiler",
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 96.sp,
+                        letterSpacing = (-4).sp,
+                        lineHeight = 96.sp
+                    ),
+                    color = if (zuneColors.isDark) Color.White else Color.Black,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.graphicsLayer {
+                        translationX = translationX2
+                        translationY = overflowYPx
+                    }
+                )
+            }
+
+                // Tabs — W10M style -> Zune Pivot
+                ZunePivotTabs(
+                    tabs = tabs,
+                    pagerState = pagerState,
+                    onSelected = { index ->
+                        val current = pagerState.currentPage
+                        val size = actualPageCount
+                        val currentActual = ((current % size) + size) % size
+                        var diff = index - currentActual
+                        if (diff > size / 2) {
+                            diff -= size
+                        } else if (diff < -size / 2) {
+                            diff += size
+                        }
+                        val targetPage = current + diff
+                        coroutineScope.launch { pagerState.animateScrollToPage(targetPage) }
+                    },
+                    modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
+                )
 
             // Content area
             if (!hasPermission) {
@@ -146,105 +367,17 @@ fun PeopleHubScreen(
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    contentPadding = PaddingValues(
                         start = ZuneDimens.ScreenPaddingHorizontal,
                         end = 48.dp
                     ),
                     pageSpacing = 24.dp
                 ) { page ->
-                    ZunePageTransition {
-                        when (tabs[page]) {
-                        "tümü" -> {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                SearchBar(
-                                    query = searchQuery,
-                                    onQueryChange = { viewModel.updateSearchQuery(it) },
-                                    modifier = Modifier.padding(bottom = ZuneDimens.SpacingLg)
-                                )
-                                
-                                if (groupedContacts.isEmpty()) {
-                                    EmptyStateView(
-                                        if (searchQuery.isNotBlank()) "sonuç bulunamadı"
-                                        else stringResource(R.string.no_contacts)
-                                    )
-                                } else {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        LazyColumn(
-                                            state = listState,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(end = 28.dp),
-                                            contentPadding = PaddingValues(bottom = 80.dp)
-                                        ) {
-                                            groupedContacts.forEach { (letter, contactsInGroup) ->
-                                                item(key = "header_$letter") {
-                                                    LetterHeader(letter = letter)
-                                                }
-                                                items(contactsInGroup, key = { it.id }) { contact ->
-                                                    ContactListItem(contact = contact) {
-                                                        viewModel.selectContact(it)
-                                                    }
-                                                }
-                                            }
-                                        }
-    
-                                        ZuneAlphabetIndex(
-                                            availableLetters = groupedContacts.keys,
-                                            onLetterSelected = { letter ->
-                                                val index = groupedContacts.keys.indexOf(letter)
-                                                if (index >= 0) {
-                                                    coroutineScope.launch {
-                                                        var flatIndex = 0
-                                                        for ((l, list) in groupedContacts) {
-                                                            if (l == letter) break
-                                                            flatIndex += 1 + list.size
-                                                        }
-                                                        listState.scrollToItem(flatIndex)
-                                                    }
-                                                }
-                                            },
-                                            modifier = Modifier.align(Alignment.CenterEnd)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        "favoriler" -> {
-                            if (favoriteContacts.isEmpty()) {
-                                EmptyStateView(stringResource(R.string.no_favorite_contacts))
-                            } else {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(bottom = 80.dp)
-                                ) {
-                                    items(favoriteContacts, key = { it.id }) { contact ->
-                                        ContactListItem(contact = contact) {
-                                            viewModel.selectContact(it)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        "son kullanılanlar" -> {
-                            if (recentContacts.isEmpty()) {
-                                EmptyStateView(stringResource(R.string.no_recent_contacts))
-                            } else {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(bottom = 80.dp)
-                                ) {
-                                    items(recentContacts, key = { it.id }) { contact ->
-                                        ContactListItem(contact = contact) {
-                                            viewModel.selectContact(it)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    val actualPage = page % actualPageCount
+                    renderPage(tabs[actualPage])
                 }
             }
-        }
+            } // close else
         }
 
         // Detail Screen Overlay
@@ -264,7 +397,6 @@ private fun SearchBar(
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
-    val borderColor = if (zuneColors.isDark) Color(0xFF444444) else Color(0xFFCCCCCC)
     val bgColor = if (zuneColors.isDark) Color(0xFF1A1A1A) else Color(0xFFF5F5F5)
     val textColor = MaterialTheme.colorScheme.onBackground
     val hintColor = zuneColors.textDim
@@ -432,3 +564,5 @@ private fun EmptyStateView(message: String) {
         modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
     )
 }
+
+

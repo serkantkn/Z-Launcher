@@ -1,103 +1,450 @@
 package com.serkantkn.zunelauncher.ui.screens.clock
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.Alarm
-import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
+import com.serkantkn.zunelauncher.ui.components.WpBarAction
+import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClockHubScreen(
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: ClockHubViewModel = viewModel()
 ) {
-    val alarms by viewModel.alarms.collectAsState()
     val zuneColors = LocalZuneColors.current
-    
-    var showAddDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = ZuneDimens.SpacingMd),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "saat",
-                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            IconButton(onClick = { showAddDialog = true }) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Alarm",
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
-        }
+    val tabs = listOf("dünya saati", "alarmlar", "kronometre", "sayaç")
+    val actualPageCount = tabs.size
+    val loopCount = 1000
+    val initialPage = (loopCount / 2) * actualPageCount
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal),
-            contentPadding = PaddingValues(bottom = ZuneDimens.SpacingXl)
-        ) {
-            items(alarms, key = { it.id }) { alarm ->
-                AlarmItem(
-                    alarm = alarm,
-                    onToggle = { viewModel.toggleAlarm(alarm) },
-                    onDelete = { viewModel.deleteAlarm(alarm) }
-                )
-            }
-            
-            if (alarms.isEmpty()) {
-                item {
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { loopCount * actualPageCount }
+    )
+
+    val currentTab = ((pagerState.currentPage % actualPageCount) + actualPageCount) % actualPageCount
+
+    var showAddAlarmDialog by remember { mutableStateOf(false) }
+    var showAddCityDialog by remember { mutableStateOf(false) }
+    var showSetTimerDialog by remember { mutableStateOf(false) }
+
+    val alarms by viewModel.alarms.collectAsState()
+    val worldCities by viewModel.worldCities.collectAsState()
+    val stopwatchTimeMs by viewModel.stopwatchTimeMs.collectAsState()
+    val isStopwatchRunning by viewModel.isStopwatchRunning.collectAsState()
+    val stopwatchLaps by viewModel.stopwatchLaps.collectAsState()
+    val timerRemainingMs by viewModel.timerRemainingMs.collectAsState()
+    val timerTotalMs by viewModel.timerTotalMs.collectAsState()
+    val isTimerRunning by viewModel.isTimerRunning.collectAsState()
+
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.dp
+    val density = LocalDensity.current
+    val screenWidthPx = with(density) { screenWidthDp.toPx() }
+    val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
+    val overflowYPx = with(density) { (-24).dp.toPx() }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // --- TOP HEADER WITH PARALLAX ---
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 28.dp, bottom = 8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = ZuneDimens.ScreenPaddingHorizontal)
+                ) {
+                    val cycle = (pagerState.currentPage + pagerState.currentPageOffsetFraction) % actualPageCount
+                    val actualCycle = if (cycle < 0) cycle + actualPageCount else cycle
+                    val threshold = (actualPageCount - 1).toFloat()
+
+                    val translationX1: Float
+                    val translationX2: Float
+
+                    if (actualCycle <= threshold) {
+                        translationX1 = -actualCycle * parallaxMultiplierPx
+                        translationX2 = screenWidthPx
+                    } else {
+                        val fraction = actualCycle - threshold
+                        translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
+                        translationX2 = screenWidthPx - fraction * screenWidthPx
+                    }
+
                     Text(
-                        text = "Henüz bir alarm kurmadınız.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = zuneColors.textMuted,
-                        modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
+                        text = "saat",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 96.sp,
+                            letterSpacing = (-4).sp,
+                            lineHeight = 96.sp
+                        ),
+                        color = if (zuneColors.isDark) Color.White else Color.Black,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.graphicsLayer {
+                            translationX = translationX1
+                            translationY = overflowYPx
+                        }
+                    )
+                    Text(
+                        text = "saat",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 96.sp,
+                            letterSpacing = (-4).sp,
+                            lineHeight = 96.sp
+                        ),
+                        color = if (zuneColors.isDark) Color.White else Color.Black,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.graphicsLayer {
+                            translationX = translationX2
+                            translationY = overflowYPx
+                        }
+                    )
+                }
+
+                ZunePivotTabs(
+                    tabs = tabs,
+                    pagerState = pagerState,
+                    onSelected = { index ->
+                        val current = pagerState.currentPage
+                        val currentActual = ((current % actualPageCount) + actualPageCount) % actualPageCount
+                        var diff = index - currentActual
+                        if (diff > actualPageCount / 2) diff -= actualPageCount
+                        if (diff < -actualPageCount / 2) diff += actualPageCount
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(current + diff)
+                        }
+                    },
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            // --- PAGER CONTENT ---
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) { page ->
+                when (page % actualPageCount) {
+                    0 -> WorldClockTabContent(
+                        worldCities = worldCities,
+                        onRemoveCity = { viewModel.removeWorldCity(it) }
+                    )
+                    1 -> AlarmsTabContent(
+                        alarms = alarms,
+                        onToggle = { viewModel.toggleAlarm(it) },
+                        onDelete = { viewModel.deleteAlarm(it) }
+                    )
+                    2 -> StopwatchTabContent(
+                        timeMs = stopwatchTimeMs,
+                        laps = stopwatchLaps
+                    )
+                    3 -> TimerTabContent(
+                        remainingMs = timerRemainingMs,
+                        totalMs = timerTotalMs,
+                        isRunning = isTimerRunning,
+                        onOpenSetDialog = { showSetTimerDialog = true }
                     )
                 }
             }
+
+            // Space for Bottom Bar
+            Spacer(modifier = Modifier.height(72.dp))
+        }
+
+        // --- WINDOWS PHONE STYLE BOTTOM MENU BAR ---
+        WindowsPhoneBottomBar(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            actions = when (currentTab) {
+                0 -> listOf(
+                    WpBarAction(Icons.Default.Add, "şehir ekle") { showAddCityDialog = true }
+                )
+                1 -> listOf(
+                    WpBarAction(Icons.Default.Add, "alarm ekle") { showAddAlarmDialog = true }
+                )
+                2 -> listOf(
+                    WpBarAction(
+                        if (isStopwatchRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        if (isStopwatchRunning) "durdur" else "başlat"
+                    ) { viewModel.toggleStopwatch() },
+                    WpBarAction(Icons.Default.Flag, "tur") { viewModel.addStopwatchLap() },
+                    WpBarAction(Icons.Default.Refresh, "sıfırla") { viewModel.resetStopwatch() }
+                )
+                3 -> listOf(
+                    WpBarAction(
+                        if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        if (isTimerRunning) "durdur" else "başlat"
+                    ) { viewModel.toggleTimer() },
+                    WpBarAction(Icons.Default.Timer, "ayarla") { showSetTimerDialog = true },
+                    WpBarAction(Icons.Default.Refresh, "sıfırla") { viewModel.resetTimer() }
+                )
+                else -> emptyList()
+            }
+        )
+    }
+
+    // --- DIALOGS ---
+    if (showAddAlarmDialog) {
+        AddAlarmDialog(
+            onDismiss = { showAddAlarmDialog = false },
+            onConfirm = { hour, minute, label ->
+                viewModel.addAlarm(Alarm(hour = hour, minute = minute, label = label))
+                showAddAlarmDialog = false
+            }
+        )
+    }
+
+    if (showAddCityDialog) {
+        AddCityDialog(
+            onDismiss = { showAddCityDialog = false },
+            onConfirm = { city ->
+                viewModel.addWorldCity(city)
+                showAddCityDialog = false
+            }
+        )
+    }
+
+    if (showSetTimerDialog) {
+        SetTimerDialog(
+            initialMs = timerTotalMs,
+            onDismiss = { showSetTimerDialog = false },
+            onConfirm = { h, m, s ->
+                viewModel.setTimerDuration(h, m, s)
+                showSetTimerDialog = false
+            }
+        )
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// PIVOT CONTENT 0: DÜNYA SAATİ
+// ════════════════════════════════════════════════════════════
+@Composable
+fun WorldClockTabContent(
+    worldCities: List<WorldCity>,
+    onRemoveCity: (WorldCity) -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    var currentTime by remember { mutableStateOf(Date()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = Date()
+            delay(1000)
         }
     }
 
-    if (showAddDialog) {
-        AddAlarmDialog(
-            onDismiss = { showAddDialog = false },
-            onConfirm = { hour, minute, label ->
-                viewModel.addAlarm(Alarm(hour = hour, minute = minute, label = label))
-                showAddDialog = false
+    val localTimeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    val localDateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale("tr"))
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal),
+        contentPadding = PaddingValues(bottom = ZuneDimens.SpacingXl)
+    ) {
+        // Current Local Time Display
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = ZuneDimens.SpacingLg)
+            ) {
+                Text(
+                    text = "Yerel Saat",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = zuneColors.accentColor
+                )
+                Text(
+                    text = localTimeFormat.format(currentTime),
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 64.sp
+                    ),
+                    color = if (zuneColors.isDark) Color.White else Color.Black
+                )
+                Text(
+                    text = localDateFormat.format(currentTime),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = zuneColors.textMuted
+                )
             }
-        )
+            HorizontalDivider(
+                color = zuneColors.textMuted.copy(alpha = 0.2f),
+                modifier = Modifier.padding(vertical = ZuneDimens.SpacingMd)
+            )
+        }
+
+        // World Cities List
+        items(worldCities, key = { it.id }) { city ->
+            WorldCityItem(
+                city = city,
+                currentTime = currentTime,
+                onDelete = { onRemoveCity(city) }
+            )
+        }
+    }
+}
+
+@Composable
+fun WorldCityItem(
+    city: WorldCity,
+    currentTime: Date,
+    onDelete: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    var isDeleting by remember { mutableStateOf(false) }
+
+    val cityCal = Calendar.getInstance(TimeZone.getTimeZone(city.timeZoneId))
+    cityCal.time = currentTime
+
+    val cityTimeStr = String.format("%02d:%02d", cityCal.get(Calendar.HOUR_OF_DAY), cityCal.get(Calendar.MINUTE))
+    
+    // Time diff
+    val localCal = Calendar.getInstance()
+    val localOffset = localCal.timeZone.getOffset(currentTime.time)
+    val cityOffset = TimeZone.getTimeZone(city.timeZoneId).getOffset(currentTime.time)
+    val diffHours = (cityOffset - localOffset) / (1000 * 60 * 60)
+
+    val diffString = when {
+        diffHours == 0 -> "Yerel saat ile aynı"
+        diffHours > 0 -> "+$diffHours saat"
+        else -> "$diffHours saat"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = ZuneDimens.SpacingSm)
+            .clickable { isDeleting = !isDeleting },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = city.cityName,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light),
+                color = if (zuneColors.isDark) Color.White else Color.Black
+            )
+            Text(
+                text = "${city.countryName} • $diffString",
+                style = MaterialTheme.typography.bodyMedium,
+                color = zuneColors.textMuted
+            )
+        }
+
+        if (isDeleting) {
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Sil",
+                    tint = zuneColors.accentColor
+                )
+            }
+        } else {
+            Text(
+                text = cityTimeStr,
+                style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Light),
+                color = if (zuneColors.isDark) Color.White else Color.Black
+            )
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// PIVOT CONTENT 1: ALARMLAR
+// ════════════════════════════════════════════════════════════
+@Composable
+fun AlarmsTabContent(
+    alarms: List<Alarm>,
+    onToggle: (Alarm) -> Unit,
+    onDelete: (Alarm) -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal),
+        contentPadding = PaddingValues(bottom = ZuneDimens.SpacingXl)
+    ) {
+        items(alarms, key = { it.id }) { alarm ->
+            AlarmItem(
+                alarm = alarm,
+                onToggle = { onToggle(alarm) },
+                onDelete = { onDelete(alarm) }
+            )
+        }
+
+        if (alarms.isEmpty()) {
+            item {
+                Text(
+                    text = "Henüz bir alarm kurmadınız.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = zuneColors.textMuted,
+                    modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
+                )
+            }
+        }
     }
 }
 
@@ -162,26 +509,313 @@ fun AddAlarmDialog(
     onConfirm: (Int, Int, String) -> Unit
 ) {
     val timePickerState = rememberTimePickerState()
+    val zuneColors = LocalZuneColors.current
 
-    AlertDialog(
+    com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog(
         onDismissRequest = onDismiss,
+        title = "Alarm Ekle",
         confirmButton = {
-            TextButton(onClick = {
-                onConfirm(timePickerState.hour, timePickerState.minute, "Alarm")
-            }) {
-                Text("Kaydet", color = LocalZuneColors.current.accentColor)
-            }
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = "Kaydet",
+                onClick = {
+                    dismissWithAnim {
+                        onConfirm(timePickerState.hour, timePickerState.minute, "Alarm")
+                    }
+                },
+                borderColor = zuneColors.accentColor
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("İptal", color = LocalZuneColors.current.textMuted)
-            }
-        },
-        text = {
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = "İptal",
+                onClick = { dismissWithAnim() },
+                borderColor = zuneColors.textMuted
+            )
+        }
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
             TimePicker(state = timePickerState)
-        },
-        containerColor = MaterialTheme.colorScheme.surface,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurface
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// PIVOT CONTENT 2: KRONOMETRE
+// ════════════════════════════════════════════════════════════
+@Composable
+fun StopwatchTabContent(
+    timeMs: Long,
+    laps: List<Long>
+) {
+    val zuneColors = LocalZuneColors.current
+
+    val minutes = (timeMs / 1000) / 60
+    val seconds = (timeMs / 1000) % 60
+    val hundredths = (timeMs % 1000) / 10
+
+    val timeFormatted = String.format("%02d:%02d.%02d", minutes, seconds, hundredths)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+    ) {
+        // Display Time
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = ZuneDimens.SpacingXl),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = timeFormatted,
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontWeight = FontWeight.ExtraLight,
+                    fontSize = 68.sp,
+                    letterSpacing = (-2).sp
+                ),
+                color = if (zuneColors.isDark) Color.White else Color.Black
+            )
+        }
+
+        HorizontalDivider(color = zuneColors.textMuted.copy(alpha = 0.2f))
+
+        // Laps List
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = ZuneDimens.SpacingMd)
+        ) {
+            itemsIndexed(laps) { index, lapMs ->
+                val lapMin = (lapMs / 1000) / 60
+                val lapSec = (lapMs / 1000) % 60
+                val lapHundred = (lapMs % 1000) / 10
+                val lapStr = String.format("%02d:%02d.%02d", lapMin, lapSec, lapHundred)
+                val lapNum = laps.size - index
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = ZuneDimens.SpacingSm),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Tur $lapNum",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = zuneColors.textMuted
+                    )
+                    Text(
+                        text = lapStr,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (zuneColors.isDark) Color.White else Color.Black
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// PIVOT CONTENT 3: SAYAÇ
+// ════════════════════════════════════════════════════════════
+@Composable
+fun TimerTabContent(
+    remainingMs: Long,
+    totalMs: Long,
+    isRunning: Boolean,
+    onOpenSetDialog: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+
+    val totalSec = (remainingMs / 1000)
+    val hours = totalSec / 3600
+    val minutes = (totalSec % 3600) / 60
+    val seconds = totalSec % 60
+
+    val formattedTime = if (hours > 0) {
+        String.format("%02d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
+
+    val progress = if (totalMs > 0) (remainingMs.toFloat() / totalMs.toFloat()).coerceIn(0f, 1f) else 0f
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(240.dp)
+                .clickable { if (!isRunning) onOpenSetDialog() }
+        ) {
+            CircularProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxSize(),
+                color = zuneColors.accentColor,
+                strokeWidth = 6.dp,
+                trackColor = zuneColors.textMuted.copy(alpha = 0.2f),
+            )
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = formattedTime,
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 54.sp
+                    ),
+                    color = if (zuneColors.isDark) Color.White else Color.Black
+                )
+                if (!isRunning) {
+                    Text(
+                        text = "Süreyi Değiştir",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = zuneColors.accentColor,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+
+
+// ════════════════════════════════════════════════════════════
+// DIALOGS
+// ════════════════════════════════════════════════════════════
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddCityDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (WorldCity) -> Unit
+) {
+    val availableCities = listOf(
+        WorldCity(cityName = "Berlin", countryName = "Almanya", timeZoneId = "Europe/Berlin"),
+        WorldCity(cityName = "New York", countryName = "ABD", timeZoneId = "America/New_York"),
+        WorldCity(cityName = "Los Angeles", countryName = "ABD", timeZoneId = "America/Los_Angeles"),
+        WorldCity(cityName = "Tokyo", countryName = "Japonya", timeZoneId = "Asia/Tokyo"),
+        WorldCity(cityName = "Pekin", countryName = "Çin", timeZoneId = "Asia/Shanghai"),
+        WorldCity(cityName = "Dubai", countryName = "BAE", timeZoneId = "Asia/Dubai"),
+        WorldCity(cityName = "Moskova", countryName = "Rusya", timeZoneId = "Europe/Moscow"),
+        WorldCity(cityName = "Roma", countryName = "İtalya", timeZoneId = "Europe/Rome"),
+        WorldCity(cityName = "Sidney", countryName = "Avustralya", timeZoneId = "Australia/Sydney")
     )
+
+    var selectedCity by remember { mutableStateOf(availableCities.first()) }
+    val zuneColors = LocalZuneColors.current
+
+    com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog(
+        onDismissRequest = onDismiss,
+        title = "Şehir Ekle",
+        confirmButton = {
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = "Ekle",
+                onClick = {
+                    dismissWithAnim {
+                        onConfirm(selectedCity)
+                    }
+                },
+                borderColor = zuneColors.accentColor
+            )
+        },
+        dismissButton = {
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = "İptal",
+                onClick = { dismissWithAnim() },
+                borderColor = zuneColors.textMuted
+            )
+        }
+    ) {
+        LazyColumn(modifier = Modifier.height(200.dp)) {
+            items(availableCities) { city ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedCity = city }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedCity.cityName == city.cityName),
+                        onClick = { selectedCity = city },
+                        colors = RadioButtonDefaults.colors(selectedColor = zuneColors.accentColor)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${city.cityName} (${city.countryName})",
+                        color = if (zuneColors.isDark) Color.White else Color.Black
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SetTimerDialog(
+    initialMs: Long,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Int, Int) -> Unit
+) {
+    var minutes by remember { mutableStateOf(((initialMs / 1000) / 60).toInt()) }
+    var seconds by remember { mutableStateOf(((initialMs / 1000) % 60).toInt()) }
+    val zuneColors = LocalZuneColors.current
+
+    com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog(
+        onDismissRequest = onDismiss,
+        title = "Sayaç Süresi",
+        confirmButton = {
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = "Ayarla",
+                onClick = {
+                    dismissWithAnim {
+                        onConfirm(0, minutes, seconds)
+                    }
+                },
+                borderColor = zuneColors.accentColor
+            )
+        },
+        dismissButton = {
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = "İptal",
+                onClick = { dismissWithAnim() },
+                borderColor = zuneColors.textMuted
+            )
+        }
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Dakika", style = MaterialTheme.typography.labelMedium, color = zuneColors.textMuted)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { if (minutes > 0) minutes-- }) { Text("-", style = MaterialTheme.typography.headlineSmall, color = zuneColors.accentColor) }
+                    Text(text = "$minutes", style = MaterialTheme.typography.titleLarge, color = if (zuneColors.isDark) Color.White else Color.Black)
+                    IconButton(onClick = { if (minutes < 99) minutes++ }) { Text("+", style = MaterialTheme.typography.headlineSmall, color = zuneColors.accentColor) }
+                }
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Saniye", style = MaterialTheme.typography.labelMedium, color = zuneColors.textMuted)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { if (seconds > 0) seconds-- }) { Text("-", style = MaterialTheme.typography.headlineSmall, color = zuneColors.accentColor) }
+                    Text(text = "$seconds", style = MaterialTheme.typography.titleLarge, color = if (zuneColors.isDark) Color.White else Color.Black)
+                    IconButton(onClick = { if (seconds < 59) seconds++ }) { Text("+", style = MaterialTheme.typography.headlineSmall, color = zuneColors.accentColor) }
+                }
+            }
+        }
+    }
 }

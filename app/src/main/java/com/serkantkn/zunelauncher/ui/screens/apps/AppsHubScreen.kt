@@ -21,16 +21,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -51,13 +55,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.AppInfo
 import com.serkantkn.zunelauncher.ui.components.ZuneAlphabetIndex
 import com.serkantkn.zunelauncher.ui.components.ZuneSearchBar
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import com.serkantkn.zunelauncher.util.toImageBitmap
 import kotlinx.coroutines.launch
 import androidx.compose.animation.core.Animatable
@@ -80,7 +91,8 @@ fun AppsHubScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val availableLetters by viewModel.availableLetters.collectAsState()
     val favoritePackages by viewModel.favoritePackages.collectAsState()
-    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
+    val isWideScreen = LocalIsWideScreen.current
     val coroutineScope = rememberCoroutineScope()
 
     val animationProgress = remember { Animatable(0f) }
@@ -131,6 +143,8 @@ fun AppsHubScreen(
 
     // Track which app's accordion menu is currently expanded
     var expandedPackage by remember { mutableStateOf<String?>(null) }
+    
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     // Build flat list with section headers
     val flatList = remember(groupedApps) {
@@ -156,26 +170,43 @@ fun AppsHubScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val overflowYPx = with(density) { (-24).dp.toPx() }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    start = ZuneDimens.ScreenPaddingHorizontal,
+                    start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
                     end = 40.dp,
-                    top = 80.dp
+                    top = 48.dp
                 )
         ) {
-            // Title
-            Text(
-                text = "uygulamalar",
-                style = MaterialTheme.typography.displayMedium.copy(
-                    fontWeight = FontWeight.Light
-                ),
-                color = MaterialTheme.colorScheme.onBackground,
+            // Title - Box wrapped with unconstrained width to prevent right edge clipping
+            Box(
                 modifier = Modifier
-                    .w10mStaggeredAnimation(animationProgress.value, 0)
-                    .padding(bottom = ZuneDimens.SpacingMd)
-            )
+                    .fillMaxWidth()
+                    .wrapContentWidth(align = Alignment.Start, unbounded = true)
+            ) {
+                Text(
+                    text = "uygulamalar",
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 96.sp,
+                        letterSpacing = (-4).sp,
+                        lineHeight = 96.sp
+                    ),
+                    color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier
+                        .graphicsLayer {
+                            translationY = overflowYPx
+                        }
+                        .w10mStaggeredAnimation(animationProgress.value, 0)
+                        .padding(bottom = ZuneDimens.SpacingMd)
+                )
+            }
 
             // Search bar
             ZuneSearchBar(
@@ -188,8 +219,9 @@ fun AppsHubScreen(
             )
 
             // App list
-            LazyColumn(
-                state = listState,
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(if (isWideScreen) 8 else 1),
                 contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -200,6 +232,10 @@ fun AppsHubScreen(
                             is AppsListItem.Header -> "header_${item.letter}"
                             is AppsListItem.App -> "app_${item.appInfo.packageName}"
                         }
+                    },
+                    span = { _, item ->
+                        if (item is AppsListItem.Header) GridItemSpan(maxLineSpan)
+                        else GridItemSpan(1)
                     }
                 ) { index, item ->
                     val globalIndex = 2 + index
@@ -218,7 +254,9 @@ fun AppsHubScreen(
                             val key = "app_${item.appInfo.packageName}"
 
                             Column(
-                                modifier = Modifier.w10mStaggeredAnimation(animationProgress.value, globalIndex, clickedItemKey == key)
+                                modifier = Modifier
+                                    .w10mStaggeredAnimation(animationProgress.value, globalIndex, clickedItemKey == key)
+                                    .padding(end = if (isWideScreen) 8.dp else 0.dp)
                             ) {
                                 AppRow(
                                     appInfo = item.appInfo,
@@ -237,7 +275,11 @@ fun AppsHubScreen(
                                     visible = isExpanded,
                                     isFavorite = isFavorite,
                                     onToggleFavorite = {
-                                        viewModel.toggleFavorite(pkg)
+                                        if (!isFavorite && !com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM && favoritePackages.size >= 10) {
+                                            android.widget.Toast.makeText(context, "Ücretsiz sürümde en fazla 10 favori uygulama ekleyebilirsiniz. Sınırı kaldırmak için Z Launcher Pro'ya geçin.", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            viewModel.toggleFavorite(pkg)
+                                        }
                                         expandedPackage = null
                                     },
                                     onDismiss = {
@@ -257,13 +299,14 @@ fun AppsHubScreen(
             onLetterSelected = { letter ->
                 letterIndexMap[letter]?.let { index ->
                     coroutineScope.launch {
-                        listState.animateScrollToItem(index)
+                        gridState.animateScrollToItem(index)
                     }
                 }
             },
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 8.dp, top = 140.dp, bottom = 48.dp)
+                .align(Alignment.BottomEnd)
+                .fillMaxHeight(0.60f)
+                .padding(end = 4.dp, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 8.dp)
         )
     }
 }
@@ -324,19 +367,24 @@ private fun AccordionMenu(
 
 @Composable
 private fun LetterHeader(letter: Char) {
-    Text(
-        text = letter.toString(),
-        style = MaterialTheme.typography.headlineLarge.copy(
-            fontWeight = FontWeight.Bold
-        ),
-        color = MaterialTheme.colorScheme.primary,
+    val zuneColors = LocalZuneColors.current
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                top = ZuneDimens.SpacingLg,
-                bottom = ZuneDimens.SpacingSm
-            )
-    )
+            .padding(top = ZuneDimens.SpacingMd, bottom = ZuneDimens.SpacingSm)
+            .size(42.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(zuneColors.accentColor),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = letter.toString().lowercase(),
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            ),
+            color = Color.White
+        )
+    }
 }
 
 // ── App Row (with long press support) ───────────────────────────────────────
@@ -360,43 +408,90 @@ private fun AppRow(
         label = "app_row_scale"
     )
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onClick() },
-                    onLongPress = { onLongPress() }
+    val isWideScreen = LocalIsWideScreen.current
+
+    if (isWideScreen) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .scale(scale)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onClick() },
+                        onLongPress = { onLongPress() }
+                    )
+                }
+                .padding(vertical = 10.dp)
+        ) {
+            icon?.let { drawable ->
+                val bitmap = remember(drawable) { drawable.toImageBitmap() }
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = appInfo.label,
+                    modifier = Modifier
+                        .size(ZuneDimens.AppIconSize)
+                        .clip(RoundedCornerShape(10.dp))
                 )
-            }
-            .padding(vertical = 10.dp)
-    ) {
-        icon?.let { drawable ->
-            val bitmap = remember(drawable) { drawable.toImageBitmap() }
-            Image(
-                bitmap = bitmap,
-                contentDescription = appInfo.label,
+            } ?: Box(
                 modifier = Modifier
                     .size(ZuneDimens.AppIconSize)
                     .clip(RoundedCornerShape(10.dp))
             )
-        } ?: Box(
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = appInfo.label,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    } else {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .size(ZuneDimens.AppIconSize)
-                .clip(RoundedCornerShape(10.dp))
-        )
+                .fillMaxWidth()
+                .scale(scale)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onClick() },
+                        onLongPress = { onLongPress() }
+                    )
+                }
+                .padding(vertical = 10.dp)
+        ) {
+            icon?.let { drawable ->
+                val bitmap = remember(drawable) { drawable.toImageBitmap() }
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = appInfo.label,
+                    modifier = Modifier
+                        .size(ZuneDimens.AppIconSize)
+                        .clip(RoundedCornerShape(10.dp))
+                )
+            } ?: Box(
+                modifier = Modifier
+                    .size(ZuneDimens.AppIconSize)
+                    .clip(RoundedCornerShape(10.dp))
+            )
 
-        Spacer(modifier = Modifier.width(ZuneDimens.SpacingMd))
+            Spacer(modifier = Modifier.width(ZuneDimens.SpacingMd))
 
-        Text(
-            text = appInfo.label,
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Normal
-            ),
-            color = MaterialTheme.colorScheme.onBackground
-        )
+            Text(
+                text = appInfo.label,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Normal
+                ),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
     }
 }
 

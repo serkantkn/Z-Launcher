@@ -12,6 +12,7 @@ import android.os.VibratorManager
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import android.content.pm.ActivityInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,12 @@ class AlarmActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        if (resources.configuration.smallestScreenWidthDp < 600) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+        }
         
         // Show over lockscreen and turn screen on
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {

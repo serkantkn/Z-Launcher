@@ -1,0 +1,8 @@
+com.serkantkn.zplugin.zuneplugin-pngs-0 /Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/build/generated/res/pngs/debug
+com.serkantkn.zplugin.zuneplugin-updated_navigation_xml-1 /Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/build/generated/updated_navigation_xml/debug
+com.serkantkn.zplugin.zuneplugin-packageDebugResources-2 /Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/build/intermediates/incremental/debug/packageDebugResources/merged.dir
+com.serkantkn.zplugin.zuneplugin-packageDebugResources-3 /Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/build/intermediates/incremental/debug/packageDebugResources/stripped.dir
+com.serkantkn.zplugin.zuneplugin-debug-4 /Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/build/intermediates/merged_res/debug/mergeDebugResources
+com.serkantkn.zplugin.zuneplugin-debug-5 /Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/src/debug/res
+com.serkantkn.zplugin.zuneplugin-main-6 /Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/src/main/res
+gradleHome-0 /Users/serkan/.gradle

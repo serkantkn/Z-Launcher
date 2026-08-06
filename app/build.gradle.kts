@@ -5,11 +5,7 @@ plugins {
 
 android {
     namespace = "com.serkantkn.zunelauncher"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.serkantkn.zunelauncher"
@@ -19,6 +15,26 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
+    flavorDimensions += "tier"
+    productFlavors {
+        create("free") {
+            dimension = "tier"
+            applicationIdSuffix = ".free"
+            versionNameSuffix = "-free"
+            buildConfigField("boolean", "IS_PREMIUM", "false")
+        }
+        create("premium") {
+            dimension = "tier"
+            versionNameSuffix = "-pro"
+            buildConfigField("boolean", "IS_PREMIUM", "true")
+        }
     }
 
     buildTypes {
@@ -31,12 +47,13 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
-    buildFeatures {
-        compose = true
-    }
+}
+
+kotlin {
+    jvmToolchain(21)
 }
 
 dependencies {
@@ -70,8 +87,12 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.ui)
 
-    // DataStore
+    // DataStore & Serialization
     implementation(libs.androidx.datastore.preferences)
+    implementation("com.google.code.gson:gson:2.11.0")
+    
+    // Biometric
+    implementation("androidx.biometric:biometric:1.1.0")
 
     // Testing
     testImplementation(libs.junit)

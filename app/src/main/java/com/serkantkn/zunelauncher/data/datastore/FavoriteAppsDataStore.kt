@@ -29,13 +29,13 @@ class FavoriteAppsDataStore(private val context: Context) {
                 newData.split(",").mapNotNull {
                     val parts = it.split(":")
                     if (parts.size == 2) {
-                        FavoriteAppItem(parts[0], parts[1].toIntOrNull() ?: 1)
+                        FavoriteAppItem(parts[0], parts[1].toIntOrNull() ?: 2)
                     } else null
                 }
             } else {
                 // Migrate from old data if it exists
                 val oldData = preferences[OLD_FAVORITE_APPS_KEY] ?: emptySet()
-                oldData.map { FavoriteAppItem(it, 1) }
+                oldData.map { FavoriteAppItem(it, 2) }
             }
         }
 
@@ -43,7 +43,7 @@ class FavoriteAppsDataStore(private val context: Context) {
         context.favoriteAppsDataStore.edit { preferences ->
             val currentList = getListFromPreferences(preferences).toMutableList()
             if (currentList.none { it.packageName == packageName }) {
-                currentList.add(FavoriteAppItem(packageName, 1))
+                currentList.add(FavoriteAppItem(packageName, 2))
                 saveListToPreferences(preferences, currentList)
             }
         }
@@ -63,7 +63,7 @@ class FavoriteAppsDataStore(private val context: Context) {
             if (currentList.any { it.packageName == packageName }) {
                 currentList.removeAll { it.packageName == packageName }
             } else {
-                currentList.add(FavoriteAppItem(packageName, 1))
+                currentList.add(FavoriteAppItem(packageName, 2))
             }
             saveListToPreferences(preferences, currentList)
         }
@@ -93,12 +93,12 @@ class FavoriteAppsDataStore(private val context: Context) {
             return newData.split(",").mapNotNull {
                 val parts = it.split(":")
                 if (parts.size == 2) {
-                    FavoriteAppItem(parts[0], parts[1].toIntOrNull() ?: 1)
+                    FavoriteAppItem(parts[0], parts[1].toIntOrNull() ?: 2)
                 } else null
             }
         }
         val oldData = preferences[OLD_FAVORITE_APPS_KEY] ?: emptySet()
-        return oldData.map { FavoriteAppItem(it, 1) }
+        return oldData.map { FavoriteAppItem(it, 2) }
     }
 
     private fun saveListToPreferences(

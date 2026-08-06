@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -49,6 +51,13 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val latestNotification = MutableStateFlow<SocialMessageModel?>(null)
+    val notificationCounts: StateFlow<Map<String, Int>> = SocialRepository.notificationCounts
+
+    val latestMessages: StateFlow<Map<String, SocialMessageModel>> = SocialRepository.messages
+        .map { list ->
+            list.associateBy { it.packageName }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     init {
         viewModelScope.launch {
@@ -70,6 +79,31 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             }
+        }
+
+        // Inject mock notifications to demonstrate Live Tile flip animations
+        viewModelScope.launch {
+            val favs = favoriteApps.first { it.isNotEmpty() }
+            val mockCounts = mutableMapOf<String, Int>()
+            favs.take(4).forEachIndexed { i, fav ->
+                val pkg = fav.appInfo.packageName
+                mockCounts[pkg] = (i + 1) * 2
+                
+                SocialRepository.addOrUpdateMessage(
+                    SocialMessageModel(
+                        id = "mock_$i",
+                        packageName = pkg,
+                        appName = fav.appInfo.label,
+                        title = "Bildirim: ${fav.appInfo.label}",
+                        text = "Bu, Canlı Karo 3D flip animasyonunu test etmek için oluşturulmuş örnek bir bildirimdir.",
+                        timestamp = System.currentTimeMillis(),
+                        icon = null,
+                        replyAction = null,
+                        openIntent = null
+                    )
+                )
+            }
+            SocialRepository.updateNotificationCounts(mockCounts)
         }
     }
 
@@ -96,7 +130,11 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val current = favoriteApps.value.find { it.appInfo.packageName == packageName }
             if (current != null) {
-                val newSpan = if (current.span == 1) 2 else 1
+                val newSpan = when (current.span) {
+                    1 -> 2
+                    2 -> 4
+                    else -> 1
+                }
                 appRepository.updateSpan(packageName, newSpan)
             }
         }

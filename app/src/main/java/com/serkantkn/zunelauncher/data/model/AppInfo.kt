@@ -8,5 +8,5 @@ data class AppInfo(
 
 data class FavoriteAppItem(
     val packageName: String,
-    val span: Int = 1
+    val span: Int = 2
 )

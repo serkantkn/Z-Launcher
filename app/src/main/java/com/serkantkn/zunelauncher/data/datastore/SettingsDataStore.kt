@@ -8,7 +8,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.ThemeMode
+import com.serkantkn.zunelauncher.data.model.NotificationStyle
+import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
 import com.serkantkn.zunelauncher.data.model.AccentColor
+import com.serkantkn.zunelauncher.data.model.LockScreenMode
 import com.serkantkn.zunelauncher.settingsDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -25,7 +28,14 @@ class SettingsDataStore(private val context: Context) {
         val HUB_ORDER = stringPreferencesKey("hub_order")
         val CUSTOM_WALLPAPER_PATH = stringPreferencesKey("custom_wallpaper_path")
         val DYNAMIC_THEME_COLOR = intPreferencesKey("dynamic_theme_color")
-
+        val CUSTOM_THEME_COLOR = intPreferencesKey("custom_theme_color")
+        val SOLID_BACKGROUND_ENABLED = booleanPreferencesKey("solid_background_enabled")
+        val BROWSER_FAVORITES = stringPreferencesKey("browser_favorites")
+        val BROWSER_HISTORY = stringPreferencesKey("browser_history")
+        val LOCK_SCREEN_MODE = stringPreferencesKey("lock_screen_mode")
+        val CUSTOM_PIN = stringPreferencesKey("custom_pin")
+        val NOTIFICATION_STYLE = stringPreferencesKey("notification_style")
+        val NOTIFICATION_CENTER_STYLE = stringPreferencesKey("notification_center_style")
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -69,19 +79,73 @@ class SettingsDataStore(private val context: Context) {
             com.serkantkn.zunelauncher.data.model.HubType.MUSIC,
             com.serkantkn.zunelauncher.data.model.HubType.PEOPLE,
             com.serkantkn.zunelauncher.data.model.HubType.PICTURES,
-            com.serkantkn.zunelauncher.data.model.HubType.APPS,
             com.serkantkn.zunelauncher.data.model.HubType.PHONE,
+            com.serkantkn.zunelauncher.data.model.HubType.INTERNET,
             com.serkantkn.zunelauncher.data.model.HubType.SETTINGS
         )
         val saved = prefs[HUB_ORDER]
         if (saved.isNullOrEmpty()) {
             defaultOrder
         } else {
-            try {
-                saved.split(",").map { com.serkantkn.zunelauncher.data.model.HubType.valueOf(it) }
-            } catch (e: Exception) {
-                defaultOrder
-            }
+            saved.split(",").mapNotNull { 
+                try {
+                    com.serkantkn.zunelauncher.data.model.HubType.valueOf(it)
+                } catch (e: Exception) {
+                    null
+                }
+            }.ifEmpty { defaultOrder }
+        }
+    }
+
+    val customWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[CUSTOM_WALLPAPER_PATH]
+    }
+
+    val solidBackgroundEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[SOLID_BACKGROUND_ENABLED] ?: false
+    }
+
+    val dynamicThemeColor: Flow<Int?> = context.settingsDataStore.data.map { prefs ->
+        prefs[DYNAMIC_THEME_COLOR]
+    }
+
+    val customThemeColor: Flow<Int?> = context.settingsDataStore.data.map { prefs ->
+        prefs[CUSTOM_THEME_COLOR]
+    }
+
+    val browserFavorites: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[BROWSER_FAVORITES]
+    }
+
+    val browserHistory: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[BROWSER_HISTORY]
+    }
+
+    val lockScreenMode: Flow<LockScreenMode> = context.settingsDataStore.data.map { prefs ->
+        try {
+            LockScreenMode.valueOf(prefs[LOCK_SCREEN_MODE] ?: LockScreenMode.DISABLED.name)
+        } catch (e: Exception) {
+            LockScreenMode.DISABLED
+        }
+    }
+
+    val customPin: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[CUSTOM_PIN]
+    }
+
+    val notificationStyle: Flow<NotificationStyle> = context.settingsDataStore.data.map { prefs ->
+        try {
+            NotificationStyle.valueOf(prefs[NOTIFICATION_STYLE] ?: NotificationStyle.WINDOWS_PHONE.name)
+        } catch (e: Exception) {
+            NotificationStyle.WINDOWS_PHONE
+        }
+    }
+
+    val notificationCenterStyle: Flow<NotificationCenterStyle> = context.settingsDataStore.data.map { prefs ->
+        try {
+            NotificationCenterStyle.valueOf(prefs[NOTIFICATION_CENTER_STYLE] ?: NotificationCenterStyle.WINDOWS_PHONE.name)
+        } catch (e: Exception) {
+            NotificationCenterStyle.WINDOWS_PHONE
         }
     }
 
@@ -127,13 +191,6 @@ class SettingsDataStore(private val context: Context) {
             prefs[HUB_ORDER] = order.joinToString(",") { it.name }
         }
     }
-    val customWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
-        prefs[CUSTOM_WALLPAPER_PATH]
-    }
-
-    val dynamicThemeColor: Flow<Int?> = context.settingsDataStore.data.map { prefs ->
-        prefs[DYNAMIC_THEME_COLOR]
-    }
 
     suspend fun setCustomWallpaperPath(path: String?) {
         context.settingsDataStore.edit { prefs ->
@@ -145,6 +202,12 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
+    suspend fun setSolidBackgroundEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[SOLID_BACKGROUND_ENABLED] = enabled
+        }
+    }
+
     suspend fun setDynamicThemeColor(color: Int?) {
         context.settingsDataStore.edit { prefs ->
             if (color == null) {
@@ -152,6 +215,56 @@ class SettingsDataStore(private val context: Context) {
             } else {
                 prefs[DYNAMIC_THEME_COLOR] = color
             }
+        }
+    }
+
+    suspend fun setCustomThemeColor(color: Int?) {
+        context.settingsDataStore.edit { prefs ->
+            if (color == null) {
+                prefs.remove(CUSTOM_THEME_COLOR)
+            } else {
+                prefs[CUSTOM_THEME_COLOR] = color
+            }
+        }
+    }
+
+    suspend fun setBrowserFavorites(json: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[BROWSER_FAVORITES] = json
+        }
+    }
+
+    suspend fun setBrowserHistory(json: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[BROWSER_HISTORY] = json
+        }
+    }
+
+    suspend fun setLockScreenMode(mode: LockScreenMode) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[LOCK_SCREEN_MODE] = mode.name
+        }
+    }
+
+    suspend fun setCustomPin(pin: String?) {
+        context.settingsDataStore.edit { prefs ->
+            if (pin == null) {
+                prefs.remove(CUSTOM_PIN)
+            } else {
+                prefs[CUSTOM_PIN] = pin
+            }
+        }
+    }
+
+    suspend fun setNotificationStyle(style: NotificationStyle) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[NOTIFICATION_STYLE] = style.name
+        }
+    }
+
+    suspend fun setNotificationCenterStyle(style: NotificationCenterStyle) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[NOTIFICATION_CENTER_STYLE] = style.name
         }
     }
 }

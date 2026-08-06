@@ -11,9 +11,9 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
-}
+// plugins {
+//    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+// }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -23,5 +23,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Zune Launcher"
+rootProject.name = "Z Launcher"
 include(":app")
+include(":zuneplugin")

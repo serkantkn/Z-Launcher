@@ -33,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -105,20 +107,30 @@ fun PhoneHubScreen(
     Box(modifier = modifier.fillMaxSize()) {
         // Main Content (Recent Calls & Header)
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header
+            val density = LocalDensity.current
+            val overflowYPx = with(density) { (-24).dp.toPx() }
+
             Text(
                 text = "telefon",
-                style = MaterialTheme.typography.displaySmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-1).sp
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontWeight = FontWeight.Light,
+                    fontSize = 96.sp,
+                    letterSpacing = (-4).sp,
+                    lineHeight = 96.sp
                 ),
-                color = zuneColors.accentColor,
-                modifier = Modifier.padding(
-                    top = 60.dp,
-                    bottom = 4.dp,
-                    start = ZuneDimens.ScreenPaddingHorizontal,
-                    end = ZuneDimens.ScreenPaddingHorizontal
-                )
+                color = if (zuneColors.isDark) Color.White else Color.Black,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier
+                    .graphicsLayer {
+                        translationY = overflowYPx
+                    }
+                    .padding(
+                        top = 28.dp,
+                        bottom = 4.dp,
+                        start = ZuneDimens.ScreenPaddingHorizontal,
+                        end = ZuneDimens.ScreenPaddingHorizontal
+                    )
             )
 
             Text(

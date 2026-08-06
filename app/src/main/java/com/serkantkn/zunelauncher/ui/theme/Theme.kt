@@ -13,6 +13,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -21,6 +22,7 @@ import com.serkantkn.zunelauncher.data.model.ThemeMode
 
 fun AccentColor.toColor(): Color = when (this) {
     AccentColor.DYNAMIC -> Color.Transparent
+    AccentColor.CUSTOM -> Color.Transparent
     AccentColor.MAGENTA -> ZuneColors.Magenta
     AccentColor.PINK -> ZuneColors.Pink
     AccentColor.ORANGE -> ZuneColors.Orange
@@ -29,6 +31,12 @@ fun AccentColor.toColor(): Color = when (this) {
     AccentColor.GREEN -> ZuneColors.Green
     AccentColor.TEAL -> ZuneColors.Teal
     AccentColor.RED -> ZuneColors.Red
+    AccentColor.YELLOW -> ZuneColors.Yellow
+    AccentColor.LIME -> ZuneColors.Lime
+    AccentColor.CRIMSON -> ZuneColors.Crimson
+    AccentColor.COBALT -> ZuneColors.Cobalt
+    AccentColor.AMBER -> ZuneColors.Amber
+    AccentColor.BROWN -> ZuneColors.Brown
 }
 
 private val ZuneDarkColorScheme = darkColorScheme(
@@ -74,16 +82,20 @@ data class ZuneExtendedColors(
     val overlay: Color = ZuneColors.SurfaceOverlay,
     val darkOverlay: Color = ZuneColors.DarkOverlay,
     val accentColor: Color = ZuneColors.Magenta,
-    val isDark: Boolean = true
+    val isDark: Boolean = true,
+    val backgroundSolid: Boolean = false
 )
 
 val LocalZuneColors = staticCompositionLocalOf { ZuneExtendedColors() }
+val LocalIsWideScreen = staticCompositionLocalOf { false }
 
 @Composable
 fun ZuneLauncherTheme(
     themeMode: ThemeMode = ThemeMode.DARK,
     accentColor: AccentColor = AccentColor.MAGENTA,
     dynamicThemeColor: Int? = null,
+    customThemeColor: Int? = null,
+    solidBackgroundEnabled: Boolean = false,
     fontScale: Float = 1.0f,
     content: @Composable () -> Unit
 ) {
@@ -93,35 +105,64 @@ fun ZuneLauncherTheme(
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.screenWidthDp >= 600
+
     val context = LocalContext.current
-    val resolvedAccentColor = if (accentColor == AccentColor.DYNAMIC) {
-        if (dynamicThemeColor != null) {
-            Color(dynamicThemeColor)
-        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            val dynamicScheme = if (isDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            dynamicScheme.primary
-        } else {
-            ZuneColors.Magenta // Fallback
+    val resolvedAccentColor = when (accentColor) {
+        AccentColor.DYNAMIC -> {
+            if (dynamicThemeColor != null) {
+                Color(dynamicThemeColor)
+            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                val dynamicScheme = if (isDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+                dynamicScheme.primary
+            } else {
+                ZuneColors.Magenta // Fallback
+            }
         }
-    } else {
-        accentColor.toColor()
+        AccentColor.CUSTOM -> {
+            if (customThemeColor != null) {
+                Color(customThemeColor)
+            } else {
+                ZuneColors.Magenta // Fallback
+            }
+        }
+        else -> {
+            accentColor.toColor()
+        }
     }
 
-    val colorScheme = if (isDarkTheme) ZuneDarkColorScheme else ZuneLightColorScheme
+    val colorScheme = if (isDarkTheme) {
+        if (solidBackgroundEnabled) {
+            ZuneDarkColorScheme.copy(background = Color.Black)
+        } else {
+            ZuneDarkColorScheme
+        }
+    } else {
+        if (solidBackgroundEnabled) {
+            ZuneLightColorScheme.copy(background = Color.White)
+        } else {
+            ZuneLightColorScheme
+        }
+    }
 
     val zuneColors = if (isDarkTheme) {
         ZuneExtendedColors(
             isDark = true,
-            accentColor = resolvedAccentColor
+            accentColor = resolvedAccentColor,
+            textMuted = if (solidBackgroundEnabled) Color(0xFFB5B5B5) else ZuneColors.WhiteMuted,
+            textDim = if (solidBackgroundEnabled) Color(0xFF8E8E8E) else ZuneColors.WhiteDim,
+            backgroundSolid = solidBackgroundEnabled
         )
     } else {
         ZuneExtendedColors(
-            textMuted = ZuneColors.LightTextMuted,
-            textDim = Color(0xFF999999),
+            textMuted = if (solidBackgroundEnabled) Color(0xFF4A4A4A) else ZuneColors.LightTextMuted,
+            textDim = if (solidBackgroundEnabled) Color(0xFF7A7A7A) else Color(0xFF999999),
             overlay = Color(0x1A000000),
             darkOverlay = Color(0xCCFFFFFF),
             isDark = false,
-            accentColor = resolvedAccentColor
+            accentColor = resolvedAccentColor,
+            backgroundSolid = solidBackgroundEnabled
         )
     }
 
@@ -140,7 +181,10 @@ fun ZuneLauncherTheme(
         }
     }
 
-    CompositionLocalProvider(LocalZuneColors provides zuneColors) {
+    CompositionLocalProvider(
+        LocalZuneColors provides zuneColors,
+        LocalIsWideScreen provides isWideScreen
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = ZuneTypography,

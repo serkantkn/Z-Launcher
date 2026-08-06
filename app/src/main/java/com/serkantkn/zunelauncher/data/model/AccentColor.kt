@@ -9,5 +9,12 @@ enum class AccentColor {
     BLUE,
     GREEN,
     TEAL,
-    RED
+    RED,
+    YELLOW,
+    LIME,
+    CRIMSON,
+    COBALT,
+    AMBER,
+    BROWN,
+    CUSTOM
 }

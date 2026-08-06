@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -34,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -69,26 +73,57 @@ fun SocialHubScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val overflowYPx = with(density) { (-24).dp.toPx() }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
                     start = ZuneDimens.ScreenPaddingHorizontal,
                     end = ZuneDimens.ScreenPaddingHorizontal,
-                    top = 80.dp
+                    top = 48.dp
                 )
         ) {
             // Header — Zune large typography
             Text(
                 text = stringResource(R.string.social_hub),
-                style = MaterialTheme.typography.displayMedium.copy(
-                    fontWeight = FontWeight.Light
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontWeight = FontWeight.Light,
+                    fontSize = 96.sp,
+                    letterSpacing = (-4).sp,
+                    lineHeight = 96.sp
                 ),
-                color = zuneColors.accentColor,
-                modifier = Modifier.padding(bottom = ZuneDimens.SpacingLg)
+                color = if (zuneColors.isDark) Color.White else Color.Black,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier
+                    .graphicsLayer {
+                        translationY = overflowYPx
+                    }
+                    .padding(bottom = ZuneDimens.SpacingLg)
             )
 
-            if (!hasPermission) {
+            if (!com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Lock,
+                        contentDescription = "Lock",
+                        tint = zuneColors.textMuted,
+                        modifier = Modifier.size(64.dp).padding(bottom = 16.dp)
+                    )
+                    Text(
+                        text = "Social Hub sadece Z Launcher Pro'da geçerlidir.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            } else if (!hasPermission) {
                 PermissionRequestView(onOpenSettings = { viewModel.openNotificationSettings() })
             } else if (messages.isEmpty()) {
                 EmptyStateView()

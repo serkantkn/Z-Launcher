@@ -1,8 +1,15 @@
 package com.serkantkn.zunelauncher.ui.screens
 import android.annotation.SuppressLint
 import android.content.Context
+import com.serkantkn.zunelauncher.MainActivityEvents
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -35,6 +42,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,9 +52,17 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.serkantkn.zunelauncher.data.model.HubType
+import com.serkantkn.zunelauncher.data.model.NotificationStyle
+import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
+import com.serkantkn.zunelauncher.service.WpActionCenterOverlayManager
+import com.serkantkn.zunelauncher.ui.components.WpActionCenterPanel
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.components.BackgroundMode
 import com.serkantkn.zunelauncher.ui.components.ZuneBackground
+import com.serkantkn.zunelauncher.ui.components.ZuneWallpaperOverlay
+import com.serkantkn.zunelauncher.ui.components.WpToastNotification
 import com.serkantkn.zunelauncher.ui.navigation.rememberZuneNavigationState
 import com.serkantkn.zunelauncher.ui.screens.apps.AppsHubScreen
 import com.serkantkn.zunelauncher.ui.screens.home.HomeHubScreen
@@ -59,6 +75,9 @@ import com.serkantkn.zunelauncher.ui.screens.social.SocialHubScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 
 @SuppressLint("WrongConstant")
 fun expandNotificationPanel(context: Context) {
@@ -79,6 +98,17 @@ fun expandNotificationPanel(context: Context) {
     }
 }
 
+fun setStatusBarExpandDisabled(context: Context, disabled: Boolean) {
+    try {
+        val statusBarService = context.getSystemService("statusbar")
+        val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
+        val disableMethod = statusBarManagerClass.getMethod("disable", Int::class.javaPrimitiveType)
+        disableMethod.invoke(statusBarService, if (disabled) 0x00010000 else 0)
+    } catch (e: Exception) {
+        // Ignored if restricted
+    }
+}
+
 /**
  * Main launcher screen composable.
  *
@@ -93,12 +123,33 @@ fun expandNotificationPanel(context: Context) {
 fun LauncherScreen(
     modifier: Modifier = Modifier
 ) {
-    val pagerState = rememberPagerState(
-        initialPage = 1,
-        pageCount = { 3 }
-    )
     val navState = rememberZuneNavigationState()
+    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
+    
+    val settingsViewModel: SettingsViewModel = viewModel()
+    val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
+    val notificationStyle by settingsViewModel.notificationStyle.collectAsState()
+    val notificationCenterStyle by settingsViewModel.notificationCenterStyle.collectAsState()
+    val currentCenterStyle by rememberUpdatedState(notificationCenterStyle)
+    
+    var isActionCenterOpen by remember { mutableStateOf(false) }
+    val latestToastMessage by SocialRepository.latestToastMessage.collectAsState()
+    val context = LocalContext.current
+    
+    val triggerActionCenter by MainActivityEvents.triggerActionCenter.collectAsState()
+    LaunchedEffect(triggerActionCenter) {
+        if (triggerActionCenter) {
+            if (currentCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
+                isActionCenterOpen = true
+            } else {
+                expandNotificationPanel(context)
+            }
+            MainActivityEvents.triggerActionCenter.value = false
+        }
+    }
+    
+    var wallpaperOverlayAlpha by remember { mutableStateOf(1f) }
     val density = LocalDensity.current.density
 
     // ── Hinge animation state ──
@@ -134,8 +185,7 @@ fun LauncherScreen(
     }
 
     var accumulatedOverscroll by remember { mutableStateOf(0f) }
-    val context = LocalContext.current
-    val globalNestedScrollConnection = remember(context) {
+    val globalNestedScrollConnection = remember(context, currentCenterStyle) {
         object : NestedScrollConnection {
             override fun onPreScroll(
                 available: androidx.compose.ui.geometry.Offset,
@@ -153,8 +203,12 @@ fun LauncherScreen(
                 if (source == androidx.compose.ui.input.nestedscroll.NestedScrollSource.UserInput) {
                     if (available.y > 0 && navState.currentHub == null) {
                         accumulatedOverscroll += available.y
-                        if (accumulatedOverscroll > 100f) {
-                            expandNotificationPanel(context)
+                        if (accumulatedOverscroll > 8f) {
+                            if (currentCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
+                                isActionCenterOpen = true
+                            } else {
+                                expandNotificationPanel(context)
+                            }
                             accumulatedOverscroll = 0f
                         }
                         return available
@@ -165,14 +219,48 @@ fun LauncherScreen(
         }
     }
 
+    LaunchedEffect(isActionCenterOpen) {
+        if (isActionCenterOpen) {
+            try {
+                val statusBarService = context.getSystemService("statusbar")
+                val statusBarManager = Class.forName("android.app.StatusBarManager")
+                val collapse = statusBarManager.getMethod("collapsePanels")
+                collapse.invoke(statusBarService)
+            } catch (e: Exception) {
+                try {
+                    val statusBarService = context.getSystemService("statusbar")
+                    val statusBarManager = Class.forName("android.app.StatusBarManager")
+                    val collapse = statusBarManager.getMethod("collapse")
+                    collapse.invoke(statusBarService)
+                } catch (ex: Exception) {
+                    ex.printStackTrace()
+                }
+            }
+        }
+    }
+
+    val isWideScreen = LocalIsWideScreen.current
+    LaunchedEffect(notificationCenterStyle) {
+        if (notificationCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
+            setStatusBarExpandDisabled(context, true)
+            WpActionCenterOverlayManager.startTopEdgeTrigger(context, isWideScreen, zuneColors)
+        } else {
+            setStatusBarExpandDisabled(context, false)
+            WpActionCenterOverlayManager.stopTopEdgeTrigger()
+        }
+    }
+
     Box(
         modifier = modifier.fillMaxSize().nestedScroll(globalNestedScrollConnection)
     ) {
             ZuneBackground(
-                mode = BackgroundMode.GRADIENT,
+                mode = if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER,
                 accentColor = accentColor
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
+                    if (!solidBackgroundEnabled) {
+                        ZuneWallpaperOverlay(alpha = wallpaperOverlayAlpha)
+                    }
 
             // ════════════════════════════════════════════
             // LAYER 1 — Main pager (Home + Apps)
@@ -202,13 +290,9 @@ fun LauncherScreen(
                         1 -> HomeHubScreen(
                             isHubOpen = isHubOpen,
                             isCurrentPage = pagerState.currentPage == 1,
+                            onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
                             onHubSelected = { hub ->
                                 when (hub) {
-                                    HubType.APPS -> {
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(2)
-                                        }
-                                    }
                                     HubType.HOME -> { /* Already on home */ }
                                     else -> navState.openHub(hub)
                                 }
@@ -254,13 +338,41 @@ fun LauncherScreen(
                             HubType.PHONE -> PhoneHubScreen(onBack = { navState.closeHub() })
                             HubType.SETTINGS -> SettingsScreen(onBack = { navState.closeHub() })
                             HubType.CLOCK -> com.serkantkn.zunelauncher.ui.screens.clock.ClockHubScreen(onBack = { navState.closeHub() })
+                            HubType.INTERNET -> com.serkantkn.zunelauncher.ui.screens.browser.BrowserHubScreen(onClose = { navState.closeHub() })
+                            HubType.CALENDAR -> com.serkantkn.zunelauncher.ui.screens.calendar.CalendarHubScreen(onBack = { navState.closeHub() })
                             else -> {}
                         }
                     }
                 }
-                }
             }
+
+            // Top Status Bar Gesture Interceptor Area
+            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(statusBarTop + 40.dp)
+                    .pointerInput(currentCenterStyle) {
+                        detectVerticalDragGestures { _, dragAmount ->
+                            if (dragAmount > 8f) {
+                                if (currentCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
+                                    isActionCenterOpen = true
+                                } else {
+                                    expandNotificationPanel(context)
+                                }
+                            }
+                        }
+                    }
+            )
+
+            WpActionCenterPanel(
+                isOpen = isActionCenterOpen,
+                onClose = { isActionCenterOpen = false }
+            )
         }
     }
 }
+}
+
+
 

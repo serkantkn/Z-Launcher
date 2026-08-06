@@ -21,13 +21,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -44,7 +48,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +67,7 @@ import com.serkantkn.zunelauncher.ui.components.PhotoViewer
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
 
@@ -78,9 +87,15 @@ fun PicturesHubScreen(
     val selectedAlbum by viewModel.selectedAlbum.collectAsState()
 
     val tabs = listOf("film rulosu", "albümler", "favoriler")
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val actualPageCount = tabs.size
+    val loopCount = 1000
+    val initialPage = (loopCount / 2) * actualPageCount
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { loopCount * actualPageCount }
+    )
     val coroutineScope = rememberCoroutineScope()
-    
+
     var viewingPhoto by remember { mutableStateOf<MediaImage?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -100,123 +115,274 @@ fun PicturesHubScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        val configuration = LocalConfiguration.current
+        val screenWidthDp = configuration.screenWidthDp.dp
+        val density = LocalDensity.current
+        val screenWidthPx = with(density) { screenWidthDp.toPx() }
+        val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
+        val overflowYPx = with(density) { (-24).dp.toPx() }
+        val isWideScreen = LocalIsWideScreen.current
+
+        val renderPage: @Composable (String) -> Unit = { tabName ->
+            ZunePageTransition {
+                when (tabName) {
+                    "film rulosu" -> {
+                        if (allImages.isEmpty()) {
+                            EmptyStateView(stringResource(R.string.no_photos))
+                        } else {
+                            PhotoGrid(images = allImages) { viewingPhoto = it }
+                        }
+                    }
+
+                    "albümler" -> {
+                        if (selectedAlbum != null) {
+                            val albumImages =
+                                allImages.filter { it.bucketId == selectedAlbum!!.bucketId }
+                            PhotoGrid(images = albumImages) { viewingPhoto = it }
+                        } else {
+                            if (albums.isEmpty()) {
+                                EmptyStateView(stringResource(R.string.no_albums))
+                            } else {
+                                AlbumGrid(albums = albums) { viewModel.selectAlbum(it) }
+                            }
+                        }
+                    }
+
+                    "favoriler" -> {
+                        if (favoriteImages.isEmpty()) {
+                            EmptyStateView(stringResource(R.string.no_favorites))
+                        } else {
+                            PhotoGrid(images = favoriteImages) { viewingPhoto = it }
+                        }
+                    }
+                }
+            }
+        }
+
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header
-            Text(
-                text = "fotoğraflar",
-                style = MaterialTheme.typography.displaySmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-1).sp
-                ),
-                color = zuneColors.accentColor,
-                modifier = Modifier.padding(
-                    top = 60.dp,
-                    bottom = 4.dp,
-                    start = ZuneDimens.ScreenPaddingHorizontal,
-                    end = ZuneDimens.ScreenPaddingHorizontal
-                )
-            )
-
-            // Tabs -> Zune Pivot
-            ZunePivotTabs(
-                tabs = tabs,
-                pagerState = pagerState,
-                onSelected = { index ->
-                    coroutineScope.launch { pagerState.animateScrollToPage(index) }
-                    viewModel.selectAlbum(null)
-                },
-                modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
-            )
-
-            // Selected Album Title Context
-            AnimatedContent(
-                targetState = selectedAlbum,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "album_title"
-            ) { album ->
-                if (album != null) {
-                    Text(
-                        text = album.bucketName.lowercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = zuneColors.accentColor,
-                        modifier = Modifier.padding(
-                            bottom = ZuneDimens.SpacingMd,
-                            start = ZuneDimens.ScreenPaddingHorizontal,
-                            end = ZuneDimens.ScreenPaddingHorizontal
-                        )
-                    )
-                }
-            }
-
-            // Content Area
-            if (!hasPermission) {
-                PermissionRequestView(
-                    onRequestPermission = {
-                        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            android.Manifest.permission.READ_MEDIA_IMAGES
-                        } else {
-                            android.Manifest.permission.READ_EXTERNAL_STORAGE
-                        }
-                        permissionLauncher.launch(permission)
-                    }
-                )
-            } else if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = zuneColors.accentColor)
-                }
-            } else {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = ZuneDimens.ScreenPaddingHorizontal,
-                        end = 48.dp
+            if (isWideScreen) {
+                Text(
+                    text = "fotoğraflar",
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 96.sp,
+                        letterSpacing = (-4).sp,
+                        lineHeight = 96.sp
                     ),
-                    pageSpacing = 24.dp
-                ) { page ->
-                    ZunePageTransition {
-                        when (tabs[page]) {
-                        "film rulosu" -> {
-                            if (allImages.isEmpty()) {
-                                EmptyStateView(stringResource(R.string.no_photos))
-                            } else {
-                                PhotoGrid(images = allImages) { viewingPhoto = it }
-                            }
-                        }
-                        "albümler" -> {
-                            if (selectedAlbum != null) {
-                                val albumImages = allImages.filter { it.bucketId == selectedAlbum!!.bucketId }
-                                PhotoGrid(images = albumImages) { viewingPhoto = it }
-                            } else {
-                                if (albums.isEmpty()) {
-                                    EmptyStateView(stringResource(R.string.no_albums))
+                    color = if (zuneColors.isDark) Color.White else Color.Black,
+                    modifier = Modifier.padding(
+                            start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
+                        top = 4.dp,
+                        bottom = 24.dp
+                    ).graphicsLayer { translationY = overflowYPx }
+                )
+
+                // Selected Album Context
+                AnimatedContent(
+                    targetState = selectedAlbum,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "album_title"
+                ) { album ->
+                    if (album != null) {
+                        Text(
+                            text = album.bucketName.lowercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = zuneColors.accentColor,
+                            modifier = Modifier.padding(
+                                bottom = ZuneDimens.SpacingMd,
+                                start = ZuneDimens.ScreenPaddingHorizontal,
+                                end = ZuneDimens.ScreenPaddingHorizontal
+                            )
+                        )
+                    }
+                }
+
+                if (!hasPermission) {
+                    PermissionRequestView(
+                        onRequestPermission = {
+                            val permission =
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    android.Manifest.permission.READ_MEDIA_IMAGES
                                 } else {
-                                    AlbumGrid(albums = albums) { viewModel.selectAlbum(it) }
+                                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                }
+                            permissionLauncher.launch(permission)
+                        }
+                    )
+                } else if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = zuneColors.accentColor)
+                    }
+                } else {
+                    LazyRow(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                                start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
+                            end = 48.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(48.dp)
+                    ) {
+                        items(tabs.size) { index ->
+                            Column(modifier = Modifier.width(360.dp).fillMaxHeight()) {
+                                Text(
+                                    text = tabs[index],
+                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
+                                    color = zuneColors.accentColor,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+                                Box(modifier = Modifier.weight(1f)) {
+                                    renderPage(tabs[index])
                                 }
                             }
                         }
-                        "favoriler" -> {
-                            if (favoriteImages.isEmpty()) {
-                                EmptyStateView(stringResource(R.string.no_favorites))
-                            } else {
-                                PhotoGrid(images = favoriteImages) { viewingPhoto = it }
-                            }
-                        }
                     }
                 }
-            }
-        }
-        }
+            } else {
+                // Header
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top = 28.dp,
+                            bottom = 4.dp,
+                            start = ZuneDimens.ScreenPaddingHorizontal
+                        )
+                ) {
+                    val cycle =
+                        (pagerState.currentPage + pagerState.currentPageOffsetFraction) % actualPageCount
+                    val actualCycle = if (cycle < 0) cycle + actualPageCount else cycle
+                    val threshold = (actualPageCount - 1).toFloat()
 
-        // Full Screen Viewer Overlay
-        PhotoViewer(
-            photo = viewingPhoto,
-            isFavorite = viewingPhoto?.id?.toString() in favoritePhotoIds,
-            onDismiss = { viewingPhoto = null },
-            onToggleFavorite = { viewingPhoto?.let { viewModel.toggleFavorite(it.id) } }
-        )
+                    val translationX1: Float
+                    val translationX2: Float
+
+                    if (actualCycle <= threshold) {
+                        translationX1 = -actualCycle * parallaxMultiplierPx
+                        translationX2 = screenWidthPx
+                    } else {
+                        val fraction = actualCycle - threshold
+                        translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
+                        translationX2 = screenWidthPx - fraction * screenWidthPx
+                    }
+
+                    Text(
+                        text = "fotoğraflar",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 96.sp,
+                            letterSpacing = (-4).sp,
+                            lineHeight = 96.sp
+                        ),
+                        color = if (zuneColors.isDark) Color.White else Color.Black,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.graphicsLayer {
+                            translationX = translationX1
+                            translationY = overflowYPx
+                        }
+                    )
+                    Text(
+                        text = "fotoğraflar",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 96.sp,
+                            letterSpacing = (-4).sp,
+                            lineHeight = 96.sp
+                        ),
+                        color = if (zuneColors.isDark) Color.White else Color.Black,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.graphicsLayer {
+                            translationX = translationX2
+                            translationY = overflowYPx
+                        }
+                    )
+                }
+
+                // Tabs -> Zune Pivot
+                ZunePivotTabs(
+                    tabs = tabs,
+                    pagerState = pagerState,
+                    onSelected = { index ->
+                        val current = pagerState.currentPage
+                        val size = actualPageCount
+                        val currentActual = ((current % size) + size) % size
+                        var diff = index - currentActual
+                        if (diff > size / 2) {
+                            diff -= size
+                        } else if (diff < -size / 2) {
+                            diff += size
+                        }
+                        val targetPage = current + diff
+                        coroutineScope.launch { pagerState.animateScrollToPage(targetPage) }
+                        viewModel.selectAlbum(null)
+                    },
+                    modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
+                )
+
+                // Selected Album Title Context
+                AnimatedContent(
+                    targetState = selectedAlbum,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "album_title"
+                ) { album ->
+                    if (album != null) {
+                        Text(
+                            text = album.bucketName.lowercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = zuneColors.accentColor,
+                            modifier = Modifier.padding(
+                                bottom = ZuneDimens.SpacingMd,
+                                start = ZuneDimens.ScreenPaddingHorizontal,
+                                end = ZuneDimens.ScreenPaddingHorizontal
+                            )
+                        )
+                    }
+                }
+
+                // Content Area
+                if (!hasPermission) {
+                    PermissionRequestView(
+                        onRequestPermission = {
+                            val permission =
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    android.Manifest.permission.READ_MEDIA_IMAGES
+                                } else {
+                                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                }
+                            permissionLauncher.launch(permission)
+                        }
+                    )
+                } else if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = zuneColors.accentColor)
+                    }
+                } else {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = ZuneDimens.ScreenPaddingHorizontal,
+                            end = 48.dp
+                        ),
+                        pageSpacing = 24.dp
+                    ) { page ->
+                        val actualPage = page % actualPageCount
+                        renderPage(tabs[actualPage])
+                    }
+                }
+            } // close else
+
+            // Full Screen Viewer Overlay
+            PhotoViewer(
+                photo = viewingPhoto,
+                isFavorite = viewingPhoto?.id?.toString() in favoritePhotoIds,
+                onDismiss = { viewingPhoto = null },
+                onToggleFavorite = { viewingPhoto?.let { viewModel.toggleFavorite(it.id) } }
+            )
+        }
     }
 }
 

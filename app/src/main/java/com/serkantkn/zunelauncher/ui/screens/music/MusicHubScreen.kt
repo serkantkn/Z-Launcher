@@ -34,20 +34,33 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.ui.theme.ZuneExtendedColors
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyRow
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
@@ -90,30 +103,141 @@ fun MusicHubScreen(
                 )
             }
 
-            val pagerState = rememberPagerState(pageCount = { 4 })
             val pages = listOf("oynatılıyor", "albümler", "sanatçılar", "şarkılar")
+            val actualPageCount = pages.size
+            val loopCount = 1000
+            val initialPage = (loopCount / 2) * actualPageCount
+            val pagerState = rememberPagerState(
+                initialPage = initialPage,
+                pageCount = { loopCount * actualPageCount }
+            )
 
+            val configuration = LocalConfiguration.current
+            val screenWidthDp = configuration.screenWidthDp.dp
+            val density = LocalDensity.current
+            val screenWidthPx = with(density) { screenWidthDp.toPx() }
+            val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
+            val overflowYPx = with(density) { (-24).dp.toPx() }
+            val isWideScreen = LocalIsWideScreen.current
+            
             Column(modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = "müzik",
-                    style = MaterialTheme.typography.displaySmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-1).sp
-                    ),
-                    color = animatedAccent,
-                    modifier = Modifier.padding(
-                        top = 60.dp,
-                        bottom = 4.dp,
-                        start = ZuneDimens.ScreenPaddingHorizontal,
-                        end = ZuneDimens.ScreenPaddingHorizontal
+                if (isWideScreen) {
+                    Text(
+                        text = "müzik",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 96.sp,
+                            letterSpacing = (-4).sp,
+                            lineHeight = 96.sp
+                        ),
+                        color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
+                        modifier = Modifier.padding(
+                            start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
+                            top = 4.dp,
+                            bottom = 24.dp
+                        ).graphicsLayer { translationY = overflowYPx }
                     )
-                )
+
+                    LazyRow(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
+                            end = 48.dp
+                        ),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(48.dp)
+                    ) {
+                        items(pages.size) { index ->
+                            Column(modifier = Modifier.width(360.dp)) {
+                                Text(
+                                    text = pages[index],
+                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
+                                    color = LocalZuneColors.current.accentColor,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+                                when (index) {
+                                    0 -> NowPlayingPage(viewModel)
+                                    1 -> AlbumsPage(viewModel)
+                                    2 -> ArtistsPage(viewModel)
+                                    3 -> SongsPage(viewModel)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top = 28.dp,
+                            bottom = 4.dp,
+                            start = ZuneDimens.ScreenPaddingHorizontal
+                        )
+                ) {
+                    val cycle = (pagerState.currentPage + pagerState.currentPageOffsetFraction) % actualPageCount
+                    val actualCycle = if (cycle < 0) cycle + actualPageCount else cycle
+                    val threshold = (actualPageCount - 1).toFloat()
+
+                    val translationX1: Float
+                    val translationX2: Float
+
+                    if (actualCycle <= threshold) {
+                        translationX1 = -actualCycle * parallaxMultiplierPx
+                        translationX2 = screenWidthPx
+                    } else {
+                        val fraction = actualCycle - threshold
+                        translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
+                        translationX2 = screenWidthPx - fraction * screenWidthPx
+                    }
+
+                    Text(
+                        text = "müzik",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 96.sp,
+                            letterSpacing = (-4).sp,
+                            lineHeight = 96.sp
+                        ),
+                        color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.graphicsLayer {
+                            translationX = translationX1
+                            translationY = overflowYPx
+                        }
+                    )
+                    Text(
+                        text = "müzik",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 96.sp,
+                            letterSpacing = (-4).sp,
+                            lineHeight = 96.sp
+                        ),
+                        color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.graphicsLayer {
+                            translationX = translationX2
+                            translationY = overflowYPx
+                        }
+                    )
+                }
 
                 ZunePivotTabs(
                     tabs = pages,
                     pagerState = pagerState,
                     onSelected = { index ->
-                        coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                        val current = pagerState.currentPage
+                        val size = actualPageCount
+                        val currentActual = ((current % size) + size) % size
+                        var diff = index - currentActual
+                        if (diff > size / 2) {
+                            diff -= size
+                        } else if (diff < -size / 2) {
+                            diff += size
+                        }
+                        val targetPage = current + diff
+                        coroutineScope.launch { pagerState.animateScrollToPage(targetPage) }
                     },
                     modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
                 )
@@ -122,12 +246,14 @@ fun MusicHubScreen(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    when (page) {
+                    val actualPage = page % actualPageCount
+                    when (actualPage) {
                         0 -> NowPlayingPage(viewModel)
                         1 -> AlbumsPage(viewModel)
                         2 -> ArtistsPage(viewModel)
                         3 -> SongsPage(viewModel)
                     }
+                }
                 }
             }
         }

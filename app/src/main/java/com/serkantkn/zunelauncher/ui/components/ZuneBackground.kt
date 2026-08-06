@@ -26,6 +26,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -80,6 +81,7 @@ fun ZuneBackground(
 
     val settingsDataStore = remember { com.serkantkn.zunelauncher.data.datastore.SettingsDataStore(context) }
     val customWallpaperPath by settingsDataStore.customWallpaperPath.collectAsState(initial = null)
+    val solidBackgroundEnabled by settingsDataStore.solidBackgroundEnabled.collectAsState(initial = false)
 
     val coroutineScope = rememberCoroutineScope()
     
@@ -155,7 +157,7 @@ fun ZuneBackground(
             .onGloballyPositioned { backgroundCoordinates = it }
     ) {
         Crossfade(
-            targetState = mode,
+            targetState = if (solidBackgroundEnabled) BackgroundMode.SOLID else mode,
             modifier = Modifier
                 .fillMaxSize(),
             label = "background_transition"
@@ -257,20 +259,13 @@ private fun WallpaperBackground(
 ) {
     bitmapToDraw?.let { bitmap ->
         val isDark = LocalZuneColors.current.isDark
-        val overlayColor = Color.Transparent
-
+        
         Box(modifier = Modifier.fillMaxSize()) {
             Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
-            )
-            // Dark/Light overlay for text readability
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(overlayColor)
             )
         }
     } ?: SystemWallpaperFallback(accentColor = fallbackAccentColor)
@@ -305,6 +300,38 @@ private fun SolidBackground() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (isDark) ZuneColors.Black else ZuneColors.LightBackground)
+            .background(if (isDark) Color.Black else Color.White)
+    )
+}
+
+@Composable
+fun ZuneWallpaperOverlay(
+    modifier: Modifier = Modifier,
+    alpha: Float = 1f
+) {
+    if (alpha <= 0f) return
+    val isDark = LocalZuneColors.current.isDark
+    
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .graphicsLayer { this.alpha = alpha }
+            .background(
+                brush = Brush.linearGradient(
+                    colors = if (isDark) listOf(
+                        Color(0xFF0A0A0A).copy(alpha = 0.85f),
+                        Color(0xFF202020).copy(alpha = 0.85f),
+                        Color.White.copy(alpha = 0.12f * 0.85f),
+                        Color(0xFF0A0A0A).copy(alpha = 0.85f)
+                    ) else listOf(
+                        Color(0xFFF5F5F5).copy(alpha = 0.85f),
+                        Color(0xFFFFFFFF).copy(alpha = 0.85f),
+                        Color.Black.copy(alpha = 0.08f * 0.85f),
+                        Color(0xFFF5F5F5).copy(alpha = 0.85f)
+                    ),
+                    start = Offset(0f, 0f),
+                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                )
+            )
     )
 }

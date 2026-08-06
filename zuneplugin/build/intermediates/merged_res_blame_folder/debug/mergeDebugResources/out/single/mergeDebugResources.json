@@ -1,0 +1,50 @@
+[
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-hdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.serkantkn.zplugin.zuneplugin-debug-38:/xml_accessibility_service_config.xml.flat",
+        "source": "com.serkantkn.zplugin.zuneplugin-main-40:/xml/accessibility_service_config.xml"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-mdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-hdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-xhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-xxxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-xxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/mipmap-xxxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-debug-38:/xml_accessibility_service_config.xml.flat",
+        "source": "/Users/serkan/.gradle/daemon/9.4.1/com.serkantkn.zplugin.zuneplugin-main-40:/xml/accessibility_service_config.xml"
+    }
+]
