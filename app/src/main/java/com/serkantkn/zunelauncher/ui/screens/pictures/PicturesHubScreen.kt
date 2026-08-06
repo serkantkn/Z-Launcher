@@ -374,16 +374,16 @@ fun PicturesHubScreen(
                     }
                 }
             } // close else
+        } // close Column
 
-            // Full Screen Viewer Overlay
-            PhotoViewer(
-                photo = viewingPhoto,
-                isFavorite = viewingPhoto?.id?.toString() in favoritePhotoIds,
-                onDismiss = { viewingPhoto = null },
-                onToggleFavorite = { viewingPhoto?.let { viewModel.toggleFavorite(it.id) } }
-            )
-        }
-    }
+        // Full Screen Photo Viewer Overlay (outside Column in root Box)
+        PhotoViewer(
+            photo = viewingPhoto,
+            isFavorite = viewingPhoto?.id?.toString() in favoritePhotoIds,
+            onDismiss = { viewingPhoto = null },
+            onToggleFavorite = { viewingPhoto?.let { viewModel.toggleFavorite(it.id) } }
+        )
+    } // close root Box
 }
 
 @Composable
