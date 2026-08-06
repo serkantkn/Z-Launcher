@@ -5,17 +5,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -30,19 +25,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
 import com.serkantkn.zunelauncher.data.model.SmsMessageModel
@@ -146,7 +140,7 @@ fun MessagingHubScreen(
                         }
                     )
                 } else {
-                    // Tablet Mode Dual-Pane Layout (Left: Message List, Right: Active Conversation)
+                    // Tablet Mode Dual-Pane Layout (Left: Message List, Right: Transparent Active Conversation)
                     Row(
                         modifier = Modifier
                             .weight(1f)
@@ -177,36 +171,24 @@ fun MessagingHubScreen(
 
                         Spacer(modifier = Modifier.width(32.dp))
 
-                        // Right Pane: Active Chat Conversation or Placeholder
+                        // Right Pane: Active Chat Conversation (Transparent Background)
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
                         ) {
                             if (selectedConv != null) {
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = if (zuneColors.isDark) Color(0xFF141414) else Color.White,
-                                    shape = RoundedCornerShape(12.dp),
-                                    tonalElevation = 8.dp
-                                ) {
-                                    ConversationDetailContent(
-                                        conversation = selectedConv!!,
-                                        messages = threadMessages,
-                                        onClose = { viewModel.closeConversation() },
-                                        onSend = { text ->
-                                            viewModel.sendSms(context, selectedConv!!.address, text) {}
-                                        }
-                                    )
-                                }
+                                ConversationDetailContent(
+                                    conversation = selectedConv!!,
+                                    messages = threadMessages,
+                                    onClose = { viewModel.closeConversation() },
+                                    onSend = { text ->
+                                        viewModel.sendSms(context, selectedConv!!.address, text) {}
+                                    }
+                                )
                             } else {
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            (if (zuneColors.isDark) Color(0xFF141414) else Color(0xFFF7F7F7)),
-                                            RoundedCornerShape(12.dp)
-                                        ),
+                                    modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -674,6 +656,17 @@ private fun ConversationDetailContent(
 ) {
     val zuneColors = LocalZuneColors.current
     var inputMessage by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+
+    val sortedMessages = remember(messages) {
+        messages.sortedBy { it.timestamp }
+    }
+
+    LaunchedEffect(sortedMessages.size, conversation.threadId) {
+        if (sortedMessages.isNotEmpty()) {
+            listState.scrollToItem(sortedMessages.size - 1)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -709,7 +702,7 @@ private fun ConversationDetailContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (messages.isEmpty()) {
+        if (sortedMessages.isEmpty()) {
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -724,10 +717,11 @@ private fun ConversationDetailContent(
             }
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(messages) { msg ->
+                items(sortedMessages) { msg ->
                     val isOut = msg.isOutgoing
                     Box(
                         modifier = Modifier.fillMaxWidth(),
