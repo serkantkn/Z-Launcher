@@ -3,59 +3,26 @@ package com.serkantkn.zunelauncher.ui.screens.settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.alpha
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.serkantkn.zunelauncher.data.model.AccentColor
-import com.serkantkn.zunelauncher.data.model.SocialHubLayout
-import com.serkantkn.zunelauncher.data.model.LockScreenMode
-import com.serkantkn.zunelauncher.data.model.NotificationStyle
-import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
-import com.serkantkn.zunelauncher.data.model.ThemeMode
+import com.serkantkn.zunelauncher.data.model.*
 import com.serkantkn.zunelauncher.data.plugin.PluginManager
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 
@@ -263,11 +230,115 @@ internal fun HubSettingsPage(
             }
         }
 
+        item(key = "internet") {
+            SettingGroup(title = "internet hub") {
+                SystemSettingRow(
+                    title = "geçmişi temizle",
+                    subtitle = "tarayıcı geçmişini siler",
+                    onClick = {
+                        onClearBrowserHistory()
+                        showHistoryClearToast = true
+                    }
+                )
+            }
+        }
+
+        item(key = "hub_order") {
+            SettingGroup(title = "ana ekran hub sırası") {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "ana ekrandaki hub başlıklarının sıralamasını yukarı/aşağı butonları ile değiştirin:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+
+                    hubOrder.forEachIndexed { index, hubType ->
+                        Surface(
+                            color = if (LocalZuneColors.current.isDark) Color(0xFF222222) else Color(0xFFE8E8E8),
+                            shape = RoundedCornerShape(2.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${index + 1}. ${hubType.title.lowercase()}",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .alpha(if (index > 0) 1f else 0.3f)
+                                        .clickable(enabled = index > 0) {
+                                            viewModel.moveHub(index, -1)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowUp,
+                                        contentDescription = "Yukarı Taşımak",
+                                        tint = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .alpha(if (index < hubOrder.size - 1) 1f else 0.3f)
+                                        .clickable(enabled = index < hubOrder.size - 1) {
+                                            viewModel.moveHub(index, 1)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                        contentDescription = "Aşağı Taşımak",
+                                        tint = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    OutlinedButton(
+                        onClick = { viewModel.resetHubOrder() },
+                        modifier = Modifier.fillMaxWidth(),
+                        border = BorderStroke(1.dp, LocalZuneColors.current.accentColor)
+                    ) {
+                        Text(
+                            text = "varsayılana sıfırla",
+                            color = LocalZuneColors.current.accentColor
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun NotificationsSettingsPage(viewModel: SettingsViewModel) {
+    val notificationStyle by viewModel.notificationStyle.collectAsState()
+    val notificationCenterStyle by viewModel.notificationCenterStyle.collectAsState()
+    val context = LocalContext.current
+    val isPluginInstalled = remember { PluginManager.isPluginInstalled(context) }
+
+    SettingsLazyColumn {
         item(key = "notification_style") {
-            val notificationStyle by viewModel.notificationStyle.collectAsState()
-            val context = LocalContext.current
-            val isPluginInstalled = remember { PluginManager.isPluginInstalled(context) }
-            
             SettingGroup(title = "bildirim stili") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (isPluginInstalled) {
@@ -331,7 +402,6 @@ internal fun HubSettingsPage(
         }
 
         item(key = "notification_center_style") {
-            val notificationCenterStyle by viewModel.notificationCenterStyle.collectAsState()
             SettingGroup(title = "bildirim paneli stili") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
@@ -392,101 +462,39 @@ internal fun HubSettingsPage(
                 }
             }
         }
+    }
+}
 
-        item(key = "internet") {
-            SettingGroup(title = "internet hub") {
-                SystemSettingRow(
-                    title = "geçmişi temizle",
-                    subtitle = "tarayıcı geçmişini siler",
-                    onClick = {
-                        onClearBrowserHistory()
-                        showHistoryClearToast = true
-                    }
-                )
-            }
-        }
+@Composable
+internal fun DisplaySettingsPage(viewModel: SettingsViewModel) {
+    val brightness by viewModel.brightness.collectAsState()
 
-        item(key = "hub_order") {
-            SettingGroup(title = "ana ekran hub sırası") {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = "ana ekrandaki hub başlıklarının sıralamasını yukarı/aşağı butonları ile değiştirin:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalZuneColors.current.textMuted,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
+    LaunchedEffect(Unit) {
+        viewModel.refreshSystemSettings()
+    }
 
-                    hubOrder.forEachIndexed { index, hubType ->
-                        androidx.compose.material3.Surface(
-                            color = if (LocalZuneColors.current.isDark) Color(0xFF222222) else Color(0xFFE8E8E8),
-                            shape = RoundedCornerShape(2.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${index + 1}. ${hubType.title.lowercase()}",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 15.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onBackground,
-                                    modifier = Modifier.weight(1f)
-                                )
-
-                                // Up Button
-                                androidx.compose.foundation.layout.Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .alpha(if (index > 0) 1f else 0.3f)
-                                        .clickable(enabled = index > 0) {
-                                            viewModel.moveHub(index, -1)
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.KeyboardArrowUp,
-                                        contentDescription = "Yukarı Taşımak",
-                                        tint = MaterialTheme.colorScheme.onBackground
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(4.dp))
-
-                                // Down Button
-                                androidx.compose.foundation.layout.Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .alpha(if (index < hubOrder.size - 1) 1f else 0.3f)
-                                        .clickable(enabled = index < hubOrder.size - 1) {
-                                            viewModel.moveHub(index, 1)
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                        contentDescription = "Aşağı Taşımak",
-                                        tint = MaterialTheme.colorScheme.onBackground
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    OutlinedButton(
-                        onClick = { viewModel.resetHubOrder() },
-                        modifier = Modifier.fillMaxWidth(),
-                        border = BorderStroke(1.dp, LocalZuneColors.current.accentColor)
-                    ) {
+    SettingsLazyColumn {
+        item(key = "screen") {
+            SettingGroup(title = "ekran ve parlaklık") {
+                GlassPanel {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Text(
-                            text = "varsayılana sıfırla",
-                            color = LocalZuneColors.current.accentColor
+                            text = "parlaklık",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Light
+                            ),
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Slider(
+                            value = brightness,
+                            onValueChange = viewModel::setBrightness,
+                            valueRange = 0f..1f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = LocalZuneColors.current.accentColor,
+                                activeTrackColor = LocalZuneColors.current.accentColor,
+                                inactiveTrackColor = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
+                            )
                         )
                     }
                 }
@@ -496,10 +504,89 @@ internal fun HubSettingsPage(
 }
 
 @Composable
-internal fun SystemSettingsPage(viewModel: SettingsViewModel) {
-    val brightness by viewModel.brightness.collectAsState()
+internal fun SoundSettingsPage(viewModel: SettingsViewModel) {
     val mediaVolume by viewModel.mediaVolume.collectAsState()
     val ringVolume by viewModel.ringVolume.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshSystemSettings()
+    }
+
+    SettingsLazyColumn {
+        item(key = "volume") {
+            SettingGroup(title = "ses seviyeleri") {
+                GlassPanel {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Text(
+                            text = "medya sesi",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Light
+                            ),
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Slider(
+                            value = mediaVolume,
+                            onValueChange = viewModel::setMediaVolume,
+                            valueRange = 0f..1f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = LocalZuneColors.current.accentColor,
+                                activeTrackColor = LocalZuneColors.current.accentColor,
+                                inactiveTrackColor = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "zil sesi",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Light
+                            ),
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Slider(
+                            value = ringVolume,
+                            onValueChange = viewModel::setRingVolume,
+                            valueRange = 0f..1f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = LocalZuneColors.current.accentColor,
+                                activeTrackColor = LocalZuneColors.current.accentColor,
+                                inactiveTrackColor = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ConnectivitySettingsPage(viewModel: SettingsViewModel) {
+    SettingsLazyColumn {
+        item(key = "connections") {
+            SettingGroup(title = "bağlantılar") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SystemSettingRow(
+                        title = "wi-fi",
+                        subtitle = "ağları yönet",
+                        onClick = viewModel::openWifiSettings
+                    )
+                    SystemSettingRow(
+                        title = "bluetooth",
+                        subtitle = "cihazları eşleştir",
+                        onClick = viewModel::openBluetoothSettings
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun SystemSettingsPage(viewModel: SettingsViewModel) {
     val lockScreenMode by viewModel.lockScreenMode.collectAsState()
     val customPin by viewModel.customPin.collectAsState()
 
@@ -572,14 +659,14 @@ internal fun SystemSettingsPage(viewModel: SettingsViewModel) {
                                     color = LocalZuneColors.current.textMuted,
                                     modifier = Modifier.padding(bottom = 12.dp)
                                 )
-                                
+
                                 var tempPin by remember { mutableStateOf(customPin ?: "") }
-                                
-                                androidx.compose.material3.OutlinedTextField(
+
+                                OutlinedTextField(
                                     value = tempPin,
-                                    onValueChange = { 
+                                    onValueChange = {
                                         if (it.length <= 4 && it.all { char -> char.isDigit() }) {
-                                            tempPin = it 
+                                            tempPin = it
                                         }
                                     },
                                     label = { Text("4 Haneli PIN") },
@@ -588,12 +675,12 @@ internal fun SystemSettingsPage(viewModel: SettingsViewModel) {
                                         keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
                                     ),
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                    colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = LocalZuneColors.current.accentColor,
                                         focusedLabelColor = LocalZuneColors.current.accentColor
                                     )
                                 )
-                                
+
                                 Button(
                                     onClick = { viewModel.setCustomPin(tempPin) },
                                     modifier = Modifier.padding(top = 12.dp).align(Alignment.End),
@@ -608,98 +695,6 @@ internal fun SystemSettingsPage(viewModel: SettingsViewModel) {
                             }
                         }
                     }
-                }
-            }
-        }
-
-        item(key = "screen") {
-            SettingGroup(title = "ekran ve parlaklık") {
-                GlassPanel {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Text(
-                            text = "parlaklık",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Light
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        Slider(
-                            value = brightness,
-                            onValueChange = viewModel::setBrightness,
-                            valueRange = 0f..1f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = LocalZuneColors.current.accentColor,
-                                activeTrackColor = LocalZuneColors.current.accentColor,
-                                inactiveTrackColor = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        item(key = "volume") {
-            SettingGroup(title = "ses seviyeleri") {
-                GlassPanel {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Text(
-                            text = "medya sesi",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Light
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        Slider(
-                            value = mediaVolume,
-                            onValueChange = viewModel::setMediaVolume,
-                            valueRange = 0f..1f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = LocalZuneColors.current.accentColor,
-                                activeTrackColor = LocalZuneColors.current.accentColor,
-                                inactiveTrackColor = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "zil sesi",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Light
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        Slider(
-                            value = ringVolume,
-                            onValueChange = viewModel::setRingVolume,
-                            valueRange = 0f..1f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = LocalZuneColors.current.accentColor,
-                                activeTrackColor = LocalZuneColors.current.accentColor,
-                                inactiveTrackColor = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        item(key = "connections") {
-            SettingGroup(title = "bağlantılar") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SystemSettingRow(
-                        title = "wi-fi",
-                        subtitle = "ağları yönet",
-                        onClick = viewModel::openWifiSettings
-                    )
-                    SystemSettingRow(
-                        title = "bluetooth",
-                        subtitle = "cihazları eşleştir",
-                        onClick = viewModel::openBluetoothSettings
-                    )
                 }
             }
         }
