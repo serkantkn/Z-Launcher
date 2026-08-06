@@ -53,13 +53,32 @@ class ZuneNavigationState {
 
     fun openHub(hub: HubType) {
         if (isSplitMode) {
-            if (rightHub == hub) return
+            // Prevent opening duplicate hubs if already open in left or right pane, EXCEPT for INTERNET hub
+            if (hub != HubType.INTERNET && (rightHub == hub || leftHub == hub)) {
+                return
+            }
             leftHub = hub
         } else {
             if (currentHub != hub) {
                 lastHub = hub
                 hubStack = hubStack + hub
             }
+        }
+    }
+
+    fun expandRightSplitHubToFullscreen() {
+        val target = rightHub
+        if (target != null) {
+            hubStack = listOf(target)
+            exitSplitMode()
+        }
+    }
+
+    fun expandLeftSplitHubToFullscreen() {
+        val target = leftHub
+        if (target != null) {
+            hubStack = listOf(target)
+            exitSplitMode()
         }
     }
 

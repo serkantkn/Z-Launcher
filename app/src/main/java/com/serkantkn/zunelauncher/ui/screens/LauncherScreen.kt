@@ -13,6 +13,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.*
@@ -249,7 +250,7 @@ fun LauncherScreen(
                 if (isWideScreen && navState.isSplitMode) {
                     // ════════════════════════════════════════════════════════
                     // TABLET SPLIT SCREEN DUAL-HUB MODE (50% / 50%)
-                    // Hubs inside split panes convert to PHONE DESIGN MODE!
+                    // Hubs & Left Home Screen inside split panes forced to PHONE DESIGN MODE!
                     // ════════════════════════════════════════════════════════
                     Row(modifier = Modifier.fillMaxSize()) {
                         // ── Left Pane (50% width) ──
@@ -262,21 +263,23 @@ fun LauncherScreen(
                                 }
                         ) {
                             if (navState.leftHub == null) {
-                                // Main Launcher Pager on the left side
-                                HorizontalPager(
-                                    state = pagerState,
-                                    modifier = Modifier.fillMaxSize(),
-                                    userScrollEnabled = true
-                                ) { page ->
-                                    when (page) {
-                                        0 -> SocialHubScreen()
-                                        1 -> HomeHubScreen(
-                                            isHubOpen = false,
-                                            isCurrentPage = pagerState.currentPage == 1,
-                                            onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
-                                            onHubSelected = { hub -> navState.openHub(hub) }
-                                        )
-                                        2 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
+                                // Main Launcher Pager on the left side (Forced to Phone Design Mode)
+                                CompositionLocalProvider(LocalIsWideScreen provides false) {
+                                    HorizontalPager(
+                                        state = pagerState,
+                                        modifier = Modifier.fillMaxSize(),
+                                        userScrollEnabled = true
+                                    ) { page ->
+                                        when (page) {
+                                            0 -> SocialHubScreen()
+                                            1 -> HomeHubScreen(
+                                                isHubOpen = false,
+                                                isCurrentPage = pagerState.currentPage == 1,
+                                                onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
+                                                onHubSelected = { hub -> navState.openHub(hub) }
+                                            )
+                                            2 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
+                                        }
                                     }
                                 }
                             } else {
@@ -292,21 +295,39 @@ fun LauncherScreen(
                                     }
                                 }
 
-                                // Close Button for Left Hub
-                                IconButton(
-                                    onClick = { navState.closeLeftSplitHub() },
+                                // Action Buttons (Maximize & Close) for Left Hub
+                                Row(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
                                         .statusBarsPadding()
-                                        .padding(16.dp)
-                                        .size(40.dp)
-                                        .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Hubı Kapat",
-                                        tint = Color.White
-                                    )
+                                    IconButton(
+                                        onClick = { navState.expandLeftSplitHubToFullscreen() },
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Fullscreen,
+                                            contentDescription = "Tam Ekran Yap",
+                                            tint = Color.White
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { navState.closeLeftSplitHub() },
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Hubı Kapat",
+                                            tint = Color.White
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -344,21 +365,39 @@ fun LauncherScreen(
                                     }
                                 }
 
-                                // Close Button for Right Hub
-                                IconButton(
-                                    onClick = { navState.closeRightSplitHub() },
+                                // Action Buttons (Maximize & Close) for Right Hub
+                                Row(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
                                         .statusBarsPadding()
-                                        .padding(16.dp)
-                                        .size(40.dp)
-                                        .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Hubı Kapat",
-                                        tint = Color.White
-                                    )
+                                    IconButton(
+                                        onClick = { navState.expandRightSplitHubToFullscreen() },
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Fullscreen,
+                                            contentDescription = "Tam Ekran Yap",
+                                            tint = Color.White
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { navState.closeRightSplitHub() },
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Hubı Kapat",
+                                            tint = Color.White
+                                        )
+                                    }
                                 }
                             }
                         }
