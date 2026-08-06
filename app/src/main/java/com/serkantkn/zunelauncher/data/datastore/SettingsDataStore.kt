@@ -88,13 +88,15 @@ class SettingsDataStore(private val context: Context) {
         if (saved.isNullOrEmpty()) {
             defaultOrder
         } else {
-            saved.split(",").mapNotNull { 
+            val savedList = saved.split(",").mapNotNull { 
                 try {
                     com.serkantkn.zunelauncher.data.model.HubType.valueOf(it)
                 } catch (e: Exception) {
                     null
                 }
-            }.ifEmpty { defaultOrder }
+            }
+            val missingHubs = defaultOrder.filter { it !in savedList && it != com.serkantkn.zunelauncher.data.model.HubType.HOME }
+            (savedList + missingHubs).ifEmpty { defaultOrder }
         }
     }
 

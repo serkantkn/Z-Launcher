@@ -4,7 +4,7 @@
             "outputFile": "com.serkantkn.zplugin.zuneplugin-mergeDebugResources-36:/values-ko/values-ko.xml",
             "map": [
                 {
-                    "source": "/Users/serkan/.gradle/caches/9.4.1/transforms/7bc613d195e314da12e9a944b868f1fb/transformed/material3/res/values-ko/values-ko.xml",
+                    "source": "/Users/serkan/.gradle/caches/9.6.1/transforms/6939814578c818b768444b10d9176994/transformed/material3/res/values-ko/values-ko.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,7 +21,24 @@
                     }
                 },
                 {
-                    "source": "/Users/serkan/.gradle/caches/9.4.1/transforms/51abc251950be3867a24a06107049202/transformed/foundation/res/values-ko/values-ko.xml",
+                    "source": "/Users/serkan/.gradle/caches/9.6.1/transforms/0c10612ffdc3f9e421bb89e57ff91f6c/transformed/core-1.19.0/res/values-ko/values-ko.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,147,247,341,438,534,632,732",
+                        "endColumns": "91,99,93,96,95,97,99,100",
+                        "endOffsets": "142,242,336,433,529,627,727,828"
+                    },
+                    "to": {
+                        "startLines": "4,5,6,7,8,9,10,93",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "301,393,493,587,684,780,878,8753",
+                        "endColumns": "91,99,93,96,95,97,99,100",
+                        "endOffsets": "388,488,582,679,775,873,973,8849"
+                    }
+                },
+                {
+                    "source": "/Users/serkan/.gradle/caches/9.6.1/transforms/2974abb52c45f61295efcc6459636ecf/transformed/foundation/res/values-ko/values-ko.xml",
                     "from": {
                         "startLines": "2,3,4",
                         "startColumns": "4,4,4",
@@ -38,7 +55,7 @@
                     }
                 },
                 {
-                    "source": "/Users/serkan/.gradle/caches/9.4.1/transforms/24a55985a5ce2059a79521c7ddf9f8e4/transformed/ui/res/values-ko/values-ko.xml",
+                    "source": "/Users/serkan/.gradle/caches/9.6.1/transforms/3e9701b209e9175a5de6fd26bcd8b7e9/transformed/ui/res/values-ko/values-ko.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -52,23 +69,6 @@
                         "startOffsets": "208,978,1057,1133,1221,1311,1391,1466,8077,8156,8235,8308,8384,8452,8533,8609,8683,8854,8928,8992",
                         "endColumns": "92,78,75,87,89,79,74,78,78,78,72,75,67,80,75,73,69,73,63,117",
                         "endOffsets": "296,1052,1128,1216,1306,1386,1461,1540,8151,8230,8303,8379,8447,8528,8604,8678,8748,8923,8987,9105"
-                    }
-                },
-                {
-                    "source": "/Users/serkan/.gradle/caches/9.4.1/transforms/23eb294d1d6f7303258b44deec6c054d/transformed/core-1.19.0/res/values-ko/values-ko.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,147,247,341,438,534,632,732",
-                        "endColumns": "91,99,93,96,95,97,99,100",
-                        "endOffsets": "142,242,336,433,529,627,727,828"
-                    },
-                    "to": {
-                        "startLines": "4,5,6,7,8,9,10,93",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "301,393,493,587,684,780,878,8753",
-                        "endColumns": "91,99,93,96,95,97,99,100",
-                        "endOffsets": "388,488,582,679,775,873,973,8849"
                     }
                 }
             ]

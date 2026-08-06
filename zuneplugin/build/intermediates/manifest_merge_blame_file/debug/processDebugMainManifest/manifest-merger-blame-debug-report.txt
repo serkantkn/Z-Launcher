@@ -35,22 +35,22 @@
 18-->/Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/src/main/AndroidManifest.xml:11:22-66
 19
 20    <permission
-20-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.4.1/transforms/23eb294d1d6f7303258b44deec6c054d/transformed/core-1.19.0/AndroidManifest.xml:22:5-24:47
+20-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.6.1/transforms/0c10612ffdc3f9e421bb89e57ff91f6c/transformed/core-1.19.0/AndroidManifest.xml:22:5-24:47
 21        android:name="com.serkantkn.zplugin.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-21-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.4.1/transforms/23eb294d1d6f7303258b44deec6c054d/transformed/core-1.19.0/AndroidManifest.xml:23:9-81
+21-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.6.1/transforms/0c10612ffdc3f9e421bb89e57ff91f6c/transformed/core-1.19.0/AndroidManifest.xml:23:9-81
 22        android:protectionLevel="signature" />
-22-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.4.1/transforms/23eb294d1d6f7303258b44deec6c054d/transformed/core-1.19.0/AndroidManifest.xml:24:9-44
+22-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.6.1/transforms/0c10612ffdc3f9e421bb89e57ff91f6c/transformed/core-1.19.0/AndroidManifest.xml:24:9-44
 23
 24    <uses-permission android:name="com.serkantkn.zplugin.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-24-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.4.1/transforms/23eb294d1d6f7303258b44deec6c054d/transformed/core-1.19.0/AndroidManifest.xml:26:5-97
-24-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.4.1/transforms/23eb294d1d6f7303258b44deec6c054d/transformed/core-1.19.0/AndroidManifest.xml:26:22-94
+24-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.6.1/transforms/0c10612ffdc3f9e421bb89e57ff91f6c/transformed/core-1.19.0/AndroidManifest.xml:26:5-97
+24-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.6.1/transforms/0c10612ffdc3f9e421bb89e57ff91f6c/transformed/core-1.19.0/AndroidManifest.xml:26:22-94
 25
 26    <application
 26-->/Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/src/main/AndroidManifest.xml:13:5-72:19
 27        android:allowBackup="true"
 27-->/Users/serkan/AndroidStudioProjects/ZuneLauncher/zuneplugin/src/main/AndroidManifest.xml:14:9-35
 28        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-28-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.4.1/transforms/23eb294d1d6f7303258b44deec6c054d/transformed/core-1.19.0/AndroidManifest.xml:28:18-86
+28-->[androidx.core:core:1.19.0] /Users/serkan/.gradle/caches/9.6.1/transforms/0c10612ffdc3f9e421bb89e57ff91f6c/transformed/core-1.19.0/AndroidManifest.xml:28:18-86
 29        android:debuggable="true"
 30        android:extractNativeLibs="false"
 30-->INJECTED
@@ -157,88 +157,88 @@
 85        </service>
 86
 87        <activity
-87-->[androidx.compose.ui:ui-tooling-android:1.11.4] /Users/serkan/.gradle/caches/9.4.1/transforms/bff0cb02412209a697bdb52a899a57be/transformed/ui-tooling/AndroidManifest.xml:23:9-25:39
+87-->[androidx.compose.ui:ui-tooling-android:1.11.4] /Users/serkan/.gradle/caches/9.6.1/transforms/65f30629def27da0aaa4e76077ff87b8/transformed/ui-tooling/AndroidManifest.xml:23:9-25:39
 88            android:name="androidx.compose.ui.tooling.PreviewActivity"
-88-->[androidx.compose.ui:ui-tooling-android:1.11.4] /Users/serkan/.gradle/caches/9.4.1/transforms/bff0cb02412209a697bdb52a899a57be/transformed/ui-tooling/AndroidManifest.xml:24:13-71
+88-->[androidx.compose.ui:ui-tooling-android:1.11.4] /Users/serkan/.gradle/caches/9.6.1/transforms/65f30629def27da0aaa4e76077ff87b8/transformed/ui-tooling/AndroidManifest.xml:24:13-71
 89            android:exported="true" />
-89-->[androidx.compose.ui:ui-tooling-android:1.11.4] /Users/serkan/.gradle/caches/9.4.1/transforms/bff0cb02412209a697bdb52a899a57be/transformed/ui-tooling/AndroidManifest.xml:25:13-36
+89-->[androidx.compose.ui:ui-tooling-android:1.11.4] /Users/serkan/.gradle/caches/9.6.1/transforms/65f30629def27da0aaa4e76077ff87b8/transformed/ui-tooling/AndroidManifest.xml:25:13-36
 90
 91        <uses-library
-91-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.4.1/transforms/28ef787b36a8f9595c5668b979fcadec/transformed/window-1.5.0/AndroidManifest.xml:23:9-25:40
+91-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.6.1/transforms/b7f689bb4d10996f95a18834bad7475b/transformed/window-1.5.0/AndroidManifest.xml:23:9-25:40
 92            android:name="androidx.window.extensions"
-92-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.4.1/transforms/28ef787b36a8f9595c5668b979fcadec/transformed/window-1.5.0/AndroidManifest.xml:24:13-54
+92-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.6.1/transforms/b7f689bb4d10996f95a18834bad7475b/transformed/window-1.5.0/AndroidManifest.xml:24:13-54
 93            android:required="false" />
-93-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.4.1/transforms/28ef787b36a8f9595c5668b979fcadec/transformed/window-1.5.0/AndroidManifest.xml:25:13-37
+93-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.6.1/transforms/b7f689bb4d10996f95a18834bad7475b/transformed/window-1.5.0/AndroidManifest.xml:25:13-37
 94        <uses-library
-94-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.4.1/transforms/28ef787b36a8f9595c5668b979fcadec/transformed/window-1.5.0/AndroidManifest.xml:26:9-28:40
+94-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.6.1/transforms/b7f689bb4d10996f95a18834bad7475b/transformed/window-1.5.0/AndroidManifest.xml:26:9-28:40
 95            android:name="androidx.window.sidecar"
-95-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.4.1/transforms/28ef787b36a8f9595c5668b979fcadec/transformed/window-1.5.0/AndroidManifest.xml:27:13-51
+95-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.6.1/transforms/b7f689bb4d10996f95a18834bad7475b/transformed/window-1.5.0/AndroidManifest.xml:27:13-51
 96            android:required="false" />
-96-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.4.1/transforms/28ef787b36a8f9595c5668b979fcadec/transformed/window-1.5.0/AndroidManifest.xml:28:13-37
+96-->[androidx.window:window:1.5.0] /Users/serkan/.gradle/caches/9.6.1/transforms/b7f689bb4d10996f95a18834bad7475b/transformed/window-1.5.0/AndroidManifest.xml:28:13-37
 97
 98        <provider
-98-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/a05b3fc26a4af4a2681526f1c4255da6/transformed/emoji2-1.4.0/AndroidManifest.xml:24:9-32:20
+98-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/7a21c3ef2ab7c8ac5c33af25dac0c9fa/transformed/emoji2-1.4.0/AndroidManifest.xml:24:9-32:20
 99            android:name="androidx.startup.InitializationProvider"
-99-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/a05b3fc26a4af4a2681526f1c4255da6/transformed/emoji2-1.4.0/AndroidManifest.xml:25:13-67
+99-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/7a21c3ef2ab7c8ac5c33af25dac0c9fa/transformed/emoji2-1.4.0/AndroidManifest.xml:25:13-67
 100            android:authorities="com.serkantkn.zplugin.androidx-startup"
-100-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/a05b3fc26a4af4a2681526f1c4255da6/transformed/emoji2-1.4.0/AndroidManifest.xml:26:13-68
+100-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/7a21c3ef2ab7c8ac5c33af25dac0c9fa/transformed/emoji2-1.4.0/AndroidManifest.xml:26:13-68
 101            android:exported="false" >
-101-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/a05b3fc26a4af4a2681526f1c4255da6/transformed/emoji2-1.4.0/AndroidManifest.xml:27:13-37
+101-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/7a21c3ef2ab7c8ac5c33af25dac0c9fa/transformed/emoji2-1.4.0/AndroidManifest.xml:27:13-37
 102            <meta-data
-102-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/a05b3fc26a4af4a2681526f1c4255da6/transformed/emoji2-1.4.0/AndroidManifest.xml:29:13-31:52
+102-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/7a21c3ef2ab7c8ac5c33af25dac0c9fa/transformed/emoji2-1.4.0/AndroidManifest.xml:29:13-31:52
 103                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-103-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/a05b3fc26a4af4a2681526f1c4255da6/transformed/emoji2-1.4.0/AndroidManifest.xml:30:17-75
+103-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/7a21c3ef2ab7c8ac5c33af25dac0c9fa/transformed/emoji2-1.4.0/AndroidManifest.xml:30:17-75
 104                android:value="androidx.startup" />
-104-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/a05b3fc26a4af4a2681526f1c4255da6/transformed/emoji2-1.4.0/AndroidManifest.xml:31:17-49
+104-->[androidx.emoji2:emoji2:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/7a21c3ef2ab7c8ac5c33af25dac0c9fa/transformed/emoji2-1.4.0/AndroidManifest.xml:31:17-49
 105            <meta-data
-105-->[androidx.lifecycle:lifecycle-process:2.11.0] /Users/serkan/.gradle/caches/9.4.1/transforms/472229970265e0c211d516b91ae4a980/transformed/lifecycle-process-2.11.0/AndroidManifest.xml:29:13-31:52
+105-->[androidx.lifecycle:lifecycle-process:2.11.0] /Users/serkan/.gradle/caches/9.6.1/transforms/84c7b4295bc4530fcdc89536ba15bd35/transformed/lifecycle-process-2.11.0/AndroidManifest.xml:29:13-31:52
 106                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-106-->[androidx.lifecycle:lifecycle-process:2.11.0] /Users/serkan/.gradle/caches/9.4.1/transforms/472229970265e0c211d516b91ae4a980/transformed/lifecycle-process-2.11.0/AndroidManifest.xml:30:17-78
+106-->[androidx.lifecycle:lifecycle-process:2.11.0] /Users/serkan/.gradle/caches/9.6.1/transforms/84c7b4295bc4530fcdc89536ba15bd35/transformed/lifecycle-process-2.11.0/AndroidManifest.xml:30:17-78
 107                android:value="androidx.startup" />
-107-->[androidx.lifecycle:lifecycle-process:2.11.0] /Users/serkan/.gradle/caches/9.4.1/transforms/472229970265e0c211d516b91ae4a980/transformed/lifecycle-process-2.11.0/AndroidManifest.xml:31:17-49
+107-->[androidx.lifecycle:lifecycle-process:2.11.0] /Users/serkan/.gradle/caches/9.6.1/transforms/84c7b4295bc4530fcdc89536ba15bd35/transformed/lifecycle-process-2.11.0/AndroidManifest.xml:31:17-49
 108            <meta-data
-108-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+108-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
 109                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-109-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+109-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
 110                android:value="androidx.startup" />
-110-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+110-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
 111        </provider>
 112
 113        <receiver
-113-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+113-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
 114            android:name="androidx.profileinstaller.ProfileInstallReceiver"
-114-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+114-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
 115            android:directBootAware="false"
-115-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+115-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
 116            android:enabled="true"
-116-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+116-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
 117            android:exported="true"
-117-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+117-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
 118            android:permission="android.permission.DUMP" >
-118-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+118-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
 119            <intent-filter>
-119-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+119-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
 120                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
-120-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
-120-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+120-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+120-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
 121            </intent-filter>
 122            <intent-filter>
-122-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+122-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
 123                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
-123-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
-123-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+123-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+123-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
 124            </intent-filter>
 125            <intent-filter>
-125-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+125-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
 126                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
-126-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
-126-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+126-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+126-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
 127            </intent-filter>
 128            <intent-filter>
-128-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+128-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
 129                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
-129-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
-129-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.4.1/transforms/60902dca714741a32dca59e64577bd71/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+129-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+129-->[androidx.profileinstaller:profileinstaller:1.4.0] /Users/serkan/.gradle/caches/9.6.1/transforms/de4c8daf5c98e486f3b6db38c126143e/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
 130            </intent-filter>
 131        </receiver>
 132    </application>
