@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -32,7 +34,8 @@ import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import kotlin.math.abs
 
 /**
- * Full-screen photo viewer overlay with pinch-to-zoom, pan, swipe-to-dismiss, and Zune animations.
+ * Full-screen photo viewer overlay with grow-from-thumbnail enter animation,
+ * shrink-to-thumbnail exit animation, dynamic drag-to-shrink scaling, and pinch-to-zoom.
  */
 @Composable
 fun PhotoViewer(
@@ -43,8 +46,10 @@ fun PhotoViewer(
 ) {
     AnimatedVisibility(
         visible = photo != null,
-        enter = fadeIn(tween(300)) + scaleIn(initialScale = 0.85f, animationSpec = tween(300)),
-        exit = fadeOut(tween(250)) + scaleOut(targetScale = 0.9f, animationSpec = tween(250))
+        enter = fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)) +
+                scaleIn(initialScale = 0.2f, animationSpec = tween(350, easing = FastOutSlowInEasing)),
+        exit = fadeOut(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                scaleOut(targetScale = 0.15f, animationSpec = tween(280, easing = FastOutSlowInEasing))
     ) {
         if (photo == null) return@AnimatedVisibility
 
@@ -53,10 +58,14 @@ fun PhotoViewer(
             var offset by remember { mutableStateOf(Offset.Zero) }
             var swipeOffset by remember { mutableFloatStateOf(0f) }
 
+            val dragScaleFactor = remember(swipeOffset) {
+                (1f - (abs(swipeOffset) / 750f)).coerceIn(0.35f, 1f)
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = (1f - abs(swipeOffset) / 1000f).coerceIn(0.2f, 1f)))
+                    .background(Color.Black.copy(alpha = (1f - abs(swipeOffset) / 800f).coerceIn(0.15f, 1f)))
                     .pointerInput(photo.uri) {
                         detectTransformGestures { _, pan, zoom, _ ->
                             scale = (scale * zoom).coerceIn(1f, 5f)
@@ -70,7 +79,7 @@ fun PhotoViewer(
                     .pointerInput(photo.uri) {
                         detectVerticalDragGestures(
                             onDragEnd = {
-                                if (abs(swipeOffset) > 250f) {
+                                if (abs(swipeOffset) > 200f) {
                                     onDismiss()
                                 }
                                 swipeOffset = 0f
@@ -90,13 +99,13 @@ fun PhotoViewer(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
+                            scaleX = scale * dragScaleFactor
+                            scaleY = scale * dragScaleFactor
                             translationX = offset.x
                             translationY = offset.y + swipeOffset
                         }
                         .clickable(enabled = scale == 1f) {
-                            // Tap image to dismiss when not zoomed
+                            onDismiss()
                         }
                 )
 
@@ -113,7 +122,7 @@ fun PhotoViewer(
                         onClick = onDismiss,
                         modifier = Modifier
                             .size(44.dp)
-                            .background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                            .background(Color.Black.copy(alpha = 0.5f), shape = CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -127,7 +136,7 @@ fun PhotoViewer(
                         onClick = onToggleFavorite,
                         modifier = Modifier
                             .size(44.dp)
-                            .background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                            .background(Color.Black.copy(alpha = 0.5f), shape = CircleShape)
                     ) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
