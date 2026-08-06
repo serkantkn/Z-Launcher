@@ -84,6 +84,7 @@ fun PeopleHubScreen(
     val hubHingeAnim = remember { Animatable(if (hasInitialDetail) 0f else 1f) }
     val newContactHingeAnim = remember { Animatable(0f) }
     val detailHingeAnim = remember { Animatable(if (hasInitialDetail) 1f else 0f) }
+    val editContactHingeAnim = remember { Animatable(0f) }
     var isTransitioning by remember { mutableStateOf(false) }
 
     val tabs = listOf("tümü", "favoriler", "son kullanılanlar")
@@ -119,7 +120,34 @@ fun PeopleHubScreen(
         }
     }
 
+    val openEditContactScreen: () -> Unit = {
+        if (!isTransitioning) {
+            isTransitioning = true
+            coroutineScope.launch {
+                if (!isWideScreen) {
+                    detailHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                }
+                editContactHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                isTransitioning = false
+            }
+        }
+    }
+
+    val closeEditContactScreen: () -> Unit = {
+        if (!isTransitioning) {
+            isTransitioning = true
+            coroutineScope.launch {
+                editContactHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                if (!isWideScreen) {
+                    detailHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                }
+                isTransitioning = false
+            }
+        }
+    }
+
     val selectContactWithAnimation: (ContactModel) -> Unit = { contact ->
+        coroutineScope.launch { editContactHingeAnim.snapTo(0f) }
         if (isWideScreen) {
             viewModel.selectContact(contact)
         } else {
@@ -136,6 +164,7 @@ fun PeopleHubScreen(
     }
 
     val closeDetailWithAnimation: () -> Unit = {
+        coroutineScope.launch { editContactHingeAnim.snapTo(0f) }
         if (isWideScreen) {
             viewModel.selectContact(null)
         } else {
@@ -159,8 +188,10 @@ fun PeopleHubScreen(
         }
     )
 
-    BackHandler(enabled = newContactHingeAnim.value > 0f || detailHingeAnim.value > 0f || selectedContactDetail != null) {
-        if (newContactHingeAnim.value > 0f) {
+    BackHandler(enabled = editContactHingeAnim.value > 0f || newContactHingeAnim.value > 0f || detailHingeAnim.value > 0f || selectedContactDetail != null) {
+        if (editContactHingeAnim.value > 0f) {
+            closeEditContactScreen()
+        } else if (newContactHingeAnim.value > 0f) {
             closeNewContactScreen()
         } else if (detailHingeAnim.value > 0f || selectedContactDetail != null) {
             closeDetailWithAnimation()
@@ -491,9 +522,7 @@ fun PeopleHubScreen(
                 detail = selectedContactDetail,
                 onBack = { closeDetailWithAnimation() },
                 onOpenMessaging = onOpenMessaging,
-                onUpdateContact = { contactId, firstName, lastName, phoneNumber ->
-                    viewModel.updateContact(contactId, firstName, lastName, phoneNumber) {}
-                },
+                onEditContact = { openEditContactScreen() },
                 onDeleteContact = { contactId ->
                     viewModel.deleteContact(contactId) { success ->
                         if (success) closeDetailWithAnimation()
@@ -516,13 +545,35 @@ fun PeopleHubScreen(
                     detail = selectedContactDetail,
                     onBack = { closeDetailWithAnimation() },
                     onOpenMessaging = onOpenMessaging,
-                    onUpdateContact = { contactId, firstName, lastName, phoneNumber ->
-                        viewModel.updateContact(contactId, firstName, lastName, phoneNumber) {}
-                    },
+                    onEditContact = { openEditContactScreen() },
                     onDeleteContact = { contactId ->
                         viewModel.deleteContact(contactId) { success ->
                             if (success) closeDetailWithAnimation()
                         }
+                    }
+                )
+            }
+        }
+
+        // 3D Door Hinge Animated Edit Contact Screen Overlay
+        if (editContactHingeAnim.value > 0f && selectedContactDetail != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = editContactHingeAnim.value
+                        rotationY = 90f * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = 12f * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                    }
+            ) {
+                EditContactScreen(
+                    detail = selectedContactDetail!!,
+                    onClose = { closeEditContactScreen() },
+                    onSave = { firstName, lastName, phoneNumber ->
+                        closeEditContactScreen()
+                        viewModel.updateContact(selectedContactDetail!!.contact.id, firstName, lastName, phoneNumber) {}
                     }
                 )
             }

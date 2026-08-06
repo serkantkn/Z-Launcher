@@ -38,6 +38,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.ContactDetailModel
+import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
+import com.serkantkn.zunelauncher.ui.components.WpBarAction
+import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
+import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
@@ -48,11 +52,10 @@ fun ContactDetailScreen(
     detail: ContactDetailModel?,
     onBack: () -> Unit,
     onOpenMessaging: ((contactName: String, phoneNumber: String) -> Unit)? = null,
-    onUpdateContact: ((contactId: String, firstName: String, lastName: String, phoneNumber: String) -> Unit)? = null,
+    onEditContact: (() -> Unit)? = null,
     onDeleteContact: ((contactId: String) -> Unit)? = null
 ) {
     val zuneColors = LocalZuneColors.current
-    val context = LocalContext.current
     val isWideScreen = LocalIsWideScreen.current
 
     var rememberedDetail by remember { mutableStateOf(detail) }
@@ -60,9 +63,7 @@ fun ContactDetailScreen(
         rememberedDetail = detail
     }
 
-    var showEditSheet by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-
     val currentDisplayDetail = detail ?: rememberedDetail
 
     if (currentDisplayDetail != null) {
@@ -102,7 +103,7 @@ fun ContactDetailScreen(
                             displayDetail = currentDisplayDetail,
                             onBack = onBack,
                             onOpenMessaging = onOpenMessaging,
-                            onEditClick = { showEditSheet = true },
+                            onEditClick = { onEditContact?.invoke() },
                             onDeleteClick = { showDeleteConfirmDialog = true },
                             isTabletCard = true
                         )
@@ -119,7 +120,7 @@ fun ContactDetailScreen(
                     displayDetail = currentDisplayDetail,
                     onBack = onBack,
                     onOpenMessaging = onOpenMessaging,
-                    onEditClick = { showEditSheet = true },
+                    onEditClick = { onEditContact?.invoke() },
                     onDeleteClick = { showDeleteConfirmDialog = true },
                     isTabletCard = false
                 )
@@ -127,56 +128,40 @@ fun ContactDetailScreen(
         }
     }
 
-    // Edit Contact Dialog / Sheet
-    if (showEditSheet && currentDisplayDetail != null) {
-        EditContactSheet(
-            detail = currentDisplayDetail,
-            onClose = { showEditSheet = false },
-            onSave = { firstName, lastName, phoneNumber ->
-                showEditSheet = false
-                onUpdateContact?.invoke(currentDisplayDetail.contact.id, firstName, lastName, phoneNumber)
-            }
-        )
-    }
-
-    // Delete Confirmation Dialog
+    // Standardized Windows Phone 3D Flip Alert Dialog for Contact Deletion
     if (showDeleteConfirmDialog && currentDisplayDetail != null) {
-        AlertDialog(
+        ZuneFlipDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
-            title = {
-                Text(
-                    text = "Kişiyi Sil",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = if (zuneColors.isDark) Color.White else Color.Black
-                )
-            },
-            text = {
-                Text(
-                    text = "\"${currentDisplayDetail.contact.name}\" rehberinizden tamamen silinecek. Emin misiniz?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = zuneColors.textMuted
-                )
-            },
+            title = "kişiyi sil",
             confirmButton = {
-                Button(
+                ZuneDialogButton(
+                    text = "evet",
+                    borderColor = Color.Red,
                     onClick = {
-                        showDeleteConfirmDialog = false
-                        onDeleteContact?.invoke(currentDisplayDetail.contact.id)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red, contentColor = Color.White),
-                    shape = RoundedCornerShape(2.dp)
-                ) {
-                    Text("SİL")
-                }
+                        dismissWithAnim {
+                            showDeleteConfirmDialog = false
+                            onDeleteContact?.invoke(currentDisplayDetail.contact.id)
+                        }
+                    }
+                )
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmDialog = false }) {
-                    Text("İPTAL", color = zuneColors.textMuted)
-                }
-            },
-            containerColor = if (zuneColors.isDark) Color(0xFF1E1E1E) else Color(0xFFF5F5F5),
-            shape = RoundedCornerShape(4.dp)
-        )
+                ZuneDialogButton(
+                    text = "hayır",
+                    onClick = {
+                        dismissWithAnim {
+                            showDeleteConfirmDialog = false
+                        }
+                    }
+                )
+            }
+        ) {
+            Text(
+                text = "\"${currentDisplayDetail.contact.name}\" rehberinizden tamamen silinecektir. Onaylıyor musunuz?",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.9f)
+            )
+        }
     }
 }
 
@@ -199,181 +184,179 @@ private fun ContactDetailContent(
 
     val dividerColor = if (zuneColors.isDark) Color(0xFF2A2A2A) else Color(0xFFE0E0E0)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(
-                top = if (isTabletCard) 24.dp else 48.dp,
-                start = ZuneDimens.ScreenPaddingHorizontal,
-                end = ZuneDimens.ScreenPaddingHorizontal,
-                bottom = 40.dp
-            )
-    ) {
-        // Header Bar (Back / Close)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = ZuneDimens.SpacingXl),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                modifier = Modifier.clickable { onBack() },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Geri",
-                    tint = zuneColors.textMuted,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "kişi profili",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = zuneColors.textMuted
-                )
-            }
-
-            if (isTabletCard) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Kapat",
-                        tint = zuneColors.textMuted
-                    )
-                }
-            }
-        }
-
-        // Profile Header (Avatar + Name)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (displayDetail.contact.photoUri != null) {
-                AsyncImage(
-                    model = displayDetail.contact.photoUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(fallbackColor, CircleShape)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(fallbackColor, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = displayDetail.contact.name.take(1).uppercase(),
-                        style = MaterialTheme.typography.displaySmall,
-                        color = Color.White
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Text(
-                text = displayDetail.contact.name.uppercase(),
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
-                ),
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-
-        HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Phone Actions
-        if (displayDetail.phoneNumbers.isNotEmpty()) {
-            displayDetail.phoneNumbers.forEach { number ->
-                ActionItem(
-                    icon = Icons.Default.Call,
-                    label = stringResource(R.string.call),
-                    subtitle = number,
-                    accentColor = zuneColors.accentColor,
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number"))
-                        context.startActivity(intent)
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                ActionItem(
-                    icon = Icons.Default.Sms,
-                    label = stringResource(R.string.message),
-                    subtitle = number,
-                    accentColor = zuneColors.accentColor,
-                    onClick = {
-                        if (onOpenMessaging != null) {
-                            onOpenMessaging(displayDetail.contact.name, number)
-                        } else {
-                            val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))
-                            context.startActivity(intent)
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        } else {
-            Text(
-                text = "telefon numarası yok",
-                style = MaterialTheme.typography.bodyLarge,
-                color = zuneColors.textDim,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // Contact Management Actions (Edit & Delete)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            ActionItem(
+    val bottomBarActions = remember {
+        listOf(
+            WpBarAction(
                 icon = Icons.Default.Edit,
                 label = "düzenle",
-                subtitle = "kişi bilgilerini güncelle",
-                accentColor = zuneColors.accentColor,
-                onClick = onEditClick,
-                modifier = Modifier.weight(1f)
-            )
-
-            ActionItem(
+                onClick = onEditClick
+            ),
+            WpBarAction(
                 icon = Icons.Default.Delete,
                 label = "sil",
-                subtitle = "rehberden kaldır",
-                accentColor = Color.Red,
-                onClick = onDeleteClick,
-                modifier = Modifier.weight(1f)
+                onClick = onDeleteClick
+            )
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    top = if (isTabletCard) 24.dp else 48.dp,
+                    start = ZuneDimens.ScreenPaddingHorizontal,
+                    end = ZuneDimens.ScreenPaddingHorizontal,
+                    bottom = 88.dp
+                )
+        ) {
+            // Header Bar (Back / Close)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = ZuneDimens.SpacingXl),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.clickable { onBack() },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Geri",
+                        tint = zuneColors.textMuted,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "kişi profili",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = zuneColors.textMuted
+                    )
+                }
+
+                if (isTabletCard) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = zuneColors.textMuted
+                        )
+                    }
+                }
+            }
+
+            // Profile Header (Avatar + Name)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (displayDetail.contact.photoUri != null) {
+                    AsyncImage(
+                        model = displayDetail.contact.photoUri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(fallbackColor, CircleShape)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(fallbackColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = displayDetail.contact.name.take(1).uppercase(),
+                            style = MaterialTheme.typography.displaySmall,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = displayDetail.contact.name.uppercase(),
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+
+            HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Phone Actions
+            if (displayDetail.phoneNumbers.isNotEmpty()) {
+                displayDetail.phoneNumbers.forEach { number ->
+                    ActionItem(
+                        icon = Icons.Default.Call,
+                        label = stringResource(R.string.call),
+                        subtitle = number,
+                        accentColor = zuneColors.accentColor,
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number"))
+                            context.startActivity(intent)
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    ActionItem(
+                        icon = Icons.Default.Sms,
+                        label = stringResource(R.string.message),
+                        subtitle = number,
+                        accentColor = zuneColors.accentColor,
+                        onClick = {
+                            if (onOpenMessaging != null) {
+                                onOpenMessaging(displayDetail.contact.name, number)
+                            } else {
+                                val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))
+                                context.startActivity(intent)
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            } else {
+                Text(
+                    text = "telefon numarası yok",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = zuneColors.textDim,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+
+        // Standard Windows Phone Bottom Application Bar with Edit & Delete actions
+        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+            WindowsPhoneBottomBar(
+                actions = bottomBarActions
             )
         }
     }
 }
 
 @Composable
-private fun EditContactSheet(
+fun EditContactScreen(
     detail: ContactDetailModel,
     onClose: () -> Unit,
-    onSave: (firstName: String, lastName: String, phoneNumber: String) -> Unit
+    onSave: (firstName: String, lastName: String, phoneNumber: String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
     val nameParts = remember(detail.contact.name) {
@@ -388,7 +371,7 @@ private fun EditContactSheet(
     var phoneNumber by remember { mutableStateOf(detail.phoneNumbers.firstOrNull() ?: "") }
 
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         color = if (zuneColors.isDark) Color(0xFF0F0F0F) else Color(0xFFFAFAFA)
     ) {
         Column(
