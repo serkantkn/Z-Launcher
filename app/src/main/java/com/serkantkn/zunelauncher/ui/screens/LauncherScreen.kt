@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.*
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +25,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -97,6 +97,15 @@ fun LauncherScreen(
     val isWideScreen = LocalIsWideScreen.current
     val currentCenterStyle = notificationCenterStyle
 
+    LaunchedEffect(Unit) {
+        MainActivityEvents.triggerActionCenter.collect { triggered ->
+            if (triggered) {
+                isActionCenterOpen = true
+                MainActivityEvents.triggerActionCenter.value = false
+            }
+        }
+    }
+
     var wallpaperOverlayAlpha by remember { mutableStateOf(1f) }
     val density = LocalDensity.current.density
 
@@ -121,6 +130,17 @@ fun LauncherScreen(
                 hingeProgress.animateTo(0f, animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing))
                 activeHub = null
             }
+        }
+    }
+
+    // Split mode left-to-right shrink animation
+    val splitAnimProgress = remember { Animatable(0f) }
+    LaunchedEffect(navState.isSplitMode) {
+        if (navState.isSplitMode) {
+            splitAnimProgress.snapTo(0f)
+            splitAnimProgress.animateTo(1f, animationSpec = tween(400, easing = FastOutSlowInEasing))
+        } else {
+            splitAnimProgress.snapTo(0f)
         }
     }
 
@@ -224,14 +244,23 @@ fun LauncherScreen(
                 }
 
                 val messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel = viewModel()
+                val screenWidthPx = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
 
                 if (isWideScreen && navState.isSplitMode) {
                     // ════════════════════════════════════════════════════════
                     // TABLET SPLIT SCREEN DUAL-HUB MODE (50% / 50%)
+                    // Hubs inside split panes convert to PHONE DESIGN MODE!
                     // ════════════════════════════════════════════════════════
                     Row(modifier = Modifier.fillMaxSize()) {
                         // ── Left Pane (50% width) ──
-                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .graphicsLayer {
+                                    alpha = splitAnimProgress.value
+                                }
+                        ) {
                             if (navState.leftHub == null) {
                                 // Main Launcher Pager on the left side
                                 HorizontalPager(
@@ -251,14 +280,16 @@ fun LauncherScreen(
                                     }
                                 }
                             } else {
-                                // Left Docked Hub
-                                ZuneBackground(mode = BackgroundMode.GRADIENT, accentColor = zuneColors.accentColor) {
-                                    RenderHubScreen(
-                                        hub = navState.leftHub!!,
-                                        navState = navState,
-                                        messagingViewModel = messagingViewModel,
-                                        context = context
-                                    )
+                                // Left Docked Hub (Forced to Phone Design Mode)
+                                CompositionLocalProvider(LocalIsWideScreen provides false) {
+                                    ZuneBackground(mode = BackgroundMode.GRADIENT, accentColor = zuneColors.accentColor) {
+                                        RenderHubScreen(
+                                            hub = navState.leftHub!!,
+                                            navState = navState,
+                                            messagingViewModel = messagingViewModel,
+                                            context = context
+                                        )
+                                    }
                                 }
 
                                 // Close Button for Left Hub
@@ -289,15 +320,28 @@ fun LauncherScreen(
                         )
 
                         // ── Right Pane (50% width) ──
-                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        // Animates smoothly from left to right as it shrinks
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .graphicsLayer {
+                                    val progress = splitAnimProgress.value
+                                    translationX = (1f - progress) * (-screenWidthPx / 2f)
+                                    alpha = (progress * 1.5f - 0.2f).coerceIn(0f, 1f)
+                                }
+                        ) {
                             if (navState.rightHub != null) {
-                                ZuneBackground(mode = BackgroundMode.GRADIENT, accentColor = zuneColors.accentColor) {
-                                    RenderHubScreen(
-                                        hub = navState.rightHub!!,
-                                        navState = navState,
-                                        messagingViewModel = messagingViewModel,
-                                        context = context
-                                    )
+                                // Right Docked Hub (Forced to Phone Design Mode)
+                                CompositionLocalProvider(LocalIsWideScreen provides false) {
+                                    ZuneBackground(mode = BackgroundMode.GRADIENT, accentColor = zuneColors.accentColor) {
+                                        RenderHubScreen(
+                                            hub = navState.rightHub!!,
+                                            navState = navState,
+                                            messagingViewModel = messagingViewModel,
+                                            context = context
+                                        )
+                                    }
                                 }
 
                                 // Close Button for Right Hub

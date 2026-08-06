@@ -66,20 +66,23 @@ class ZuneNavigationState {
     fun closeRightSplitHub() {
         rightHub = null
         if (leftHub != null) {
-            hubStack = listOf(leftHub!!)
-            exitSplitMode()
+            rightHub = leftHub
+            leftHub = null
         } else {
-            exitSplitMode()
+            closeHub()
         }
     }
 
     fun closeLeftSplitHub() {
         leftHub = null
+        if (rightHub == null) {
+            closeHub()
+        }
     }
 
     fun popHub(): Boolean {
         if (isSplitMode) {
-            exitSplitMode()
+            closeHub()
             return true
         }
         if (hubStack.size > 1) {
