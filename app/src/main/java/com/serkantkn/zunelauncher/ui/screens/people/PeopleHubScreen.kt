@@ -64,6 +64,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun PeopleHubScreen(
     onBack: () -> Unit,
+    onOpenMessaging: ((contactName: String, phoneNumber: String) -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: PeopleHubViewModel = viewModel()
 ) {
@@ -487,7 +488,8 @@ fun PeopleHubScreen(
         if (isWideScreen) {
             ContactDetailScreen(
                 detail = selectedContactDetail,
-                onBack = { closeDetailWithAnimation() }
+                onBack = { closeDetailWithAnimation() },
+                onOpenMessaging = onOpenMessaging
             )
         } else if (detailHingeAnim.value > 0f) {
             Box(
@@ -503,7 +505,8 @@ fun PeopleHubScreen(
             ) {
                 ContactDetailScreen(
                     detail = selectedContactDetail,
-                    onBack = { closeDetailWithAnimation() }
+                    onBack = { closeDetailWithAnimation() },
+                    onOpenMessaging = onOpenMessaging
                 )
             }
         }

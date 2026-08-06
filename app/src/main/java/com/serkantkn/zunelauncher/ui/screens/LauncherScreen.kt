@@ -328,16 +328,26 @@ fun LauncherScreen(
                         mode = BackgroundMode.GRADIENT,
                         accentColor = zuneColors.accentColor
                     ) {
+                        val messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel = viewModel()
                         when (hub) {
                             HubType.MUSIC -> MusicHubScreen(onBack = { navState.closeHub() })
-                            HubType.PEOPLE -> PeopleHubScreen(onBack = { navState.closeHub() })
+                            HubType.PEOPLE -> PeopleHubScreen(
+                                onBack = { navState.closeHub() },
+                                onOpenMessaging = { contactName, phoneNumber ->
+                                    messagingViewModel.openConversationWithContact(context, contactName, phoneNumber)
+                                    navState.openHub(HubType.MESSAGING)
+                                }
+                            )
                             HubType.PICTURES -> PicturesHubScreen(onBack = { navState.closeHub() })
                             HubType.PHONE -> PhoneHubScreen(onBack = { navState.closeHub() })
                             HubType.SETTINGS -> SettingsScreen(onBack = { navState.closeHub() })
                             HubType.CLOCK -> com.serkantkn.zunelauncher.ui.screens.clock.ClockHubScreen(onBack = { navState.closeHub() })
                             HubType.INTERNET -> com.serkantkn.zunelauncher.ui.screens.browser.BrowserHubScreen(onClose = { navState.closeHub() })
                             HubType.CALENDAR -> com.serkantkn.zunelauncher.ui.screens.calendar.CalendarHubScreen(onBack = { navState.closeHub() })
-                            HubType.MESSAGING -> com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubScreen(onClose = { navState.closeHub() })
+                            HubType.MESSAGING -> com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubScreen(
+                                onClose = { navState.closeHub() },
+                                viewModel = messagingViewModel
+                            )
                             else -> {}
                         }
                     }

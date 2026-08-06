@@ -49,7 +49,8 @@ import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 @Composable
 fun ContactDetailScreen(
     detail: ContactDetailModel?,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenMessaging: ((contactName: String, phoneNumber: String) -> Unit)? = null
 ) {
     val zuneColors = LocalZuneColors.current
     val context = LocalContext.current
@@ -97,6 +98,7 @@ fun ContactDetailScreen(
                     ContactDetailContent(
                         displayDetail = displayDetail,
                         onBack = onBack,
+                        onOpenMessaging = onOpenMessaging,
                         isTabletCard = true
                     )
                 }
@@ -113,6 +115,7 @@ fun ContactDetailScreen(
                 ContactDetailContent(
                     displayDetail = displayDetail,
                     onBack = onBack,
+                    onOpenMessaging = onOpenMessaging,
                     isTabletCard = false
                 )
             }
@@ -124,6 +127,7 @@ fun ContactDetailScreen(
 private fun ContactDetailContent(
     displayDetail: ContactDetailModel,
     onBack: () -> Unit,
+    onOpenMessaging: ((contactName: String, phoneNumber: String) -> Unit)?,
     isTabletCard: Boolean
 ) {
     val zuneColors = LocalZuneColors.current
@@ -255,8 +259,12 @@ private fun ContactDetailContent(
                     subtitle = number,
                     accentColor = zuneColors.accentColor,
                     onClick = {
-                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))
-                        context.startActivity(intent)
+                        if (onOpenMessaging != null) {
+                            onOpenMessaging(displayDetail.contact.name, number)
+                        } else {
+                            val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))
+                            context.startActivity(intent)
+                        }
                     }
                 )
 
