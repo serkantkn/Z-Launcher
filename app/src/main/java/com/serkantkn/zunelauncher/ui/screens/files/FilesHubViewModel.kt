@@ -44,14 +44,19 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun checkPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val context: Context = getApplication()
+        val hasReadPermission = ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val hasAllFilesAccess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
         } else {
-            ContextCompat.checkSelfPermission(
-                getApplication(),
-                android.Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
+            true
         }
+
+        return hasAllFilesAccess || hasReadPermission
     }
 
     fun refreshPermissionState() {
