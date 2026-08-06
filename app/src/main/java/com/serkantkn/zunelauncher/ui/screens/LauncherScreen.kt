@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
-import com.serkantkn.zunelauncher.service.WpActionCenterOverlayManager
 import com.serkantkn.zunelauncher.ui.components.WpActionCenterPanel
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
@@ -243,10 +242,8 @@ fun LauncherScreen(
     LaunchedEffect(notificationCenterStyle) {
         if (notificationCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
             setStatusBarExpandDisabled(context, true)
-            WpActionCenterOverlayManager.startTopEdgeTrigger(context, isWideScreen, zuneColors)
         } else {
             setStatusBarExpandDisabled(context, false)
-            WpActionCenterOverlayManager.stopTopEdgeTrigger()
         }
     }
 

@@ -14,8 +14,8 @@ import androidx.compose.runtime.getValue
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.LockScreenState
+import com.serkantkn.zunelauncher.data.plugin.PluginManager
 import com.serkantkn.zunelauncher.ui.screens.LauncherScreen
-import com.serkantkn.zunelauncher.ui.screens.lock.LockScreenActivity
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 import com.serkantkn.zunelauncher.ui.theme.ZuneLauncherTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,12 +83,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (LockScreenState.isLocked) {
-            val lockIntent = Intent(this, LockScreenActivity::class.java).apply {
+        if (LockScreenState.isLocked && PluginManager.isPluginInstalled(this)) {
+            val lockIntent = packageManager.getLaunchIntentForPackage(PluginManager.PLUGIN_PACKAGE_NAME)?.apply {
                 addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_NO_ANIMATION)
             }
-            startActivity(lockIntent)
-            overridePendingTransition(0, 0)
+            if (lockIntent != null) {
+                startActivity(lockIntent)
+                @Suppress("DEPRECATION")
+                overridePendingTransition(0, 0)
+            }
         }
     }
 

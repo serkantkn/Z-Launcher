@@ -102,19 +102,7 @@ object SocialRepository {
         message: SocialMessageModel,
         accentColor: androidx.compose.ui.graphics.Color? = null
     ) {
-        if (android.provider.Settings.canDrawOverlays(context)) {
-            val isWideScreen = context.resources.configuration.smallestScreenWidthDp >= 600
-            val zuneColors = com.serkantkn.zunelauncher.ui.theme.ZuneExtendedColors(
-                accentColor = accentColor ?: androidx.compose.ui.graphics.Color(0xFFD80073),
-                isDark = true
-            )
-            com.serkantkn.zunelauncher.service.WpNotificationOverlayManager.showNotificationOverlay(
-                context = context,
-                message = message,
-                isWideScreen = isWideScreen,
-                zuneColors = zuneColors
-            )
-        }
+        // Overlay notifications managed via plugin module
     }
 
     fun clearAll() {
