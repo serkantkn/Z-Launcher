@@ -490,7 +490,15 @@ fun PeopleHubScreen(
             ContactDetailScreen(
                 detail = selectedContactDetail,
                 onBack = { closeDetailWithAnimation() },
-                onOpenMessaging = onOpenMessaging
+                onOpenMessaging = onOpenMessaging,
+                onUpdateContact = { contactId, firstName, lastName, phoneNumber ->
+                    viewModel.updateContact(contactId, firstName, lastName, phoneNumber) {}
+                },
+                onDeleteContact = { contactId ->
+                    viewModel.deleteContact(contactId) { success ->
+                        if (success) closeDetailWithAnimation()
+                    }
+                }
             )
         } else if (detailHingeAnim.value > 0f) {
             Box(
@@ -507,7 +515,15 @@ fun PeopleHubScreen(
                 ContactDetailScreen(
                     detail = selectedContactDetail,
                     onBack = { closeDetailWithAnimation() },
-                    onOpenMessaging = onOpenMessaging
+                    onOpenMessaging = onOpenMessaging,
+                    onUpdateContact = { contactId, firstName, lastName, phoneNumber ->
+                        viewModel.updateContact(contactId, firstName, lastName, phoneNumber) {}
+                    },
+                    onDeleteContact = { contactId ->
+                        viewModel.deleteContact(contactId) { success ->
+                            if (success) closeDetailWithAnimation()
+                        }
+                    }
                 )
             }
         }

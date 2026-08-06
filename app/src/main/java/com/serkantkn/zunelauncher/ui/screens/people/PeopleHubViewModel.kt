@@ -129,4 +129,44 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
             onComplete(success)
         }
     }
+
+    fun deleteContact(contactId: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val success = contactRepository.deleteContact(contactId)
+            if (success) {
+                _selectedContactDetail.value = null
+                loadContacts()
+            }
+            onComplete(success)
+        }
+    }
+
+    fun updateContact(
+        contactId: String,
+        firstName: String,
+        lastName: String,
+        phoneNumber: String,
+        onComplete: (Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            val success = contactRepository.updateContact(contactId, firstName, lastName, phoneNumber)
+            if (success) {
+                val updatedName = "$firstName $lastName".trim()
+                val updatedModel = ContactModel(
+                    id = contactId,
+                    name = updatedName,
+                    photoUri = _selectedContactDetail.value?.contact?.photoUri,
+                    isFavorite = _selectedContactDetail.value?.contact?.isFavorite ?: false,
+                    lastTimeContacted = _selectedContactDetail.value?.contact?.lastTimeContacted ?: 0,
+                    hasPhoneNumber = phoneNumber.isNotBlank()
+                )
+                _selectedContactDetail.value = ContactDetailModel(
+                    contact = updatedModel,
+                    phoneNumbers = if (phoneNumber.isNotBlank()) listOf(phoneNumber) else emptyList()
+                )
+                loadContacts()
+            }
+            onComplete(success)
+        }
+    }
 }

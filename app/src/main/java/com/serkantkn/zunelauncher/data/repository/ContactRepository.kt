@@ -193,4 +193,95 @@ class ContactRepository(private val context: Context) {
             false
         }
     }
+
+    suspend fun deleteContact(contactId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val uri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI, contactId)
+            val rowsDeleted = context.contentResolver.delete(uri, null, null)
+            rowsDeleted > 0
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun updateContact(
+        contactId: String,
+        firstName: String,
+        lastName: String,
+        phoneNumber: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val ops = ArrayList<android.content.ContentProviderOperation>()
+            val fullName = "$firstName $lastName".trim()
+
+            // Update Name
+            ops.add(
+                android.content.ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                    .withSelection(
+                        "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                        arrayOf(contactId, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                    )
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, firstName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, lastName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, fullName)
+                    .build()
+            )
+
+            // Update Phone Number
+            if (phoneNumber.isNotBlank()) {
+                val cursor = context.contentResolver.query(
+                    ContactsContract.Data.CONTENT_URI,
+                    arrayOf(ContactsContract.Data._ID),
+                    "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                    arrayOf(contactId, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE),
+                    null
+                )
+                val phoneDataExists = cursor?.use { it.count > 0 } ?: false
+
+                if (phoneDataExists) {
+                    ops.add(
+                        android.content.ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                            .withSelection(
+                                "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                                arrayOf(contactId, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                            )
+                            .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phoneNumber)
+                            .build()
+                    )
+                } else {
+                    val rawContactIdCursor = context.contentResolver.query(
+                        ContactsContract.RawContacts.CONTENT_URI,
+                        arrayOf(ContactsContract.RawContacts._ID),
+                        "${ContactsContract.RawContacts.CONTACT_ID} = ?",
+                        arrayOf(contactId),
+                        null
+                    )
+                    var rawContactId: String? = null
+                    rawContactIdCursor?.use {
+                        if (it.moveToFirst()) {
+                            rawContactId = it.getString(it.getColumnIndexOrThrow(ContactsContract.RawContacts._ID))
+                        }
+                    }
+
+                    if (rawContactId != null) {
+                        ops.add(
+                            android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                                .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phoneNumber)
+                                .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+                                .build()
+                        )
+                    }
+                }
+            }
+
+            context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }

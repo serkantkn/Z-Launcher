@@ -19,13 +19,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Sms
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +47,9 @@ import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 fun ContactDetailScreen(
     detail: ContactDetailModel?,
     onBack: () -> Unit,
-    onOpenMessaging: ((contactName: String, phoneNumber: String) -> Unit)? = null
+    onOpenMessaging: ((contactName: String, phoneNumber: String) -> Unit)? = null,
+    onUpdateContact: ((contactId: String, firstName: String, lastName: String, phoneNumber: String) -> Unit)? = null,
+    onDeleteContact: ((contactId: String) -> Unit)? = null
 ) {
     val zuneColors = LocalZuneColors.current
     val context = LocalContext.current
@@ -61,65 +60,123 @@ fun ContactDetailScreen(
         rememberedDetail = detail
     }
 
-    if (isWideScreen) {
-        // Tablet Mode: Side Card sliding in from the right edge
-        AnimatedVisibility(
-            visible = detail != null,
-            enter = slideInHorizontally(
-                initialOffsetX = { fullWidth -> fullWidth },
-                animationSpec = tween(360)
-            ) + fadeIn(tween(300)),
-            exit = slideOutHorizontally(
-                targetOffsetX = { fullWidth -> fullWidth },
-                animationSpec = tween(300)
-            ) + fadeOut(tween(250)),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            val displayDetail = rememberedDetail ?: return@AnimatedVisibility
+    var showEditSheet by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
-                // Dimmed backdrop
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable { onBack() }
-                )
+    val currentDisplayDetail = detail ?: rememberedDetail
 
-                Surface(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(420.dp),
-                    color = if (zuneColors.isDark) Color(0xFF141414) else Color.White,
-                    tonalElevation = 16.dp,
-                    shadowElevation = 16.dp,
-                    shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
-                ) {
-                    ContactDetailContent(
-                        displayDetail = displayDetail,
-                        onBack = onBack,
-                        onOpenMessaging = onOpenMessaging,
-                        isTabletCard = true
+    if (currentDisplayDetail != null) {
+        if (isWideScreen) {
+            // Tablet Mode: Side Card sliding in from the right edge
+            AnimatedVisibility(
+                visible = detail != null,
+                enter = slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(360)
+                ) + fadeIn(tween(300)),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(300)
+                ) + fadeOut(tween(250)),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
+                    // Dimmed backdrop
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .clickable { onBack() }
                     )
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(420.dp),
+                        color = if (zuneColors.isDark) Color(0xFF141414) else Color.White,
+                        tonalElevation = 16.dp,
+                        shadowElevation = 16.dp,
+                        shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                    ) {
+                        ContactDetailContent(
+                            displayDetail = currentDisplayDetail,
+                            onBack = onBack,
+                            onOpenMessaging = onOpenMessaging,
+                            onEditClick = { showEditSheet = true },
+                            onDeleteClick = { showDeleteConfirmDialog = true },
+                            isTabletCard = true
+                        )
+                    }
                 }
             }
-        }
-    } else {
-        // Mobile Mode: Rendered inside the 3D hinge container
-        if (detail != null || rememberedDetail != null) {
-            val displayDetail = detail ?: rememberedDetail!!
+        } else {
+            // Mobile Mode: Rendered inside the 3D hinge container
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = if (zuneColors.isDark) Color(0xFF0F0F0F) else Color(0xFFFAFAFA)
             ) {
                 ContactDetailContent(
-                    displayDetail = displayDetail,
+                    displayDetail = currentDisplayDetail,
                     onBack = onBack,
                     onOpenMessaging = onOpenMessaging,
+                    onEditClick = { showEditSheet = true },
+                    onDeleteClick = { showDeleteConfirmDialog = true },
                     isTabletCard = false
                 )
             }
         }
+    }
+
+    // Edit Contact Dialog / Sheet
+    if (showEditSheet && currentDisplayDetail != null) {
+        EditContactSheet(
+            detail = currentDisplayDetail,
+            onClose = { showEditSheet = false },
+            onSave = { firstName, lastName, phoneNumber ->
+                showEditSheet = false
+                onUpdateContact?.invoke(currentDisplayDetail.contact.id, firstName, lastName, phoneNumber)
+            }
+        )
+    }
+
+    // Delete Confirmation Dialog
+    if (showDeleteConfirmDialog && currentDisplayDetail != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Kişiyi Sil",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = if (zuneColors.isDark) Color.White else Color.Black
+                )
+            },
+            text = {
+                Text(
+                    text = "\"${currentDisplayDetail.contact.name}\" rehberinizden tamamen silinecek. Emin misiniz?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = zuneColors.textMuted
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        onDeleteContact?.invoke(currentDisplayDetail.contact.id)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red, contentColor = Color.White),
+                    shape = RoundedCornerShape(2.dp)
+                ) {
+                    Text("SİL")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("İPTAL", color = zuneColors.textMuted)
+                }
+            },
+            containerColor = if (zuneColors.isDark) Color(0xFF1E1E1E) else Color(0xFFF5F5F5),
+            shape = RoundedCornerShape(4.dp)
+        )
     }
 }
 
@@ -128,6 +185,8 @@ private fun ContactDetailContent(
     displayDetail: ContactDetailModel,
     onBack: () -> Unit,
     onOpenMessaging: ((contactName: String, phoneNumber: String) -> Unit)?,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     isTabletCard: Boolean
 ) {
     val zuneColors = LocalZuneColors.current
@@ -279,6 +338,148 @@ private fun ContactDetailContent(
                 color = zuneColors.textDim,
                 modifier = Modifier.padding(top = 8.dp)
             )
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Contact Management Actions (Edit & Delete)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            ActionItem(
+                icon = Icons.Default.Edit,
+                label = "düzenle",
+                subtitle = "kişi bilgilerini güncelle",
+                accentColor = zuneColors.accentColor,
+                onClick = onEditClick,
+                modifier = Modifier.weight(1f)
+            )
+
+            ActionItem(
+                icon = Icons.Default.Delete,
+                label = "sil",
+                subtitle = "rehberden kaldır",
+                accentColor = Color.Red,
+                onClick = onDeleteClick,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun EditContactSheet(
+    detail: ContactDetailModel,
+    onClose: () -> Unit,
+    onSave: (firstName: String, lastName: String, phoneNumber: String) -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    val nameParts = remember(detail.contact.name) {
+        val parts = detail.contact.name.split(" ")
+        val first = parts.firstOrNull() ?: ""
+        val last = if (parts.size > 1) parts.drop(1).joinToString(" ") else ""
+        first to last
+    }
+
+    var firstName by remember { mutableStateOf(nameParts.first) }
+    var lastName by remember { mutableStateOf(nameParts.second) }
+    var phoneNumber by remember { mutableStateOf(detail.phoneNumbers.firstOrNull() ?: "") }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = if (zuneColors.isDark) Color(0xFF0F0F0F) else Color(0xFFFAFAFA)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Header Bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "kişiyi düzenle",
+                    style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Light, fontSize = 36.sp),
+                    color = if (zuneColors.isDark) Color.White else Color.Black
+                )
+
+                IconButton(onClick = onClose) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Kapat", tint = if (zuneColors.isDark) Color.White else Color.Black)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // First Name Field
+            Text("ad", style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
+            Spacer(modifier = Modifier.height(4.dp))
+            OutlinedTextField(
+                value = firstName,
+                onValueChange = { firstName = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = zuneColors.accentColor,
+                    unfocusedBorderColor = zuneColors.textDim,
+                    focusedTextColor = if (zuneColors.isDark) Color.White else Color.Black,
+                    unfocusedTextColor = if (zuneColors.isDark) Color.White else Color.Black
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Last Name Field
+            Text("soyad", style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
+            Spacer(modifier = Modifier.height(4.dp))
+            OutlinedTextField(
+                value = lastName,
+                onValueChange = { lastName = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = zuneColors.accentColor,
+                    unfocusedBorderColor = zuneColors.textDim,
+                    focusedTextColor = if (zuneColors.isDark) Color.White else Color.Black,
+                    unfocusedTextColor = if (zuneColors.isDark) Color.White else Color.Black
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Phone Number Field
+            Text("telefon numarası", style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
+            Spacer(modifier = Modifier.height(4.dp))
+            OutlinedTextField(
+                value = phoneNumber,
+                onValueChange = { phoneNumber = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = zuneColors.accentColor,
+                    unfocusedBorderColor = zuneColors.textDim,
+                    focusedTextColor = if (zuneColors.isDark) Color.White else Color.Black,
+                    unfocusedTextColor = if (zuneColors.isDark) Color.White else Color.Black
+                )
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Save Button
+            Button(
+                onClick = { onSave(firstName, lastName, phoneNumber) },
+                colors = ButtonDefaults.buttonColors(containerColor = zuneColors.accentColor, contentColor = Color.White),
+                shape = RoundedCornerShape(2.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Text("KAYDET", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+            }
         }
     }
 }
@@ -289,11 +490,11 @@ private fun ActionItem(
     label: String,
     subtitle: String,
     accentColor: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .clickable { onClick() }
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -304,7 +505,7 @@ private fun ActionItem(
             tint = accentColor,
             modifier = Modifier.size(24.dp)
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(
                 text = label,
