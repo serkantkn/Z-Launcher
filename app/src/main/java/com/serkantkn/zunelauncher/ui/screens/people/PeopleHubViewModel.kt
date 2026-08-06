@@ -61,7 +61,7 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun loadContacts() {
+    fun loadContacts() {
         viewModelScope.launch {
             _isLoading.value = true
             val contacts = contactRepository.getContacts()
@@ -110,6 +110,23 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
                 contact = contact,
                 phoneNumbers = phoneNumbers
             )
+        }
+    }
+
+    fun createContact(
+        firstName: String,
+        lastName: String,
+        phoneNumber: String,
+        email: String,
+        saveToGoogle: Boolean,
+        onComplete: (Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            val success = contactRepository.saveContact(firstName, lastName, phoneNumber, email, saveToGoogle)
+            if (success) {
+                loadContacts()
+            }
+            onComplete(success)
         }
     }
 }

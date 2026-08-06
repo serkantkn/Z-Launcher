@@ -114,4 +114,83 @@ class ContactRepository(private val context: Context) {
         // Return unique contacts (first number found)
         contactsWithNumbers.distinctBy { it.first.id }
     }
+
+    suspend fun saveContact(
+        firstName: String,
+        lastName: String,
+        phoneNumber: String,
+        email: String,
+        saveToGoogle: Boolean
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val ops = ArrayList<android.content.ContentProviderOperation>()
+
+            var accountName: String? = null
+            var accountType: String? = null
+
+            if (saveToGoogle) {
+                try {
+                    val accounts = android.accounts.AccountManager.get(context).getAccountsByType("com.google")
+                    if (accounts.isNotEmpty()) {
+                        accountName = accounts[0].name
+                        accountType = accounts[0].type
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            var builder = android.content.ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+            if (accountType != null && accountName != null) {
+                builder.withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, accountType)
+                       .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, accountName)
+            } else {
+                builder.withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+                       .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+            }
+            ops.add(builder.build())
+
+            // Name
+            val fullName = "$firstName $lastName".trim()
+            ops.add(
+                android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, firstName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, lastName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, fullName)
+                    .build()
+            )
+
+            // Phone Number
+            if (phoneNumber.isNotBlank()) {
+                ops.add(
+                    android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phoneNumber)
+                        .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+                        .build()
+                )
+            }
+
+            // Email Address
+            if (email.isNotBlank()) {
+                ops.add(
+                    android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
+                        .withValue(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_WORK)
+                        .build()
+                )
+            }
+
+            context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }
