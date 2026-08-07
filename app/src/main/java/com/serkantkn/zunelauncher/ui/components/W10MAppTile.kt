@@ -52,7 +52,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.skydoves.cloudy.cloudy
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.util.toImageBitmap
 import kotlinx.coroutines.delay
@@ -142,21 +141,12 @@ fun W10MAppTile(
                 onLongClick = if (isEditing) null else onLongClick
             )
     ) {
-        // LAYER 1: Background ONLY (Blurred via metroGlassBlur)
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .clip(RoundedCornerShape(8.dp))
-                .metroGlassBlur(15f)
-                .background(zuneColors.accentColor.copy(alpha = 0.45f))
+                .background(zuneColors.accentColor.copy(alpha = 0.4f))
                 .border(0.5.dp, if (isEditing) zuneColors.accentColor else strokeColor, RoundedCornerShape(8.dp))
-        )
-
-        // LAYER 2: Foreground Content (Crisp, Sharp Text & Icons)
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(RoundedCornerShape(8.dp))
         ) {
             // Dim overlay in edit mode
             if (isEditing) {

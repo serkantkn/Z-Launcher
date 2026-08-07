@@ -1,7 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
 import androidx.compose.animation.AnimatedVisibility
-import com.serkantkn.zunelauncher.ui.components.metroGlassBlur
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -534,23 +533,18 @@ internal fun GlassPanel(
 ) {
     val zuneColors = LocalZuneColors.current
     val tint = if (selected) {
-        zuneColors.accentColor.copy(alpha = 0.22f)
+        zuneColors.accentColor.copy(alpha = 0.18f)
     } else if (zuneColors.isDark) {
-        Color.White.copy(alpha = 0.12f)
+        Color.White.copy(alpha = 0.05f)
     } else {
-        Color.Black.copy(alpha = 0.08f)
+        Color.Black.copy(alpha = 0.05f)
     }
 
-    Box(modifier = modifier.fillMaxWidth()) {
-        // LAYER 1: Background ONLY (Blurred via metroGlassBlur)
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .metroGlassBlur(15f)
-                .background(tint)
-        )
-
-        // LAYER 2: Foreground Content (Crisp, Sharp Text & Controls)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(tint)
+    ) {
         content()
     }
 }

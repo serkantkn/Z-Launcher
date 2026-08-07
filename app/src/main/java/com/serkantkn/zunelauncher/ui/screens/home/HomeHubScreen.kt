@@ -1,7 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
 import android.graphics.drawable.Drawable
-import com.serkantkn.zunelauncher.ui.components.metroGlassBlur
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -550,26 +549,23 @@ private fun SmallFavoriteTile(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        // LAYER 1: Background ONLY (Blurred via metroGlassBlur)
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .clip(RoundedCornerShape(8.dp))
-                .metroGlassBlur(12f)
-                .background(zuneColors.accentColor.copy(alpha = 0.45f))
+                .background(zuneColors.accentColor)
                 .border(0.5.dp, stroke, RoundedCornerShape(8.dp))
-        )
-
-        // LAYER 2: Crisp Icon Foreground
-        icon?.let { drawable ->
-            val bitmap = remember(drawable) { drawable.toImageBitmap() }
-            Image(
-                bitmap = bitmap,
-                contentDescription = label,
-                modifier = Modifier
-                    .size(24.dp)
-                    .align(Alignment.Center)
-            )
+        ) {
+            icon?.let { drawable ->
+                val bitmap = remember(drawable) { drawable.toImageBitmap() }
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = label,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .align(Alignment.Center)
+                )
+            }
         }
     }
 }
