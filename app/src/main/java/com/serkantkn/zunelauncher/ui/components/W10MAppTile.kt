@@ -142,6 +142,7 @@ fun W10MAppTile(
                 onLongClick = if (isEditing) null else onLongClick
             )
     ) {
+        // LAYER 1: Background ONLY (Blurred via skydoves cloudy)
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -149,6 +150,13 @@ fun W10MAppTile(
                 .cloudy(radius = 15)
                 .background(zuneColors.accentColor.copy(alpha = 0.45f))
                 .border(0.5.dp, if (isEditing) zuneColors.accentColor else strokeColor, RoundedCornerShape(8.dp))
+        )
+
+        // LAYER 2: Foreground Content (Crisp, Sharp Text & Icons)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(8.dp))
         ) {
             // Dim overlay in edit mode
             if (isEditing) {

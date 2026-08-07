@@ -550,6 +550,7 @@ private fun SmallFavoriteTile(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
+        // LAYER 1: Background ONLY (Blurred)
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -557,17 +558,18 @@ private fun SmallFavoriteTile(
                 .cloudy(radius = 12)
                 .background(zuneColors.accentColor.copy(alpha = 0.45f))
                 .border(0.5.dp, stroke, RoundedCornerShape(8.dp))
-        ) {
-            icon?.let { drawable ->
-                val bitmap = remember(drawable) { drawable.toImageBitmap() }
-                Image(
-                    bitmap = bitmap,
-                    contentDescription = label,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .align(Alignment.Center)
-                )
-            }
+        )
+
+        // LAYER 2: Crisp Icon Foreground
+        icon?.let { drawable ->
+            val bitmap = remember(drawable) { drawable.toImageBitmap() }
+            Image(
+                bitmap = bitmap,
+                contentDescription = label,
+                modifier = Modifier
+                    .size(24.dp)
+                    .align(Alignment.Center)
+            )
         }
     }
 }

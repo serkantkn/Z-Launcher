@@ -541,12 +541,16 @@ internal fun GlassPanel(
         Color.Black.copy(alpha = 0.08f)
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .cloudy(radius = 15)
-            .background(tint)
-    ) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        // LAYER 1: Background ONLY (Blurred via skydoves cloudy)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .cloudy(radius = 15)
+                .background(tint)
+        )
+
+        // LAYER 2: Foreground Content (Crisp, Sharp Text & Controls)
         content()
     }
 }
