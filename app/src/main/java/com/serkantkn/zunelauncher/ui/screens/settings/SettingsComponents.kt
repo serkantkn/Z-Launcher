@@ -1,7 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
 import androidx.compose.animation.AnimatedVisibility
-import com.skydoves.cloudy.cloudy
+import com.serkantkn.zunelauncher.ui.components.metroGlassBlur
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -542,11 +542,11 @@ internal fun GlassPanel(
     }
 
     Box(modifier = modifier.fillMaxWidth()) {
-        // LAYER 1: Background ONLY (Blurred via skydoves cloudy)
+        // LAYER 1: Background ONLY (Blurred via metroGlassBlur)
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .cloudy(radius = 15)
+                .metroGlassBlur(15f)
                 .background(tint)
         )
 

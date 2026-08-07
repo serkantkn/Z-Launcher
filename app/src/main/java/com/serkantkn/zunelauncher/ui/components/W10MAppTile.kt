@@ -142,12 +142,12 @@ fun W10MAppTile(
                 onLongClick = if (isEditing) null else onLongClick
             )
     ) {
-        // LAYER 1: Background ONLY (Blurred via skydoves cloudy)
+        // LAYER 1: Background ONLY (Blurred via metroGlassBlur)
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .clip(RoundedCornerShape(8.dp))
-                .cloudy(radius = 15)
+                .metroGlassBlur(15f)
                 .background(zuneColors.accentColor.copy(alpha = 0.45f))
                 .border(0.5.dp, if (isEditing) zuneColors.accentColor else strokeColor, RoundedCornerShape(8.dp))
         )

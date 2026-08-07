@@ -1,7 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
 import android.graphics.drawable.Drawable
-import com.skydoves.cloudy.cloudy
+import com.serkantkn.zunelauncher.ui.components.metroGlassBlur
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -550,12 +550,12 @@ private fun SmallFavoriteTile(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        // LAYER 1: Background ONLY (Blurred)
+        // LAYER 1: Background ONLY (Blurred via metroGlassBlur)
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .clip(RoundedCornerShape(8.dp))
-                .cloudy(radius = 12)
+                .metroGlassBlur(12f)
                 .background(zuneColors.accentColor.copy(alpha = 0.45f))
                 .border(0.5.dp, stroke, RoundedCornerShape(8.dp))
         )
