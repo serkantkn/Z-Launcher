@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
 import android.graphics.drawable.Drawable
+import com.skydoves.cloudy.cloudy
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -553,7 +554,8 @@ private fun SmallFavoriteTile(
             modifier = Modifier
                 .matchParentSize()
                 .clip(RoundedCornerShape(8.dp))
-                .background(zuneColors.accentColor)
+                .cloudy(radius = 12)
+                .background(zuneColors.accentColor.copy(alpha = 0.45f))
                 .border(0.5.dp, stroke, RoundedCornerShape(8.dp))
         ) {
             icon?.let { drawable ->

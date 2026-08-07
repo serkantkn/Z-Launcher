@@ -71,6 +71,9 @@ dependencies {
     // Haze (Glassmorphism)
     implementation(libs.haze)
 
+    // Skydoves Cloudy (Jetpack Compose Blur)
+    implementation("com.github.skydoves:cloudy:0.2.5")
+
     // AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
 import androidx.compose.animation.AnimatedVisibility
+import com.skydoves.cloudy.cloudy
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -533,16 +534,17 @@ internal fun GlassPanel(
 ) {
     val zuneColors = LocalZuneColors.current
     val tint = if (selected) {
-        zuneColors.accentColor.copy(alpha = 0.18f)
+        zuneColors.accentColor.copy(alpha = 0.22f)
     } else if (zuneColors.isDark) {
-        Color.White.copy(alpha = 0.05f)
+        Color.White.copy(alpha = 0.12f)
     } else {
-        Color.Black.copy(alpha = 0.05f)
+        Color.Black.copy(alpha = 0.08f)
     }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .cloudy(radius = 15)
             .background(tint)
     ) {
         content()
