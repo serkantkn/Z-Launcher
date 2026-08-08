@@ -226,6 +226,7 @@ fun MusicHubScreen(
                 ZunePivotTabs(
                     tabs = pages,
                     pagerState = pagerState,
+                    fontSize = 36.sp,
                     onSelected = { index ->
                         val current = pagerState.currentPage
                         val size = actualPageCount

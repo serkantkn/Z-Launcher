@@ -112,36 +112,32 @@ fun PhoneHubScreen(
 
             Text(
                 text = "telefon",
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontWeight = FontWeight.Light,
-                    fontSize = 96.sp,
-                    letterSpacing = (-4).sp,
-                    lineHeight = 96.sp
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 18.sp,
+                    letterSpacing = 1.sp
                 ),
-                color = if (zuneColors.isDark) Color.White else Color.Black,
+                color = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f),
                 maxLines = 1,
                 softWrap = false,
-                modifier = Modifier
-                    .graphicsLayer {
-                        translationY = overflowYPx
-                    }
-                    .padding(
-                        top = 28.dp,
-                        bottom = 4.dp,
-                        start = ZuneDimens.ScreenPaddingHorizontal,
-                        end = ZuneDimens.ScreenPaddingHorizontal
-                    )
+                modifier = Modifier.padding(
+                    top = 28.dp,
+                    bottom = 4.dp,
+                    start = ZuneDimens.ScreenPaddingHorizontal,
+                    end = ZuneDimens.ScreenPaddingHorizontal
+                )
             )
 
             Text(
                 text = "geçmiş",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = (-1).sp
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontWeight = FontWeight.Light,
+                    fontSize = 72.sp,
+                    letterSpacing = (-3).sp
                 ),
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(
-                    bottom = 18.dp,
+                    bottom = 12.dp,
                     start = ZuneDimens.ScreenPaddingHorizontal,
                     end = ZuneDimens.ScreenPaddingHorizontal
                 )

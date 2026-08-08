@@ -458,6 +458,7 @@ fun PeopleHubScreen(
                     ZunePivotTabs(
                         tabs = tabs,
                         pagerState = pagerState,
+                        fontSize = 36.sp,
                         onSelected = { index ->
                             val current = pagerState.currentPage
                             val size = actualPageCount

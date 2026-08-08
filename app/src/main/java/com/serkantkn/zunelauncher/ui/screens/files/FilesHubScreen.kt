@@ -172,16 +172,13 @@ fun FilesHubScreen(
                 // Mobile Header
                 Text(
                     text = "dosyalar",
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 96.sp,
-                        letterSpacing = (-4).sp,
-                        lineHeight = 96.sp
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 18.sp,
+                        letterSpacing = 1.sp
                     ),
-                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                    modifier = Modifier
-                        .padding(start = ZuneDimens.ScreenPaddingHorizontal, top = 28.dp, bottom = 4.dp)
-                        .graphicsLayer { translationY = overflowYPx }
+                    color = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f),
+                    modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, top = 28.dp, bottom = 4.dp)
                 )
 
                 ZunePivotTabs(

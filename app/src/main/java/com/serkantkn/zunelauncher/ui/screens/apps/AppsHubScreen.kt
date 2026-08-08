@@ -182,31 +182,18 @@ fun AppsHubScreen(
                     top = 48.dp
                 )
         ) {
-            // Title - Box wrapped with unconstrained width to prevent right edge clipping
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentWidth(align = Alignment.Start, unbounded = true)
-            ) {
-                Text(
-                    text = "uygulamalar",
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 96.sp,
-                        letterSpacing = (-4).sp,
-                        lineHeight = 96.sp
-                    ),
-                    color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier
-                        .graphicsLayer {
-                            translationY = overflowYPx
-                        }
-                        .w10mStaggeredAnimation(animationProgress.value, 0)
-                        .padding(bottom = ZuneDimens.SpacingMd)
-                )
-            }
+            Text(
+                text = "uygulamalar",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 18.sp,
+                    letterSpacing = 1.sp
+                ),
+                color = if (LocalZuneColors.current.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f),
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
 
             // Search bar
             ZuneSearchBar(

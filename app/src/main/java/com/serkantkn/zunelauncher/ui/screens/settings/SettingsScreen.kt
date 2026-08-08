@@ -142,65 +142,25 @@ fun SettingsScreen(
                 }
             }
         } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        top = 28.dp,
-                        bottom = 4.dp,
-                        start = ZuneDimens.ScreenPaddingHorizontal
-                    )
-            ) {
-                val cycle = (pagerState.currentPage + pagerState.currentPageOffsetFraction) % actualPageCount
-                val actualCycle = if (cycle < 0) cycle + actualPageCount else cycle
-                val threshold = (actualPageCount - 1).toFloat()
-
-                val translationX1: Float
-                val translationX2: Float
-
-                if (actualCycle <= threshold) {
-                    translationX1 = -actualCycle * parallaxMultiplierPx
-                    translationX2 = screenWidthPx
-                } else {
-                    val fraction = actualCycle - threshold
-                    translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
-                    translationX2 = screenWidthPx - fraction * screenWidthPx
-                }
-
-                Text(
-                    text = "ayarlar",
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 96.sp,
-                        letterSpacing = (-4).sp,
-                        lineHeight = 96.sp
-                    ),
-                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.graphicsLayer {
-                        translationX = translationX1
-                        translationY = overflowYPx
-                    }
+            // Fixed small header title
+            Text(
+                text = "ayarlar",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 18.sp,
+                    letterSpacing = 1.sp
+                ),
+                color = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f),
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.padding(
+                    top = 28.dp,
+                    bottom = 4.dp,
+                    start = ZuneDimens.ScreenPaddingHorizontal
                 )
-                Text(
-                    text = "ayarlar",
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 96.sp,
-                        letterSpacing = (-4).sp,
-                        lineHeight = 96.sp
-                    ),
-                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.graphicsLayer {
-                        translationX = translationX2
-                        translationY = overflowYPx
-                    }
-                )
-            }
+            )
 
+            // Giant pivot tabs
             ZunePivotTabs(
                 tabs = tabs.map { it.title },
                 pagerState = pagerState,
@@ -209,13 +169,12 @@ fun SettingsScreen(
                     val size = actualPageCount
                     val currentActual = ((current % size) + size) % size
                     var diff = index - currentActual
-                    if (diff > size / 2) {
-                        diff -= size
-                    } else if (diff < -size / 2) {
-                        diff += size
-                    }
+                    if (diff > size / 2) diff -= size
+                    if (diff < -size / 2) diff += size
                     val targetPage = current + diff
-                    scope.launch { pagerState.animateScrollToPage(targetPage) }
+                    scope.launch {
+                        pagerState.animateScrollToPage(targetPage)
+                    }
                 },
                 modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
             )
