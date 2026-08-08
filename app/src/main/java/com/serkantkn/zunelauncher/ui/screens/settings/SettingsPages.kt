@@ -1,8 +1,17 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -721,27 +730,191 @@ internal fun SystemSettingsPage(viewModel: SettingsViewModel) {
 
 @Composable
 internal fun AboutSettingsPage() {
+    val context = LocalContext.current
+    var permissionTrigger by remember { mutableIntStateOf(0) }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        permissionTrigger++
+    }
+
+    val hasContacts = remember(permissionTrigger) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+    }
+    val hasCallLog = remember(permissionTrigger) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
+    }
+    val hasSms = remember(permissionTrigger) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+    }
+    val hasStorage = remember(permissionTrigger) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+    val hasNotificationAccess = remember(permissionTrigger) {
+        androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+    }
+    val hasOverlayAccess = remember(permissionTrigger) {
+        android.provider.Settings.canDrawOverlays(context)
+    }
+
+    val requestContactsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { permissionTrigger++ }
+    )
+    val requestCallLogLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { permissionTrigger++ }
+    )
+    val requestSmsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissionTrigger++ }
+    )
+
     SettingsLazyColumn {
         item(key = "about") {
             SettingGroup(title = "zune launcher") {
-                GlassPanel {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Text(
-                            text = "sürüm 1.0",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Light
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "microsoft zune hd ve windows phone metro tasarımından ilham alınmıştır",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = LocalZuneColors.current.textMuted
-                        )
-                    }
+                Column(modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)) {
+                    Text(
+                        text = "sürüm 1.0",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 20.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "microsoft zune hd ve windows phone metro tasarımından ilham alınmıştır",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                        color = LocalZuneColors.current.textMuted
+                    )
                 }
             }
         }
+
+        item(key = "permissions") {
+            SettingGroup(title = "uygulamaya verilen izinler") {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "uygulamanın tüm özelliklerini sorunsuz kullanabilmek için aşağıdaki izinleri kontrol edebilir ve değiştirebilirsiniz:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+                    )
+
+                    SettingSwitchRow(
+                        title = "kişiler erişimi",
+                        subtitle = "kişiler hubı ve telefon rehberi eşleştirmeleri için",
+                        checked = hasContacts,
+                        onCheckedChange = {
+                            if (!hasContacts) {
+                                requestContactsLauncher.launch(Manifest.permission.READ_CONTACTS)
+                            } else {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = "arama kayıtları",
+                        subtitle = "telefon hubında son aramaları ve geçmişi göstermek için",
+                        checked = hasCallLog,
+                        onCheckedChange = {
+                            if (!hasCallLog) {
+                                requestCallLogLauncher.launch(Manifest.permission.READ_CALL_LOG)
+                            } else {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = "sms ve mesajlaşma",
+                        subtitle = "mesajlar hubında sms almak ve yanıtlamak için",
+                        checked = hasSms,
+                        onCheckedChange = {
+                            if (!hasSms) {
+                                requestSmsLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.READ_SMS,
+                                        Manifest.permission.SEND_SMS
+                                    )
+                                )
+                            } else {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = "dosya ve depolama",
+                        subtitle = "dosyalar hubı ve özel duvar kağıdı yüklemek için",
+                        checked = hasStorage,
+                        onCheckedChange = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                try {
+                                    val intent = Intent(
+                                        android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                        Uri.parse("package:${context.packageName}")
+                                    )
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    openAppSettings(context)
+                                }
+                            } else {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = "bildirim dinleme izni",
+                        subtitle = "social hub ve kilit ekranında canlı bildirimler için",
+                        checked = hasNotificationAccess,
+                        onCheckedChange = {
+                            try {
+                                val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = "üstte gösterim izni",
+                        subtitle = "windows phone tarzı pop-up kartlar ve bildirim paneli için",
+                        checked = hasOverlayAccess,
+                        onCheckedChange = {
+                            try {
+                                val intent = Intent(
+                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    Uri.parse("package:${context.packageName}")
+                                )
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun openAppSettings(context: android.content.Context) {
+    try {
+        val intent = Intent(
+            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.parse("package:${context.packageName}")
+        )
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }
