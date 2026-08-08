@@ -95,14 +95,14 @@ fun PeopleHubScreen(
         entranceAnim.animateTo(
             targetValue = 1f,
             animationSpec = tween(
-                durationMillis = 750,
-                easing = CubicBezierEasing(0.0f, 0.95f, 0.1f, 1.0f)
+                durationMillis = 950,
+                easing = CubicBezierEasing(0.0f, 0.98f, 0.05f, 1.0f)
             )
         )
         bottomBarSlideAnim.animateTo(
             targetValue = 0f,
             animationSpec = tween(
-                durationMillis = 350,
+                durationMillis = 380,
                 easing = FastOutSlowInEasing
             )
         )
@@ -348,24 +348,30 @@ fun PeopleHubScreen(
             }
         }
 
-        // People Hub Content & Background Layer with Floating 3D Motion (No left hinge pin)
+        // People Hub Content & Background Layer with Left-Entry -> 60% Right Swing -> Ultra Slow Landing Motion
         if (hubHingeAnim.value > 0f) {
+            val leftStartPx = with(density) { (-140).dp.toPx() }
+            val rightMaxPx = with(density) { 80.dp.toPx() }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
                     .graphicsLayer {
                         val p = entranceAnim.value * hubHingeAnim.value
-                        val remaining = 1f - p
+                        val inv = 1f - p
                         
-                        rotationY = -35f * remaining
-                        translationX = 200.dp.toPx() * remaining
-                        scaleX = 0.85f + (0.15f * p)
-                        scaleY = 0.85f + (0.15f * p)
+                        // Trajectory: Start from left (-140dp), arc out across 60% right (+80dp), settle at 0
+                        val currentX = leftStartPx * inv * inv + rightMaxPx * 3.5f * p * inv * inv
                         
-                        transformOrigin = TransformOrigin(0.3f, 0.5f)
+                        rotationY = -48f * inv * inv
+                        translationX = currentX
+                        scaleX = 0.82f + (0.18f * p)
+                        scaleY = 0.82f + (0.18f * p)
+                        
+                        transformOrigin = TransformOrigin(0.6f, 0.5f) // 60% right perspective center
                         cameraDistance = 32f * density.density
-                        alpha = (p * 2.5f).coerceIn(0f, 1f)
+                        alpha = (p * 3f).coerceIn(0f, 1f)
                     }
             ) {
                 if (isWideScreen) {
