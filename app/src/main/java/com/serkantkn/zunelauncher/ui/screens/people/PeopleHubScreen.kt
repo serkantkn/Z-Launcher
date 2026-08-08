@@ -89,6 +89,7 @@ fun PeopleHubScreen(
     var isTransitioning by remember { mutableStateOf(false) }
 
     val entranceAnim = remember { Animatable(0f) }
+    val bottomBarSlideAnim = remember { Animatable(1f) }
 
     LaunchedEffect(Unit) {
         entranceAnim.animateTo(
@@ -96,6 +97,13 @@ fun PeopleHubScreen(
             animationSpec = tween(
                 durationMillis = 750,
                 easing = CubicBezierEasing(0.0f, 0.95f, 0.1f, 1.0f)
+            )
+        )
+        bottomBarSlideAnim.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(
+                durationMillis = 350,
+                easing = FastOutSlowInEasing
             )
         )
     }
@@ -340,11 +348,12 @@ fun PeopleHubScreen(
             }
         }
 
-        // People Hub Content Layer with Floating 3D Motion (No left hinge pin)
+        // People Hub Content & Background Layer with Floating 3D Motion (No left hinge pin)
         if (hubHingeAnim.value > 0f) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
                     .graphicsLayer {
                         val p = entranceAnim.value * hubHingeAnim.value
                         val remaining = 1f - p
@@ -526,11 +535,16 @@ fun PeopleHubScreen(
                     }
                 }
 
-                // Windows Phone Bottom Bar
+                // Windows Phone Bottom Bar (Slides up from bottom when entrance completes)
                 if (hasPermission) {
+                    val bottomBarOffsetPx = with(density) { 90.dp.toPx() }
                     WindowsPhoneBottomBar(
                         actions = bottomBarActions,
-                        menuItems = bottomBarMenuItems
+                        menuItems = bottomBarMenuItems,
+                        modifier = Modifier.graphicsLayer {
+                            translationY = bottomBarSlideAnim.value * bottomBarOffsetPx
+                            alpha = 1f - bottomBarSlideAnim.value
+                        }
                     )
                 }
             }
