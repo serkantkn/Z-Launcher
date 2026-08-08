@@ -94,8 +94,8 @@ fun PeopleHubScreen(
         entranceAnim.animateTo(
             targetValue = 1f,
             animationSpec = tween(
-                durationMillis = 650,
-                easing = CubicBezierEasing(0.05f, 0.9f, 0.1f, 1.0f)
+                durationMillis = 750,
+                easing = CubicBezierEasing(0.0f, 0.95f, 0.1f, 1.0f)
             )
         )
     }
@@ -340,7 +340,7 @@ fun PeopleHubScreen(
             }
         }
 
-        // People Hub Content Layer with Windows Phone Hinge & Entrance Animation
+        // People Hub Content Layer with Floating 3D Motion (No left hinge pin)
         if (hubHingeAnim.value > 0f) {
             Column(
                 modifier = Modifier
@@ -348,11 +348,15 @@ fun PeopleHubScreen(
                     .graphicsLayer {
                         val p = entranceAnim.value * hubHingeAnim.value
                         val remaining = 1f - p
-                        rotationY = -85f * remaining
-                        translationX = 140.dp.toPx() * remaining
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = 24f * density.density
-                        alpha = (p * 2f).coerceIn(0f, 1f)
+                        
+                        rotationY = -35f * remaining
+                        translationX = 200.dp.toPx() * remaining
+                        scaleX = 0.85f + (0.15f * p)
+                        scaleY = 0.85f + (0.15f * p)
+                        
+                        transformOrigin = TransformOrigin(0.3f, 0.5f)
+                        cameraDistance = 32f * density.density
+                        alpha = (p * 2.5f).coerceIn(0f, 1f)
                     }
             ) {
                 if (isWideScreen) {
