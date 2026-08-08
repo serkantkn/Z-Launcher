@@ -2,6 +2,9 @@ package com.serkantkn.zunelauncher.ui.screens.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
@@ -18,8 +21,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,8 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -362,8 +365,8 @@ internal fun SettingPill(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .height(44.dp)
-            .border(2.dp, borderColor, RoundedCornerShape(2.dp))
-            .background(bgColor, RoundedCornerShape(2.dp))
+            .border(2.dp, borderColor, RoundedCornerShape(0.dp))
+            .background(bgColor, RoundedCornerShape(0.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -379,6 +382,59 @@ internal fun SettingPill(
             ),
             color = textColor
         )
+    }
+}
+
+// Authentic Windows Phone rectangular sharp toggle switch (0.dp corners with slider thumb & text label)
+@Composable
+internal fun WindowsPhoneSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val zuneColors = LocalZuneColors.current
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 26.dp else 4.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "wp_switch_thumb"
+    )
+
+    val borderColor = if (checked) zuneColors.accentColor else zuneColors.textMuted.copy(alpha = 0.6f)
+    val bgColor = if (checked) zuneColors.accentColor else Color.Transparent
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = { onCheckedChange(!checked) }
+        )
+    ) {
+        Text(
+            text = if (checked) "açık" else "kapalı",
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal
+            ),
+            color = if (checked) zuneColors.accentColor else zuneColors.textMuted
+        )
+
+        Box(
+            modifier = Modifier
+                .width(52.dp)
+                .height(26.dp)
+                .border(2.dp, borderColor, RoundedCornerShape(0.dp))
+                .background(bgColor, RoundedCornerShape(0.dp)),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Box(
+                modifier = Modifier
+                    .offset(x = thumbOffset)
+                    .size(width = 16.dp, height = 18.dp)
+                    .background(Color.White, RoundedCornerShape(0.dp))
+            )
+        }
     }
 }
 
@@ -428,13 +484,9 @@ internal fun SettingSwitchRow(
             title = title,
             subtitle = subtitle,
             trailing = {
-                Switch(
+                WindowsPhoneSwitch(
                     checked = checked,
-                    onCheckedChange = onCheckedChange,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = LocalZuneColors.current.accentColor,
-                        checkedTrackColor = LocalZuneColors.current.accentColor.copy(alpha = 0.42f)
-                    )
+                    onCheckedChange = onCheckedChange
                 )
             }
         )
@@ -499,15 +551,15 @@ internal fun SettingRowContent(
                 overflow = TextOverflow.Ellipsis
             )
             if (subtitle.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp
                     ),
                     color = LocalZuneColors.current.textMuted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = 4
                 )
             }
         }

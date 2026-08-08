@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -86,6 +87,18 @@ fun PeopleHubScreen(
     val detailHingeAnim = remember { Animatable(if (hasInitialDetail) 1f else 0f) }
     val editContactHingeAnim = remember { Animatable(0f) }
     var isTransitioning by remember { mutableStateOf(false) }
+
+    val entranceAnim = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        entranceAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = 650,
+                easing = CubicBezierEasing(0.05f, 0.9f, 0.1f, 1.0f)
+            )
+        )
+    }
 
     val tabs = listOf("tümü", "favoriler", "son kullanılanlar")
     val actualPageCount = tabs.size
@@ -327,17 +340,19 @@ fun PeopleHubScreen(
             }
         }
 
-        // People Hub Content Layer with Hinge Animation
+        // People Hub Content Layer with Windows Phone Hinge & Entrance Animation
         if (hubHingeAnim.value > 0f) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        val p = hubHingeAnim.value
-                        rotationY = -90f * (1f - p)
+                        val p = entranceAnim.value * hubHingeAnim.value
+                        val remaining = 1f - p
+                        rotationY = -85f * remaining
+                        translationX = 140.dp.toPx() * remaining
                         transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = 12f * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                        cameraDistance = 24f * density.density
+                        alpha = (p * 2f).coerceIn(0f, 1f)
                     }
             ) {
                 if (isWideScreen) {
