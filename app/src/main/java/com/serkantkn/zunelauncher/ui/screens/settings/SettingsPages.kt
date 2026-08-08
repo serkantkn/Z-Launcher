@@ -255,7 +255,8 @@ internal fun HubSettingsPage(
 
                     hubOrder.forEachIndexed { index, hubType ->
                         Surface(
-                            color = if (LocalZuneColors.current.isDark) Color(0xFF222222) else Color(0xFFE8E8E8),
+                            color = Color.Transparent,
+                            border = BorderStroke(1.dp, LocalZuneColors.current.textMuted.copy(alpha = 0.25f)),
                             shape = RoundedCornerShape(2.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {

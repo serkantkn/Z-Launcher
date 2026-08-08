@@ -2,11 +2,11 @@ package com.serkantkn.zunelauncher.ui.screens.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -20,29 +20,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,7 +40,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,7 +59,7 @@ internal fun SettingsLazyColumn(content: androidx.compose.foundation.lazy.LazyLi
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 48.dp),
-        verticalArrangement = Arrangement.spacedBy(22.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         content()
     }
@@ -96,10 +89,11 @@ internal fun SettingGroup(
                 text = title,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Light,
+                    fontSize = 18.sp,
                     letterSpacing = 1.sp
                 ),
                 color = LocalZuneColors.current.textMuted,
-                modifier = Modifier.padding(bottom = 10.dp)
+                modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
             )
             content()
         }
@@ -112,7 +106,7 @@ internal fun ThemeChoiceRow(
     onSelected: (ThemeMode) -> Unit
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         ThemeMode.entries.forEach { mode ->
@@ -193,7 +187,7 @@ internal fun AccentColorChoiceRow(
                     val coloredModifier = when (color) {
                         AccentColor.DYNAMIC -> {
                             baseModifier.background(
-                                brush = androidx.compose.ui.graphics.Brush.sweepGradient(
+                                brush = Brush.sweepGradient(
                                     listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
                                 ),
                                 shape = CircleShape
@@ -201,7 +195,7 @@ internal fun AccentColorChoiceRow(
                         }
                         AccentColor.CUSTOM -> {
                             baseModifier.background(
-                                brush = androidx.compose.ui.graphics.Brush.sweepGradient(
+                                brush = Brush.sweepGradient(
                                     listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
                                 ),
                                 shape = CircleShape
@@ -351,6 +345,7 @@ internal fun CustomColorPickerDialog(
     }
 }
 
+// Authentic Windows Phone sharp rectangular selection button
 @Composable
 internal fun SettingPill(
     label: String,
@@ -359,33 +354,31 @@ internal fun SettingPill(
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
-    val height by animateDpAsState(
-        targetValue = if (selected) 58.dp else 52.dp,
-        label = "setting_pill_height"
-    )
+    val borderColor = if (selected) zuneColors.accentColor else zuneColors.textMuted.copy(alpha = 0.5f)
+    val bgColor = if (selected) zuneColors.accentColor else Color.Transparent
+    val textColor = if (selected) Color.White else MaterialTheme.colorScheme.onBackground
 
-    GlassPanel(
+    Box(
+        contentAlignment = Alignment.Center,
         modifier = modifier
-            .height(height)
+            .height(44.dp)
+            .border(2.dp, borderColor, RoundedCornerShape(2.dp))
+            .background(bgColor, RoundedCornerShape(2.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick
-            ),
-        selected = selected
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = if (selected) FontWeight.Medium else FontWeight.Light
-                ),
-                color = if (selected) zuneColors.accentColor else MaterialTheme.colorScheme.onBackground
             )
-        }
+            .padding(horizontal = 12.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                fontSize = 15.sp
+            ),
+            color = textColor
+        )
     }
 }
 
@@ -396,13 +389,14 @@ internal fun SettingChoiceRow(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    GlassPanel(
-        selected = selected,
-        modifier = Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onClick
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
     ) {
         SettingRowContent(
             title = title,
@@ -421,7 +415,15 @@ internal fun SettingSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    GlassPanel(selected = checked) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onCheckedChange(!checked) }
+            )
+    ) {
         SettingRowContent(
             title = title,
             subtitle = subtitle,
@@ -445,12 +447,14 @@ internal fun SystemSettingRow(
     subtitle: String,
     onClick: () -> Unit
 ) {
-    GlassPanel(
-        modifier = Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onClick
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
     ) {
         SettingRowContent(
             title = title,
@@ -477,7 +481,7 @@ internal fun SettingRowContent(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .padding(horizontal = 4.dp, vertical = 10.dp)
     ) {
         if (leading != null) {
             leading()
@@ -487,19 +491,25 @@ internal fun SettingRowContent(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Light
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 20.sp
                 ),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalZuneColors.current.textMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            if (subtitle.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 13.sp
+                    ),
+                    color = LocalZuneColors.current.textMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
         Spacer(modifier = Modifier.size(12.dp))
         trailing()
@@ -508,42 +518,27 @@ internal fun SettingRowContent(
 
 @Composable
 internal fun SelectionDot(selected: Boolean) {
-    val size by animateDpAsState(
-        targetValue = if (selected) 14.dp else 8.dp,
-        label = "selection_dot_size"
-    )
-    val color = if (selected) {
-        LocalZuneColors.current.accentColor
-    } else {
-        LocalZuneColors.current.textDim.copy(alpha = 0.45f)
-    }
+    val zuneColors = LocalZuneColors.current
+    val color = if (selected) zuneColors.accentColor else Color.Transparent
+    val borderColor = if (selected) zuneColors.accentColor else zuneColors.textMuted.copy(alpha = 0.5f)
 
     Box(
         modifier = Modifier
-            .size(size)
+            .size(18.dp)
+            .border(2.dp, borderColor, CircleShape)
             .background(color = color, shape = CircleShape)
     )
 }
 
+// Background-less container
 @Composable
 internal fun GlassPanel(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val zuneColors = LocalZuneColors.current
-    val tint = if (selected) {
-        zuneColors.accentColor.copy(alpha = 0.18f)
-    } else if (zuneColors.isDark) {
-        Color.White.copy(alpha = 0.05f)
-    } else {
-        Color.Black.copy(alpha = 0.05f)
-    }
-
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(tint)
+        modifier = modifier.fillMaxWidth()
     ) {
         content()
     }
