@@ -40,6 +40,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
 import com.serkantkn.zunelauncher.data.model.SmsMessageModel
+import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
@@ -107,8 +108,9 @@ fun MessagingHubScreen(
         )
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
             val overflowYPx = with(LocalDensity.current) { (-24).dp.toPx() }
 
             if (isWideScreen) {
@@ -265,7 +267,8 @@ fun MessagingHubScreen(
             if (hasPermission) {
                 WindowsPhoneBottomBar(
                     actions = bottomBarActions,
-                    menuItems = bottomBarMenuItems
+                    menuItems = bottomBarMenuItems,
+                    modifier = bottomBarModifier
                 )
             }
         }
@@ -294,6 +297,7 @@ fun MessagingHubScreen(
             )
         }
     }
+}
 }
 
 // ── Search Bar Component ────────────────────────────────────────────────────

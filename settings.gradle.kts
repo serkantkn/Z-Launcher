@@ -28,4 +28,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Z Launcher"
 include(":app")
-include(":zuneplugin")

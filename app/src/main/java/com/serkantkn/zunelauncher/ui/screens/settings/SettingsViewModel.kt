@@ -9,9 +9,7 @@ import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.AccentColor
-import com.serkantkn.zunelauncher.data.model.LockScreenMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
-import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
 import com.serkantkn.zunelauncher.data.repository.SettingsRepository
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.util.SystemSettingsManager
@@ -80,8 +78,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val notificationStyle: StateFlow<NotificationStyle> = settingsRepository.notificationStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationStyle.WINDOWS_PHONE)
 
-    val notificationCenterStyle: StateFlow<NotificationCenterStyle> = settingsRepository.notificationCenterStyle
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationCenterStyle.WINDOWS_PHONE)
+    val volumeBarStyle: StateFlow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = settingsRepository.volumeBarStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE)
+
+    val disabledNotificationApps: StateFlow<Set<String>> = settingsRepository.disabledNotificationApps
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    val installedApps: kotlinx.coroutines.flow.Flow<List<com.serkantkn.zunelauncher.data.model.AppInfo>> =
+        com.serkantkn.zunelauncher.data.repository.AppRepository(getApplication()).getInstalledApps()
 
     val hubOrder: StateFlow<List<HubType>> = settingsRepository.hubOrder
         .stateIn(
@@ -140,11 +144,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setNotificationStyle(style: NotificationStyle) {
-        viewModelScope.launch { settingsRepository.setNotificationStyle(style) }
+        viewModelScope.launch {
+            settingsRepository.setNotificationStyle(style)
+        }
     }
 
-    fun setNotificationCenterStyle(style: NotificationCenterStyle) {
-        viewModelScope.launch { settingsRepository.setNotificationCenterStyle(style) }
+    fun setVolumeBarStyle(style: com.serkantkn.zunelauncher.data.model.VolumeBarStyle) {
+        viewModelScope.launch {
+            settingsRepository.setVolumeBarStyle(style)
+        }
+    }
+
+    fun setDisabledNotificationApps(apps: Set<String>) {
+        viewModelScope.launch {
+            settingsRepository.setDisabledNotificationApps(apps)
+        }
     }
 
     fun setAccentColor(color: AccentColor) {
@@ -215,20 +229,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val solidBackgroundEnabled: StateFlow<Boolean> = settingsRepository.solidBackgroundEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    val lockScreenMode: StateFlow<LockScreenMode> = settingsRepository.lockScreenMode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LockScreenMode.DISABLED)
-
-    val customPin: StateFlow<String?> = settingsRepository.customPin
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    fun setLockScreenMode(mode: LockScreenMode) {
-        viewModelScope.launch { settingsRepository.setLockScreenMode(mode) }
-    }
-
-    fun setCustomPin(pin: String?) {
-        viewModelScope.launch { settingsRepository.setCustomPin(pin) }
-    }
 
     fun saveCroppedWallpaper(bitmap: android.graphics.Bitmap) {
         viewModelScope.launch {

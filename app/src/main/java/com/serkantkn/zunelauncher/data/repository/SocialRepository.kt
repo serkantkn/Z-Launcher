@@ -20,8 +20,23 @@ object SocialRepository {
     private val _latestToastMessage = MutableStateFlow<SocialMessageModel?>(null)
     val latestToastMessage: StateFlow<SocialMessageModel?> = _latestToastMessage.asStateFlow()
 
+    private val shownToastIds = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+    private var disabledApps: Set<String> = emptySet()
+
+    fun updateDisabledApps(apps: Set<String>) {
+        disabledApps = apps
+    }
+
+    fun isAppNotificationAllowed(packageName: String): Boolean {
+        return !disabledApps.contains(packageName)
+    }
+
     fun updateNotificationCounts(counts: Map<String, Int>) {
         _notificationCounts.value = counts
+    }
+
+    fun markAsShown(id: String) {
+        shownToastIds.add(id)
     }
 
     fun addOrUpdateMessage(message: SocialMessageModel, context: Context? = null, accentColor: androidx.compose.ui.graphics.Color? = null) {
@@ -34,7 +49,12 @@ object SocialRepository {
         }
         currentList.sortByDescending { it.timestamp }
         _messages.value = currentList
-        _latestToastMessage.value = message
+
+        // Only trigger toast popup IF this notification has NOT been shown before
+        if (!shownToastIds.contains(message.id)) {
+            shownToastIds.add(message.id)
+            _latestToastMessage.value = message
+        }
 
         context?.let { ctx ->
             showOverlayIfPermitted(ctx, message, accentColor)
@@ -43,6 +63,7 @@ object SocialRepository {
 
     fun removeMessage(id: String) {
         _messages.value = _messages.value.filter { it.id != id }
+        shownToastIds.remove(id)
         if (_latestToastMessage.value?.id == id) {
             _latestToastMessage.value = null
         }

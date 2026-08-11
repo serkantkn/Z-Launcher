@@ -47,7 +47,12 @@ fun ZuneDate(
     Text(
         text = currentDate,
         style = MaterialTheme.typography.bodyLarge.copy(
-            fontWeight = FontWeight.Light
+            fontWeight = FontWeight.Light,
+            shadow = androidx.compose.ui.graphics.Shadow(
+                color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.55f),
+                offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                blurRadius = 4f
+            )
         ),
         color = LocalZuneColors.current.textMuted,
         modifier = modifier

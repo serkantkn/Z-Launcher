@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -52,6 +53,16 @@ import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.launch
 
 @Composable
 fun SocialHubScreen(
@@ -129,8 +140,16 @@ fun SocialHubScreen(
                 EmptyStateView()
             } else {
                 when (layout) {
-                    SocialHubLayout.TIMELINE -> TimelineLayout(messages, onMessageClick = { viewModel.selectMessage(it) })
-                    SocialHubLayout.GROUPED -> GroupedLayout(messages, onMessageClick = { viewModel.selectMessage(it) })
+                    SocialHubLayout.TIMELINE -> TimelineLayout(
+                        messages = messages,
+                        onMessageClick = { viewModel.selectMessage(it) },
+                        onMessageDismiss = { viewModel.dismissMessage(it) }
+                    )
+                    SocialHubLayout.GROUPED -> GroupedLayout(
+                        messages = messages,
+                        onMessageClick = { viewModel.selectMessage(it) },
+                        onMessageDismiss = { viewModel.dismissMessage(it) }
+                    )
                 }
             }
         }
@@ -146,19 +165,31 @@ fun SocialHubScreen(
 }
 
 @Composable
-private fun TimelineLayout(messages: List<SocialMessageModel>, onMessageClick: (SocialMessageModel) -> Unit) {
+private fun TimelineLayout(
+    messages: List<SocialMessageModel>,
+    onMessageClick: (SocialMessageModel) -> Unit,
+    onMessageDismiss: (SocialMessageModel) -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
     ) {
         items(messages, key = { it.id }) { message ->
-            MessageListItem(message = message, onClick = { onMessageClick(message) })
+            SwipeableMessageListItem(
+                message = message,
+                onClick = { onMessageClick(message) },
+                onDismiss = { onMessageDismiss(message) }
+            )
         }
     }
 }
 
 @Composable
-private fun GroupedLayout(messages: List<SocialMessageModel>, onMessageClick: (SocialMessageModel) -> Unit) {
+private fun GroupedLayout(
+    messages: List<SocialMessageModel>,
+    onMessageClick: (SocialMessageModel) -> Unit,
+    onMessageDismiss: (SocialMessageModel) -> Unit
+) {
     val grouped = messages.groupBy { it.appName }
     
     LazyColumn(
@@ -175,8 +206,126 @@ private fun GroupedLayout(messages: List<SocialMessageModel>, onMessageClick: (S
                 )
             }
             items(appMessages, key = { it.id }) { message ->
-                MessageListItem(message = message, onClick = { onMessageClick(message) })
+                SwipeableMessageListItem(
+                    message = message,
+                    onClick = { onMessageClick(message) },
+                    onDismiss = { onMessageDismiss(message) }
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun SwipeableMessageListItem(
+    message: SocialMessageModel,
+    onClick: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val density = LocalDensity.current
+    val offsetX = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val gapPx = with(density) { 12.dp.toPx() }
+    val revealWidthPx = with(density) { 92.dp.toPx() }
+    val dismissThresholdPx = with(density) { 170.dp.toPx() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+    ) {
+        // Background Delete Button (Revealed on Left side as item drags Right)
+        if (offsetX.value > 0f) {
+            val bgWidthDp = with(density) { (offsetX.value - gapPx).coerceAtLeast(0f).toDp() }
+            
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(bgWidthDp)
+                    .matchParentSize()
+                    .padding(vertical = 6.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFE51C23))
+                    .clickable {
+                        coroutineScope.launch {
+                            offsetX.animateTo(1000f, tween(200))
+                            onDismiss()
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Sil",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    if (offsetX.value > revealWidthPx - 15f) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "sil",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Foreground Message Item Card
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    translationX = offsetX.value
+                }
+                .pointerInput(message.id) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            coroutineScope.launch {
+                                if (offsetX.value > dismissThresholdPx) {
+                                    // Over-swiped past threshold -> dismiss directly without tapping button!
+                                    offsetX.animateTo(1000f, tween(200))
+                                    onDismiss()
+                                } else if (offsetX.value > revealWidthPx / 2f) {
+                                    // Partial swipe -> snap open to reveal delete button
+                                    offsetX.animateTo(revealWidthPx, tween(180))
+                                } else {
+                                    // Minor drag -> collapse back
+                                    offsetX.animateTo(0f, tween(180))
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            coroutineScope.launch {
+                                offsetX.animateTo(0f, tween(180))
+                            }
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            coroutineScope.launch {
+                                val newOffset = (offsetX.value + dragAmount).coerceAtLeast(0f)
+                                offsetX.snapTo(newOffset)
+                            }
+                        }
+                    )
+                }
+        ) {
+            MessageListItem(
+                message = message,
+                onClick = {
+                    if (offsetX.value > 10f) {
+                        coroutineScope.launch { offsetX.animateTo(0f, tween(180)) }
+                    } else {
+                        onClick()
+                    }
+                }
+            )
         }
     }
 }

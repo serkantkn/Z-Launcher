@@ -44,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.Alarm
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
+import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -97,7 +98,8 @@ fun ClockHubScreen(
     val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
     val overflowYPx = with(density) { (-24).dp.toPx() }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
+        Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // --- TOP HEADER WITH PARALLAX ---
             Column(
@@ -175,7 +177,7 @@ fun ClockHubScreen(
 
         // --- WINDOWS PHONE STYLE BOTTOM MENU BAR ---
         WindowsPhoneBottomBar(
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
             actions = when (currentTab) {
                 0 -> listOf(
                     WpBarAction(Icons.Default.Add, "şehir ekle") { showAddCityDialog = true }
@@ -234,6 +236,7 @@ fun ClockHubScreen(
                 showSetTimerDialog = false
             }
         )
+    }
     }
 }
 

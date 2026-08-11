@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.app.Application
+import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -97,11 +98,12 @@ fun BrowserHubScreen(
 
     val isWideScreen = LocalIsWideScreen.current
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
         // Status Bar Background
         Spacer(
             modifier = Modifier
@@ -327,8 +329,9 @@ fun BrowserHubScreen(
                 onDragCancel = {
                     coroutineScope.launch { dragOffset.animateTo(0f) }
                 },
-                modifier = Modifier.fillMaxWidth().background(wp8MenuBarColor).navigationBarsPadding()
+                modifier = Modifier.fillMaxWidth().background(wp8MenuBarColor).navigationBarsPadding().then(bottomBarModifier)
             )
         }
     }
+}
 }

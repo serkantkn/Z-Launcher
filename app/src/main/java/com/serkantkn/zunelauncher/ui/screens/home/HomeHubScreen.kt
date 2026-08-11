@@ -91,12 +91,16 @@ import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.util.toImageBitmap
 import kotlinx.coroutines.launch
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeHubScreen(
     isHubOpen: Boolean = false,
     isCurrentPage: Boolean = true,
     onHubSelected: (HubType) -> Unit,
+    onNavigateToSocialHub: () -> Unit = {},
+    onNavigateToAppsHub: () -> Unit = {},
     onExpandProgressChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeHubViewModel = viewModel()
@@ -192,7 +196,7 @@ fun HomeHubScreen(
         if (isEditMode) return
         clickedItemKey = key
         coroutineScope.launch {
-            animationProgress.animateTo(2f, tween(700, easing = LinearEasing))
+            animationProgress.animateTo(2f, tween(900, easing = LinearEasing))
             action()
         }
     }
@@ -228,10 +232,44 @@ fun HomeHubScreen(
     // Track the vertical offset where hub titles begin
     // so collapsed favorites can align their first tile with the first hub title.
     var hubTitlesTopPx by remember { mutableStateOf(0f) }
+    var totalDragX by remember { mutableFloatStateOf(0f) }
+
+    val swipeGestureModifier = Modifier.pointerInput(isFavoritesExpanded, isEditMode) {
+        if (isEditMode) return@pointerInput
+        detectHorizontalDragGestures(
+            onDragStart = { totalDragX = 0f },
+            onDragEnd = {
+                if (!isFavoritesExpanded) {
+                    if (totalDragX > 40f) {
+                        // First swipe right on main screen (finger left -> right) -> expand favorites!
+                        isFavoritesExpanded = true
+                    } else if (totalDragX < -40f) {
+                        // Swipe left on main screen (finger right -> left) -> open Apps Hub (Page 2)!
+                        onNavigateToAppsHub()
+                    }
+                } else {
+                    if (totalDragX > 40f) {
+                        // Second swipe right on expanded favorites (finger left -> right) -> open Social Hub (Page 0)!
+                        onNavigateToSocialHub()
+                    } else if (totalDragX < -40f) {
+                        // Swipe left on expanded favorites (finger right -> left) -> collapse back to normal home screen!
+                        isFavoritesExpanded = false
+                    }
+                }
+            },
+            onDragCancel = { totalDragX = 0f },
+            onHorizontalDrag = { change, dragAmount ->
+                totalDragX += dragAmount
+                // Intercept drag events to control exact 2-stage expansion and navigation
+                change.consume()
+            }
+        )
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
+            .then(swipeGestureModifier)
             .clickable(
                 enabled = isEditMode,
                 indication = null,
@@ -282,14 +320,28 @@ fun HomeHubScreen(
                     if (isFavoritesExpanded) {
                         isFavoritesExpanded = false
                     } else {
-                        onHubSelected(HubType.CLOCK)
+                        handleLaunch("hub_CLOCK") { onHubSelected(HubType.CLOCK) }
                     }
                 },
-                modifier = Modifier.w10mStaggeredAnimation(animationProgress.value, 1)
+                modifier = Modifier.w10mStaggeredAnimation(
+                    progress = animationProgress.value,
+                    index = 1,
+                    isClicked = clickedItemKey == "hub_CLOCK"
+                )
             )
             ZuneDate(
-                onClick = { onHubSelected(HubType.CALENDAR) },
-                modifier = Modifier.w10mStaggeredAnimation(animationProgress.value, 2)
+                onClick = {
+                    if (isFavoritesExpanded) {
+                        isFavoritesExpanded = false
+                    } else {
+                        handleLaunch("hub_CALENDAR") { onHubSelected(HubType.CALENDAR) }
+                    }
+                },
+                modifier = Modifier.w10mStaggeredAnimation(
+                    progress = animationProgress.value,
+                    index = 2,
+                    isClicked = clickedItemKey == "hub_CALENDAR"
+                )
             )
             ZuneWeather(
                 modifier = Modifier
@@ -307,6 +359,7 @@ fun HomeHubScreen(
             )
 
             localHubOrder.forEachIndexed { index, hubType ->
+                val key = "hub_$hubType"
                 ZuneHubTitle(
                     title = hubType.title,
                     accentColor = if (zuneColors.isDark) Color.White else Color.Black,
@@ -315,10 +368,14 @@ fun HomeHubScreen(
                         if (isFavoritesExpanded) {
                             isFavoritesExpanded = false
                         } else {
-                            handleLaunch("hub_$hubType") { onHubSelected(hubType) }
+                            handleLaunch(key) { onHubSelected(hubType) }
                         }
                     },
-                    modifier = Modifier.w10mStaggeredAnimation(animationProgress.value, 4 + index)
+                    modifier = Modifier.w10mStaggeredAnimation(
+                        progress = animationProgress.value,
+                        index = 4 + index,
+                        isClicked = clickedItemKey == key
+                    )
                 )
             }
         }

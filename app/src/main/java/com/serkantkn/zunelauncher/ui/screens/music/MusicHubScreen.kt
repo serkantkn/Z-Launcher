@@ -53,6 +53,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.ui.theme.ZuneExtendedColors
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
@@ -68,6 +69,7 @@ import java.util.concurrent.TimeUnit
 
 @Composable
 fun MusicHubScreen(
+    modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
     viewModel: MusicHubViewModel = viewModel()
 ) {
@@ -89,8 +91,9 @@ fun MusicHubScreen(
     )
 
     CompositionLocalProvider(LocalZuneColors provides musicHubColors) {
-        val backgroundColor = if (mediaState.albumArt != null) Color.Black.copy(alpha = 0.8f) else MaterialTheme.colorScheme.background
-        Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
+        ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
+            val backgroundColor = if (mediaState.albumArt != null) Color.Black.copy(alpha = 0.8f) else MaterialTheme.colorScheme.background
+            Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
             
             // Dynamic Album Art Background
             mediaState.albumArt?.let { bitmap ->
@@ -259,6 +262,7 @@ fun MusicHubScreen(
             }
         }
     }
+}
 }
 
 @Composable

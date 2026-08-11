@@ -120,7 +120,7 @@ fun W10MAppTile(
     }
 
     val rotation by animateFloatAsState(
-        targetValue = if (showBack) 180f else 0f,
+        targetValue = if (showBack) -180f else 0f,
         animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
         label = "w10m_tile_flip"
     )
@@ -153,59 +153,60 @@ fun W10MAppTile(
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
             }
 
-            if (rotation <= 90f) {
+            if (kotlin.math.abs(rotation) <= 90f) {
                 // Front Side Content
-                icon?.let { drawable ->
-                    val bitmap = remember(drawable) { drawable.toImageBitmap() }
-                    val iconSize = when (span) {
-                        1 -> 24.dp
-                        2 -> 40.dp
-                        else -> 48.dp
-                    }
-                    Row(
-                        modifier = Modifier.align(Alignment.Center),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    icon?.let { drawable ->
+                        val bitmap = remember(drawable) { drawable.toImageBitmap() }
+                        val iconSize = when (span) {
+                            1 -> 24.dp
+                            2 -> 40.dp
+                            else -> 48.dp
+                        }
                         Image(
                             bitmap = bitmap,
                             contentDescription = label,
-                            modifier = Modifier.size(iconSize)
+                            modifier = Modifier
+                                .size(iconSize)
+                                .align(Alignment.Center)
                         )
-                        
-                        if (notificationCount > 0) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = notificationCount.toString(),
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = if (span == 1) 16.sp else 24.sp
-                                ),
-                                color = if (zuneColors.isDark) Color.White else Color.Black
-                            )
-                        }
                     }
-                }
 
-                // App label at bottom-left
-                if (span > 1) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Normal
-                        ),
-                        color = if (zuneColors.isDark) {
-                            Color.White.copy(alpha = 0.85f)
-                        } else {
-                            Color.Black.copy(alpha = 0.75f)
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 6.dp, bottom = 4.dp, end = 24.dp)
-                    )
+                    // Notification Count Badge (Bottom-Right corner, authentic WP Live Tile style)
+                    if (notificationCount > 0) {
+                        Text(
+                            text = notificationCount.toString(),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = if (span == 1) 14.sp else 22.sp
+                            ),
+                            color = if (zuneColors.isDark) Color.White else Color.Black,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 6.dp, bottom = 4.dp)
+                        )
+                    }
+
+                    // App label at bottom-left
+                    if (span > 1) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = if (zuneColors.isDark) {
+                                Color.White.copy(alpha = 0.85f)
+                            } else {
+                                Color.Black.copy(alpha = 0.75f)
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(start = 6.dp, bottom = 4.dp, end = 32.dp)
+                        )
+                    }
                 }
             } else {
                 // Back Side Content
@@ -213,7 +214,7 @@ fun W10MAppTile(
                     modifier = Modifier
                         .matchParentSize()
                         .graphicsLayer {
-                            rotationX = 180f
+                            rotationX = -180f
                         }
                 ) {
                     Column(

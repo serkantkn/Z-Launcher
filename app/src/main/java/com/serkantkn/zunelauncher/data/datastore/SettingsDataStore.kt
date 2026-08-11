@@ -9,9 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
-import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
 import com.serkantkn.zunelauncher.data.model.AccentColor
-import com.serkantkn.zunelauncher.data.model.LockScreenMode
 import com.serkantkn.zunelauncher.settingsDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -32,10 +30,9 @@ class SettingsDataStore(private val context: Context) {
         val SOLID_BACKGROUND_ENABLED = booleanPreferencesKey("solid_background_enabled")
         val BROWSER_FAVORITES = stringPreferencesKey("browser_favorites")
         val BROWSER_HISTORY = stringPreferencesKey("browser_history")
-        val LOCK_SCREEN_MODE = stringPreferencesKey("lock_screen_mode")
-        val CUSTOM_PIN = stringPreferencesKey("custom_pin")
         val NOTIFICATION_STYLE = stringPreferencesKey("notification_style")
-        val NOTIFICATION_CENTER_STYLE = stringPreferencesKey("notification_center_style")
+        val VOLUME_BAR_STYLE = stringPreferencesKey("volume_bar_style")
+        val DISABLED_NOTIFICATION_APPS = stringPreferencesKey("disabled_notification_apps")
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -125,18 +122,6 @@ class SettingsDataStore(private val context: Context) {
         prefs[BROWSER_HISTORY]
     }
 
-    val lockScreenMode: Flow<LockScreenMode> = context.settingsDataStore.data.map { prefs ->
-        try {
-            LockScreenMode.valueOf(prefs[LOCK_SCREEN_MODE] ?: LockScreenMode.DISABLED.name)
-        } catch (e: Exception) {
-            LockScreenMode.DISABLED
-        }
-    }
-
-    val customPin: Flow<String?> = context.settingsDataStore.data.map { prefs ->
-        prefs[CUSTOM_PIN]
-    }
-
     val notificationStyle: Flow<NotificationStyle> = context.settingsDataStore.data.map { prefs ->
         try {
             NotificationStyle.valueOf(prefs[NOTIFICATION_STYLE] ?: NotificationStyle.WINDOWS_PHONE.name)
@@ -145,12 +130,17 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    val notificationCenterStyle: Flow<NotificationCenterStyle> = context.settingsDataStore.data.map { prefs ->
+    val volumeBarStyle: Flow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = context.settingsDataStore.data.map { prefs ->
         try {
-            NotificationCenterStyle.valueOf(prefs[NOTIFICATION_CENTER_STYLE] ?: NotificationCenterStyle.WINDOWS_PHONE.name)
+            com.serkantkn.zunelauncher.data.model.VolumeBarStyle.valueOf(prefs[VOLUME_BAR_STYLE] ?: com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE.name)
         } catch (e: Exception) {
-            NotificationCenterStyle.WINDOWS_PHONE
+            com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE
         }
+    }
+
+    val disabledNotificationApps: Flow<Set<String>> = context.settingsDataStore.data.map { prefs ->
+        val raw = prefs[DISABLED_NOTIFICATION_APPS] ?: ""
+        if (raw.isBlank()) emptySet() else raw.split(",").toSet()
     }
 
 
@@ -244,31 +234,21 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    suspend fun setLockScreenMode(mode: LockScreenMode) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[LOCK_SCREEN_MODE] = mode.name
-        }
-    }
-
-    suspend fun setCustomPin(pin: String?) {
-        context.settingsDataStore.edit { prefs ->
-            if (pin == null) {
-                prefs.remove(CUSTOM_PIN)
-            } else {
-                prefs[CUSTOM_PIN] = pin
-            }
-        }
-    }
-
     suspend fun setNotificationStyle(style: NotificationStyle) {
         context.settingsDataStore.edit { prefs ->
             prefs[NOTIFICATION_STYLE] = style.name
         }
     }
 
-    suspend fun setNotificationCenterStyle(style: NotificationCenterStyle) {
+    suspend fun setVolumeBarStyle(style: com.serkantkn.zunelauncher.data.model.VolumeBarStyle) {
         context.settingsDataStore.edit { prefs ->
-            prefs[NOTIFICATION_CENTER_STYLE] = style.name
+            prefs[VOLUME_BAR_STYLE] = style.name
+        }
+    }
+
+    suspend fun setDisabledNotificationApps(apps: Set<String>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[DISABLED_NOTIFICATION_APPS] = apps.joinToString(",")
         }
     }
 }

@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
+import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -86,7 +87,8 @@ fun CalendarHubScreen(
     val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
     val overflowYPx = with(density) { (-24).dp.toPx() }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
+        Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // --- TOP HEADER WITH PARALLAX ---
             Column(
@@ -165,7 +167,7 @@ fun CalendarHubScreen(
 
         // --- WINDOWS PHONE STYLE BOTTOM MENU BAR ---
         com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar(
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
             actions = listOf(
                 com.serkantkn.zunelauncher.ui.components.WpBarAction(Icons.Default.Add, "etkinlik ekle") { showAddEventDialog = true },
                 com.serkantkn.zunelauncher.ui.components.WpBarAction(Icons.Default.DateRange, "bugün") { viewModel.goToToday() }
@@ -192,6 +194,7 @@ fun CalendarHubScreen(
                 showAddEventDialog = false
             }
         )
+    }
     }
 }
 

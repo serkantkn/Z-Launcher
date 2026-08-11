@@ -22,7 +22,7 @@ fun Modifier.w10mStaggeredAnimation(
     val safeIndex = index.coerceAtMost(15)
     
     val staggerDelay = 0.04f // 4% delay per index
-    val itemDuration = 0.35f  // Each item takes 35% of the total time
+    val itemDuration = 0.40f  // Each item takes 40% of the total time
     
     val effectIntensity = when {
         progress < 1f -> {
@@ -36,13 +36,14 @@ fun Modifier.w10mStaggeredAnimation(
             // EXITING (1f -> 2f)
             val normalizedProgress = progress - 1f
             if (isClicked) {
-                // Clicked item waits for others, then zooms in/flies forward
-                // Let's say it stays 0f until 0.6f of the total animation, then zooms.
-                val p = (normalizedProgress - 0.6f) / 0.4f
+                // Clicked item stays 100% visible while all other elements exit first (0.0 -> 0.50), then plays exit animation LAST (0.50 -> 1.0)
+                val itemStart = 0.50f
+                val itemEnd = 1.0f
+                val p = (normalizedProgress - itemStart) / (itemEnd - itemStart)
                 p.coerceIn(0f, 1f)
             } else {
                 val itemStart = safeIndex * staggerDelay
-                val itemEnd = itemStart + itemDuration
+                val itemEnd = (itemStart + itemDuration).coerceAtMost(0.70f)
                 val p = (normalizedProgress - itemStart) / (itemEnd - itemStart)
                 p.coerceIn(0f, 1f) // 0f (normal) -> 1f (gone)
             }

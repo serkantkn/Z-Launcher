@@ -83,4 +83,16 @@ class SocialHubViewModel(application: Application) : AndroidViewModel(applicatio
             e.printStackTrace()
         }
     }
+
+    fun dismissMessage(message: SocialMessageModel) {
+        try {
+            com.serkantkn.zunelauncher.data.service.SocialNotificationListener.instance?.cancelNotification(message.id)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        SocialRepository.removeMessage(message.id)
+        if (_selectedMessage.value?.id == message.id) {
+            _selectedMessage.value = null
+        }
+    }
 }

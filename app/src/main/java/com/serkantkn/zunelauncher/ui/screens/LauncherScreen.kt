@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -31,15 +32,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.serkantkn.zunelauncher.MainActivityEvents
 import com.serkantkn.zunelauncher.data.model.HubType
-import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.components.BackgroundMode
-import com.serkantkn.zunelauncher.ui.components.WpActionCenterPanel
 import com.serkantkn.zunelauncher.ui.components.WpToastNotification
+import com.serkantkn.zunelauncher.ui.components.WpVolumeControl
 import com.serkantkn.zunelauncher.ui.components.ZuneBackground
 import com.serkantkn.zunelauncher.ui.components.ZuneWallpaperOverlay
 import com.serkantkn.zunelauncher.ui.navigation.ZuneNavigationState
@@ -87,25 +86,17 @@ fun LauncherScreen(
     )
 
     val notificationStyle by settingsViewModel.notificationStyle.collectAsState()
-    val notificationCenterStyle by settingsViewModel.notificationCenterStyle.collectAsState()
+    val disabledNotificationApps by settingsViewModel.disabledNotificationApps.collectAsState()
     val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
 
-    val isActionCenterOpenState = remember { mutableStateOf(false) }
-    var isActionCenterOpen by isActionCenterOpenState
+    LaunchedEffect(disabledNotificationApps) {
+        SocialRepository.updateDisabledApps(disabledNotificationApps)
+    }
+
     val latestNotification by SocialRepository.latestToastMessage.collectAsState()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val isWideScreen = LocalIsWideScreen.current
-    val currentCenterStyle = notificationCenterStyle
-
-    LaunchedEffect(Unit) {
-        MainActivityEvents.triggerActionCenter.collect { triggered ->
-            if (triggered) {
-                isActionCenterOpen = true
-                MainActivityEvents.triggerActionCenter.value = false
-            }
-        }
-    }
 
     var wallpaperOverlayAlpha by remember { mutableStateOf(1f) }
     val density = LocalDensity.current.density
@@ -162,8 +153,8 @@ fun LauncherScreen(
         }
     }
 
-    var accumulatedOverscroll by remember { mutableStateOf(0f) }
-    val globalNestedScrollConnection = remember(context, currentCenterStyle) {
+    var accumulatedOverscroll by remember { mutableFloatStateOf(0f) }
+    val globalNestedScrollConnection = remember(context) {
         object : NestedScrollConnection {
             override fun onPreScroll(
                 available: androidx.compose.ui.geometry.Offset,
@@ -182,11 +173,7 @@ fun LauncherScreen(
                     if (available.y > 0 && navState.currentHub == null) {
                         accumulatedOverscroll += available.y
                         if (accumulatedOverscroll > 8f) {
-                            if (currentCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
-                                isActionCenterOpen = true
-                            } else {
-                                expandNotificationPanel(context)
-                            }
+                            expandNotificationPanel(context)
                             accumulatedOverscroll = 0f
                         }
                         return available
@@ -194,14 +181,6 @@ fun LauncherScreen(
                 }
                 return androidx.compose.ui.geometry.Offset.Zero
             }
-        }
-    }
-
-    LaunchedEffect(notificationCenterStyle) {
-        if (notificationCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
-            setStatusBarExpandDisabled(context, true)
-        } else {
-            setStatusBarExpandDisabled(context, false)
         }
     }
 
@@ -429,6 +408,16 @@ fun LauncherScreen(
                                     isHubOpen = isHubOpen,
                                     isCurrentPage = pagerState.currentPage == 1,
                                     onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
+                                    onNavigateToSocialHub = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(0)
+                                        }
+                                    },
+                                    onNavigateToAppsHub = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(2)
+                                        }
+                                    },
                                     onHubSelected = { hub ->
                                         when (hub) {
                                             HubType.HOME -> { /* Already on home */ }
@@ -475,12 +464,6 @@ fun LauncherScreen(
                     }
                 }
 
-                // Windows Phone Custom Action Center Panel
-                WpActionCenterPanel(
-                    isOpen = isActionCenterOpen,
-                    onClose = { isActionCenterOpen = false }
-                )
-
                 // Windows Phone Toast Notification Banner
                 if (notificationStyle == NotificationStyle.WINDOWS_PHONE) {
                     WpToastNotification(
@@ -488,6 +471,9 @@ fun LauncherScreen(
                         onDismiss = { SocialRepository.clearToast() }
                     )
                 }
+
+                // Windows Phone Style Volume Control Banner
+                WpVolumeControl()
             }
         }
     }

@@ -12,35 +12,88 @@ import android.service.notification.StatusBarNotification
 import com.serkantkn.zunelauncher.data.model.ReplyAction
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 
 class SocialNotificationListener : NotificationListenerService() {
 
+    companion object {
+        var instance: SocialNotificationListener? = null
+    }
+
+    private val selfCanceledKeys = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+    }
+
+    override fun onDestroy() {
+        if (instance == this) instance = null
+        super.onDestroy()
+    }
+
     override fun onListenerConnected() {
         super.onListenerConnected()
-        updateAllNotificationCounts()
+        instance = this
+        try {
+            val active = activeNotifications ?: return
+            active.forEach { sbn ->
+                if (isNotificationValid(sbn) && SocialRepository.isAppNotificationAllowed(sbn.packageName)) {
+                    SocialRepository.markAsShown(sbn.key)
+                    processAndAddNotification(sbn)
+                }
+            }
+            updateAllNotificationCounts()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        if (isNotificationValid(sbn) && SocialRepository.isAppNotificationAllowed(sbn.packageName)) {
+            processAndAddNotification(sbn)
+            // Immediately cancel system notification so Android's native heads-up notification card does not show
+            try {
+                selfCanceledKeys.add(sbn.key)
+                cancelNotification(sbn.key)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
         updateAllNotificationCounts()
-        val notification = sbn.notification
-        val category = notification.category
-        
-        val isMessage = category == Notification.CATEGORY_MESSAGE ||
-                category == Notification.CATEGORY_EMAIL ||
-                category == Notification.CATEGORY_SOCIAL ||
-                isKnownMessagingApp(sbn.packageName)
+    }
 
-        if (!isMessage) return
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        if (selfCanceledKeys.remove(sbn.key)) {
+            // Canceled by us to replace Android notification card with Windows Phone toast
+            // Keep in SocialRepository so live tile count & Social Hub & Toast card continue to work
+            updateAllNotificationCounts()
+            return
+        }
+        SocialRepository.removeMessage(sbn.key)
+        updateAllNotificationCounts()
+    }
 
-        val extras = notification.extras
-        val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
-        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+    private fun processAndAddNotification(sbn: StatusBarNotification) {
+        val notification = sbn.notification ?: return
+        val extras = notification.extras ?: return
+
+        val title = extras.getString(Notification.EXTRA_TITLE)
+            ?: extras.getCharSequence(Notification.EXTRA_TITLE_BIG)?.toString()
+            ?: extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+            ?: ""
+
+        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+            ?: extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+            ?: extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+            ?: ""
 
         if (title.isBlank() && text.isBlank()) return
 
         val appName = getAppName(sbn.packageName)
         var iconBitmap: Bitmap? = null
-        
+
         try {
             val icon: Icon? = notification.getLargeIcon() ?: notification.smallIcon
             val drawable = icon?.loadDrawable(this)
@@ -77,11 +130,6 @@ class SocialNotificationListener : NotificationListenerService() {
         )
 
         SocialRepository.addOrUpdateMessage(messageModel, this)
-    }
-
-    override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        updateAllNotificationCounts()
-        SocialRepository.removeMessage(sbn.key)
     }
 
     private fun getAppName(packageName: String): String {
@@ -127,13 +175,13 @@ class SocialNotificationListener : NotificationListenerService() {
 
     private fun updateAllNotificationCounts() {
         try {
-            val active = activeNotifications ?: return
-            val counts = active.groupBy { it.packageName }
-                .mapValues { entry ->
-                    entry.value.filter { isNotificationValid(it) }.size
-                }
+            val counts = SocialRepository.messages.value
+                .groupBy { it.packageName }
+                .mapValues { it.value.size }
             SocialRepository.updateNotificationCounts(counts)
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun isNotificationValid(sbn: StatusBarNotification): Boolean {

@@ -32,7 +32,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.serkantkn.zunelauncher.data.model.*
-import com.serkantkn.zunelauncher.data.plugin.PluginManager
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 
 @Composable
@@ -341,23 +340,31 @@ internal fun HubSettingsPage(
 }
 
 @Composable
-internal fun NotificationsSettingsPage(viewModel: SettingsViewModel) {
+internal fun NotificationsSettingsPage(
+    viewModel: SettingsViewModel,
+    onOpenAppFilter: () -> Unit = {}
+) {
     val notificationStyle by viewModel.notificationStyle.collectAsState()
-    val notificationCenterStyle by viewModel.notificationCenterStyle.collectAsState()
+    val disabledNotificationApps by viewModel.disabledNotificationApps.collectAsState()
     val context = LocalContext.current
-    val isPluginInstalled = remember { PluginManager.isPluginInstalled(context) }
 
     SettingsLazyColumn {
+        item(key = "notification_filter") {
+            SettingGroup(title = "bildirim filtreleme") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingChoiceRow(
+                        title = "bildirim izinli uygulamalar",
+                        subtitle = if (disabledNotificationApps.isEmpty()) "tüm uygulamalar izinli" else "${disabledNotificationApps.size} uygulama engellendi",
+                        selected = true,
+                        onClick = onOpenAppFilter
+                    )
+                }
+            }
+        }
+
         item(key = "notification_style") {
             SettingGroup(title = "bildirim stili") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (isPluginInstalled) {
-                        Text(
-                            text = "✓ Zune Extras Eklentisi (com.serkantkn.zplugin) Aktif",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF4CAF50)
-                        )
-                    }
                     SettingChoiceRow(
                         title = "windows phone (pop-up kart)",
                         subtitle = "üstten kayan kart + aşağı çekince hızlı yanıt",
@@ -410,68 +417,6 @@ internal fun NotificationsSettingsPage(viewModel: SettingsViewModel) {
                 }
             }
         }
-
-        item(key = "notification_center_style") {
-            SettingGroup(title = "bildirim paneli stili") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingChoiceRow(
-                        title = "windows phone eylem merkezi",
-                        subtitle = "aşağı sürükleyince açılan özel eylem merkezi paneli",
-                        selected = notificationCenterStyle == NotificationCenterStyle.WINDOWS_PHONE,
-                        onClick = { viewModel.setNotificationCenterStyle(NotificationCenterStyle.WINDOWS_PHONE) }
-                    )
-                    SettingChoiceRow(
-                        title = "android sistem paneli",
-                        subtitle = "varsayılan android bildirim çubuğu",
-                        selected = notificationCenterStyle == NotificationCenterStyle.SYSTEM,
-                        onClick = { viewModel.setNotificationCenterStyle(NotificationCenterStyle.SYSTEM) }
-                    )
-
-                    if (notificationCenterStyle == NotificationCenterStyle.WINDOWS_PHONE) {
-                        val hasOverlayPermission = android.provider.Settings.canDrawOverlays(context)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        if (!hasOverlayPermission) {
-                            Button(
-                                onClick = {
-                                    val intent = android.content.Intent(
-                                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                        android.net.Uri.parse("package:${context.packageName}")
-                                    )
-                                    context.startActivity(intent)
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = LocalZuneColors.current.accentColor,
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Text("1. Üstte Gösterim İzni Ver (Gerekli)")
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
-                        Button(
-                            onClick = {
-                                try {
-                                    val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = LocalZuneColors.current.accentColor,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text("2. Erişilebilirlik İzni Ver (Her Uygulamada Çekim İçin)")
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -517,12 +462,32 @@ internal fun DisplaySettingsPage(viewModel: SettingsViewModel) {
 internal fun SoundSettingsPage(viewModel: SettingsViewModel) {
     val mediaVolume by viewModel.mediaVolume.collectAsState()
     val ringVolume by viewModel.ringVolume.collectAsState()
+    val volumeBarStyle by viewModel.volumeBarStyle.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.refreshSystemSettings()
     }
 
     SettingsLazyColumn {
+        item(key = "volume_bar_style") {
+            SettingGroup(title = "ses arayüzü stili") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingChoiceRow(
+                        title = "windows phone (üst bar)",
+                        subtitle = "ekranın üstünden kayan köşeli wp ses kontrolü",
+                        selected = volumeBarStyle == com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE,
+                        onClick = { viewModel.setVolumeBarStyle(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE) }
+                    )
+                    SettingChoiceRow(
+                        title = "android varsayılan ses barı",
+                        subtitle = "sistemin kendi ses paneli kullanılır",
+                        selected = volumeBarStyle == com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM,
+                        onClick = { viewModel.setVolumeBarStyle(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM) }
+                    )
+                }
+            }
+        }
+
         item(key = "volume") {
             SettingGroup(title = "ses seviyeleri") {
                 GlassPanel {
@@ -597,117 +562,11 @@ internal fun ConnectivitySettingsPage(viewModel: SettingsViewModel) {
 
 @Composable
 internal fun SystemSettingsPage(viewModel: SettingsViewModel) {
-    val lockScreenMode by viewModel.lockScreenMode.collectAsState()
-    val customPin by viewModel.customPin.collectAsState()
-
     LaunchedEffect(Unit) {
         viewModel.refreshSystemSettings()
     }
 
     SettingsLazyColumn {
-        item(key = "lock_screen") {
-            val context = LocalContext.current
-            val isPluginInstalled = remember { PluginManager.isPluginInstalled(context) }
-            SettingGroup(title = "kilit ekranı") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (!isPluginInstalled) {
-                        Text(
-                            text = "Kilit ekranı ve gelişmiş bildirim sistemini kullanabilmek için Zune Extras Eklentisini (com.serkantkn.zplugin) yükleyin.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LocalZuneColors.current.textMuted
-                        )
-                        Button(
-                            onClick = { PluginManager.launchPluginOrInstall(context) },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = LocalZuneColors.current.accentColor,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text("Zune Eklentisini Yükle (com.serkantkn.zplugin)")
-                        }
-                    } else {
-                        Text(
-                            text = "✓ Zune Extras Eklentisi (com.serkantkn.zplugin) Aktif",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF4CAF50)
-                        )
-                    }
-                    SettingChoiceRow(
-                        title = "kapalı",
-                        subtitle = "sadece android kilit ekranı",
-                        selected = lockScreenMode == LockScreenMode.DISABLED,
-                        onClick = { viewModel.setLockScreenMode(LockScreenMode.DISABLED) }
-                    )
-                    SettingChoiceRow(
-                        title = "güvenli mod (önerilen)",
-                        subtitle = "parmak izi + zune kilit ekranı",
-                        selected = lockScreenMode == LockScreenMode.SAFE_MODE,
-                        onClick = { viewModel.setLockScreenMode(LockScreenMode.SAFE_MODE) }
-                    )
-                    SettingChoiceRow(
-                        title = "tam özel pin",
-                        subtitle = "sistem şifresini kaldırmanızı gerektirir",
-                        selected = lockScreenMode == LockScreenMode.PIN_MODE,
-                        onClick = { viewModel.setLockScreenMode(LockScreenMode.PIN_MODE) }
-                    )
-
-                    if (lockScreenMode == LockScreenMode.PIN_MODE) {
-                        GlassPanel(modifier = Modifier.padding(top = 8.dp)) {
-                            Column(modifier = Modifier.padding(18.dp)) {
-                                Text(
-                                    text = "pin belirle",
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontWeight = FontWeight.Light
-                                    ),
-                                    color = MaterialTheme.colorScheme.onBackground,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-                                Text(
-                                    text = "kilit ekranında kullanılacak 4 haneli şifrenizi ayarlayın.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = LocalZuneColors.current.textMuted,
-                                    modifier = Modifier.padding(bottom = 12.dp)
-                                )
-
-                                var tempPin by remember { mutableStateOf(customPin ?: "") }
-
-                                OutlinedTextField(
-                                    value = tempPin,
-                                    onValueChange = {
-                                        if (it.length <= 4 && it.all { char -> char.isDigit() }) {
-                                            tempPin = it
-                                        }
-                                    },
-                                    label = { Text("4 Haneli PIN") },
-                                    singleLine = true,
-                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                        keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
-                                    ),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = LocalZuneColors.current.accentColor,
-                                        focusedLabelColor = LocalZuneColors.current.accentColor
-                                    )
-                                )
-
-                                Button(
-                                    onClick = { viewModel.setCustomPin(tempPin) },
-                                    modifier = Modifier.padding(top = 12.dp).align(Alignment.End),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = LocalZuneColors.current.accentColor,
-                                        contentColor = Color.White
-                                    ),
-                                    enabled = tempPin.length == 4
-                                ) {
-                                    Text("Kaydet")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         item(key = "device") {
             SettingGroup(title = "cihaz") {

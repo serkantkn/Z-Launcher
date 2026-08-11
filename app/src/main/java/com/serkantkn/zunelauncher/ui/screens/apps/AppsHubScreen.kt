@@ -69,6 +69,8 @@ import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
 import com.serkantkn.zunelauncher.util.toImageBitmap
 import kotlinx.coroutines.launch
 import androidx.compose.animation.core.Animatable
@@ -428,12 +430,18 @@ private fun AppRow(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val zuneColors = LocalZuneColors.current
             Text(
                 text = appInfo.label,
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    shadow = if (!zuneColors.isDark) Shadow(
+                        color = Color.White.copy(alpha = 0.9f),
+                        offset = Offset(1f, 1f),
+                        blurRadius = 4f
+                    ) else null
                 ),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
@@ -471,10 +479,16 @@ private fun AppRow(
 
             Spacer(modifier = Modifier.width(ZuneDimens.SpacingMd))
 
+            val zuneColors = LocalZuneColors.current
             Text(
                 text = appInfo.label,
                 style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Normal
+                    fontWeight = FontWeight.Normal,
+                    shadow = if (!zuneColors.isDark) Shadow(
+                        color = Color.White.copy(alpha = 0.9f),
+                        offset = Offset(1f, 1f),
+                        blurRadius = 4f
+                    ) else null
                 ),
                 color = MaterialTheme.colorScheme.onBackground
             )

@@ -64,6 +64,7 @@ import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.MediaAlbum
 import com.serkantkn.zunelauncher.data.model.MediaImage
 import com.serkantkn.zunelauncher.ui.components.PhotoViewer
+import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
@@ -114,7 +115,8 @@ fun PicturesHubScreen(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
+        Box(modifier = Modifier.fillMaxSize()) {
         val configuration = LocalConfiguration.current
         val screenWidthDp = configuration.screenWidthDp.dp
         val density = LocalDensity.current
@@ -339,7 +341,8 @@ fun PicturesHubScreen(
             onDismiss = { viewingPhoto = null },
             onToggleFavorite = { viewingPhoto?.let { viewModel.toggleFavorite(it.id) } }
         )
-    } // close root Box
+    }
+} // close root Box
 }
 
 @Composable

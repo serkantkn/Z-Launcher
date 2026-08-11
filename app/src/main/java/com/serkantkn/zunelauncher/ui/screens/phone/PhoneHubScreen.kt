@@ -46,6 +46,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.CallLogModel
 import com.serkantkn.zunelauncher.data.model.ContactModel
+import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -104,9 +105,10 @@ fun PhoneHubScreen(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        // Main Content (Recent Calls & Header)
-        Column(modifier = Modifier.fillMaxSize()) {
+    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Main Content (Recent Calls & Header)
+            Column(modifier = Modifier.fillMaxSize()) {
             val density = LocalDensity.current
             val overflowYPx = with(density) { (-24).dp.toPx() }
 
@@ -176,7 +178,9 @@ fun PhoneHubScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .padding(bottom = 16.dp, top = 8.dp)
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 24.dp, end = 24.dp)
+                    .then(bottomBarModifier)
                     .size(48.dp)
                     .clip(CircleShape)
                     .border(BorderStroke(1.5.dp, Color.White), CircleShape)
@@ -288,6 +292,7 @@ fun PhoneHubScreen(
             }
         }
     }
+}
 }
 
 @Composable

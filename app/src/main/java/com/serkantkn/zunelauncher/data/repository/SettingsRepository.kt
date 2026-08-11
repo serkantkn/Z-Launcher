@@ -4,9 +4,7 @@ import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.AccentColor
-import com.serkantkn.zunelauncher.data.model.LockScreenMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
-import com.serkantkn.zunelauncher.data.model.NotificationCenterStyle
 import kotlinx.coroutines.flow.Flow
 
 class SettingsRepository(private val dataStore: SettingsDataStore) {
@@ -24,10 +22,9 @@ class SettingsRepository(private val dataStore: SettingsDataStore) {
     val solidBackgroundEnabled: Flow<Boolean> = dataStore.solidBackgroundEnabled
     val browserFavorites: Flow<String?> = dataStore.browserFavorites
     val browserHistory: Flow<String?> = dataStore.browserHistory
-    val lockScreenMode: Flow<LockScreenMode> = dataStore.lockScreenMode
-    val customPin: Flow<String?> = dataStore.customPin
     val notificationStyle: Flow<NotificationStyle> = dataStore.notificationStyle
-    val notificationCenterStyle: Flow<NotificationCenterStyle> = dataStore.notificationCenterStyle
+    val volumeBarStyle: Flow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = dataStore.volumeBarStyle
+    val disabledNotificationApps: Flow<Set<String>> = dataStore.disabledNotificationApps
 
     suspend fun setThemeMode(mode: ThemeMode) = dataStore.setThemeMode(mode)
     suspend fun setFontScale(scale: Float) = dataStore.setFontScale(scale)
@@ -42,8 +39,7 @@ class SettingsRepository(private val dataStore: SettingsDataStore) {
     suspend fun setSolidBackgroundEnabled(enabled: Boolean) = dataStore.setSolidBackgroundEnabled(enabled)
     suspend fun setBrowserFavorites(json: String) = dataStore.setBrowserFavorites(json)
     suspend fun setBrowserHistory(json: String) = dataStore.setBrowserHistory(json)
-    suspend fun setLockScreenMode(mode: LockScreenMode) = dataStore.setLockScreenMode(mode)
-    suspend fun setCustomPin(pin: String?) = dataStore.setCustomPin(pin)
     suspend fun setNotificationStyle(style: NotificationStyle) = dataStore.setNotificationStyle(style)
-    suspend fun setNotificationCenterStyle(style: NotificationCenterStyle) = dataStore.setNotificationCenterStyle(style)
+    suspend fun setVolumeBarStyle(style: com.serkantkn.zunelauncher.data.model.VolumeBarStyle) = dataStore.setVolumeBarStyle(style)
+    suspend fun setDisabledNotificationApps(apps: Set<String>) = dataStore.setDisabledNotificationApps(apps)
 }

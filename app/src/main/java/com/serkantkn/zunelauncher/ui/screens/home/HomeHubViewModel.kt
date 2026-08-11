@@ -80,31 +80,6 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
-
-        // Inject mock notifications to demonstrate Live Tile flip animations
-        viewModelScope.launch {
-            val favs = favoriteApps.first { it.isNotEmpty() }
-            val mockCounts = mutableMapOf<String, Int>()
-            favs.take(4).forEachIndexed { i, fav ->
-                val pkg = fav.appInfo.packageName
-                mockCounts[pkg] = (i + 1) * 2
-                
-                SocialRepository.addOrUpdateMessage(
-                    SocialMessageModel(
-                        id = "mock_$i",
-                        packageName = pkg,
-                        appName = fav.appInfo.label,
-                        title = "Bildirim: ${fav.appInfo.label}",
-                        text = "Bu, Canlı Karo 3D flip animasyonunu test etmek için oluşturulmuş örnek bir bildirimdir.",
-                        timestamp = System.currentTimeMillis(),
-                        icon = null,
-                        replyAction = null,
-                        openIntent = null
-                    )
-                )
-            }
-            SocialRepository.updateNotificationCounts(mockCounts)
-        }
     }
 
     fun launchApp(packageName: String) {
