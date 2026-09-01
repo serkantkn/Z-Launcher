@@ -67,6 +67,8 @@ private const val TAG = "ZuneBackground"
 fun ZuneBackground(
     mode: BackgroundMode = BackgroundMode.GRADIENT,
     accentColor: Color = ZuneColors.Pink,
+    customWallpaperPathOverride: String? = null,
+    forceModeOverride: BackgroundMode? = null,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
@@ -105,12 +107,14 @@ fun ZuneBackground(
         onDispose { context.unregisterReceiver(receiver) }
     }
 
+    val effectiveCustomPath = customWallpaperPathOverride ?: customWallpaperPath
+
     // Reload wallpaper whenever version or custom path changes
-    LaunchedEffect(wallpaperVersion, customWallpaperPath) {
+    LaunchedEffect(wallpaperVersion, effectiveCustomPath) {
         val wallpapers = withContext(Dispatchers.IO) {
             try {
-                val bitmap = if (customWallpaperPath != null) {
-                    val file = java.io.File(customWallpaperPath!!)
+                val bitmap = if (effectiveCustomPath != null) {
+                    val file = java.io.File(effectiveCustomPath)
                     if (file.exists()) {
                         android.graphics.BitmapFactory.decodeFile(file.absolutePath)
                     } else {
@@ -157,7 +161,7 @@ fun ZuneBackground(
             .onGloballyPositioned { backgroundCoordinates = it }
     ) {
         Crossfade(
-            targetState = if (solidBackgroundEnabled) BackgroundMode.SOLID else mode,
+            targetState = forceModeOverride ?: if (solidBackgroundEnabled) BackgroundMode.SOLID else mode,
             modifier = Modifier
                 .fillMaxSize(),
             label = "background_transition"
@@ -307,31 +311,41 @@ private fun SolidBackground() {
 @Composable
 fun ZuneWallpaperOverlay(
     modifier: Modifier = Modifier,
-    alpha: Float = 1f
+    alpha: Float = 1f,
+    isHubOverlay: Boolean = false
 ) {
     if (alpha <= 0f) return
     val isDark = LocalZuneColors.current.isDark
     
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .graphicsLayer { this.alpha = alpha }
-            .background(
-                brush = Brush.linearGradient(
-                    colors = if (isDark) listOf(
-                        Color(0xFF0A0A0A).copy(alpha = 0.85f),
-                        Color(0xFF202020).copy(alpha = 0.85f),
-                        Color.White.copy(alpha = 0.12f * 0.85f),
-                        Color(0xFF0A0A0A).copy(alpha = 0.85f)
-                    ) else listOf(
-                        Color(0xFFF5F5F5).copy(alpha = 0.85f),
-                        Color(0xFFFFFFFF).copy(alpha = 0.85f),
-                        Color.Black.copy(alpha = 0.08f * 0.85f),
-                        Color(0xFFF5F5F5).copy(alpha = 0.85f)
-                    ),
-                    start = Offset(0f, 0f),
-                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+    if (isHubOverlay) {
+        val tintColor = if (isDark) Color(0xFF0A0A0A).copy(alpha = alpha) else Color(0xFFF5F5F5).copy(alpha = alpha)
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(tintColor)
+        )
+    } else {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .graphicsLayer { this.alpha = alpha }
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = if (isDark) listOf(
+                            Color(0xFF0A0A0A).copy(alpha = 0.85f),
+                            Color(0xFF202020).copy(alpha = 0.85f),
+                            Color.White.copy(alpha = 0.12f * 0.85f),
+                            Color(0xFF0A0A0A).copy(alpha = 0.85f)
+                        ) else listOf(
+                            Color(0xFFF5F5F5).copy(alpha = 0.85f),
+                            Color(0xFFFFFFFF).copy(alpha = 0.85f),
+                            Color.Black.copy(alpha = 0.08f * 0.85f),
+                            Color(0xFFF5F5F5).copy(alpha = 0.85f)
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                    )
                 )
-            )
-    )
+        )
+    }
 }

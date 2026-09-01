@@ -92,7 +92,7 @@ fun MusicHubScreen(
 
     CompositionLocalProvider(LocalZuneColors provides musicHubColors) {
         ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
-            val backgroundColor = if (mediaState.albumArt != null) Color.Black.copy(alpha = 0.8f) else MaterialTheme.colorScheme.background
+            val backgroundColor = if (mediaState.albumArt != null) Color.Black.copy(alpha = 0.8f) else Color.Transparent
             Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
             
             // Dynamic Album Art Background

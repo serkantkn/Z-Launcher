@@ -60,7 +60,6 @@ fun ZuneHubEntranceLayout(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .graphicsLayer {
                 val p = entranceAnim.value
                 val inv = 1f - p

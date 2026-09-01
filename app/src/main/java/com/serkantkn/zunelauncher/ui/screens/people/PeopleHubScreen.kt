@@ -11,6 +11,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.*
@@ -23,6 +24,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -116,7 +120,6 @@ fun PeopleHubScreen(
         initialPage = initialPage,
         pageCount = { loopCount * actualPageCount }
     )
-    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
     val openNewContactScreen: () -> Unit = {
@@ -255,6 +258,7 @@ fun PeopleHubScreen(
             ZunePageTransition {
                 when (tabName) {
                     "tümü" -> {
+                        val listState = rememberLazyListState()
                         Column(modifier = Modifier.fillMaxSize()) {
                             AnimatedVisibility(visible = isSearchVisible) {
                                 SearchBar(
@@ -316,14 +320,24 @@ fun PeopleHubScreen(
                         if (favoriteContacts.isEmpty()) {
                             EmptyStateView(stringResource(R.string.no_favorite_contacts))
                         } else {
-                            LazyColumn(
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp)
+                                contentPadding = PaddingValues(
+                                    start = 0.dp,
+                                    end = if (isWideScreen) 0.dp else 28.dp,
+                                    bottom = 80.dp
+                                ),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                items(favoriteContacts, key = { it.id }) { contact ->
-                                    ContactListItem(contact = contact) {
-                                        selectContactWithAnimation(it)
-                                    }
+                                itemsIndexed(favoriteContacts, key = { _, contact -> contact.id }) { index, contact ->
+                                    WpFavoriteContactTile(
+                                        contact = contact,
+                                        index = index,
+                                        onClick = { selectContactWithAnimation(contact) },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                             }
                         }
@@ -1024,4 +1038,137 @@ private fun EmptyStateView(message: String) {
         color = LocalZuneColors.current.textDim,
         modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
     )
+}
+
+// ── Windows Phone Favorite Contact Live Tile ────────────────────────────────
+
+/**
+ * Authentic Windows Phone Live Contact Tile.
+ *
+ * Motion Cycle:
+ * 1. Photo fills 100% of tile initially.
+ * 2. Accent banner containing the contact name slides up from the bottom,
+ *    lifting the contact photo upward simultaneously.
+ * 3. Holds with name banner visible.
+ * 4. Accent banner collapses back down, and photo slides back to fill 100% of tile.
+ * 5. Holds with full photo.
+ */
+@Composable
+private fun WpFavoriteContactTile(
+    contact: ContactModel,
+    index: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val zuneColors = LocalZuneColors.current
+    val animProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(contact.id) {
+        val initialDelay = (index * 500L) % 2500L
+        kotlinx.coroutines.delay(initialDelay)
+
+        while (true) {
+            // Full photo resting state
+            kotlinx.coroutines.delay(3000L)
+
+            // Lift photo & slide up name banner
+            animProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
+            )
+
+            // Name visible state
+            kotlinx.coroutines.delay(2200L)
+
+            // Collapse banner & slide photo back to full
+            animProgress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(0.dp))
+            .background(zuneColors.accentColor)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val tileHeightPx = constraints.maxHeight.toFloat()
+            val bannerHeightPx = tileHeightPx * 0.30f
+            val bannerHeightDp = with(LocalDensity.current) { bannerHeightPx.toDp() }
+
+            val p = animProgress.value
+            val photoOffsetYPx = -bannerHeightPx * p
+
+            // 1. Contact Photo / Background Layer (slides up by photoOffsetYPx)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationY = photoOffsetYPx
+                    }
+            ) {
+                if (contact.photoUri != null) {
+                    AsyncImage(
+                        model = contact.photoUri,
+                        contentDescription = contact.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(zuneColors.accentColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = contact.name.take(1).uppercase(),
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 42.sp
+                            ),
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            // 2. Name Banner Layer (slides up from bottom edge)
+            val currentBannerHeightDp = bannerHeightDp * p
+
+            if (p > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(currentBannerHeightDp)
+                        .background(
+                            if (contact.photoUri != null) zuneColors.accentColor
+                            else Color.Black.copy(alpha = 0.8f)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = contact.name,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        ),
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
 }

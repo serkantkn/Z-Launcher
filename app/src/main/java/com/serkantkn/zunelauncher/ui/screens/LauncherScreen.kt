@@ -3,6 +3,11 @@ package com.serkantkn.zunelauncher.ui.screens
 import android.content.Context
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -33,6 +38,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.HubType
+import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
@@ -88,6 +94,12 @@ fun LauncherScreen(
     val notificationStyle by settingsViewModel.notificationStyle.collectAsState()
     val disabledNotificationApps by settingsViewModel.disabledNotificationApps.collectAsState()
     val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
+    val timeFormat by settingsViewModel.timeFormat.collectAsState()
+    val dateFormat by settingsViewModel.dateFormat.collectAsState()
+    val hubBackgroundMode by settingsViewModel.hubBackgroundMode.collectAsState()
+    val hubBackgroundOpacity by settingsViewModel.hubBackgroundOpacity.collectAsState()
+    val customHubWallpaperPath by settingsViewModel.customHubWallpaperPath.collectAsState()
+    val customWallpaperPath by settingsViewModel.customWallpaperPath.collectAsState()
 
     LaunchedEffect(disabledNotificationApps) {
         SocialRepository.updateDisabledApps(disabledNotificationApps)
@@ -97,6 +109,15 @@ fun LauncherScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val isWideScreen = LocalIsWideScreen.current
+
+    val (effectiveHubMode, effectiveHubCustomPath) = remember(hubBackgroundMode, solidBackgroundEnabled, customHubWallpaperPath, customWallpaperPath) {
+        when (hubBackgroundMode) {
+            HubBackgroundMode.SOLID -> BackgroundMode.SOLID to null
+            HubBackgroundMode.SYSTEM -> BackgroundMode.WALLPAPER to null
+            HubBackgroundMode.CUSTOM -> (if (customHubWallpaperPath != null) BackgroundMode.WALLPAPER else BackgroundMode.GRADIENT) to customHubWallpaperPath
+            HubBackgroundMode.MATCH_LAUNCHER -> (if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER) to customWallpaperPath
+        }
+    }
 
     var wallpaperOverlayAlpha by remember { mutableStateOf(1f) }
     val density = LocalDensity.current.density
@@ -255,7 +276,9 @@ fun LauncherScreen(
                                                 isHubOpen = false,
                                                 isCurrentPage = pagerState.currentPage == 1,
                                                 onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
-                                                onHubSelected = { hub -> navState.openHub(hub) }
+                                                onHubSelected = { hub -> navState.openHub(hub) },
+                                                timeFormat = timeFormat,
+                                                dateFormat = dateFormat
                                             )
                                             2 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
                                         }
@@ -264,11 +287,20 @@ fun LauncherScreen(
                             } else {
                                 // Left Docked Hub (Forced to Phone Design Mode)
                                 CompositionLocalProvider(LocalIsWideScreen provides false) {
-                                    ZuneBackground(mode = BackgroundMode.GRADIENT, accentColor = zuneColors.accentColor) {
+                                    ZuneBackground(
+                                        mode = effectiveHubMode,
+                                        accentColor = zuneColors.accentColor,
+                                        customWallpaperPathOverride = effectiveHubCustomPath,
+                                        forceModeOverride = effectiveHubMode
+                                    ) {
+                                        if (effectiveHubMode != BackgroundMode.SOLID) {
+                                            ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
+                                        }
                                         RenderHubScreen(
                                             hub = navState.leftHub!!,
                                             navState = navState,
                                             messagingViewModel = messagingViewModel,
+                                            settingsViewModel = settingsViewModel,
                                             context = context
                                         )
                                     }
@@ -334,11 +366,20 @@ fun LauncherScreen(
                             if (navState.rightHub != null) {
                                 // Right Docked Hub (Forced to Phone Design Mode)
                                 CompositionLocalProvider(LocalIsWideScreen provides false) {
-                                    ZuneBackground(mode = BackgroundMode.GRADIENT, accentColor = zuneColors.accentColor) {
+                                    ZuneBackground(
+                                        mode = effectiveHubMode,
+                                        accentColor = zuneColors.accentColor,
+                                        customWallpaperPathOverride = effectiveHubCustomPath,
+                                        forceModeOverride = effectiveHubMode
+                                    ) {
+                                        if (effectiveHubMode != BackgroundMode.SOLID) {
+                                            ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
+                                        }
                                         RenderHubScreen(
                                             hub = navState.rightHub!!,
                                             navState = navState,
                                             messagingViewModel = messagingViewModel,
+                                            settingsViewModel = settingsViewModel,
                                             context = context
                                         )
                                     }
@@ -423,7 +464,9 @@ fun LauncherScreen(
                                             HubType.HOME -> { /* Already on home */ }
                                             else -> navState.openHub(hub)
                                         }
-                                    }
+                                    },
+                                    timeFormat = timeFormat,
+                                    dateFormat = dateFormat
                                 )
                                 2 -> AppsHubScreen(
                                     isCurrentPage = pagerState.currentPage == 2
@@ -448,14 +491,20 @@ fun LauncherScreen(
                                 }
                         ) {
                             ZuneBackground(
-                                mode = BackgroundMode.GRADIENT,
-                                accentColor = zuneColors.accentColor
+                                mode = effectiveHubMode,
+                                accentColor = zuneColors.accentColor,
+                                customWallpaperPathOverride = effectiveHubCustomPath,
+                                forceModeOverride = effectiveHubMode
                             ) {
+                                if (effectiveHubMode != BackgroundMode.SOLID) {
+                                    ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
+                                }
                                 if (hub != null) {
                                     RenderHubScreen(
                                         hub = hub,
                                         navState = navState,
                                         messagingViewModel = messagingViewModel,
+                                        settingsViewModel = settingsViewModel,
                                         context = context
                                     )
                                 }
@@ -472,6 +521,12 @@ fun LauncherScreen(
                     )
                 }
 
+                // Windows Phone Call Screen Overlay
+                val callStatus by com.serkantkn.zunelauncher.data.service.CallManager.callStatus.collectAsState()
+                if (callStatus != com.serkantkn.zunelauncher.data.service.CallStatus.IDLE) {
+                    com.serkantkn.zunelauncher.ui.screens.phone.WpCallScreen()
+                }
+
                 // Windows Phone Style Volume Control Banner
                 WpVolumeControl()
             }
@@ -484,6 +539,7 @@ private fun RenderHubScreen(
     hub: HubType,
     navState: ZuneNavigationState,
     messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel,
+    settingsViewModel: SettingsViewModel,
     context: Context
 ) {
     when (hub) {
@@ -497,9 +553,15 @@ private fun RenderHubScreen(
         )
         HubType.PICTURES -> PicturesHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
         HubType.PHONE -> PhoneHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
-        HubType.SETTINGS -> SettingsScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
+        HubType.SETTINGS -> SettingsScreen(onBack = { if (!navState.popHub()) navState.closeHub() }, viewModel = settingsViewModel)
         HubType.CLOCK -> com.serkantkn.zunelauncher.ui.screens.clock.ClockHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
-        HubType.INTERNET -> com.serkantkn.zunelauncher.ui.screens.browser.BrowserHubScreen(onClose = { if (!navState.popHub()) navState.closeHub() })
+        HubType.INTERNET -> com.serkantkn.zunelauncher.ui.screens.browser.BrowserHubScreen(
+            onClose = { if (!navState.popHub()) navState.closeHub() },
+            onOpenSettings = { targetTab ->
+                settingsViewModel.setTargetTab(targetTab)
+                navState.openHub(HubType.SETTINGS)
+            }
+        )
         HubType.CALENDAR -> com.serkantkn.zunelauncher.ui.screens.calendar.CalendarHubScreen(onBack = { if (!navState.popHub()) navState.closeHub() })
         HubType.MESSAGING -> com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubScreen(
             onClose = { if (!navState.popHub()) navState.closeHub() },

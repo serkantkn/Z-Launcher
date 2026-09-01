@@ -24,10 +24,11 @@ import java.util.Locale
 
 @Composable
 fun ZuneDate(
+    dateFormat: String = "EEEE, MMMM d",
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    var currentDate by remember { mutableStateOf(getCurrentDate()) }
+    var currentDate by remember(dateFormat) { mutableStateOf(getCurrentDate(dateFormat)) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -37,9 +38,9 @@ fun ZuneDate(
         label = "date_alpha"
     )
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(dateFormat) {
         while (true) {
-            currentDate = getCurrentDate()
+            currentDate = getCurrentDate(dateFormat)
             delay(60_000L)
         }
     }
@@ -69,7 +70,11 @@ fun ZuneDate(
     )
 }
 
-private fun getCurrentDate(): String {
-    val sdf = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
+private fun getCurrentDate(pattern: String): String {
+    val sdf = try {
+        SimpleDateFormat(pattern, Locale.getDefault())
+    } catch (e: Exception) {
+        SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
+    }
     return sdf.format(Date()).lowercase()
 }

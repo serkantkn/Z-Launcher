@@ -8,9 +8,15 @@ import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
+import com.serkantkn.zunelauncher.data.model.BrowserDownload
 import com.serkantkn.zunelauncher.data.model.BrowserFavorite
 import com.serkantkn.zunelauncher.data.model.BrowserHistory
 import com.serkantkn.zunelauncher.data.repository.SettingsRepository
+import android.app.DownloadManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Environment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -48,6 +54,8 @@ data class BrowserState(
     val activeTabIndex: Int = 0,
     val favorites: List<BrowserFavorite> = emptyList(),
     val history: List<BrowserHistory> = emptyList(),
+    val downloads: List<BrowserDownload> = emptyList(),
+    val showDownloadsScreen: Boolean = false,
     val suggestions: List<BrowserSuggestion> = emptyList(),
     val errorMessage: String? = null
 ) {
@@ -118,6 +126,40 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 _state.update { it.copy(history = list) }
             }
         }
+        viewModelScope.launch {
+            repository.browserDownloads.collect { json ->
+                val list = if (json.isNullOrEmpty()) emptyList() else {
+                    try {
+                        val type = object : TypeToken<List<BrowserDownload>>() {}.type
+                        gson.fromJson<List<BrowserDownload>>(json, type) ?: emptyList()
+                    } catch (e: Exception) { emptyList() }
+                }
+                _state.update { it.copy(downloads = list) }
+                if (list.any { it.status == DownloadManager.STATUS_RUNNING || it.status == DownloadManager.STATUS_PENDING }) {
+                    startDownloadPolling()
+                }
+            }
+        }
+    }
+
+    private var downloadPollJob: Job? = null
+
+    private fun startDownloadPolling() {
+        if (downloadPollJob?.isActive == true) return
+        downloadPollJob = viewModelScope.launch(Dispatchers.IO) {
+            while (true) {
+                refreshDownloadsStatus()
+                val hasActive = _state.value.downloads.any {
+                    it.status == DownloadManager.STATUS_RUNNING ||
+                    it.status == DownloadManager.STATUS_PENDING ||
+                    it.status == DownloadManager.STATUS_PAUSED
+                }
+                if (!hasActive && !_state.value.showDownloadsScreen) {
+                    break
+                }
+                delay(500L)
+            }
+        }
     }
 
     private fun saveFavorites(newFavorites: List<BrowserFavorite>) {
@@ -129,6 +171,138 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private fun saveHistory(newHistory: List<BrowserHistory>) {
         viewModelScope.launch {
             repository.setBrowserHistory(gson.toJson(newHistory))
+        }
+    }
+
+    private fun saveDownloads(newDownloads: List<BrowserDownload>) {
+        viewModelScope.launch {
+            repository.setBrowserDownloads(gson.toJson(newDownloads))
+        }
+    }
+
+    fun toggleDownloadsScreen(show: Boolean) {
+        _state.update { it.copy(showDownloadsScreen = show) }
+        if (show) {
+            refreshDownloadsStatus()
+            startDownloadPolling()
+        }
+    }
+
+    fun startDownload(
+        url: String,
+        userAgent: String?,
+        contentDisposition: String?,
+        mimeType: String?,
+        contentLength: Long
+    ) {
+        try {
+            val fileName = URLUtil.guessFileName(url, contentDisposition, mimeType)
+            val request = DownloadManager.Request(Uri.parse(url)).apply {
+                if (!mimeType.isNullOrEmpty()) {
+                    setMimeType(mimeType)
+                }
+                if (!userAgent.isNullOrEmpty()) {
+                    addRequestHeader("User-Agent", userAgent)
+                }
+                setTitle(fileName)
+                setDescription("İndiriliyor...")
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            }
+
+            val dm = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val downloadId = dm.enqueue(request)
+
+            val newDownload = BrowserDownload(
+                id = downloadId,
+                fileName = fileName,
+                url = url,
+                mimeType = mimeType,
+                totalBytes = if (contentLength > 0) contentLength else 0L,
+                status = DownloadManager.STATUS_RUNNING
+            )
+
+            val updatedList = listOf(newDownload) + _state.value.downloads
+            _state.update {
+                it.copy(
+                    downloads = updatedList,
+                    errorMessage = "İndirme başlatıldı: $fileName"
+                )
+            }
+            saveDownloads(updatedList)
+            startDownloadPolling()
+        } catch (e: Exception) {
+            _state.update { it.copy(errorMessage = "İndirme başlatılamadı: ${e.localizedMessage}") }
+        }
+    }
+
+    fun refreshDownloadsStatus() {
+        val currentDownloads = _state.value.downloads
+        if (currentDownloads.isEmpty()) return
+
+        val dm = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager ?: return
+        var changed = false
+        val updatedList = currentDownloads.map { download ->
+            if (download.status == DownloadManager.STATUS_SUCCESSFUL && download.localUri != null) {
+                download
+            } else {
+                val query = DownloadManager.Query().setFilterById(download.id)
+                val cursor = dm.query(query)
+                if (cursor != null && cursor.moveToFirst()) {
+                    val statusIdx = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                    val bytesDownloadedIdx = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                    val bytesTotalIdx = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                    val localUriIdx = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+
+                    val status = if (statusIdx >= 0) cursor.getInt(statusIdx) else download.status
+                    val downloadedBytes = if (bytesDownloadedIdx >= 0) cursor.getLong(bytesDownloadedIdx) else download.downloadedBytes
+                    val totalBytes = if (bytesTotalIdx >= 0) cursor.getLong(bytesTotalIdx) else download.totalBytes
+                    val localUri = if (localUriIdx >= 0) cursor.getString(localUriIdx) ?: download.localUri else download.localUri
+
+                    cursor.close()
+                    if (status != download.status || downloadedBytes != download.downloadedBytes || totalBytes != download.totalBytes || localUri != download.localUri) {
+                        changed = true
+                        download.copy(
+                            status = status,
+                            downloadedBytes = downloadedBytes,
+                            totalBytes = if (totalBytes > 0) totalBytes else download.totalBytes,
+                            localUri = localUri
+                        )
+                    } else {
+                        download
+                    }
+                } else {
+                    download
+                }
+            }
+        }
+        if (changed) {
+            _state.update { it.copy(downloads = updatedList) }
+            saveDownloads(updatedList)
+        }
+    }
+
+    fun removeDownload(downloadId: Long) {
+        val updatedList = _state.value.downloads.filterNot { it.id == downloadId }
+        _state.update { it.copy(downloads = updatedList) }
+        saveDownloads(updatedList)
+    }
+
+    fun clearAllDownloads() {
+        _state.update { it.copy(downloads = emptyList()) }
+        saveDownloads(emptyList())
+    }
+
+    fun openDownloadedFile(context: Context, download: BrowserDownload) {
+        try {
+            val uri = download.localUri?.let { Uri.parse(it) } ?: Uri.parse(download.url)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, download.mimeType ?: "*/*")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            _state.update { it.copy(errorMessage = "Dosya açılamadı: ${e.localizedMessage}") }
         }
     }
 

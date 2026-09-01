@@ -497,6 +497,7 @@ internal fun SettingSwitchRow(
 internal fun SystemSettingRow(
     title: String,
     subtitle: String,
+    isActive: Boolean = false,
     onClick: () -> Unit
 ) {
     Box(
@@ -512,11 +513,23 @@ internal fun SystemSettingRow(
             title = title,
             subtitle = subtitle,
             trailing = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = LocalZuneColors.current.textMuted
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (isActive) {
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .background(androidx.compose.ui.graphics.Color(0xFF27AE60), CircleShape)
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = LocalZuneColors.current.textMuted
+                    )
+                }
             }
         )
     }

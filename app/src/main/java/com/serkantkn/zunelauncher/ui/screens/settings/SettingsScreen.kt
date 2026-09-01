@@ -16,6 +16,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,8 +45,7 @@ private enum class SettingsTab(val title: String) {
     LOOK("görünüm"),
     HUBS("hub"),
     NOTIFICATIONS("bildirimler"),
-    DISPLAY("ekran"),
-    SOUND("ses"),
+    DISPLAY_AND_SOUND("ekran+ses"),
     CONNECTIVITY("bağlantılar"),
     SYSTEM("sistem"),
     ABOUT("hakkında")
@@ -77,6 +77,27 @@ fun SettingsScreen(
         initialPage = initialPage,
         pageCount = { loopCount * actualPageCount }
     )
+    val targetTab by viewModel.targetTab.collectAsState()
+
+    LaunchedEffect(targetTab) {
+        targetTab?.let { tabName ->
+            val foundIndex = tabs.indexOfFirst {
+                it.name.equals(tabName, ignoreCase = true) || it.title.equals(tabName, ignoreCase = true)
+            }
+            if (foundIndex >= 0) {
+                val current = pagerState.currentPage
+                val size = actualPageCount
+                val currentActual = ((current % size) + size) % size
+                var diff = foundIndex - currentActual
+                if (diff > size / 2) diff -= size
+                if (diff < -size / 2) diff += size
+                val targetPage = current + diff
+                pagerState.scrollToPage(targetPage)
+            }
+            viewModel.clearTargetTab()
+        }
+    }
+
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
 
@@ -104,13 +125,39 @@ fun SettingsScreen(
         }
     }
 
+    // 3D Door Hinge transition state for DateTimeSettingsScreen
+    val dateTimeHingeAnim = remember { Animatable(0f) }
+    var isDateTimeOpen by remember { mutableStateOf(false) }
+
+    fun openDateTimeSettings() {
+        isDateTimeOpen = true
+        scope.launch {
+            dateTimeHingeAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
+    fun closeDateTimeSettings() {
+        scope.launch {
+            dateTimeHingeAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing)
+            )
+            isDateTimeOpen = false
+        }
+    }
+
+    val subScreenHingeProgress = maxOf(filterHingeAnim.value, dateTimeHingeAnim.value)
+
     Box(modifier = modifier.fillMaxSize()) {
         // 1. Settings Main Screen (Hinges Out to -90° when filter screen opens)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    val p = filterHingeAnim.value
+                    val p = subScreenHingeProgress
                     rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * p
                     transformOrigin = TransformOrigin(0f, 0.5f)
                     cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
@@ -183,8 +230,7 @@ fun SettingsScreen(
                                             viewModel = viewModel,
                                             onOpenAppFilter = { openAppFilter() }
                                         )
-                                        SettingsTab.DISPLAY -> DisplaySettingsPage(viewModel = viewModel)
-                                        SettingsTab.SOUND -> SoundSettingsPage(viewModel = viewModel)
+                                        SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
                                         SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
                                         SettingsTab.SYSTEM -> SystemSettingsPage(viewModel = viewModel)
                                         SettingsTab.ABOUT -> AboutSettingsPage()
@@ -264,10 +310,12 @@ fun SettingsScreen(
                                     viewModel = viewModel,
                                     onOpenAppFilter = { openAppFilter() }
                                 )
-                                SettingsTab.DISPLAY -> DisplaySettingsPage(viewModel = viewModel)
-                                SettingsTab.SOUND -> SoundSettingsPage(viewModel = viewModel)
+                                SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
                                 SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
-                                SettingsTab.SYSTEM -> SystemSettingsPage(viewModel = viewModel)
+                                SettingsTab.SYSTEM -> SystemSettingsPage(
+                                    viewModel = viewModel,
+                                    onOpenDateTimeSettings = { openDateTimeSettings() }
+                                )
                                 SettingsTab.ABOUT -> AboutSettingsPage()
                             }
                         }
@@ -296,6 +344,26 @@ fun SettingsScreen(
                     onSave = { updatedApps ->
                         viewModel.setDisabledNotificationApps(updatedApps)
                     }
+                )
+            }
+        }
+
+        // 3. Standalone DateTimeSettingsScreen (Hinges In from 90° to 0°)
+        if (isDateTimeOpen || dateTimeHingeAnim.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = dateTimeHingeAnim.value
+                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                    }
+            ) {
+                DateTimeSettingsScreen(
+                    viewModel = viewModel,
+                    onClose = { closeDateTimeSettings() }
                 )
             }
         }

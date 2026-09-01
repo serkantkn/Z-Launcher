@@ -24,6 +24,15 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.delay
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,7 +84,7 @@ fun BrowserStartScreen(
     
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    val gridColumns = if (isWideScreen) GridCells.Adaptive(minSize = 140.dp) else GridCells.Fixed(3)
+    val gridColumns = if (isWideScreen) GridCells.Fixed(6) else GridCells.Fixed(4)
     val topPadding = if (isWideScreen) 28.dp else 80.dp
     val bottomPadding = if (isWideScreen) 40.dp else 120.dp
 
@@ -89,8 +98,8 @@ fun BrowserStartScreen(
                 top = topPadding,
                 bottom = bottomPadding
             ),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(ZuneDimens.SpacingLg)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
@@ -106,19 +115,24 @@ fun BrowserStartScreen(
 
             if (favorites.isEmpty()) {
                 item {
-                    FavoriteActionTile(title = "ekle", onClick = { 
-                        if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
-                            showAddDialog = true 
-                        } else {
-                            android.widget.Toast.makeText(context, "Sık kullanılanlara site ekleme özelliği sadece Z Launcher Pro'da geçerlidir.", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    })
+                    FavoriteActionTile(
+                        title = "ekle",
+                        onClick = { 
+                            if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+                                showAddDialog = true 
+                            } else {
+                                android.widget.Toast.makeText(context, "Sık kullanılanlara site ekleme özelliği sadece Z Launcher Pro'da geçerlidir.", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             } else {
-                items(favorites) { fav ->
-                    FavoriteTile(
+                itemsIndexed(favorites, key = { _, fav -> fav.url }) { index, fav ->
+                    WpFavoriteSiteTile(
                         title = fav.title,
                         url = fav.url,
+                        index = index,
                         onClick = { onUrlSelected(fav.url) },
                         onLongClick = { 
                             if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
@@ -126,17 +140,22 @@ fun BrowserStartScreen(
                             } else {
                                 android.widget.Toast.makeText(context, "Sık kullanılanları düzenleme özelliği sadece Z Launcher Pro'da geçerlidir.", android.widget.Toast.LENGTH_SHORT).show()
                             }
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
                 item {
-                    FavoriteActionTile(title = "ekle", onClick = { 
-                        if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
-                            showAddDialog = true 
-                        } else {
-                            android.widget.Toast.makeText(context, "Sık kullanılanlara site ekleme özelliği sadece Z Launcher Pro'da geçerlidir.", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    })
+                    FavoriteActionTile(
+                        title = "ekle",
+                        onClick = { 
+                            if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+                                showAddDialog = true 
+                            } else {
+                                android.widget.Toast.makeText(context, "Sık kullanılanlara site ekleme özelliği sadece Z Launcher Pro'da geçerlidir.", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
 
@@ -275,14 +294,16 @@ fun BrowserStartScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FavoriteTile(
+private fun WpFavoriteSiteTile(
     title: String,
     url: String,
+    index: Int,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
-    val isWideScreen = LocalIsWideScreen.current
+    val tileColor = if (zuneColors.isDark) Color(0xFF242424) else Color(0xFFE2E2E2)
     val host = remember(url) {
         try {
             URI(url).host ?: url
@@ -290,86 +311,140 @@ private fun FavoriteTile(
             url
         }
     }
-    val iconUrl = "https://www.google.com/s2/favicons?domain=$host&sz=128"
-    val tileColor = if (zuneColors.isDark) Color(0xFF242424) else Color(0xFFE2E2E2)
+    val iconUrl = "https://www.google.com/s2/favicons?domain=$host&sz=256"
+    val animProgress = remember { Animatable(0f) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .background(tileColor, RoundedCornerShape(2.dp))
-                .padding(if (isWideScreen) 20.dp else 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            AsyncImage(
-                model = iconUrl,
-                contentDescription = title,
-                modifier = Modifier.size(if (isWideScreen) 52.dp else 48.dp)
+    LaunchedEffect(url) {
+        val initialDelay = (index * 500L) % 2500L
+        delay(initialDelay)
+
+        while (true) {
+            // Full icon resting state
+            delay(3000L)
+
+            // Lift icon & slide up title banner
+            animProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
+            )
+
+            // Title visible state
+            delay(2200L)
+
+            // Collapse banner & slide icon back to full
+            animProgress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
             )
         }
-        Text(
-            text = title.lowercase(),
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = if (isWideScreen) 13.sp else 12.sp
-            ),
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp)
-        )
+    }
+
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(0.dp))
+            .background(tileColor)
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val tileHeightPx = constraints.maxHeight.toFloat()
+            val bannerHeightPx = tileHeightPx * 0.30f
+            val bannerHeightDp = with(LocalDensity.current) { bannerHeightPx.toDp() }
+
+            val p = animProgress.value
+            val photoOffsetYPx = -bannerHeightPx * p
+
+            // 1. Favicon / Site Icon Layer (slides up by photoOffsetYPx)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationY = photoOffsetYPx
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = iconUrl,
+                    contentDescription = title,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+
+            // 2. Title Banner Layer (slides up from bottom edge with theme accent color)
+            val currentBannerHeightDp = bannerHeightDp * p
+
+            if (p > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(currentBannerHeightDp)
+                        .background(zuneColors.accentColor)
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = title.lowercase(),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
+                        ),
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
 private fun FavoriteActionTile(
     title: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
-    val isWideScreen = LocalIsWideScreen.current
     val tileColor = if (zuneColors.isDark) Color(0xFF242424) else Color(0xFFE2E2E2)
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(0.dp))
+            .background(tileColor)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .background(tileColor, RoundedCornerShape(2.dp))
-                .padding(if (isWideScreen) 20.dp else 16.dp),
-            contentAlignment = Alignment.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = title,
-                tint = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.size(if (isWideScreen) 52.dp else 48.dp)
+                tint = zuneColors.accentColor,
+                modifier = Modifier.size(28.dp)
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = title.lowercase(),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
+                ),
+                color = zuneColors.accentColor
             )
         }
-        Text(
-            text = title.lowercase(),
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = if (isWideScreen) 13.sp else 12.sp
-            ),
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp)
-        )
     }
 }
 

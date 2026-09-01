@@ -29,14 +29,15 @@ import java.util.Locale
 
 @Composable
 fun ZuneClock(
+    timeFormat: String = "HH:mm",
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    var currentTime by remember { mutableStateOf(getCurrentTime()) }
+    var currentTime by remember(timeFormat) { mutableStateOf(getCurrentTime(timeFormat)) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(timeFormat) {
         while (true) {
-            currentTime = getCurrentTime()
+            currentTime = getCurrentTime(timeFormat)
             delay(1000L)
         }
     }
@@ -83,7 +84,11 @@ fun ZuneClock(
     }
 }
 
-private fun getCurrentTime(): String {
-    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+private fun getCurrentTime(pattern: String): String {
+    val sdf = try {
+        SimpleDateFormat(pattern, Locale.getDefault())
+    } catch (e: Exception) {
+        SimpleDateFormat("HH:mm", Locale.getDefault())
+    }
     return sdf.format(Date())
 }

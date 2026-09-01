@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -97,7 +98,9 @@ fun PicturesHubScreen(
     )
     val coroutineScope = rememberCoroutineScope()
 
-    var viewingPhoto by remember { mutableStateOf<MediaImage?>(null) }
+    var viewingPhotosList by remember { mutableStateOf<List<MediaImage>?>(null) }
+    var viewingInitialIndex by remember { mutableIntStateOf(0) }
+    var editingPhoto by remember { mutableStateOf<MediaImage?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -106,10 +109,12 @@ fun PicturesHubScreen(
         }
     )
 
-    // Intercept back button if viewing a photo or looking inside an album
-    BackHandler(enabled = viewingPhoto != null || selectedAlbum != null) {
-        if (viewingPhoto != null) {
-            viewingPhoto = null
+    // Intercept back button if editing a photo, viewing a photo or looking inside an album
+    BackHandler(enabled = editingPhoto != null || viewingPhotosList != null || selectedAlbum != null) {
+        if (editingPhoto != null) {
+            editingPhoto = null
+        } else if (viewingPhotosList != null) {
+            viewingPhotosList = null
         } else if (selectedAlbum != null) {
             viewModel.selectAlbum(null)
         }
@@ -132,7 +137,10 @@ fun PicturesHubScreen(
                         if (allImages.isEmpty()) {
                             EmptyStateView(stringResource(R.string.no_photos))
                         } else {
-                            PhotoGrid(images = allImages) { viewingPhoto = it }
+                            PhotoGrid(images = allImages) { clickedPhoto ->
+                                viewingPhotosList = allImages
+                                viewingInitialIndex = allImages.indexOf(clickedPhoto).coerceAtLeast(0)
+                            }
                         }
                     }
 
@@ -140,7 +148,10 @@ fun PicturesHubScreen(
                         if (selectedAlbum != null) {
                             val albumImages =
                                 allImages.filter { it.bucketId == selectedAlbum!!.bucketId }
-                            PhotoGrid(images = albumImages) { viewingPhoto = it }
+                            PhotoGrid(images = albumImages) { clickedPhoto ->
+                                viewingPhotosList = albumImages
+                                viewingInitialIndex = albumImages.indexOf(clickedPhoto).coerceAtLeast(0)
+                            }
                         } else {
                             if (albums.isEmpty()) {
                                 EmptyStateView(stringResource(R.string.no_albums))
@@ -154,7 +165,10 @@ fun PicturesHubScreen(
                         if (favoriteImages.isEmpty()) {
                             EmptyStateView(stringResource(R.string.no_favorites))
                         } else {
-                            PhotoGrid(images = favoriteImages) { viewingPhoto = it }
+                            PhotoGrid(images = favoriteImages) { clickedPhoto ->
+                                viewingPhotosList = favoriteImages
+                                viewingInitialIndex = favoriteImages.indexOf(clickedPhoto).coerceAtLeast(0)
+                            }
                         }
                     }
                 }
@@ -336,11 +350,25 @@ fun PicturesHubScreen(
 
         // Full Screen Photo Viewer Overlay (outside Column in root Box)
         PhotoViewer(
-            photo = viewingPhoto,
-            isFavorite = viewingPhoto?.id?.toString() in favoritePhotoIds,
-            onDismiss = { viewingPhoto = null },
-            onToggleFavorite = { viewingPhoto?.let { viewModel.toggleFavorite(it.id) } }
+            photos = viewingPhotosList,
+            initialIndex = viewingInitialIndex,
+            favoritePhotoIds = favoritePhotoIds,
+            onDismiss = { viewingPhotosList = null },
+            onToggleFavorite = { photo -> viewModel.toggleFavorite(photo.id) },
+            onEditPhoto = { photo -> editingPhoto = photo }
         )
+
+        // Full Screen Photo Editor Overlay
+        editingPhoto?.let { photoToEdit ->
+            PhotoEditorScreen(
+                photo = photoToEdit,
+                onSave = { editedBitmap ->
+                    viewModel.saveEditedPhoto(editedBitmap)
+                    editingPhoto = null
+                },
+                onCancel = { editingPhoto = null }
+            )
+        }
     }
 } // close root Box
 }

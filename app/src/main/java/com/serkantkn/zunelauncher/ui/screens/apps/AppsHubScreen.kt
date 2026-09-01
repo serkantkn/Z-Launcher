@@ -107,7 +107,7 @@ fun AppsHubScreen(
                     animationProgress.snapTo(0f)
                     animationProgress.animateTo(
                         targetValue = 1f,
-                        animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
+                        animationSpec = tween(durationMillis = 1200, easing = LinearEasing)
                     )
                 }
             }
@@ -127,7 +127,7 @@ fun AppsHubScreen(
             animationProgress.snapTo(0f)
             animationProgress.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 1200, easing = LinearEasing)
             )
         }
     }
@@ -137,7 +137,7 @@ fun AppsHubScreen(
         coroutineScope.launch {
             animationProgress.animateTo(
                 targetValue = 2f,
-                animationSpec = tween(durationMillis = 700, easing = LinearEasing)
+                animationSpec = tween(durationMillis = 800, easing = LinearEasing)
             )
             action()
         }

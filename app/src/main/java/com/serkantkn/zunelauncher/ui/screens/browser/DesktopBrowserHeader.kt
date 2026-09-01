@@ -18,8 +18,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Icon
@@ -67,6 +69,8 @@ fun DesktopBrowserHeader(
     onNewTab: () -> Unit,
     onCloseTab: (String) -> Unit,
     onSwitchTab: (Int) -> Unit,
+    onOpenDownloads: (() -> Unit)? = null,
+    onOpenSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
@@ -325,6 +329,36 @@ fun DesktopBrowserHeader(
                         imageVector = if (isFavorited) Icons.Default.Star else Icons.Default.StarBorder,
                         contentDescription = "Favori",
                         tint = if (isFavorited) zuneColors.accentColor else (if (zuneColors.isDark) Color.White else Color.Black),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Downloads Button
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clickable { onOpenDownloads?.invoke() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = "İndirmeler",
+                        tint = if (zuneColors.isDark) Color.White else Color.Black,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Settings Button
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clickable { onOpenSettings?.invoke() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Ayarlar",
+                        tint = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier.size(20.dp)
                     )
                 }

@@ -81,6 +81,9 @@ fun WP8AddressBar(
     onNewTab: () -> Unit,
     onCloseTab: (String) -> Unit,
     onSwitchTab: (Int) -> Unit,
+    onOpenDownloads: () -> Unit,
+    downloadsCount: Int = 0,
+    onOpenSettings: (() -> Unit)? = null,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
@@ -312,6 +315,14 @@ fun WP8AddressBar(
                 WP8MenuItem(text = "sekmeler (${tabs.size})", subtitle = null, enabled = true) {
                     menuExpanded = false
                     tabsExpanded = true
+                }
+                WP8MenuItem(text = "indirmeler (${downloadsCount})", subtitle = null, enabled = true) {
+                    menuExpanded = false
+                    onOpenDownloads()
+                }
+                WP8MenuItem(text = "ayarlar", subtitle = null, enabled = true) {
+                    menuExpanded = false
+                    onOpenSettings?.invoke()
                 }
                 WP8MenuItem(text = "geri", subtitle = null, enabled = canGoBack) {
                     if (canGoBack) {

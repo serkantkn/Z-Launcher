@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.util.toImageBitmap
 import kotlinx.coroutines.delay
@@ -71,7 +72,10 @@ fun W10MAppTile(
     modifier: Modifier = Modifier,
     notificationCount: Int = 0,
     notificationTitle: String? = null,
-    notificationText: String? = null
+    notificationText: String? = null,
+    cornerStyle: TileCornerStyle = TileCornerStyle.ROUNDED,
+    gridColumns: Int = 4,
+    spacing: androidx.compose.ui.unit.Dp = 8.dp
 ) {
     val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
@@ -100,15 +104,14 @@ fun W10MAppTile(
         Color.White.copy(alpha = 0.55f)
     }
 
-    val aspectRatio = when (span) {
-        4 -> 2f
-        else -> 1f
-    }
-
     val hasNotifications = notificationCount > 0
     var showBack by remember { mutableStateOf(false) }
 
-    LaunchedEffect(hasNotifications) {
+    LaunchedEffect(hasNotifications, isEditing) {
+        if (isEditing) {
+            showBack = false
+            return@LaunchedEffect
+        }
         if (hasNotifications) {
             while (true) {
                 delay((4000..7000).random().toLong())
@@ -120,14 +123,21 @@ fun W10MAppTile(
     }
 
     val rotation by animateFloatAsState(
-        targetValue = if (showBack) -180f else 0f,
+        targetValue = if (showBack && !isEditing) -180f else 0f,
         animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
         label = "w10m_tile_flip"
     )
 
+    val tileShape = remember(cornerStyle) {
+        when (cornerStyle) {
+            TileCornerStyle.SHARP -> RoundedCornerShape(0.dp)
+            TileCornerStyle.ROUNDED -> RoundedCornerShape(8.dp)
+        }
+    }
+
     Box(
         modifier = modifier
-            .aspectRatio(aspectRatio)
+            .w10mTileSize(span = span, gridColumns = gridColumns, spacing = spacing)
             .scale(pressScale)
             .alpha(if (isDragging) 0.8f else 1f)
             .graphicsLayer {
@@ -144,9 +154,9 @@ fun W10MAppTile(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clip(RoundedCornerShape(8.dp))
+                .clip(tileShape)
                 .background(zuneColors.accentColor.copy(alpha = 0.4f))
-                .border(0.5.dp, if (isEditing) zuneColors.accentColor else strokeColor, RoundedCornerShape(8.dp))
+                .border(0.5.dp, if (isEditing) zuneColors.accentColor else strokeColor, tileShape)
         ) {
             // Dim overlay in edit mode
             if (isEditing) {
@@ -159,9 +169,10 @@ fun W10MAppTile(
                     icon?.let { drawable ->
                         val bitmap = remember(drawable) { drawable.toImageBitmap() }
                         val iconSize = when (span) {
-                            1 -> 24.dp
-                            2 -> 40.dp
-                            else -> 48.dp
+                            1 -> 26.dp
+                            2 -> if (gridColumns >= 8) 36.dp else 48.dp
+                            4 -> if (gridColumns >= 8) 46.dp else 58.dp
+                            else -> 64.dp
                         }
                         Image(
                             bitmap = bitmap,
@@ -178,12 +189,12 @@ fun W10MAppTile(
                             text = notificationCount.toString(),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = if (span == 1) 14.sp else 22.sp
+                                fontSize = if (span == 1 || (span == 2 && gridColumns >= 8)) 12.sp else 20.sp
                             ),
                             color = if (zuneColors.isDark) Color.White else Color.Black,
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(end = 6.dp, bottom = 4.dp)
+                                .padding(end = 4.dp, bottom = 2.dp)
                         )
                     }
 
@@ -192,7 +203,7 @@ fun W10MAppTile(
                         Text(
                             text = label,
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 12.sp,
+                                fontSize = if (span == 2 && gridColumns >= 8) 9.sp else 12.sp,
                                 fontWeight = FontWeight.Normal
                             ),
                             color = if (zuneColors.isDark) {
@@ -204,7 +215,7 @@ fun W10MAppTile(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
-                                .padding(start = 6.dp, bottom = 4.dp, end = 32.dp)
+                                .padding(start = 6.dp, bottom = 4.dp, end = 24.dp)
                         )
                     }
                 }

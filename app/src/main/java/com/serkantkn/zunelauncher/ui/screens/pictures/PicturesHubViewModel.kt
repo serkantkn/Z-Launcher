@@ -92,4 +92,36 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
             favoritesDataStore.toggleFavorite(photoId)
         }
     }
+
+    fun saveEditedPhoto(bitmap: android.graphics.Bitmap, onSaved: (android.net.Uri) -> Unit = {}) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val context = getApplication<Application>()
+            val filename = "Zune_Edit_${System.currentTimeMillis()}.jpg"
+            val contentValues = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/Zune")
+                    put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+            }
+
+            val resolver = context.contentResolver
+            val imageUri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            if (imageUri != null) {
+                resolver.openOutputStream(imageUri)?.use { stream ->
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, stream)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.clear()
+                    contentValues.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
+                    resolver.update(imageUri, contentValues, null, null)
+                }
+                loadMedia()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onSaved(imageUri)
+                }
+            }
+        }
+    }
 }

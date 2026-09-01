@@ -64,4 +64,19 @@ class CallLogRepository(private val context: Context) {
         }
         return@withContext callLogs
     }
+
+    suspend fun getCallLogsForContact(phoneNumbers: List<String>): List<CallLogModel> = withContext(Dispatchers.IO) {
+        if (phoneNumbers.isEmpty()) return@withContext emptyList()
+        val allLogs = getRecentCalls()
+        val cleanNumbers = phoneNumbers.map { it.replace(Regex("[^0-9+]"), "") }.filter { it.isNotEmpty() }
+
+        allLogs.filter { log ->
+            val cleanLogNumber = log.number.replace(Regex("[^0-9+]"), "")
+            cleanNumbers.any { cleanNumber ->
+                cleanLogNumber == cleanNumber ||
+                (cleanLogNumber.length >= 7 && cleanNumber.length >= 7 &&
+                 (cleanLogNumber.endsWith(cleanNumber.takeLast(7)) || cleanNumber.endsWith(cleanLogNumber.takeLast(7))))
+            }
+        }
+    }
 }

@@ -158,7 +158,7 @@ fun PhoneHubScreen(
                         )
                     },
                     onCallClick = { number ->
-                        initiateCall(context, number, directCallEnabled)
+                        initiateCall(context, number)
                     }
                 )
             }
@@ -168,35 +168,39 @@ fun PhoneHubScreen(
         }
 
         // Application Bar (Bottom Menu Bar)
+        val bottomBarActions = listOf(
+            com.serkantkn.zunelauncher.ui.components.WpBarAction(
+                icon = Icons.Default.Dialpad,
+                label = "klavye",
+                onClick = {
+                    viewModel.clearDialedNumber()
+                    isDialerOpen = true
+                }
+            ),
+            com.serkantkn.zunelauncher.ui.components.WpBarAction(
+                icon = Icons.Default.Call,
+                label = "giden çağrı",
+                onClick = {
+                    com.serkantkn.zunelauncher.data.service.CallManager.startOutgoingCall("Ahmet Yılmaz", "+90 (555) 123 45 67")
+                }
+            ),
+            com.serkantkn.zunelauncher.ui.components.WpBarAction(
+                icon = Icons.AutoMirrored.Filled.CallReceived,
+                label = "gelen çağrı",
+                onClick = {
+                    com.serkantkn.zunelauncher.data.service.CallManager.startIncomingCall("Zeynep Kaya", "+90 (532) 987 65 43")
+                }
+            )
+        )
+
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
-                .navigationBarsPadding(),
+                .then(bottomBarModifier),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 24.dp, end = 24.dp)
-                    .then(bottomBarModifier)
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .border(BorderStroke(1.5.dp, Color.White), CircleShape)
-                    .clickable { 
-                        viewModel.clearDialedNumber()
-                        isDialerOpen = true 
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Dialpad,
-                    contentDescription = "çeviriciyi aç",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar(actions = bottomBarActions)
         }
 
         // Dialer Overlay
@@ -240,7 +244,7 @@ fun PhoneHubScreen(
                                 contact = contact, 
                                 number = number,
                                 onClick = {
-                                    initiateCall(context, number, directCallEnabled)
+                                    initiateCall(context, number, contact.name)
                                     isDialerOpen = false
                                     viewModel.clearDialedNumber()
                                 }
@@ -281,7 +285,7 @@ fun PhoneHubScreen(
                         },
                         onCall = {
                             if (dialedNumber.isNotEmpty()) {
-                                initiateCall(context, dialedNumber, directCallEnabled)
+                                initiateCall(context, dialedNumber)
                                 isDialerOpen = false
                                 viewModel.clearDialedNumber()
                             }
@@ -321,13 +325,11 @@ private fun MatchingContactItem(contact: ContactModel, number: String, onClick: 
     }
 }
 
-private fun initiateCall(context: android.content.Context, number: String, directCallEnabled: Boolean) {
-    val intent = if (directCallEnabled && ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-        Intent(Intent.ACTION_CALL, Uri.parse("tel:$number"))
-    } else {
-        Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number"))
-    }
-    context.startActivity(intent)
+private fun initiateCall(context: android.content.Context, number: String, name: String = "") {
+    com.serkantkn.zunelauncher.data.service.CallManager.startOutgoingCall(
+        name = name,
+        number = number
+    )
 }
 
 @Composable

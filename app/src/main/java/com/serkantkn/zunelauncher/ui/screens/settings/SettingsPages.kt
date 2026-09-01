@@ -1,14 +1,18 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
 import android.Manifest
+import android.app.role.RoleManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.Telephony
+import android.telecom.TelecomManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -47,12 +51,30 @@ internal fun LookSettingsPage(
     onAnimationsChanged: (Boolean) -> Unit
 ) {
     val customWallpaperPath by viewModel.customWallpaperPath.collectAsState()
+    val customHubWallpaperPath by viewModel.customHubWallpaperPath.collectAsState()
+    val hubBackgroundMode by viewModel.hubBackgroundMode.collectAsState()
+    val hubBackgroundOpacity by viewModel.hubBackgroundOpacity.collectAsState()
+    val solidBackgroundEnabled by viewModel.solidBackgroundEnabled.collectAsState()
+    val customThemeColor by viewModel.customThemeColor.collectAsState()
+    val dynamicThemeColor by viewModel.dynamicThemeColor.collectAsState()
+    val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
+    val tileSpacing by viewModel.tileSpacing.collectAsState()
+    val homeScreenLayout by viewModel.homeScreenLayout.collectAsState()
+
     var cropUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var hubCropUri by remember { mutableStateOf<android.net.Uri?>(null) }
 
     val wallpaperPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
             if (uri != null) cropUri = uri
+        }
+    )
+
+    val hubWallpaperPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) hubCropUri = uri
         }
     )
 
@@ -75,6 +97,25 @@ internal fun LookSettingsPage(
         }
     }
 
+    hubCropUri?.let { uri ->
+        Dialog(
+            onDismissRequest = { hubCropUri = null },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            WallpaperCropScreen(
+                uri = uri,
+                onApply = { bitmap ->
+                    viewModel.saveCroppedHubWallpaper(bitmap)
+                    hubCropUri = null
+                },
+                onCancel = { hubCropUri = null }
+            )
+        }
+    }
+
     SettingsLazyColumn {
         item(key = "theme") {
             SettingGroup(title = "tema") {
@@ -86,7 +127,6 @@ internal fun LookSettingsPage(
         }
 
         item(key = "wallpaper") {
-            val solidBackgroundEnabled by viewModel.solidBackgroundEnabled.collectAsState()
             val context = LocalContext.current
             SettingGroup(title = "duvar kağıdı") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -170,6 +210,138 @@ internal fun LookSettingsPage(
             }
         }
 
+        item(key = "hub_wallpaper") {
+            val context = LocalContext.current
+            SettingGroup(title = "hub arkaplanı") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingChoiceRow(
+                        title = "başlangıç ekranı ile aynı",
+                        subtitle = "başlangıç ekranı duvar kağıdını kullan",
+                        selected = hubBackgroundMode == HubBackgroundMode.MATCH_LAUNCHER,
+                        onClick = {
+                            viewModel.setHubBackgroundMode(HubBackgroundMode.MATCH_LAUNCHER)
+                        }
+                    )
+
+                    SettingChoiceRow(
+                        title = "özel resim",
+                        subtitle = if (customHubWallpaperPath != null) "özel hub resmi aktif" else "resim seçilmedi",
+                        selected = hubBackgroundMode == HubBackgroundMode.CUSTOM,
+                        onClick = {
+                            if (customHubWallpaperPath == null) {
+                                if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+                                    hubWallpaperPicker.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Özel duvar kağıdı sadece Z Launcher Pro'da geçerlidir.",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            } else {
+                                viewModel.setHubBackgroundMode(HubBackgroundMode.CUSTOM)
+                            }
+                        }
+                    )
+
+                    if (hubBackgroundMode == HubBackgroundMode.CUSTOM && customHubWallpaperPath != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Button(
+                                onClick = {
+                                    if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+                                        hubWallpaperPicker.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = LocalZuneColors.current.accentColor,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text("Resmi Değiştir")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.clearCustomHubWallpaper()
+                                    viewModel.setHubBackgroundMode(HubBackgroundMode.MATCH_LAUNCHER)
+                                },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = LocalZuneColors.current.textMuted
+                                )
+                            ) {
+                                Text("Temizle")
+                            }
+                        }
+                    }
+
+                    SettingChoiceRow(
+                        title = "sistem",
+                        subtitle = "sistem duvar kağıdı",
+                        selected = hubBackgroundMode == HubBackgroundMode.SYSTEM,
+                        onClick = {
+                            viewModel.setHubBackgroundMode(HubBackgroundMode.SYSTEM)
+                        }
+                    )
+
+                    SettingChoiceRow(
+                        title = "saf arkaplan",
+                        subtitle = "koyuda siyah, açıkta beyaz arkaplan",
+                        selected = hubBackgroundMode == HubBackgroundMode.SOLID,
+                        onClick = {
+                            viewModel.setHubBackgroundMode(HubBackgroundMode.SOLID)
+                        }
+                    )
+
+                    if (hubBackgroundMode != HubBackgroundMode.SOLID) {
+                        val hubBackgroundOpacity by viewModel.hubBackgroundOpacity.collectAsState()
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "karartma opaklığı",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Text(
+                                    text = "%${(hubBackgroundOpacity * 100).toInt()}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = LocalZuneColors.current.accentColor
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Slider(
+                                value = hubBackgroundOpacity,
+                                onValueChange = { viewModel.setHubBackgroundOpacity(it) },
+                                valueRange = 0.0f..1.0f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = LocalZuneColors.current.accentColor,
+                                    activeTrackColor = LocalZuneColors.current.accentColor,
+                                    inactiveTrackColor = (if (LocalZuneColors.current.isDark) Color.White else Color.Black).copy(alpha = 0.2f)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         item(key = "accent") {
             val customThemeColor by viewModel.customThemeColor.collectAsState()
             SettingGroup(title = "vurgu rengi") {
@@ -182,6 +354,136 @@ internal fun LookSettingsPage(
                         onAccentColorChanged(AccentColor.CUSTOM)
                     }
                 )
+            }
+        }
+
+        item(key = "preview") {
+            val tileColumns by viewModel.tileColumns.collectAsState()
+            LookPreviewCard(
+                themeMode = themeMode,
+                accentColor = accentColor,
+                customThemeColor = customThemeColor,
+                dynamicThemeColor = dynamicThemeColor,
+                solidBackgroundEnabled = solidBackgroundEnabled,
+                customWallpaperPath = customWallpaperPath,
+                tileCornerStyle = tileCornerStyle,
+                tileSpacing = tileSpacing,
+                tileColumns = tileColumns,
+                hubBackgroundOpacity = hubBackgroundOpacity,
+                hubBackgroundMode = hubBackgroundMode,
+                homeScreenLayout = homeScreenLayout
+            )
+        }
+
+        item(key = "home_screen_layout") {
+            SettingGroup(title = "başlangıç ekranı düzeni") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingChoiceRow(
+                        title = "zune",
+                        subtitle = "kayar hub listesi ve yan favoriler",
+                        selected = homeScreenLayout == HomeScreenLayout.ZUNE,
+                        onClick = {
+                            viewModel.setHomeScreenLayout(HomeScreenLayout.ZUNE)
+                        }
+                    )
+
+                    SettingChoiceRow(
+                        title = "windows phone",
+                        subtitle = "canlı hub ve uygulama karoları",
+                        selected = homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE,
+                        onClick = {
+                            viewModel.setHomeScreenLayout(HomeScreenLayout.WINDOWS_PHONE)
+                        }
+                    )
+                }
+            }
+        }
+
+        item(key = "tile_columns") {
+            val tileColumns by viewModel.tileColumns.collectAsState()
+            SettingGroup(title = "karo düzeni (sütun sayısı)") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingChoiceRow(
+                        title = "4 sütun",
+                        subtitle = "standart karo boyutu",
+                        selected = tileColumns == 4,
+                        onClick = {
+                            viewModel.setTileColumns(4)
+                        }
+                    )
+
+                    SettingChoiceRow(
+                        title = "8 sütun",
+                        subtitle = "daha fazla karo (küçük karolar)",
+                        selected = tileColumns == 8,
+                        onClick = {
+                            viewModel.setTileColumns(8)
+                        }
+                    )
+                }
+            }
+        }
+
+        item(key = "favorite_tiles") {
+            val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
+            val tileSpacing by viewModel.tileSpacing.collectAsState()
+
+            SettingGroup(title = "favoriler karoları") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingChoiceRow(
+                        title = "köşeli",
+                        subtitle = "düz keskin köşeler (0 dp)",
+                        selected = tileCornerStyle == TileCornerStyle.SHARP,
+                        onClick = {
+                            viewModel.setTileCornerStyle(TileCornerStyle.SHARP)
+                        }
+                    )
+
+                    SettingChoiceRow(
+                        title = "yuvarlatılmış",
+                        subtitle = "kavisli köşeler (8 dp)",
+                        selected = tileCornerStyle == TileCornerStyle.ROUNDED,
+                        onClick = {
+                            viewModel.setTileCornerStyle(TileCornerStyle.ROUNDED)
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "karolar arası mesafe",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "$tileSpacing dp",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = LocalZuneColors.current.accentColor
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Slider(
+                            value = tileSpacing.toFloat(),
+                            onValueChange = { viewModel.setTileSpacing(it.toInt()) },
+                            valueRange = 0f..16f,
+                            steps = 15,
+                            colors = SliderDefaults.colors(
+                                thumbColor = LocalZuneColors.current.accentColor,
+                                activeTrackColor = LocalZuneColors.current.accentColor,
+                                inactiveTrackColor = (if (LocalZuneColors.current.isDark) Color.White else Color.Black).copy(alpha = 0.2f)
+                            )
+                        )
+                    }
+                }
             }
         }
     }
@@ -421,8 +723,11 @@ internal fun NotificationsSettingsPage(
 }
 
 @Composable
-internal fun DisplaySettingsPage(viewModel: SettingsViewModel) {
+internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
     val brightness by viewModel.brightness.collectAsState()
+    val mediaVolume by viewModel.mediaVolume.collectAsState()
+    val ringVolume by viewModel.ringVolume.collectAsState()
+    val volumeBarStyle by viewModel.volumeBarStyle.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.refreshSystemSettings()
@@ -455,20 +760,7 @@ internal fun DisplaySettingsPage(viewModel: SettingsViewModel) {
                 }
             }
         }
-    }
-}
 
-@Composable
-internal fun SoundSettingsPage(viewModel: SettingsViewModel) {
-    val mediaVolume by viewModel.mediaVolume.collectAsState()
-    val ringVolume by viewModel.ringVolume.collectAsState()
-    val volumeBarStyle by viewModel.volumeBarStyle.collectAsState()
-
-    LaunchedEffect(Unit) {
-        viewModel.refreshSystemSettings()
-    }
-
-    SettingsLazyColumn {
         item(key = "volume_bar_style") {
             SettingGroup(title = "ses arayüzü stili") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -561,25 +853,119 @@ internal fun ConnectivitySettingsPage(viewModel: SettingsViewModel) {
 }
 
 @Composable
-internal fun SystemSettingsPage(viewModel: SettingsViewModel) {
+internal fun SystemSettingsPage(
+    viewModel: SettingsViewModel,
+    onOpenDateTimeSettings: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    var defaultAppsTrigger by remember { mutableIntStateOf(0) }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        defaultAppsTrigger++
+    }
+
+    val roleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        defaultAppsTrigger++
+    }
+
+    val isDefaultDialer = remember(defaultAppsTrigger) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = context.getSystemService(RoleManager::class.java)
+            roleManager?.isRoleHeld(RoleManager.ROLE_DIALER) == true
+        } else {
+            val telecomManager = context.getSystemService(TelecomManager::class.java)
+            telecomManager?.defaultDialerPackage == context.packageName
+        }
+    }
+
+    val isDefaultSms = remember(defaultAppsTrigger) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = context.getSystemService(RoleManager::class.java)
+            roleManager?.isRoleHeld(RoleManager.ROLE_SMS) == true
+        } else {
+            Telephony.Sms.getDefaultSmsPackage(context) == context.packageName
+        }
+    }
+
+    val isDefaultBrowser = remember(defaultAppsTrigger) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = context.getSystemService(RoleManager::class.java)
+            roleManager?.isRoleHeld(RoleManager.ROLE_BROWSER) == true
+        } else {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://www.google.com"))
+            val resolveInfo = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            resolveInfo?.activityInfo?.packageName == context.packageName
+        }
+    }
+
+    val isDefaultLauncher = remember(defaultAppsTrigger) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = context.getSystemService(RoleManager::class.java)
+            roleManager?.isRoleHeld(RoleManager.ROLE_HOME) == true
+        } else {
+            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+            val resolveInfo = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            resolveInfo?.activityInfo?.packageName == context.packageName
+        }
+    }
+
+    val hasNotificationAccess = remember(defaultAppsTrigger) {
+        val enabledListeners = NotificationManagerCompat.getEnabledListenerPackages(context)
+        enabledListeners.contains(context.packageName)
+    }
+
     LaunchedEffect(Unit) {
         viewModel.refreshSystemSettings()
     }
 
     SettingsLazyColumn {
 
+        item(key = "date_time") {
+            SettingGroup(title = "tarih ve saat") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SystemSettingRow(
+                        title = "tarih+saat ayarları",
+                        subtitle = "ana ekran saat ve tarih formatını değiştirin",
+                        onClick = onOpenDateTimeSettings
+                    )
+                }
+            }
+        }
+
         item(key = "device") {
             SettingGroup(title = "cihaz") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SystemSettingRow(
-                        title = "bildirim erişimi",
-                        subtitle = "social hub izinleri",
-                        onClick = viewModel::openNotificationAccessSettings
+                        title = "varsayılan telefon uygulaması",
+                        subtitle = "arama ve çevirici uygulaması",
+                        isActive = isDefaultDialer,
+                        onClick = { viewModel.requestDefaultPhoneApp(context, roleLauncher) }
+                    )
+                    SystemSettingRow(
+                        title = "varsayılan sms uygulaması",
+                        subtitle = "mesajlaşma uygulaması",
+                        isActive = isDefaultSms,
+                        onClick = { viewModel.requestDefaultSmsApp(context, roleLauncher) }
+                    )
+                    SystemSettingRow(
+                        title = "varsayılan internet tarayıcısı",
+                        subtitle = "web tarayıcı uygulaması",
+                        isActive = isDefaultBrowser,
+                        onClick = { viewModel.requestDefaultBrowserApp(context, roleLauncher) }
                     )
                     SystemSettingRow(
                         title = "varsayılan launcher",
                         subtitle = "ana ekran uygulaması",
+                        isActive = isDefaultLauncher,
                         onClick = viewModel::openDefaultAppsSettings
+                    )
+                    SystemSettingRow(
+                        title = "bildirim erişimi",
+                        subtitle = "social hub izinleri",
+                        isActive = hasNotificationAccess,
+                        onClick = viewModel::openNotificationAccessSettings
                     )
                 }
             }

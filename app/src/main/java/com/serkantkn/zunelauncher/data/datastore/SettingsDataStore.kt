@@ -6,10 +6,14 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.serkantkn.zunelauncher.data.model.SocialHubLayout
-import com.serkantkn.zunelauncher.data.model.ThemeMode
-import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.model.AccentColor
+import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
+import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
+import com.serkantkn.zunelauncher.data.model.NotificationStyle
+import com.serkantkn.zunelauncher.data.model.SocialHubLayout
+import com.serkantkn.zunelauncher.data.model.StartTileItem
+import com.serkantkn.zunelauncher.data.model.ThemeMode
+import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.settingsDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -24,15 +28,26 @@ class SettingsDataStore(private val context: Context) {
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
         val DIRECT_CALL_ENABLED = booleanPreferencesKey("direct_call_enabled")
         val HUB_ORDER = stringPreferencesKey("hub_order")
+        val START_TILES = stringPreferencesKey("start_tiles_v1")
         val CUSTOM_WALLPAPER_PATH = stringPreferencesKey("custom_wallpaper_path")
         val DYNAMIC_THEME_COLOR = intPreferencesKey("dynamic_theme_color")
         val CUSTOM_THEME_COLOR = intPreferencesKey("custom_theme_color")
         val SOLID_BACKGROUND_ENABLED = booleanPreferencesKey("solid_background_enabled")
         val BROWSER_FAVORITES = stringPreferencesKey("browser_favorites")
         val BROWSER_HISTORY = stringPreferencesKey("browser_history")
+        val BROWSER_DOWNLOADS = stringPreferencesKey("browser_downloads")
         val NOTIFICATION_STYLE = stringPreferencesKey("notification_style")
         val VOLUME_BAR_STYLE = stringPreferencesKey("volume_bar_style")
         val DISABLED_NOTIFICATION_APPS = stringPreferencesKey("disabled_notification_apps")
+        val TIME_FORMAT = stringPreferencesKey("time_format")
+        val DATE_FORMAT = stringPreferencesKey("date_format")
+        val HUB_BACKGROUND_MODE = stringPreferencesKey("hub_background_mode")
+        val CUSTOM_HUB_WALLPAPER_PATH = stringPreferencesKey("custom_hub_wallpaper_path")
+        val HUB_BACKGROUND_OPACITY = floatPreferencesKey("hub_background_opacity")
+        val TILE_CORNER_STYLE = stringPreferencesKey("tile_corner_style")
+        val TILE_SPACING = intPreferencesKey("tile_spacing")
+        val HOME_SCREEN_LAYOUT = stringPreferencesKey("home_screen_layout")
+        val TILE_COLUMNS = intPreferencesKey("tile_columns")
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -59,6 +74,14 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
+    val homeScreenLayout: Flow<HomeScreenLayout> = context.settingsDataStore.data.map { prefs ->
+        try {
+            HomeScreenLayout.valueOf(prefs[HOME_SCREEN_LAYOUT] ?: HomeScreenLayout.ZUNE.name)
+        } catch (e: Exception) {
+            HomeScreenLayout.ZUNE
+        }
+    }
+
     val accentColor: Flow<AccentColor> = context.settingsDataStore.data.map { prefs ->
         try {
             AccentColor.valueOf(prefs[ACCENT_COLOR] ?: AccentColor.MAGENTA.name)
@@ -73,13 +96,15 @@ class SettingsDataStore(private val context: Context) {
 
     val hubOrder: Flow<List<com.serkantkn.zunelauncher.data.model.HubType>> = context.settingsDataStore.data.map { prefs ->
         val defaultOrder = listOf(
-            com.serkantkn.zunelauncher.data.model.HubType.MUSIC,
-            com.serkantkn.zunelauncher.data.model.HubType.PEOPLE,
-            com.serkantkn.zunelauncher.data.model.HubType.MESSAGING,
-            com.serkantkn.zunelauncher.data.model.HubType.PICTURES,
-            com.serkantkn.zunelauncher.data.model.HubType.FILES,
             com.serkantkn.zunelauncher.data.model.HubType.PHONE,
+            com.serkantkn.zunelauncher.data.model.HubType.MESSAGING,
+            com.serkantkn.zunelauncher.data.model.HubType.PEOPLE,
             com.serkantkn.zunelauncher.data.model.HubType.INTERNET,
+            com.serkantkn.zunelauncher.data.model.HubType.PICTURES,
+            com.serkantkn.zunelauncher.data.model.HubType.MUSIC,
+            com.serkantkn.zunelauncher.data.model.HubType.FILES,
+            com.serkantkn.zunelauncher.data.model.HubType.CLOCK,
+            com.serkantkn.zunelauncher.data.model.HubType.CALENDAR,
             com.serkantkn.zunelauncher.data.model.HubType.SETTINGS
         )
         val saved = prefs[HUB_ORDER]
@@ -98,8 +123,80 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
+    val defaultStartTiles = listOf(
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.PHONE, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.MESSAGING, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.PEOPLE, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.INTERNET, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.PICTURES, 4),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.MUSIC, 4),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.FILES, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CLOCK, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CALENDAR, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.SETTINGS, 2)
+    )
+
+    val startTiles: Flow<List<StartTileItem>> = context.settingsDataStore.data.map { prefs ->
+        val saved = prefs[START_TILES]
+        if (saved.isNullOrEmpty()) {
+            defaultStartTiles
+        } else {
+            val list = saved.split(",").mapNotNull { itemStr ->
+                val hashParts = itemStr.split("#")
+                if (hashParts.size == 2) {
+                    val id = hashParts[0]
+                    val span = hashParts[1].toIntOrNull() ?: 2
+                    StartTileItem(id, span)
+                } else {
+                    val parts = itemStr.split(":")
+                    if (parts.size >= 3) {
+                        val type = parts[0]
+                        val id = parts[1]
+                        val span = parts[2].toIntOrNull() ?: 2
+                        StartTileItem("$type:$id", span)
+                    } else null
+                }
+            }
+            val existingHubs = list.filter { it.isHub }.mapNotNull { it.hubType }.toSet()
+            val missingHubs = defaultStartTiles.filter { it.isHub && it.hubType !in existingHubs }
+            (list + missingHubs).ifEmpty { defaultStartTiles }
+        }
+    }
+
     val customWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
         prefs[CUSTOM_WALLPAPER_PATH]
+    }
+
+    val customHubWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[CUSTOM_HUB_WALLPAPER_PATH]
+    }
+
+    val hubBackgroundMode: Flow<HubBackgroundMode> = context.settingsDataStore.data.map { prefs ->
+        try {
+            HubBackgroundMode.valueOf(prefs[HUB_BACKGROUND_MODE] ?: HubBackgroundMode.MATCH_LAUNCHER.name)
+        } catch (e: Exception) {
+            HubBackgroundMode.MATCH_LAUNCHER
+        }
+    }
+
+    val hubBackgroundOpacity: Flow<Float> = context.settingsDataStore.data.map { prefs ->
+        prefs[HUB_BACKGROUND_OPACITY] ?: 0.85f
+    }
+
+    val tileCornerStyle: Flow<TileCornerStyle> = context.settingsDataStore.data.map { prefs ->
+        try {
+            TileCornerStyle.valueOf(prefs[TILE_CORNER_STYLE] ?: TileCornerStyle.ROUNDED.name)
+        } catch (e: Exception) {
+            TileCornerStyle.ROUNDED
+        }
+    }
+
+    val tileSpacing: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[TILE_SPACING] ?: 2
+    }
+
+    val tileColumns: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[TILE_COLUMNS] ?: 4
     }
 
     val solidBackgroundEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
@@ -122,6 +219,10 @@ class SettingsDataStore(private val context: Context) {
         prefs[BROWSER_HISTORY]
     }
 
+    val browserDownloads: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[BROWSER_DOWNLOADS]
+    }
+
     val notificationStyle: Flow<NotificationStyle> = context.settingsDataStore.data.map { prefs ->
         try {
             NotificationStyle.valueOf(prefs[NOTIFICATION_STYLE] ?: NotificationStyle.WINDOWS_PHONE.name)
@@ -141,6 +242,14 @@ class SettingsDataStore(private val context: Context) {
     val disabledNotificationApps: Flow<Set<String>> = context.settingsDataStore.data.map { prefs ->
         val raw = prefs[DISABLED_NOTIFICATION_APPS] ?: ""
         if (raw.isBlank()) emptySet() else raw.split(",").toSet()
+    }
+
+    val timeFormat: Flow<String> = context.settingsDataStore.data.map { prefs ->
+        prefs[TIME_FORMAT] ?: "HH:mm"
+    }
+
+    val dateFormat: Flow<String> = context.settingsDataStore.data.map { prefs ->
+        prefs[DATE_FORMAT] ?: "EEEE, MMMM d"
     }
 
 
@@ -196,6 +305,52 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
+    suspend fun setCustomHubWallpaperPath(path: String?) {
+        context.settingsDataStore.edit { prefs ->
+            if (path == null) {
+                prefs.remove(CUSTOM_HUB_WALLPAPER_PATH)
+            } else {
+                prefs[CUSTOM_HUB_WALLPAPER_PATH] = path
+            }
+        }
+    }
+
+    suspend fun setHubBackgroundMode(mode: HubBackgroundMode) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[HUB_BACKGROUND_MODE] = mode.name
+        }
+    }
+
+    suspend fun setHubBackgroundOpacity(opacity: Float) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[HUB_BACKGROUND_OPACITY] = opacity
+        }
+    }
+
+    suspend fun setTileCornerStyle(style: TileCornerStyle) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_CORNER_STYLE] = style.name
+        }
+    }
+
+    suspend fun setTileSpacing(spacing: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_SPACING] = spacing
+        }
+    }
+
+    suspend fun setHomeScreenLayout(layout: HomeScreenLayout) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[HOME_SCREEN_LAYOUT] = layout.name
+        }
+    }
+
+    suspend fun setTileColumns(columns: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_COLUMNS] = columns
+        }
+    }
+
     suspend fun setSolidBackgroundEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[SOLID_BACKGROUND_ENABLED] = enabled
@@ -234,6 +389,12 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
+    suspend fun setBrowserDownloads(json: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[BROWSER_DOWNLOADS] = json
+        }
+    }
+
     suspend fun setNotificationStyle(style: NotificationStyle) {
         context.settingsDataStore.edit { prefs ->
             prefs[NOTIFICATION_STYLE] = style.name
@@ -249,6 +410,24 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setDisabledNotificationApps(apps: Set<String>) {
         context.settingsDataStore.edit { prefs ->
             prefs[DISABLED_NOTIFICATION_APPS] = apps.joinToString(",")
+        }
+    }
+
+    suspend fun setTimeFormat(format: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TIME_FORMAT] = format
+        }
+    }
+
+    suspend fun setDateFormat(format: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[DATE_FORMAT] = format
+        }
+    }
+
+    suspend fun setStartTiles(tiles: List<StartTileItem>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[START_TILES] = tiles.joinToString(",") { "${it.id}#${it.span}" }
         }
     }
 }

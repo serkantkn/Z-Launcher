@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -76,10 +78,16 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubType
+import com.serkantkn.zunelauncher.data.model.SocialMessageModel
+import com.serkantkn.zunelauncher.data.model.TileCornerStyle
+import com.serkantkn.zunelauncher.ui.animation.w10mEditWiggle
 import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.components.W10MAppTile
+import com.serkantkn.zunelauncher.ui.components.W10MHubTile
+import com.serkantkn.zunelauncher.ui.components.getHubDefaultSpan
 import com.serkantkn.zunelauncher.ui.components.ZuneClock
 import com.serkantkn.zunelauncher.ui.components.ZuneDate
 import com.serkantkn.zunelauncher.ui.components.ZuneGlassSurface
@@ -102,23 +110,64 @@ fun HomeHubScreen(
     onNavigateToSocialHub: () -> Unit = {},
     onNavigateToAppsHub: () -> Unit = {},
     onExpandProgressChange: (Float) -> Unit = {},
+    timeFormat: String = "HH:mm",
+    dateFormat: String = "EEEE, MMMM d",
     modifier: Modifier = Modifier,
     viewModel: HomeHubViewModel = viewModel()
 ) {
+    val unifiedStartTilesFlow by viewModel.unifiedStartTiles.collectAsState()
     val favoriteAppsFlow by viewModel.favoriteApps.collectAsState()
     val hubOrderFlow by viewModel.hubOrder.collectAsState()
+    val favoritePhotos by viewModel.favoritePhotoUris.collectAsState()
     val latestNotification by viewModel.latestNotification.collectAsState()
     val notificationCounts by viewModel.notificationCounts.collectAsState()
     val latestMessages by viewModel.latestMessages.collectAsState()
+    val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
+    val tileSpacing by viewModel.tileSpacing.collectAsState()
+    val tileColumns by viewModel.tileColumns.collectAsState()
+    val homeScreenLayout by viewModel.homeScreenLayout.collectAsState()
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
-
-    var favoriteApps by remember(favoriteAppsFlow) { mutableStateOf(favoriteAppsFlow) }
-    var localHubOrder by remember(hubOrderFlow) { mutableStateOf(hubOrderFlow) }
 
     // ── State ──
     var isEditMode by remember { mutableStateOf(false) }
     var isFavoritesExpanded by remember { mutableStateOf(false) }
+
+    var localStartTiles by remember(unifiedStartTilesFlow) { mutableStateOf(unifiedStartTilesFlow) }
+    var favoriteApps by remember(favoriteAppsFlow) { mutableStateOf(favoriteAppsFlow) }
+    var localHubOrder by remember(hubOrderFlow) { mutableStateOf(hubOrderFlow) }
+
+    LaunchedEffect(unifiedStartTilesFlow) {
+        if (!isEditMode) {
+            localStartTiles = unifiedStartTilesFlow
+        }
+    }
+
+    val onToggleTileSize: (String) -> Unit = { tileId ->
+        val current = localStartTiles.toMutableList()
+        val index = current.indexOfFirst { it.id == tileId }
+        if (index != -1) {
+            val old = current[index]
+            val newSpan = when (old.span) {
+                1 -> 2
+                2 -> 4
+                else -> 1
+            }
+            val updated = when (old) {
+                is StartTileUIModel.Hub -> StartTileUIModel.Hub(old.hubType, newSpan)
+                is StartTileUIModel.App -> StartTileUIModel.App(old.appInfo, newSpan)
+            }
+            current[index] = updated
+            localStartTiles = current
+            viewModel.updateStartTilesOrder(current)
+        }
+    }
+
+    val onRemoveTile: (String) -> Unit = { tileId ->
+        val current = localStartTiles.filterNot { it.id == tileId }
+        localStartTiles = current
+        viewModel.removeTile(tileId)
+    }
 
     BackHandler(enabled = isEditMode || isFavoritesExpanded) {
         if (isEditMode) isEditMode = false
@@ -155,7 +204,7 @@ fun HomeHubScreen(
         if (!hasRunInitialAnimation) {
             hasRunInitialAnimation = true
             animationProgress.snapTo(0f)
-            animationProgress.animateTo(1f, tween(1500, easing = FastOutSlowInEasing))
+            animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
         }
     }
 
@@ -164,7 +213,7 @@ fun HomeHubScreen(
             if (event == Lifecycle.Event.ON_START && hasRunInitialAnimation) {
                 coroutineScope.launch {
                     animationProgress.snapTo(0f)
-                    animationProgress.animateTo(1f, tween(1500, easing = FastOutSlowInEasing))
+                    animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
                 }
             }
             if (event == Lifecycle.Event.ON_PAUSE) isEditMode = false
@@ -188,7 +237,7 @@ fun HomeHubScreen(
         if (!isHubOpen && animationProgress.value > 1f) {
             clickedItemKey = null
             animationProgress.snapTo(0f)
-            animationProgress.animateTo(1f, tween(1500, easing = FastOutSlowInEasing))
+            animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
         }
     }
 
@@ -196,7 +245,7 @@ fun HomeHubScreen(
         if (isEditMode) return
         clickedItemKey = key
         coroutineScope.launch {
-            animationProgress.animateTo(2f, tween(900, easing = LinearEasing))
+            animationProgress.animateTo(2f, tween(800, easing = LinearEasing))
             action()
         }
     }
@@ -222,6 +271,23 @@ fun HomeHubScreen(
                     favoriteApps = newList
                     viewModel.updateFavoritesOrder(newList)
                 }
+            }
+        }
+    )
+
+    // ── Grid state & drag-drop for Windows Phone Start Screen ──
+    val wpGridState = rememberLazyGridState()
+    val wpGridDragDropState = rememberGridDragDropState(
+        gridState = wpGridState,
+        isEditMode = isEditMode,
+        canSwap = { _, _ -> true },
+        onMove = { fromIndex, toIndex ->
+            val newList = localStartTiles.toMutableList()
+            if (fromIndex in newList.indices && toIndex in newList.indices) {
+                val item = newList.removeAt(fromIndex)
+                newList.add(toIndex, item)
+                localStartTiles = newList
+                viewModel.updateStartTilesOrder(newList)
             }
         }
     )
@@ -266,314 +332,519 @@ fun HomeHubScreen(
         )
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .then(swipeGestureModifier)
-            .clickable(
-                enabled = isEditMode,
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) {
-                isEditMode = false
-            }
-    ) {
+    if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE) {
+        val swipeGestureModifierWp = Modifier.pointerInput(isEditMode) {
+            if (isEditMode) return@pointerInput
+            detectHorizontalDragGestures(
+                onDragStart = { totalDragX = 0f },
+                onDragEnd = {
+                    if (totalDragX > 40f) {
+                        onNavigateToSocialHub()
+                    } else if (totalDragX < -40f) {
+                        onNavigateToAppsHub()
+                    }
+                },
+                onDragCancel = { totalDragX = 0f },
+                onHorizontalDrag = { change, dragAmount ->
+                    totalDragX += dragAmount
+                    change.consume()
+                }
+            )
+        }
 
-        // ════════════════════════════════════════════════
-        // LAYER 1 — Hub Section (Clock, Date, Weather, Hub Titles)
-        //
-        // Always laid out at FULL screen width so text/clock
-        // has room to measure properly. graphicsLayer slides
-        // it right and fades it when favorites expand.
-        // ════════════════════════════════════════════════
-        Column(
-            modifier = Modifier
-                .then(
-                    if (isWideScreen) {
-                        Modifier.fillMaxWidth(0.35f).fillMaxHeight().align(Alignment.CenterStart)
-                    } else {
-                        Modifier.fillMaxSize()
-                    }
-                )
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    start = 72.dp,
-                    end = ZuneDimens.ScreenPaddingHorizontal
-                )
-                .graphicsLayer {
-                    if (!isWideScreen) {
-                        translationX = size.width * 0.7f * p
-                        val scale = lerp(1f, 0.75f, p)
-                        scaleX = scale
-                        scaleY = scale
-                        alpha = lerp(1f, 0.3f, p)
-                        rotationY = lerp(0f, 25f, p)
-                        transformOrigin = TransformOrigin(1f, 0.5f)
-                        cameraDistance = 12f * density
-                    }
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .then(swipeGestureModifierWp)
+                .clickable(
+                    enabled = isEditMode,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    isEditMode = false
                 }
         ) {
-            Spacer(modifier = Modifier.height(80.dp))
+            val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val gridCols = if (isWideScreen) tileColumns * 2 else tileColumns
 
-            ZuneClock(
-                onClick = {
-                    if (isFavoritesExpanded) {
-                        isFavoritesExpanded = false
-                    } else {
-                        handleLaunch("hub_CLOCK") { onHubSelected(HubType.CLOCK) }
+            val allTileItems = remember(localStartTiles) {
+                localStartTiles.mapIndexed { index, model ->
+                    when (model) {
+                        is StartTileUIModel.Hub -> TileItem.Hub(model.hubType, model.span, index)
+                        is StartTileUIModel.App -> TileItem.App(FavoriteAppUIModel(model.appInfo, model.span), model.span, index)
                     }
-                },
-                modifier = Modifier.w10mStaggeredAnimation(
-                    progress = animationProgress.value,
-                    index = 1,
-                    isClicked = clickedItemKey == "hub_CLOCK"
-                )
-            )
-            ZuneDate(
-                onClick = {
-                    if (isFavoritesExpanded) {
-                        isFavoritesExpanded = false
-                    } else {
-                        handleLaunch("hub_CALENDAR") { onHubSelected(HubType.CALENDAR) }
-                    }
-                },
-                modifier = Modifier.w10mStaggeredAnimation(
-                    progress = animationProgress.value,
-                    index = 2,
-                    isClicked = clickedItemKey == "hub_CALENDAR"
-                )
-            )
-            ZuneWeather(
-                modifier = Modifier
-                    .padding(top = ZuneDimens.SpacingSm)
-                    .w10mStaggeredAnimation(animationProgress.value, 3)
-            )
-
-            Spacer(modifier = Modifier
-                .height(ZuneDimens.SpacingLg)
-                .onGloballyPositioned { coordinates ->
-                    // Bottom of this spacer = top of hub titles
-                    hubTitlesTopPx = coordinates.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y +
-                            coordinates.size.height.toFloat()
                 }
-            )
+            }
 
-            localHubOrder.forEachIndexed { index, hubType ->
-                val key = "hub_$hubType"
-                ZuneHubTitle(
-                    title = hubType.title,
-                    accentColor = if (zuneColors.isDark) Color.White else Color.Black,
-                    verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
+            val packedGridItems = remember(allTileItems) {
+                packTileItems(allTileItems)
+            }
+
+            LazyVerticalGrid(
+                state = wpGridState,
+                columns = GridCells.Fixed(gridCols),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = if (isWideScreen) 32.dp else 12.dp,
+                    end = if (isWideScreen) 32.dp else 12.dp,
+                    top = statusBarPadding + 16.dp,
+                    bottom = WindowInsets.navigationBars
+                        .asPaddingValues()
+                        .calculateBottomPadding() + 24.dp
+                ),
+                horizontalArrangement = Arrangement.spacedBy(tileSpacing.dp),
+                verticalArrangement = Arrangement.spacedBy(tileSpacing.dp)
+            ) {
+            packedGridItems.forEach { packedItem ->
+                when (packedItem) {
+                    is PackedGridItem.Single -> {
+                        val tile = packedItem.tile
+                        val span = tile.rawSpan.coerceAtMost(gridCols)
+
+                        item(
+                            key = "wp_${packedItem.key}",
+                            span = { GridItemSpan(span) }
+                        ) {
+                            val absoluteIndex = tile.index
+                            val isDragging = wpGridDragDropState.draggingItemIndex == absoluteIndex
+                            val itemMod = if (!isDragging) {
+                                Modifier.animateItem(
+                                    fadeInSpec = null,
+                                    fadeOutSpec = null,
+                                    placementSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessLow
+                                    )
+                                )
+                            } else Modifier
+
+                            RenderStartTileItem(
+                                tileItem = tile,
+                                isInsidePair = false,
+                                isEditMode = isEditMode,
+                                gridCols = gridCols,
+                                tileColumns = tileColumns,
+                                tileSpacing = tileSpacing.dp,
+                                tileCornerStyle = tileCornerStyle,
+                                favoritePhotos = favoritePhotos,
+                                notificationCounts = notificationCounts,
+                                latestMessages = latestMessages,
+                                wpGridState = wpGridState,
+                                wpGridDragDropState = wpGridDragDropState,
+                                animationProgress = animationProgress,
+                                clickedItemKey = clickedItemKey,
+                                handleLaunch = ::handleLaunch,
+                                onHubSelected = onHubSelected,
+                                viewModel = viewModel,
+                                localHubOrderSize = localHubOrder.size,
+                                onEnterEditMode = { isEditMode = true },
+                                onToggleTileSize = onToggleTileSize,
+                                onRemoveTile = onRemoveTile,
+                                itemModifier = itemMod
+                            )
+                        }
+                    }
+                    is PackedGridItem.VerticalPair -> {
+                        val pairSpan = if (tileColumns >= 8) 2 else 1
+                        item(
+                            key = "wp_${packedItem.key}",
+                            span = { GridItemSpan(pairSpan) }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .animateItem(
+                                        fadeInSpec = null,
+                                        fadeOutSpec = null,
+                                        placementSpec = spring(
+                                            dampingRatio = Spring.DampingRatioLowBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        )
+                                    ),
+                                verticalArrangement = Arrangement.spacedBy(tileSpacing.dp)
+                            ) {
+                                Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f)) {
+                                    RenderStartTileItem(
+                                        tileItem = packedItem.topTile,
+                                        isInsidePair = true,
+                                        isEditMode = isEditMode,
+                                        gridCols = gridCols,
+                                        tileColumns = tileColumns,
+                                        tileSpacing = tileSpacing.dp,
+                                        tileCornerStyle = tileCornerStyle,
+                                        favoritePhotos = favoritePhotos,
+                                        notificationCounts = notificationCounts,
+                                        latestMessages = latestMessages,
+                                        wpGridState = wpGridState,
+                                        wpGridDragDropState = wpGridDragDropState,
+                                        animationProgress = animationProgress,
+                                        clickedItemKey = clickedItemKey,
+                                        handleLaunch = ::handleLaunch,
+                                        onHubSelected = onHubSelected,
+                                        viewModel = viewModel,
+                                        localHubOrderSize = localHubOrder.size,
+                                        onEnterEditMode = { isEditMode = true },
+                                        onToggleTileSize = onToggleTileSize,
+                                        onRemoveTile = onRemoveTile,
+                                        itemModifier = Modifier
+                                    )
+                                }
+                                if (packedItem.bottomTile != null) {
+                                    Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f)) {
+                                        RenderStartTileItem(
+                                            tileItem = packedItem.bottomTile,
+                                            isInsidePair = true,
+                                            isEditMode = isEditMode,
+                                            gridCols = gridCols,
+                                            tileColumns = tileColumns,
+                                            tileSpacing = tileSpacing.dp,
+                                            tileCornerStyle = tileCornerStyle,
+                                            favoritePhotos = favoritePhotos,
+                                            notificationCounts = notificationCounts,
+                                            latestMessages = latestMessages,
+                                            wpGridState = wpGridState,
+                                            wpGridDragDropState = wpGridDragDropState,
+                                            animationProgress = animationProgress,
+                                            clickedItemKey = clickedItemKey,
+                                            handleLaunch = ::handleLaunch,
+                                            onHubSelected = onHubSelected,
+                                            viewModel = viewModel,
+                                            localHubOrderSize = localHubOrder.size,
+                                            onEnterEditMode = { isEditMode = true },
+                                            onToggleTileSize = onToggleTileSize,
+                                            onRemoveTile = onRemoveTile,
+                                            itemModifier = Modifier
+                                        )
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.fillMaxWidth().aspectRatio(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            }
+        }
+    } else {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .then(swipeGestureModifier)
+                .clickable(
+                    enabled = isEditMode,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    isEditMode = false
+                }
+        ) {
+
+            // ════════════════════════════════════════════════
+            // LAYER 1 — Hub Section (Clock, Date, Weather, Hub Titles)
+            //
+            // Always laid out at FULL screen width so text/clock
+            // has room to measure properly. graphicsLayer slides
+            // it right and fades it when favorites expand.
+            // ════════════════════════════════════════════════
+            Column(
+                modifier = Modifier
+                    .then(
+                        if (isWideScreen) {
+                            Modifier.fillMaxWidth(0.35f).fillMaxHeight().align(Alignment.CenterStart)
+                        } else {
+                            Modifier.fillMaxSize()
+                        }
+                    )
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        start = 72.dp,
+                        end = ZuneDimens.ScreenPaddingHorizontal
+                    )
+                    .graphicsLayer {
+                        if (!isWideScreen) {
+                            translationX = size.width * 0.7f * p
+                            val scale = lerp(1f, 0.75f, p)
+                            scaleX = scale
+                            scaleY = scale
+                            alpha = lerp(1f, 0.3f, p)
+                            rotationY = lerp(0f, 25f, p)
+                            transformOrigin = TransformOrigin(1f, 0.5f)
+                            cameraDistance = 12f * density
+                        }
+                    }
+            ) {
+                Spacer(modifier = Modifier.height(80.dp))
+
+                ZuneClock(
+                    timeFormat = timeFormat,
                     onClick = {
                         if (isFavoritesExpanded) {
                             isFavoritesExpanded = false
                         } else {
-                            handleLaunch(key) { onHubSelected(hubType) }
+                            handleLaunch("hub_CLOCK") { onHubSelected(HubType.CLOCK) }
                         }
                     },
                     modifier = Modifier.w10mStaggeredAnimation(
                         progress = animationProgress.value,
-                        index = 4 + index,
-                        isClicked = clickedItemKey == key
+                        index = 1,
+                        isClicked = clickedItemKey == "hub_CLOCK"
                     )
                 )
-            }
-        }
+                ZuneDate(
+                    dateFormat = dateFormat,
+                    onClick = {
+                        if (isFavoritesExpanded) {
+                            isFavoritesExpanded = false
+                        } else {
+                            handleLaunch("hub_CALENDAR") { onHubSelected(HubType.CALENDAR) }
+                        }
+                    },
+                    modifier = Modifier.w10mStaggeredAnimation(
+                        progress = animationProgress.value,
+                        index = 2,
+                        isClicked = clickedItemKey == "hub_CALENDAR"
+                    )
+                )
+                ZuneWeather(
+                    modifier = Modifier
+                        .padding(top = ZuneDimens.SpacingSm)
+                        .w10mStaggeredAnimation(animationProgress.value, 3)
+                )
 
-        // ════════════════════════════════════════════════
-        // LAYER 2 — Favorites Section
-        //
-        // Overlays the left portion of the screen.
-        // Width animates from 15 % (collapsed) to 85 % (expanded).
-        // Contains two sub-layers that cross-fade:
-        //   • Collapsed: LazyColumn of small icon tiles
-        //   • Expanded:  LazyVerticalGrid (4 cols) with editing
-        // ════════════════════════════════════════════════
-        Box(
-            modifier = Modifier
-                .then(
-                    if (isWideScreen) {
-                        Modifier.fillMaxWidth(0.65f).fillMaxHeight().align(Alignment.CenterEnd)
-                    } else {
-                        Modifier.fillMaxWidth(lerp(0.15f, 0.85f, p)).fillMaxHeight()
+                Spacer(modifier = Modifier
+                    .height(ZuneDimens.SpacingLg)
+                    .onGloballyPositioned { coordinates ->
+                        // Bottom of this spacer = top of hub titles
+                        hubTitlesTopPx = coordinates.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y +
+                                coordinates.size.height.toFloat()
                     }
                 )
-        ) {
-            // ── Collapsed favourites (single column, small tiles) ──
-            if (!isWideScreen && p < 0.7f) {
-                val collapsedAlpha = lerp(0.6f, 0f, (p / 0.5f).coerceIn(0f, 1f))
 
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = collapsedAlpha },
-                    contentPadding = PaddingValues(
-                        start = 6.dp,
-                        end = 4.dp,
-                        top = with(localDensity) {
-                            if (hubTitlesTopPx > 0f) hubTitlesTopPx.toDp()
-                            else 260.dp // fallback
+                localHubOrder.forEachIndexed { index, hubType ->
+                    val key = "hub_$hubType"
+                    ZuneHubTitle(
+                        title = hubType.title,
+                        accentColor = if (zuneColors.isDark) Color.White else Color.Black,
+                        verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
+                        onClick = {
+                            if (isFavoritesExpanded) {
+                                isFavoritesExpanded = false
+                            } else {
+                                handleLaunch(key) { onHubSelected(hubType) }
+                            }
                         },
-                        bottom = WindowInsets.navigationBars
-                            .asPaddingValues()
-                            .calculateBottomPadding() + 24.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(
-                        count = favoriteApps.size,
-                        key = { index -> "c_${favoriteApps[index].appInfo.packageName}" }
-                    ) { index ->
-                        val favApp = favoriteApps[index]
-                        SmallFavoriteTile(
-                            icon = viewModel.getAppIcon(favApp.appInfo.packageName),
-                            label = favApp.appInfo.label,
-                            onClick = { isFavoritesExpanded = true },
-                            modifier = Modifier
-                                .w10mStaggeredAnimation(animationProgress.value, 2 + index)
+                        modifier = Modifier.w10mStaggeredAnimation(
+                            progress = animationProgress.value,
+                            index = 4 + index,
+                            isClicked = clickedItemKey == key
                         )
-                    }
+                    )
                 }
             }
 
-            // ── Expanded favourites (4-column grid with editing) ──
-            if (isWideScreen || p > 0.3f) {
-                val expandedAlpha = if (isWideScreen) 1f else lerp(0f, 1f, ((p - 0.3f) / 0.5f).coerceIn(0f, 1f))
+            // ════════════════════════════════════════════════
+            // LAYER 2 — Favorites Section
+            //
+            // Overlays the left portion of the screen.
+            // Width animates from 15 % (collapsed) to 85 % (expanded).
+            // Contains two sub-layers that cross-fade:
+            //   • Collapsed: LazyColumn of small icon tiles
+            //   • Expanded:  LazyVerticalGrid (4 cols) with editing
+            // ════════════════════════════════════════════════
+            Box(
+                modifier = Modifier
+                    .then(
+                        if (isWideScreen) {
+                            Modifier.fillMaxWidth(0.65f).fillMaxHeight().align(Alignment.CenterEnd)
+                        } else {
+                            Modifier.fillMaxWidth(lerp(0.15f, 0.85f, p)).fillMaxHeight()
+                        }
+                    )
+            ) {
+                // ── Collapsed favourites (single column, small tiles) ──
+                if (!isWideScreen && p < 0.7f) {
+                    val collapsedAlpha = lerp(0.6f, 0f, (p / 0.5f).coerceIn(0f, 1f))
 
-                LazyVerticalGrid(
-                    state = gridState,
-                    columns = GridCells.Fixed(if (isWideScreen) 12 else 4),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = expandedAlpha }
-                        .clickable(
-                            enabled = isEditMode,
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) {
-                            isEditMode = false
-                        },
-                    contentPadding = PaddingValues(
-                        start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
-                        end = 8.dp,
-                        top = 80.dp,
-                        bottom = WindowInsets.navigationBars
-                            .asPaddingValues()
-                            .calculateBottomPadding() + 24.dp
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    if (favoriteApps.isNotEmpty()) {
-                        item(key = "fav_label", span = { GridItemSpan(maxLineSpan) }) {
-                            Text(
-                                text = "favoriler",
-                                style = MaterialTheme.typography.displayLarge.copy(
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 96.sp,
-                                    letterSpacing = (-4).sp,
-                                    lineHeight = 96.sp
-                                ),
-                                color = if (zuneColors.isDark) Color.White else Color.Black,
-                                maxLines = 1,
-                                softWrap = false,
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer { alpha = collapsedAlpha },
+                        contentPadding = PaddingValues(
+                            start = 6.dp,
+                            end = 4.dp,
+                            top = with(localDensity) {
+                                if (hubTitlesTopPx > 0f) hubTitlesTopPx.toDp()
+                                else 260.dp // fallback
+                            },
+                            bottom = WindowInsets.navigationBars
+                                .asPaddingValues()
+                                .calculateBottomPadding() + 24.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(
+                            count = favoriteApps.size,
+                            key = { index -> "c_${favoriteApps[index].appInfo.packageName}" }
+                        ) { index ->
+                            val favApp = favoriteApps[index]
+                            SmallFavoriteTile(
+                                icon = viewModel.getAppIcon(favApp.appInfo.packageName),
+                                label = favApp.appInfo.label,
+                                onClick = { isFavoritesExpanded = true },
                                 modifier = Modifier
-                                    .w10mStaggeredAnimation(animationProgress.value, 8)
-                                    .graphicsLayer {
-                                        translationY = with(localDensity) { (-24).dp.toPx() }
-                                    }
-                                    .padding(bottom = 4.dp)
+                                    .w10mStaggeredAnimation(animationProgress.value, 2 + index)
                             )
                         }
+                    }
+                }
 
-                        favoriteApps.forEachIndexed { favIndex, favApp ->
-                            val absoluteIndex = favIndex + 1 // label is item 0
-                            val isDragging =
-                                gridDragDropState.draggingItemIndex == absoluteIndex
+                // ── Expanded favourites (4-column grid with editing) ──
+                if (isWideScreen || p > 0.3f) {
+                    val expandedAlpha = if (isWideScreen) 1f else lerp(0f, 1f, ((p - 0.3f) / 0.5f).coerceIn(0f, 1f))
 
-                            item(
-                                key = "fav_${favApp.appInfo.packageName}",
-                                span = { GridItemSpan(favApp.span) }
+                    LazyVerticalGrid(
+                        state = gridState,
+                        columns = GridCells.Fixed(if (isWideScreen) tileColumns * 2 else tileColumns),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer { alpha = expandedAlpha }
+                            .clickable(
+                                enabled = isEditMode,
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
                             ) {
-                                val key = "app_${favApp.appInfo.packageName}"
-
-                                W10MAppTile(
-                                    label = favApp.appInfo.label,
-                                    icon = viewModel.getAppIcon(favApp.appInfo.packageName),
-                                    span = favApp.span,
-                                    isEditing = isEditMode,
-                                    isDragging = isDragging,
-                                    notificationCount = notificationCounts[favApp.appInfo.packageName] ?: 0,
-                                    notificationTitle = latestMessages[favApp.appInfo.packageName]?.title,
-                                    notificationText = latestMessages[favApp.appInfo.packageName]?.text,
-                                    onClick = {
-                                        handleLaunch(key) {
-                                            viewModel.launchApp(favApp.appInfo.packageName)
-                                        }
-                                    },
-                                    onLongClick = { isEditMode = true },
-                                    onRemoveClick = {
-                                        viewModel.removeFavorite(favApp.appInfo.packageName)
-                                    },
-                                    onResizeClick = {
-                                        viewModel.toggleAppSize(favApp.appInfo.packageName)
-                                    },
+                                isEditMode = false
+                            },
+                        contentPadding = PaddingValues(
+                            start = if (isWideScreen) 32.dp else 12.dp,
+                            end = if (isWideScreen) 32.dp else 12.dp,
+                            top = 80.dp,
+                            bottom = WindowInsets.navigationBars
+                                .asPaddingValues()
+                                .calculateBottomPadding() + 24.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(tileSpacing.dp),
+                        verticalArrangement = Arrangement.spacedBy(tileSpacing.dp)
+                    ) {
+                        if (favoriteApps.isNotEmpty()) {
+                            item(key = "fav_label", span = { GridItemSpan(maxLineSpan) }) {
+                                Text(
+                                    text = "favoriler",
+                                    style = MaterialTheme.typography.displayLarge.copy(
+                                        fontWeight = FontWeight.Light,
+                                        fontSize = 96.sp,
+                                        letterSpacing = (-4).sp,
+                                        lineHeight = 96.sp
+                                    ),
+                                    color = if (zuneColors.isDark) Color.White else Color.Black,
+                                    maxLines = 1,
+                                    softWrap = false,
                                     modifier = Modifier
-                                        .zIndex(if (isDragging) 1f else 0f)
-                                        .then(
-                                            if (!isDragging) {
-                                                Modifier.animateItem(
-                                                    fadeInSpec = null,
-                                                    fadeOutSpec = null,
-                                                    placementSpec = spring(
-                                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                                        stiffness = Spring.StiffnessLow
-                                                    )
-                                                )
-                                            } else Modifier
-                                        )
-                                        .pointerInput(isEditMode) {
-                                            if (!isEditMode) return@pointerInput
-                                            detectDragGesturesAfterLongPress(
-                                                onDragStart = {
-                                                    gridDragDropState.startDrag(absoluteIndex)
-                                                },
-                                                onDrag = { change, dragAmount ->
-                                                    change.consume()
-                                                    gridDragDropState.onDrag(dragAmount)
-                                                },
-                                                onDragEnd = {
-                                                    gridDragDropState.onDragInterrupted()
-                                                },
-                                                onDragCancel = {
-                                                    gridDragDropState.onDragInterrupted()
-                                                }
-                                            )
-                                        }
+                                        .w10mStaggeredAnimation(animationProgress.value, 8)
                                         .graphicsLayer {
-                                            if (isDragging) {
-                                                val info = gridState.layoutInfo
-                                                    .visibleItemsInfo
-                                                    .firstOrNull { it.index == absoluteIndex }
-                                                    ?.offset
-                                                if (info != null) {
-                                                    translationX =
-                                                        gridDragDropState.draggingItemInitialOffset.x +
-                                                                gridDragDropState.totalDragAmount.x -
-                                                                info.x
-                                                    translationY =
-                                                        gridDragDropState.draggingItemInitialOffset.y +
-                                                                gridDragDropState.totalDragAmount.y -
-                                                                info.y
+                                            translationY = with(localDensity) { (-24).dp.toPx() }
+                                        }
+                                        .padding(bottom = 4.dp)
+                                )
+                            }
+
+                            favoriteApps.forEachIndexed { favIndex, favApp ->
+                                val absoluteIndex = favIndex + 1 // label is item 0
+                                val isDragging =
+                                    gridDragDropState.draggingItemIndex == absoluteIndex
+
+                                item(
+                                    key = "fav_${favApp.appInfo.packageName}",
+                                    span = { GridItemSpan(favApp.span) }
+                                ) {
+                                    val key = "app_${favApp.appInfo.packageName}"
+
+                                    W10MAppTile(
+                                        label = favApp.appInfo.label,
+                                        icon = viewModel.getAppIcon(favApp.appInfo.packageName),
+                                        span = favApp.span.coerceAtMost(if (isWideScreen) tileColumns * 2 else tileColumns),
+                                        gridColumns = if (isWideScreen) tileColumns * 2 else tileColumns,
+                                        isEditing = isEditMode,
+                                        isDragging = isDragging,
+                                        cornerStyle = tileCornerStyle,
+                                        notificationCount = notificationCounts[favApp.appInfo.packageName] ?: 0,
+                                        notificationTitle = latestMessages[favApp.appInfo.packageName]?.title,
+                                        notificationText = latestMessages[favApp.appInfo.packageName]?.text,
+                                        onClick = {
+                                            handleLaunch(key) {
+                                                viewModel.launchApp(favApp.appInfo.packageName)
+                                            }
+                                        },
+                                        onLongClick = { isEditMode = true },
+                                        onRemoveClick = {
+                                            viewModel.removeFavorite(favApp.appInfo.packageName)
+                                        },
+                                        onResizeClick = {
+                                            viewModel.toggleAppSize(favApp.appInfo.packageName)
+                                        },
+                                        modifier = Modifier
+                                            .zIndex(if (isDragging) 1f else 0f)
+                                            .then(
+                                                if (!isDragging) {
+                                                    Modifier.animateItem(
+                                                        fadeInSpec = null,
+                                                        fadeOutSpec = null,
+                                                        placementSpec = spring(
+                                                            dampingRatio = Spring.DampingRatioLowBouncy,
+                                                            stiffness = Spring.StiffnessLow
+                                                        )
+                                                    )
+                                                } else Modifier
+                                            )
+                                            .pointerInput(isEditMode) {
+                                                if (!isEditMode) return@pointerInput
+                                                detectDragGesturesAfterLongPress(
+                                                    onDragStart = {
+                                                        gridDragDropState.startDrag(absoluteIndex)
+                                                    },
+                                                    onDrag = { change, dragAmount ->
+                                                        change.consume()
+                                                        gridDragDropState.onDrag(dragAmount)
+                                                    },
+                                                    onDragEnd = {
+                                                        gridDragDropState.onDragInterrupted()
+                                                    },
+                                                    onDragCancel = {
+                                                        gridDragDropState.onDragInterrupted()
+                                                    }
+                                                )
+                                            }
+                                            .graphicsLayer {
+                                                if (isDragging) {
+                                                    val info = gridState.layoutInfo
+                                                        .visibleItemsInfo
+                                                        .firstOrNull { it.index == absoluteIndex }
+                                                        ?.offset
+                                                    if (info != null) {
+                                                        translationX =
+                                                            gridDragDropState.draggingItemInitialOffset.x +
+                                                                    gridDragDropState.totalDragAmount.x -
+                                                                    info.x
+                                                        translationY =
+                                                            gridDragDropState.draggingItemInitialOffset.y +
+                                                                    gridDragDropState.totalDragAmount.y -
+                                                                    info.y
+                                                    }
                                                 }
                                             }
-                                        }
-                                        .w10mStaggeredAnimation(
-                                            animationProgress.value,
-                                            9 + favIndex,
-                                            clickedItemKey == key
-                                        )
-                                )
+                                            .w10mEditWiggle(
+                                                isEditing = isEditMode,
+                                                isDragging = isDragging,
+                                                index = absoluteIndex
+                                            )
+                                            .w10mStaggeredAnimation(
+                                                animationProgress.value,
+                                                9 + favIndex,
+                                                clickedItemKey == key
+                                            )
+                                    )
+                                }
                             }
                         }
                     }
@@ -623,6 +894,250 @@ private fun SmallFavoriteTile(
                         .align(Alignment.Center)
                 )
             }
+        }
+    }
+}
+
+private sealed interface TileItem {
+    val key: String
+    val rawSpan: Int
+    val index: Int
+    val isSmall: Boolean get() = rawSpan == 1
+
+    data class Hub(val hubType: HubType, override val rawSpan: Int, override val index: Int) : TileItem {
+        override val key: String = "hub_${hubType.name}"
+    }
+
+    data class App(val favApp: FavoriteAppUIModel, override val rawSpan: Int, override val index: Int) : TileItem {
+        override val key: String = "app_${favApp.appInfo.packageName}"
+    }
+}
+
+private sealed interface PackedGridItem {
+    val key: String
+
+    data class Single(val tile: TileItem) : PackedGridItem {
+        override val key: String = tile.key
+    }
+
+    data class VerticalPair(
+        val topTile: TileItem,
+        val bottomTile: TileItem?
+    ) : PackedGridItem {
+        override val key: String = "pair_${topTile.key}_${bottomTile?.key ?: "none"}"
+    }
+}
+
+private fun packTileItems(items: List<TileItem>): List<PackedGridItem> {
+    val result = mutableListOf<PackedGridItem>()
+    var i = 0
+    while (i < items.size) {
+        val current = items[i]
+        if (current.isSmall) {
+            val next = items.getOrNull(i + 1)
+            if (next != null && next.isSmall) {
+                result.add(PackedGridItem.VerticalPair(topTile = current, bottomTile = next))
+                i += 2
+            } else {
+                result.add(PackedGridItem.VerticalPair(topTile = current, bottomTile = null))
+                i += 1
+            }
+        } else {
+            result.add(PackedGridItem.Single(current))
+            i += 1
+        }
+    }
+    return result
+}
+
+@Composable
+private fun RenderStartTileItem(
+    tileItem: TileItem,
+    isInsidePair: Boolean,
+    isEditMode: Boolean,
+    gridCols: Int,
+    tileColumns: Int,
+    tileSpacing: androidx.compose.ui.unit.Dp,
+    tileCornerStyle: TileCornerStyle,
+    favoritePhotos: List<Uri>,
+    notificationCounts: Map<String, Int>,
+    latestMessages: Map<String, SocialMessageModel>,
+    wpGridState: androidx.compose.foundation.lazy.grid.LazyGridState,
+    wpGridDragDropState: GridDragDropState,
+    animationProgress: Animatable<Float, *>,
+    clickedItemKey: String?,
+    handleLaunch: (String, () -> Unit) -> Unit,
+    onHubSelected: (HubType) -> Unit,
+    viewModel: HomeHubViewModel,
+    localHubOrderSize: Int,
+    onEnterEditMode: () -> Unit,
+    onToggleTileSize: (String) -> Unit,
+    onRemoveTile: (String) -> Unit,
+    itemModifier: Modifier = Modifier
+) {
+    val key = tileItem.key
+    when (tileItem) {
+        is TileItem.Hub -> {
+            val hubType = tileItem.hubType
+            val hubIndex = tileItem.index
+            val absoluteIndex = hubIndex
+            val isDragging = wpGridDragDropState.draggingItemIndex == absoluteIndex
+            val span = if (isInsidePair) 1 else tileItem.rawSpan.coerceAtMost(gridCols)
+            val badge = when (hubType) {
+                HubType.MESSAGING -> notificationCounts["com.google.android.apps.messaging"] ?: 0
+                HubType.PHONE -> notificationCounts["com.google.android.dialer"] ?: 0
+                else -> 0
+            }
+
+            W10MHubTile(
+                hubType = hubType,
+                span = span,
+                gridColumns = gridCols,
+                spacing = tileSpacing,
+                photoUris = favoritePhotos,
+                isEditing = isEditMode,
+                isDragging = isDragging,
+                cornerStyle = tileCornerStyle,
+                badgeCount = badge,
+                onClick = {
+                    handleLaunch(key) { onHubSelected(hubType) }
+                },
+                onLongClick = onEnterEditMode,
+                onRemoveClick = { onRemoveTile("hub:${hubType.name}") },
+                onResizeClick = { onToggleTileSize("hub:${hubType.name}") },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(if (isDragging) 10f else 0f)
+                    .then(itemModifier)
+                    .pointerInput(isEditMode) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                onEnterEditMode()
+                                wpGridDragDropState.startDrag(absoluteIndex)
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                wpGridDragDropState.onDrag(dragAmount)
+                            },
+                            onDragEnd = {
+                                wpGridDragDropState.onDragInterrupted()
+                            },
+                            onDragCancel = {
+                                wpGridDragDropState.onDragInterrupted()
+                            }
+                        )
+                    }
+                    .graphicsLayer {
+                        if (isDragging) {
+                            val info = wpGridState.layoutInfo
+                                .visibleItemsInfo
+                                .firstOrNull { it.index == absoluteIndex }
+                                ?.offset
+                            if (info != null) {
+                                translationX =
+                                    wpGridDragDropState.draggingItemInitialOffset.x +
+                                            wpGridDragDropState.totalDragAmount.x -
+                                            info.x
+                                translationY =
+                                    wpGridDragDropState.draggingItemInitialOffset.y +
+                                            wpGridDragDropState.totalDragAmount.y -
+                                            info.y
+                            }
+                        }
+                    }
+                    .w10mEditWiggle(
+                        isEditing = isEditMode,
+                        isDragging = isDragging,
+                        index = hubIndex
+                    )
+                    .w10mStaggeredAnimation(
+                        progress = animationProgress.value,
+                        index = 2 + hubIndex,
+                        isClicked = clickedItemKey == key
+                    )
+            )
+        }
+        is TileItem.App -> {
+            val favApp = tileItem.favApp
+            val absoluteIndex = tileItem.index
+            val isDragging = wpGridDragDropState.draggingItemIndex == absoluteIndex
+            val span = if (isInsidePair) 1 else tileItem.rawSpan.coerceAtMost(gridCols)
+
+            W10MAppTile(
+                label = favApp.appInfo.label,
+                icon = viewModel.getAppIcon(favApp.appInfo.packageName),
+                span = span,
+                gridColumns = gridCols,
+                spacing = tileSpacing,
+                isEditing = isEditMode,
+                isDragging = isDragging,
+                cornerStyle = tileCornerStyle,
+                notificationCount = notificationCounts[favApp.appInfo.packageName] ?: 0,
+                notificationTitle = latestMessages[favApp.appInfo.packageName]?.title,
+                notificationText = latestMessages[favApp.appInfo.packageName]?.text,
+                onClick = {
+                    handleLaunch(key) {
+                        viewModel.launchApp(favApp.appInfo.packageName)
+                    }
+                },
+                onLongClick = onEnterEditMode,
+                onRemoveClick = {
+                    onRemoveTile("app:${favApp.appInfo.packageName}")
+                },
+                onResizeClick = {
+                    onToggleTileSize("app:${favApp.appInfo.packageName}")
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(if (isDragging) 10f else 0f)
+                    .then(itemModifier)
+                    .pointerInput(isEditMode) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                onEnterEditMode()
+                                wpGridDragDropState.startDrag(absoluteIndex)
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                wpGridDragDropState.onDrag(dragAmount)
+                            },
+                            onDragEnd = {
+                                wpGridDragDropState.onDragInterrupted()
+                            },
+                            onDragCancel = {
+                                wpGridDragDropState.onDragInterrupted()
+                            }
+                        )
+                    }
+                    .graphicsLayer {
+                        if (isDragging) {
+                            val info = wpGridState.layoutInfo
+                                .visibleItemsInfo
+                                .firstOrNull { it.index == absoluteIndex }
+                                ?.offset
+                            if (info != null) {
+                                translationX =
+                                    wpGridDragDropState.draggingItemInitialOffset.x +
+                                            wpGridDragDropState.totalDragAmount.x -
+                                            info.x
+                                translationY =
+                                    wpGridDragDropState.draggingItemInitialOffset.y +
+                                            wpGridDragDropState.totalDragAmount.y -
+                                            info.y
+                            }
+                        }
+                    }
+                    .w10mEditWiggle(
+                        isEditing = isEditMode,
+                        isDragging = isDragging,
+                        index = absoluteIndex
+                    )
+                    .w10mStaggeredAnimation(
+                        progress = animationProgress.value,
+                        index = 2 + absoluteIndex,
+                        isClicked = clickedItemKey == key
+                    )
+            )
         }
     }
 }
