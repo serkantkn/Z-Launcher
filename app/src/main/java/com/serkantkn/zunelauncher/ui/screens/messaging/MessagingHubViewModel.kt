@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
@@ -8,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
 import com.serkantkn.zunelauncher.data.model.SmsMessageModel
-import com.serkantkn.zunelauncher.data.repository.ContactRepository
 import com.serkantkn.zunelauncher.data.repository.SmsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +56,7 @@ class MessagingHubViewModel : ViewModel() {
 
     fun loadContacts(context: Context) {
         viewModelScope.launch {
-            val contactList = ContactRepository(context).getContactsWithNumbers()
+            val contactList = context.appContainer.contactRepository.getContactsWithNumbers()
             _contacts.value = contactList
         }
     }

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.people
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
@@ -7,7 +8,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.ContactDetailModel
 import com.serkantkn.zunelauncher.data.model.ContactModel
-import com.serkantkn.zunelauncher.data.repository.ContactRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 class PeopleHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val contactRepository = ContactRepository(application)
+    private val contactRepository = application.appContainer.contactRepository
 
     private val _hasPermission = MutableStateFlow(checkPermission())
     val hasPermission: StateFlow<Boolean> = _hasPermission.asStateFlow()

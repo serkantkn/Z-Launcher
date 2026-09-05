@@ -48,5 +48,5 @@
     <string name="reply">cevapla</string>
     <string name="type_message">mesaj yaz...</string>
     <string name="send">gönder</string>
-    <string name="accessibility_service_description">Windows Phone bildirim panelinin her uygulamada durum çubuğu çekilince açılmasını sağlar.</string>
+    <string name="accessibility_service_description">Ses tuşlarını yakalayarak Windows Phone ses barını diğer uygulamaların üstünde gösterir. Ekran içeriği okunmaz.</string>
 </resources>

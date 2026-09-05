@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.di.appContainer
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -27,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.serkantkn.zunelauncher.data.model.AppInfo
-import com.serkantkn.zunelauncher.data.repository.AppRepository
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 
@@ -51,7 +51,7 @@ fun AppNotificationFilterScreen(
 ) {
     val context = LocalContext.current
     val zuneColors = LocalZuneColors.current
-    val appRepository = remember(context) { AppRepository(context) }
+    val appRepository = remember(context) { context.appContainer.appRepository }
 
     // Local mutable copy — checked = allowed (NOT in disabled set)
     val selectedDisabledSet = remember(disabledApps) {

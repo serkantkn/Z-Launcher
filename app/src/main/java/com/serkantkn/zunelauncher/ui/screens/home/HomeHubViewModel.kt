@@ -1,10 +1,10 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.graphics.drawable.Drawable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.AppInfo
 import com.serkantkn.zunelauncher.data.model.FavoriteAppItem
 import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
@@ -12,16 +12,16 @@ import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.data.model.StartTileItem
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
-import com.serkantkn.zunelauncher.data.repository.AppRepository
-import com.serkantkn.zunelauncher.data.repository.SettingsRepository
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import android.net.Uri
-import com.serkantkn.zunelauncher.data.datastore.FavoritePhotosDataStore
 import com.serkantkn.zunelauncher.data.model.MediaImage
-import com.serkantkn.zunelauncher.data.repository.MediaRepository
+import com.serkantkn.zunelauncher.data.model.Note
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -45,20 +45,62 @@ sealed interface StartTileUIModel {
     data class App(val appInfo: AppInfo, override val span: Int) : StartTileUIModel {
         override val id: String = "app:${appInfo.packageName}"
     }
+
+    /** A single note pinned to Start. */
+    data class NoteTile(val note: Note, override val span: Int) : StartTileUIModel {
+        override val id: String = "note:${note.id}"
+    }
+
+    /** The "hızlı not" tile that opens a blank editor. */
+    data class QuickNote(override val span: Int) : StartTileUIModel {
+        override val id: String = StartTileItem.QUICK_NOTE_ID
+    }
 }
 
 class HomeHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val appRepository = AppRepository(application)
-    private val settingsRepository = SettingsRepository(SettingsDataStore(application))
-    private val mediaRepository = MediaRepository(application)
-    private val favoritePhotosDataStore = FavoritePhotosDataStore(application)
+    private val appRepository = application.appContainer.appRepository
+    private val settingsRepository = application.appContainer.settingsRepository
+    private val mediaRepository = application.appContainer.mediaRepository
+    private val favoritePhotosDataStore = application.appContainer.favoritePhotosDataStore
+    private val notesDataStore = application.appContainer.notesDataStore
 
     private val _allApps = MutableStateFlow<List<AppInfo>>(emptyList())
     private val _allImages = MutableStateFlow<List<MediaImage>>(emptyList())
 
     val hubOrder: StateFlow<List<HubType>> = settingsRepository.hubOrder
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Live tile text for the Notes hub: rotates through the pinned notes (falling back to the
+     * latest edited ones) every 6 seconds, like a Windows Phone live tile cycling its content.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val notesTileSubtitle: StateFlow<String?> = notesDataStore.notesFlow
+        .flatMapLatest { notes ->
+            val active = notes.filter { !it.isArchived && !it.isInTrash }
+            val pinned = active.filter { it.isPinned }.sortedByDescending { it.updatedAt }
+            val pool = (if (pinned.isNotEmpty()) pinned else active.sortedByDescending { it.updatedAt }).take(5)
+            flow {
+                if (pool.isEmpty()) {
+                    emit(null)
+                } else {
+                    var i = 0
+                    while (true) {
+                        val note = pool[i % pool.size]
+                        emit(if (note.isLocked) "kilitli not" else note.displayTitle)
+                        i++
+                        delay(6000)
+                    }
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** Badge for the Notes hub tile: number of pinned, non-archived notes. */
+    val pinnedNotesCount: StateFlow<Int> = notesDataStore.notesFlow
+        .map { notes -> notes.count { it.isPinned && !it.isArchived && !it.isInTrash } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val favoritePhotoUris: StateFlow<List<Uri>> = combine(
         _allImages,
@@ -91,8 +133,9 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val unifiedStartTiles: StateFlow<List<StartTileUIModel>> = combine(
         startTiles,
         _allApps,
-        appRepository.getFavoritePackages()
-    ) { currentStartTiles, apps, favoritePackages ->
+        appRepository.getFavoritePackages(),
+        notesDataStore.notesFlow
+    ) { currentStartTiles, apps, favoritePackages, notes ->
         val appMap = apps.associateBy { it.packageName }
         val favPkgMap = favoritePackages.associateBy { it.packageName }
         val result = mutableListOf<StartTileUIModel>()
@@ -102,6 +145,12 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             if (item.isHub) {
                 item.hubType?.let { hubType ->
                     result.add(StartTileUIModel.Hub(hubType, item.span))
+                }
+            } else if (item.isQuickNote) {
+                result.add(StartTileUIModel.QuickNote(item.span))
+            } else if (item.isNote) {
+                notes.firstOrNull { it.id == item.noteId && !it.isInTrash }?.let { note ->
+                    result.add(StartTileUIModel.NoteTile(note, item.span))
                 }
             } else if (item.isApp) {
                 val pkg = item.packageName
@@ -158,7 +207,8 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             HubType.FILES to 2,
             HubType.SETTINGS to 2,
             HubType.CLOCK to 2,
-            HubType.CALENDAR to 2
+            HubType.CALENDAR to 2,
+            HubType.NOTES to 2
         )
     )
     val hubCustomSpans: StateFlow<Map<HubType, Int>> = _hubCustomSpans

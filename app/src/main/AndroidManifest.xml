@@ -38,6 +38,7 @@
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <queries>
         <package android:name="com.whatsapp" />
@@ -147,7 +148,46 @@
             </intent-filter>
         </service>
 
+        <!-- Volume keys over other apps: filters key events so the Windows Phone volume bar replaces the system panel -->
+        <service
+            android:name=".data.service.ZuneKeyAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true"
+            android:label="Z Launcher ses tuşları">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
         <receiver android:name=".data.service.AlarmReceiver" android:exported="false" />
+
+        <receiver
+            android:name=".data.service.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Share sheet target: "paylaş -> Notlar" -->
+        <activity
+            android:name=".ui.screens.notes.ReceiveNoteActivity"
+            android:exported="true"
+            android:label="Notlar"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
 
         <!-- SMS Receivers & Services for Default SMS App eligibility -->
         <receiver

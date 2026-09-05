@@ -302,6 +302,16 @@ fun AgendaEventItem(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            if (event.linkedNoteId != null) {
+                Text(
+                    text = "notu aç",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = zuneColors.accentColor,
+                    modifier = Modifier
+                        .clickable { com.serkantkn.zunelauncher.data.repository.NotesBridge.open(event.linkedNoteId) }
+                        .padding(top = 4.dp)
+                )
+            }
         }
 
         if (isDeleting) {

@@ -8,7 +8,11 @@ data class Alarm(
     val minute: Int,
     val label: String = "",
     val isEnabled: Boolean = true,
-    val daysOfWeek: Set<Int> = emptySet() // 1 = Sunday, 2 = Monday, ..., 7 = Saturday (Calendar.SUNDAY)
+    val daysOfWeek: Set<Int> = emptySet(), // 1 = Sunday, 2 = Monday, ..., 7 = Saturday (Calendar.SUNDAY)
+    /** Set for Notes Hub reminders: the owning note. Such alarms are one-shot. */
+    val noteId: String? = null,
+    /** Exact trigger time for one-shot reminders; overrides hour/minute when set. */
+    val exactTimeMillis: Long? = null
 ) {
     val timeString: String
         get() = String.format("%02d:%02d", hour, minute)

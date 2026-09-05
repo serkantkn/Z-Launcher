@@ -54,7 +54,6 @@ fun ZuneHubEntranceLayout(
     }
 
     val leftStartPx = with(density) { (-140).dp.toPx() }
-    val rightMaxPx = with(density) { 80.dp.toPx() }
     val bottomBarOffsetPx = with(density) { 90.dp.toPx() }
 
     Box(
@@ -63,14 +62,14 @@ fun ZuneHubEntranceLayout(
             .graphicsLayer {
                 val p = entranceAnim.value
                 val inv = 1f - p
-                val currentX = leftStartPx * inv * inv + rightMaxPx * 3.5f * p * inv * inv
-
+                // Straight approach from the left/front, never drifting past x = 0
                 rotationY = -48f * inv * inv
-                translationX = currentX
+                translationX = leftStartPx * inv * inv
                 scaleX = 0.82f + (0.18f * p)
                 scaleY = 0.82f + (0.18f * p)
 
-                transformOrigin = TransformOrigin(0.6f, 0.5f)
+                // Hinged on the screen-left edge, same axis as the Start turnstile
+                transformOrigin = TransformOrigin(0f, 0.5f)
                 cameraDistance = 32f * density.density
                 alpha = (p * 3f).coerceIn(0f, 1f)
 

@@ -1,9 +1,14 @@
 package com.serkantkn.zunelauncher.ui.screens.pictures
 
+import android.app.Activity
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -83,10 +88,19 @@ fun PicturesHubScreen(
     val hasPermission by viewModel.hasPermission.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
+    val cameraRollImages by viewModel.cameraRollImages.collectAsState()
     val albums by viewModel.albums.collectAsState()
     val favoriteImages by viewModel.favoriteImages.collectAsState()
     val favoritePhotoIds by viewModel.favoritePhotoIds.collectAsState()
     val selectedAlbum by viewModel.selectedAlbum.collectAsState()
+
+    val context = LocalContext.current
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (hasPermission) {
+            viewModel.loadMedia()
+        }
+    }
 
     val tabs = listOf("film rulosu", "albümler", "favoriler")
     val actualPageCount = tabs.size
@@ -101,6 +115,15 @@ fun PicturesHubScreen(
     var viewingPhotosList by remember { mutableStateOf<List<MediaImage>?>(null) }
     var viewingInitialIndex by remember { mutableIntStateOf(0) }
     var editingPhoto by remember { mutableStateOf<MediaImage?>(null) }
+
+    val deleteIntentSenderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.loadMedia()
+            viewingPhotosList = null
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -134,12 +157,12 @@ fun PicturesHubScreen(
             ZunePageTransition {
                 when (tabName) {
                     "film rulosu" -> {
-                        if (allImages.isEmpty()) {
+                        if (cameraRollImages.isEmpty()) {
                             EmptyStateView(stringResource(R.string.no_photos))
                         } else {
-                            PhotoGrid(images = allImages) { clickedPhoto ->
-                                viewingPhotosList = allImages
-                                viewingInitialIndex = allImages.indexOf(clickedPhoto).coerceAtLeast(0)
+                            PhotoGrid(images = cameraRollImages) { clickedPhoto ->
+                                viewingPhotosList = cameraRollImages
+                                viewingInitialIndex = cameraRollImages.indexOf(clickedPhoto).coerceAtLeast(0)
                             }
                         }
                     }
@@ -355,7 +378,22 @@ fun PicturesHubScreen(
             favoritePhotoIds = favoritePhotoIds,
             onDismiss = { viewingPhotosList = null },
             onToggleFavorite = { photo -> viewModel.toggleFavorite(photo.id) },
-            onEditPhoto = { photo -> editingPhoto = photo }
+            onEditPhoto = { photo -> editingPhoto = photo },
+            onDeletePhoto = { photo ->
+                val activity = context as? Activity ?: return@PhotoViewer
+                viewModel.deletePhoto(
+                    activity = activity,
+                    photo = photo,
+                    onIntentSenderRequired = { intentSender ->
+                        deleteIntentSenderLauncher.launch(
+                            IntentSenderRequest.Builder(intentSender).build()
+                        )
+                    },
+                    onDeleted = {
+                        viewingPhotosList = null
+                    }
+                )
+            }
         )
 
         // Full Screen Photo Editor Overlay

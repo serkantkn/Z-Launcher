@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 
@@ -31,13 +32,14 @@ import androidx.compose.ui.zIndex
  *   around the screen's left edge axis in a top-to-bottom cascading wave.
  *   (UNTOUCHED ORIGINAL).
  *
- * • Exit (0° → +90°):
+ * • Exit (0° → +90°) — Windows Phone "turnstile feather out":
  *   Entire screen swings into the depth of the screen (-Z plane) around the
  *   exact same screen-left axis:
- *   1. Non-clicked tiles exit in a clear top-to-bottom cascading wave (index 0 → 15)
- *      with an accelerating ease-in departure.
- *   2. The clicked/selected tile stays stationary and prominent in the foreground,
- *      then executes its turnstile exit last into the app launch.
+ *   1. Non-clicked tiles leave in a FEATHER ordered by their real on-screen position
+ *      (top-left first, bottom-right last), each with WP's exponential ease-in, so the
+ *      wave reads as a sweep regardless of how many tiles are visible.
+ *   2. The clicked/selected tile stays exactly where it is while the others leave, then —
+ *      only after the last of them is gone — turns out on its own, straight into the app launch.
  *   3. At the end, all tiles reach exactly 90° (perpendicular in Z-axis) so they are completely invisible.
  *   - Strictly NO fade (alpha = 1f).
  *
@@ -51,18 +53,24 @@ import androidx.compose.ui.zIndex
 fun Modifier.w10mStaggeredAnimation(
     progress: Float,
     index: Int,
-    isClicked: Boolean = false
+    isClicked: Boolean = false,
+    /** 0f..1f position of this tile in the feather order (0 = leaves first). Negative = derive from screen position. */
+    exitOrder: Float = -1f
 ): Modifier = composed {
     val density = LocalDensity.current.density
-    // Track this tile's horizontal position (px) relative to the window's left edge
+    val configuration = LocalConfiguration.current
+    val screenWidthPx = (configuration.screenWidthDp * density).coerceAtLeast(1f)
+    val screenHeightPx = (configuration.screenHeightDp * density).coerceAtLeast(1f)
+    // Track this tile's position (px) relative to the window's top-left corner
     var tileScreenX by remember { mutableFloatStateOf(0f) }
+    var tileScreenY by remember { mutableFloatStateOf(-1f) }
     var tileWidthPx by remember { mutableFloatStateOf(1f) }
 
     val effectiveX = if (tileScreenX > 0f) tileScreenX else (index * 60f * density)
 
     // Dynamic 3D depth layering:
     // Entrance: right tiles on top (effectiveX)
-    // Exit: clicked tile topmost (10000f), followed by left-to-right hierarchy (5000f - effectiveX)
+    // Exit: clicked tile topmost (10000f) so nothing sweeps over it, then left-to-right hierarchy (5000f - effectiveX)
     val dynamicZIndex = when {
         progress > 1f -> if (isClicked) 10000f else (5000f - effectiveX)
         progress < 1f -> effectiveX
@@ -71,37 +79,57 @@ fun Modifier.w10mStaggeredAnimation(
 
     // Entrance easing: smooth deceleration into resting position
     val entranceEasing = CubicBezierEasing(0.20f, 0.80f, 0.20f, 1.00f)
-    // Exit easing: gentle start accelerating smoothly into departure (yavaşça hızlanma)
-    val exitEasing = CubicBezierEasing(0.40f, 0.00f, 0.90f, 0.40f)
+    // Exit easing (WP ExponentialEase, EaseIn): barely moves at first, then snaps away
+    val featherEasing = CubicBezierEasing(0.55f, 0.00f, 1.00f, 0.45f)
+    // Selected tile: a fuller, more deliberate turn (ease-in-out) so it reads as "chosen"
+    val selectedExitEasing = CubicBezierEasing(0.60f, 0.00f, 0.30f, 1.00f)
 
-    val exitEased = if (progress > 1f) {
-        val exitProgress = progress - 1f
+    // ── Exit timeline (fractions of the 1f → 2f envelope) ──
+    // Feather: start offset comes from the tile's real position; top-left leaves first.
+    val featherSpan = 0.42f           // the last tile starts this late after the first
+    val featherDuration = 0.28f       // each tile's own turn (ease-in: visible in its last ~40%)
+    val selectedHoldEnd = 0.66f       // the chosen tile starts turning as the last others vanish
+    val selectedDuration = 1f - selectedHoldEnd
+
+    val exitProgress = if (progress > 1f) (progress - 1f).coerceIn(0f, 1f) else 0f
+
+    // 0f..1f eased turn amount for THIS tile during exit
+    val exitEased: Float
+    // Extra scale for the selected tile (lift while waiting, grow while leaving)
+    val selectedScale: Float
+    if (exitProgress > 0f) {
         if (isClicked) {
-            // Selected tile waits while top-to-bottom wave ripples across other tiles, then exits last
-            val itemStart = 0.52f
-            val itemEnd = 1.00f
-            val rawT = if (exitProgress > itemStart) {
-                ((exitProgress - itemStart) / (itemEnd - itemStart)).coerceIn(0f, 1f)
-            } else 0f
-            exitEasing.transform(rawT)
+            val t = ((exitProgress - selectedHoldEnd) / selectedDuration).coerceIn(0f, 1f)
+            exitEased = selectedExitEasing.transform(t)
+            // Stays exactly in place while the others leave (no scale: the shared screen-left
+            // pivot would push it sideways), then turns away like the rest
+            selectedScale = 1f
         } else {
-            // Natural top-to-bottom cascade wave (identical order to entrance)
-            val safeIndex = index.coerceAtMost(15)
-            val staggerFraction = 0.032f
-            val otherTileDuration = 0.48f
-
-            val itemStart = safeIndex * staggerFraction
-            val itemEnd = (itemStart + otherTileDuration).coerceAtMost(1f)
-            val rawT = if (itemEnd > itemStart) {
-                ((exitProgress - itemStart) / (itemEnd - itemStart)).coerceIn(0f, 1f)
-            } else 1f
-            exitEasing.transform(rawT)
+            val order = when {
+                exitOrder >= 0f -> exitOrder.coerceIn(0f, 1f)
+                tileScreenY >= 0f -> {
+                    // No explicit order: sweep by real position, top-left first
+                    val yFrac = (tileScreenY / screenHeightPx).coerceIn(0f, 1f)
+                    val xFrac = (tileScreenX / screenWidthPx).coerceIn(0f, 1f)
+                    (yFrac * 0.9f + xFrac * 0.1f).coerceIn(0f, 1f)
+                }
+                else -> index.coerceAtMost(15) / 15f
+            }
+            val itemStart = order * featherSpan
+            val t = ((exitProgress - itemStart) / featherDuration).coerceIn(0f, 1f)
+            exitEased = featherEasing.transform(t)
+            selectedScale = 1f
         }
-    } else 0f
+    } else {
+        exitEased = 0f
+        selectedScale = 1f
+    }
 
     this
         .onGloballyPositioned { coords ->
-            tileScreenX = coords.positionInWindow().x
+            val pos = coords.positionInWindow()
+            tileScreenX = pos.x
+            tileScreenY = pos.y
             tileWidthPx = coords.size.width.toFloat().coerceAtLeast(1f)
         }
         .zIndex(dynamicZIndex)
@@ -132,7 +160,7 @@ fun Modifier.w10mStaggeredAnimation(
                 rotationY = -90f * (1f - eased)
                 translationX = 0f
             } else {
-                // ═══ TURNSTILE OUT: 0° → +90° around the EXACT same screen-left axis ═══
+                // ═══ TURNSTILE FEATHER OUT: 0° → +90° around the EXACT same screen-left axis ═══
                 // Full 90° rotation makes tiles stand perpendicular in Z-axis (edge-on) and completely invisible
                 rotationY = 90f * exitEased
                 translationX = 0f

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,14 +52,23 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
+import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
+import com.serkantkn.zunelauncher.ui.components.WpBarAction
+import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -67,6 +77,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SocialHubScreen(
     modifier: Modifier = Modifier,
+    isCurrentPage: Boolean = true,
     viewModel: SocialHubViewModel = viewModel()
 ) {
     val zuneColors = LocalZuneColors.current
@@ -115,6 +126,8 @@ fun SocialHubScreen(
                     .padding(bottom = ZuneDimens.SpacingLg)
             )
 
+            com.serkantkn.zunelauncher.ui.screens.notes.TodayNotesGroup()
+
             if (!com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -154,6 +167,34 @@ fun SocialHubScreen(
             }
         }
 
+        // Standard Windows Phone Metro Bottom Application Bar
+        AnimatedVisibility(
+            visible = isCurrentPage && selectedMessage == null,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
+            ),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+            ),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            WindowsPhoneBottomBar(
+                actions = listOf(
+                    WpBarAction(
+                        icon = Icons.Default.Delete,
+                        label = "temizle",
+                        onClick = { viewModel.clearAll() }
+                    )
+                ),
+                menuItems = listOf(
+                    WpBarMenuItem("tümünü temizle") { viewModel.clearAll() },
+                    WpBarMenuItem("bildirim ayarları") { viewModel.openNotificationSettings() }
+                )
+            )
+        }
+
         // Detail Overlay
         SocialDetailScreen(
             message = selectedMessage,
@@ -172,7 +213,7 @@ private fun TimelineLayout(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
+        contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp)
     ) {
         items(messages, key = { it.id }) { message ->
             SwipeableMessageListItem(
@@ -194,7 +235,7 @@ private fun GroupedLayout(
     
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
+        contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp)
     ) {
         grouped.forEach { (appName, appMessages) ->
             item(key = "header_$appName") {

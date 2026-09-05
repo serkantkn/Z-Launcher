@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.music
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.Color
@@ -7,7 +8,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.palette.graphics.Palette
 import com.serkantkn.zunelauncher.data.model.SongModel
-import com.serkantkn.zunelauncher.data.repository.MusicRepository
 import com.serkantkn.zunelauncher.data.service.ThirdPartyMediaController
 import com.serkantkn.zunelauncher.data.service.LocalMediaController
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 
 class MusicHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val musicRepository = MusicRepository(application)
+    private val musicRepository = application.appContainer.musicRepository
     val globalMediaController = ThirdPartyMediaController(application)
     val localMediaController = LocalMediaController(application)
 

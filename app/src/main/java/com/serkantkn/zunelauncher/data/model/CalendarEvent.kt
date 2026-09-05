@@ -10,7 +10,8 @@ data class CalendarEvent(
     val hour: Int = 10,
     val minute: Int = 0,
     val category: String = "Genel",
-    val colorHex: String = "#E0007A"
+    val colorHex: String = "#E0007A",
+    val linkedNoteId: String? = null
 ) {
     val formattedTime: String
         get() = String.format("%02d:%02d", hour, minute)

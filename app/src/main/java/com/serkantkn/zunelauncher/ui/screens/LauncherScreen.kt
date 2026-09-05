@@ -106,6 +106,14 @@ fun LauncherScreen(
     }
 
     val latestNotification by SocialRepository.latestToastMessage.collectAsState()
+
+    // Cross-hub requests for the Notes hub (Start tiles, Calendar, People, Social, share sheet)
+    val pendingNoteRequest by com.serkantkn.zunelauncher.data.repository.NotesBridge.pending.collectAsState()
+    LaunchedEffect(pendingNoteRequest) {
+        if (pendingNoteRequest != null && navState.currentHub != HubType.NOTES) {
+            navState.openHub(HubType.NOTES)
+        }
+    }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val isWideScreen = LocalIsWideScreen.current
@@ -125,6 +133,9 @@ fun LauncherScreen(
     // ── Hinge animation state ──
     val hingeProgress = remember { Animatable(0f) }
     var activeHub by remember { mutableStateOf(navState.currentHub) }
+    // Hinge direction, Windows Phone style: hubs ENTER from outside the screen (in front, -90° -> 0°,
+    // like the Start turnstile-in) and LEAVE into the depth of the screen (0° -> +90°).
+    var isHubHingeOpening by remember { mutableStateOf(true) }
     val isHubOpen = navState.currentHub != null
     val zuneColors = LocalZuneColors.current
 
@@ -133,13 +144,18 @@ fun LauncherScreen(
         val targetHub = navState.currentHub
         if (targetHub != activeHub) {
             if (activeHub != null && targetHub != null) {
+                // Current hub turns away into the depth, the next one swings in from outside
+                isHubHingeOpening = false
                 hingeProgress.animateTo(0f, animationSpec = tween(280, easing = FastOutSlowInEasing))
                 activeHub = targetHub
+                isHubHingeOpening = true
                 hingeProgress.animateTo(1f, animationSpec = tween(280, easing = FastOutSlowInEasing))
             } else if (targetHub != null) {
                 activeHub = targetHub
+                isHubHingeOpening = true
                 hingeProgress.animateTo(1f, animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing))
             } else {
+                isHubHingeOpening = false
                 hingeProgress.animateTo(0f, animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing))
                 activeHub = null
             }
@@ -271,7 +287,7 @@ fun LauncherScreen(
                                         userScrollEnabled = true
                                     ) { page ->
                                         when (page) {
-                                            0 -> SocialHubScreen()
+                                            0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
                                             1 -> HomeHubScreen(
                                                 isHubOpen = false,
                                                 isCurrentPage = pagerState.currentPage == 1,
@@ -444,7 +460,7 @@ fun LauncherScreen(
                             userScrollEnabled = navState.currentHub == null
                         ) { page ->
                             when (page) {
-                                0 -> SocialHubScreen()
+                                0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
                                 1 -> HomeHubScreen(
                                     isHubOpen = isHubOpen,
                                     isCurrentPage = pagerState.currentPage == 1,
@@ -484,7 +500,9 @@ fun LauncherScreen(
                                 .fillMaxSize()
                                 .graphicsLayer {
                                     val progress = hingeProgress.value
-                                    rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - progress)
+                                    // Opening: -90° (outside, in front) -> 0°. Closing: 0° -> +90° (into the depth).
+                                    val direction = if (isHubHingeOpening) -1f else 1f
+                                    rotationY = direction * HingeAnimation.MAX_ROTATION_DEGREES * (1f - progress)
                                     transformOrigin = TransformOrigin(0f, 0.5f)
                                     cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
                                     alpha = (progress * 1.5f - 0.2f).coerceIn(0f, 1f)
@@ -569,6 +587,9 @@ private fun RenderHubScreen(
         )
         HubType.FILES -> com.serkantkn.zunelauncher.ui.screens.files.FilesHubScreen(
             onClose = { if (!navState.popHub()) navState.closeHub() }
+        )
+        HubType.NOTES -> com.serkantkn.zunelauncher.ui.screens.notes.NotesHubScreen(
+            onBack = { if (!navState.popHub()) navState.closeHub() }
         )
         else -> {}
     }

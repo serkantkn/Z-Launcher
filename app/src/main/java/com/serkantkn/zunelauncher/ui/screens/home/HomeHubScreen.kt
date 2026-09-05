@@ -87,6 +87,9 @@ import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.components.W10MAppTile
 import com.serkantkn.zunelauncher.ui.components.W10MHubTile
+import com.serkantkn.zunelauncher.ui.components.W10MNoteTile
+import com.serkantkn.zunelauncher.data.model.Note
+import com.serkantkn.zunelauncher.data.repository.NotesBridge
 import com.serkantkn.zunelauncher.ui.components.getHubDefaultSpan
 import com.serkantkn.zunelauncher.ui.components.ZuneClock
 import com.serkantkn.zunelauncher.ui.components.ZuneDate
@@ -97,6 +100,7 @@ import com.serkantkn.zunelauncher.ui.components.ZuneWeather
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.util.toImageBitmap
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -121,6 +125,8 @@ fun HomeHubScreen(
     val favoritePhotos by viewModel.favoritePhotoUris.collectAsState()
     val latestNotification by viewModel.latestNotification.collectAsState()
     val notificationCounts by viewModel.notificationCounts.collectAsState()
+    val notesTileSubtitle by viewModel.notesTileSubtitle.collectAsState()
+    val pinnedNotesCount by viewModel.pinnedNotesCount.collectAsState()
     val latestMessages by viewModel.latestMessages.collectAsState()
     val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
     val tileSpacing by viewModel.tileSpacing.collectAsState()
@@ -156,6 +162,8 @@ fun HomeHubScreen(
             val updated = when (old) {
                 is StartTileUIModel.Hub -> StartTileUIModel.Hub(old.hubType, newSpan)
                 is StartTileUIModel.App -> StartTileUIModel.App(old.appInfo, newSpan)
+                is StartTileUIModel.NoteTile -> StartTileUIModel.NoteTile(old.note, newSpan)
+                is StartTileUIModel.QuickNote -> StartTileUIModel.QuickNote(newSpan)
             }
             current[index] = updated
             localStartTiles = current
@@ -245,7 +253,10 @@ fun HomeHubScreen(
         if (isEditMode) return
         clickedItemKey = key
         coroutineScope.launch {
-            animationProgress.animateTo(2f, tween(800, easing = LinearEasing))
+            // Turnstile feather out (1f -> 2f). The launch itself fires slightly before the
+            // chosen tile has fully turned away so the hub's hinge-in overlaps it, WP style.
+            launch { animationProgress.animateTo(2f, tween(1000, easing = LinearEasing)) }
+            delay(860)
             action()
         }
     }
@@ -372,6 +383,8 @@ fun HomeHubScreen(
                     when (model) {
                         is StartTileUIModel.Hub -> TileItem.Hub(model.hubType, model.span, index)
                         is StartTileUIModel.App -> TileItem.App(FavoriteAppUIModel(model.appInfo, model.span), model.span, index)
+                        is StartTileUIModel.NoteTile -> TileItem.Note(model.note, model.span, index)
+                        is StartTileUIModel.QuickNote -> TileItem.QuickNote(model.span, index)
                     }
                 }
             }
@@ -428,6 +441,8 @@ fun HomeHubScreen(
                                 tileCornerStyle = tileCornerStyle,
                                 favoritePhotos = favoritePhotos,
                                 notificationCounts = notificationCounts,
+                                notesLiveSubtitle = notesTileSubtitle,
+                                notesBadgeCount = pinnedNotesCount,
                                 latestMessages = latestMessages,
                                 wpGridState = wpGridState,
                                 wpGridDragDropState = wpGridDragDropState,
@@ -437,6 +452,7 @@ fun HomeHubScreen(
                                 onHubSelected = onHubSelected,
                                 viewModel = viewModel,
                                 localHubOrderSize = localHubOrder.size,
+                                tileCount = allTileItems.size,
                                 onEnterEditMode = { isEditMode = true },
                                 onToggleTileSize = onToggleTileSize,
                                 onRemoveTile = onRemoveTile,
@@ -474,6 +490,8 @@ fun HomeHubScreen(
                                         tileCornerStyle = tileCornerStyle,
                                         favoritePhotos = favoritePhotos,
                                         notificationCounts = notificationCounts,
+                                        notesLiveSubtitle = notesTileSubtitle,
+                                        notesBadgeCount = pinnedNotesCount,
                                         latestMessages = latestMessages,
                                         wpGridState = wpGridState,
                                         wpGridDragDropState = wpGridDragDropState,
@@ -483,6 +501,7 @@ fun HomeHubScreen(
                                         onHubSelected = onHubSelected,
                                         viewModel = viewModel,
                                         localHubOrderSize = localHubOrder.size,
+                                        tileCount = allTileItems.size,
                                         onEnterEditMode = { isEditMode = true },
                                         onToggleTileSize = onToggleTileSize,
                                         onRemoveTile = onRemoveTile,
@@ -501,6 +520,8 @@ fun HomeHubScreen(
                                             tileCornerStyle = tileCornerStyle,
                                             favoritePhotos = favoritePhotos,
                                             notificationCounts = notificationCounts,
+                                            notesLiveSubtitle = notesTileSubtitle,
+                                            notesBadgeCount = pinnedNotesCount,
                                             latestMessages = latestMessages,
                                             wpGridState = wpGridState,
                                             wpGridDragDropState = wpGridDragDropState,
@@ -510,6 +531,7 @@ fun HomeHubScreen(
                                             onHubSelected = onHubSelected,
                                             viewModel = viewModel,
                                             localHubOrderSize = localHubOrder.size,
+                                            tileCount = allTileItems.size,
                                             onEnterEditMode = { isEditMode = true },
                                             onToggleTileSize = onToggleTileSize,
                                             onRemoveTile = onRemoveTile,
@@ -911,6 +933,14 @@ private sealed interface TileItem {
     data class App(val favApp: FavoriteAppUIModel, override val rawSpan: Int, override val index: Int) : TileItem {
         override val key: String = "app_${favApp.appInfo.packageName}"
     }
+
+    data class Note(val note: com.serkantkn.zunelauncher.data.model.Note, override val rawSpan: Int, override val index: Int) : TileItem {
+        override val key: String = "note_${note.id}"
+    }
+
+    data class QuickNote(override val rawSpan: Int, override val index: Int) : TileItem {
+        override val key: String = "note_new"
+    }
 }
 
 private sealed interface PackedGridItem {
@@ -961,6 +991,8 @@ private fun RenderStartTileItem(
     tileCornerStyle: TileCornerStyle,
     favoritePhotos: List<Uri>,
     notificationCounts: Map<String, Int>,
+    notesLiveSubtitle: String?,
+    notesBadgeCount: Int,
     latestMessages: Map<String, SocialMessageModel>,
     wpGridState: androidx.compose.foundation.lazy.grid.LazyGridState,
     wpGridDragDropState: GridDragDropState,
@@ -970,6 +1002,7 @@ private fun RenderStartTileItem(
     onHubSelected: (HubType) -> Unit,
     viewModel: HomeHubViewModel,
     localHubOrderSize: Int,
+    tileCount: Int,
     onEnterEditMode: () -> Unit,
     onToggleTileSize: (String) -> Unit,
     onRemoveTile: (String) -> Unit,
@@ -986,6 +1019,7 @@ private fun RenderStartTileItem(
             val badge = when (hubType) {
                 HubType.MESSAGING -> notificationCounts["com.google.android.apps.messaging"] ?: 0
                 HubType.PHONE -> notificationCounts["com.google.android.dialer"] ?: 0
+                HubType.NOTES -> notesBadgeCount
                 else -> 0
             }
 
@@ -999,6 +1033,7 @@ private fun RenderStartTileItem(
                 isDragging = isDragging,
                 cornerStyle = tileCornerStyle,
                 badgeCount = badge,
+                liveSubtitle = if (hubType == HubType.NOTES) notesLiveSubtitle else null,
                 onClick = {
                     handleLaunch(key) { onHubSelected(hubType) }
                 },
@@ -1053,7 +1088,85 @@ private fun RenderStartTileItem(
                     .w10mStaggeredAnimation(
                         progress = animationProgress.value,
                         index = 2 + hubIndex,
-                        isClicked = clickedItemKey == key
+                        isClicked = clickedItemKey == key,
+                        exitOrder = hubIndex.toFloat() / (tileCount - 1).coerceAtLeast(1)
+                    )
+            )
+        }
+        is TileItem.Note, is TileItem.QuickNote -> {
+            val absoluteIndex = tileItem.index
+            val isDragging = wpGridDragDropState.draggingItemIndex == absoluteIndex
+            val span = if (isInsidePair) 1 else tileItem.rawSpan.coerceAtMost(gridCols)
+            val note = (tileItem as? TileItem.Note)?.note
+            val tileId = if (note != null) "note:${note.id}" else com.serkantkn.zunelauncher.data.model.StartTileItem.QUICK_NOTE_ID
+
+            W10MNoteTile(
+                note = note,
+                span = span,
+                gridColumns = gridCols,
+                spacing = tileSpacing,
+                isEditing = isEditMode,
+                isDragging = isDragging,
+                cornerStyle = tileCornerStyle,
+                onClick = {
+                    handleLaunch(key) {
+                        if (note != null) NotesBridge.open(note.id) else NotesBridge.newNote()
+                        onHubSelected(HubType.NOTES)
+                    }
+                },
+                onLongClick = onEnterEditMode,
+                onRemoveClick = { onRemoveTile(tileId) },
+                onResizeClick = { onToggleTileSize(tileId) },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(if (isDragging) 10f else 0f)
+                    .then(itemModifier)
+                    .pointerInput(isEditMode) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                onEnterEditMode()
+                                wpGridDragDropState.startDrag(absoluteIndex)
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                wpGridDragDropState.onDrag(dragAmount)
+                            },
+                            onDragEnd = {
+                                wpGridDragDropState.onDragInterrupted()
+                            },
+                            onDragCancel = {
+                                wpGridDragDropState.onDragInterrupted()
+                            }
+                        )
+                    }
+                    .graphicsLayer {
+                        if (isDragging) {
+                            val info = wpGridState.layoutInfo
+                                .visibleItemsInfo
+                                .firstOrNull { it.index == absoluteIndex }
+                                ?.offset
+                            if (info != null) {
+                                translationX =
+                                    wpGridDragDropState.draggingItemInitialOffset.x +
+                                            wpGridDragDropState.totalDragAmount.x -
+                                            info.x
+                                translationY =
+                                    wpGridDragDropState.draggingItemInitialOffset.y +
+                                            wpGridDragDropState.totalDragAmount.y -
+                                            info.y
+                            }
+                        }
+                    }
+                    .w10mEditWiggle(
+                        isEditing = isEditMode,
+                        isDragging = isDragging,
+                        index = absoluteIndex
+                    )
+                    .w10mStaggeredAnimation(
+                        progress = animationProgress.value,
+                        index = 2 + absoluteIndex,
+                        isClicked = clickedItemKey == key,
+                        exitOrder = absoluteIndex.toFloat() / (tileCount - 1).coerceAtLeast(1)
                     )
             )
         }
@@ -1135,7 +1248,8 @@ private fun RenderStartTileItem(
                     .w10mStaggeredAnimation(
                         progress = animationProgress.value,
                         index = 2 + absoluteIndex,
-                        isClicked = clickedItemKey == key
+                        isClicked = clickedItemKey == key,
+                        exitOrder = absoluteIndex.toFloat() / (tileCount - 1).coerceAtLeast(1)
                     )
             )
         }

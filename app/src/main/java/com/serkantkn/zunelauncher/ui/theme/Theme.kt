@@ -169,7 +169,9 @@ fun ZuneLauncherTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
+            // The theme is also used inside system overlay windows (WpToastOverlay) whose context is
+            // the Application, not an Activity; only touch system bars when an Activity is present.
+            val window = view.context.findActivity()?.window ?: return@SideEffect
             @Suppress("DEPRECATION")
             window.statusBarColor = Color.Transparent.toArgb()
             @Suppress("DEPRECATION")
@@ -191,4 +193,13 @@ fun ZuneLauncherTheme(
             content = content
         )
     }
+}
+/** Walks ContextWrapper chain to the hosting Activity, or null for service/application contexts. */
+private fun android.content.Context.findActivity(): Activity? {
+    var ctx: android.content.Context? = this
+    while (ctx is android.content.ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
 }

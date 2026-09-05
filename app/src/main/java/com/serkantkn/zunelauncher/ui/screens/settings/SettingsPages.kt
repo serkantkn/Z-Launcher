@@ -681,6 +681,14 @@ internal fun NotificationsSettingsPage(
                     )
 
                     val hasOverlayPermission = android.provider.Settings.canDrawOverlays(context)
+                    if (notificationStyle == NotificationStyle.WINDOWS_PHONE && hasOverlayPermission) {
+                        Text(
+                            text = "diğer uygulamaların üstünde gösterim açık: WhatsApp gibi uygulamalar açıkken de Windows Phone kartı görünür",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalZuneColors.current.textMuted,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                     if (notificationStyle == NotificationStyle.WINDOWS_PHONE && !hasOverlayPermission) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Button(
@@ -776,6 +784,38 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                         selected = volumeBarStyle == com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM,
                         onClick = { viewModel.setVolumeBarStyle(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM) }
                     )
+
+                    if (volumeBarStyle == com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE) {
+                        val ctx = LocalContext.current
+                        val hasOverlay = android.provider.Settings.canDrawOverlays(ctx)
+                        val hasKeyService = com.serkantkn.zunelauncher.data.service.ZuneKeyAccessibilityService.isEnabled(ctx)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "diğer uygulamalar açıkken de wp ses barı için iki izin gerekir",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalZuneColors.current.textMuted
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        SystemSettingRow(
+                            title = "üstte gösterim izni",
+                            subtitle = if (hasOverlay) "verildi" else "ses barının diğer uygulamaların üstünde çizilmesi için",
+                            isActive = hasOverlay,
+                            onClick = {
+                                ctx.startActivity(
+                                    android.content.Intent(
+                                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        android.net.Uri.parse("package:${ctx.packageName}")
+                                    )
+                                )
+                            }
+                        )
+                        SystemSettingRow(
+                            title = "ses tuşlarını yakalama (erişilebilirlik)",
+                            subtitle = if (hasKeyService) "etkin" else "Z Launcher ses tuşları servisini erişilebilirlik ayarlarından aç",
+                            isActive = hasKeyService,
+                            onClick = { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                        )
+                    }
                 }
             }
         }

@@ -18,8 +18,9 @@ class AlarmScheduler(private val context: Context) {
         }
 
         val intent = Intent(context, AlarmReceiver::class.java).apply {
-            putExtra("ALARM_ID", alarm.id)
-            putExtra("ALARM_LABEL", alarm.label)
+            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarm.id)
+            putExtra(AlarmReceiver.EXTRA_ALARM_LABEL, alarm.label)
+            alarm.noteId?.let { putExtra(AlarmReceiver.EXTRA_NOTE_ID, it) }
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -37,9 +38,11 @@ class AlarmScheduler(private val context: Context) {
             set(Calendar.MILLISECOND, 0)
         }
 
+        // One-shot reminders carry an exact trigger time.
+        alarm.exactTimeMillis?.let { calendar.timeInMillis = it }
+
         // If time has already passed today, schedule for next occurrence.
-        // For repeating alarms, we'd need more complex logic. For simplicity, just next day.
-        if (calendar.timeInMillis <= System.currentTimeMillis()) {
+        if (alarm.exactTimeMillis == null && calendar.timeInMillis <= System.currentTimeMillis()) {
             calendar.add(Calendar.DAY_OF_YEAR, 1)
         }
 

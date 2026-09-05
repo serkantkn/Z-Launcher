@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.people
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
@@ -78,7 +79,6 @@ import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.CallLogModel
 import com.serkantkn.zunelauncher.data.model.ContactDetailModel
-import com.serkantkn.zunelauncher.data.repository.CallLogRepository
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
@@ -237,7 +237,7 @@ private fun ContactDetailContent(
 
     LaunchedEffect(displayDetail.contact.id, displayDetail.phoneNumbers) {
         isLoadingLogs = true
-        val repo = CallLogRepository(context)
+        val repo = context.appContainer.callLogRepository
         contactCallLogs = repo.getCallLogsForContact(displayDetail.phoneNumbers)
         isLoadingLogs = false
     }
@@ -445,6 +445,16 @@ private fun ContactDetailContent(
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // ─── NOTES LINKED TO THIS CONTACT ───
+                com.serkantkn.zunelauncher.ui.screens.notes.ContactNotesSection(
+                    contactId = displayDetail.contact.id,
+                    contactName = displayDetail.contact.name
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
                 HorizontalDivider(color = dividerColor, thickness = 0.5.dp)

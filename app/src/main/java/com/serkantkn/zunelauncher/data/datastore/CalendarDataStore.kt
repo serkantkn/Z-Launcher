@@ -36,6 +36,7 @@ class CalendarDataStore(private val context: Context) {
                             minute = obj.optInt("minute", 0),
                             category = obj.optString("category", "Genel"),
                             colorHex = obj.optString("colorHex", "#E0007A")
+                            , linkedNoteId = if (obj.isNull("linkedNoteId")) null else obj.optString("linkedNoteId", "").ifEmpty { null }
                         )
                     )
                 }
@@ -60,6 +61,7 @@ class CalendarDataStore(private val context: Context) {
             obj.put("minute", event.minute)
             obj.put("category", event.category)
             obj.put("colorHex", event.colorHex)
+            obj.put("linkedNoteId", event.linkedNoteId ?: org.json.JSONObject.NULL)
             array.put(obj)
         }
         context.calendarDataStore.edit { preferences ->

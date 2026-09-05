@@ -11,5 +11,6 @@ enum class HubType(val title: String) {
     INTERNET("internet"),
     CALENDAR("takvim"),
     MESSAGING("mesajlar"),
-    FILES("dosyalar")
+    FILES("dosyalar"),
+    NOTES("notlar")
 }

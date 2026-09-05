@@ -1,15 +1,14 @@
 package com.serkantkn.zunelauncher.ui.screens.pictures
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.serkantkn.zunelauncher.data.datastore.FavoritePhotosDataStore
 import com.serkantkn.zunelauncher.data.model.MediaAlbum
 import com.serkantkn.zunelauncher.data.model.MediaImage
-import com.serkantkn.zunelauncher.data.repository.MediaRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,17 +19,19 @@ import kotlinx.coroutines.launch
 
 class PicturesHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val mediaRepository = MediaRepository(application)
-    private val favoritesDataStore = FavoritePhotosDataStore(application)
+    private val mediaRepository = application.appContainer.mediaRepository
+    private val favoritesDataStore = application.appContainer.favoritePhotosDataStore
 
     private val _hasPermission = MutableStateFlow(checkPermissions())
     val hasPermission: StateFlow<Boolean> = _hasPermission.asStateFlow()
 
     private val _allImages = MutableStateFlow<List<MediaImage>>(emptyList())
+    private val _cameraRollImages = MutableStateFlow<List<MediaImage>>(emptyList())
     private val _albums = MutableStateFlow<List<MediaAlbum>>(emptyList())
     private val _isLoading = MutableStateFlow(false)
 
     val allImages: StateFlow<List<MediaImage>> = _allImages.asStateFlow()
+    val cameraRollImages: StateFlow<List<MediaImage>> = _cameraRollImages.asStateFlow()
     val albums: StateFlow<List<MediaAlbum>> = _albums.asStateFlow()
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -49,9 +50,36 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
     private val _selectedAlbum = MutableStateFlow<MediaAlbum?>(null)
     val selectedAlbum: StateFlow<MediaAlbum?> = _selectedAlbum.asStateFlow()
 
+    private val mediaContentObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+            super.onChange(selfChange, uri)
+            if (_hasPermission.value) {
+                loadMedia()
+            }
+        }
+    }
+
     init {
+        try {
+            application.contentResolver.registerContentObserver(
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                true,
+                mediaContentObserver
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         if (_hasPermission.value) {
             loadMedia()
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            getApplication<Application>().contentResolver.unregisterContentObserver(mediaContentObserver)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -74,11 +102,13 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun loadMedia() {
+    fun loadMedia() {
         viewModelScope.launch {
             _isLoading.value = true
-            _allImages.value = mediaRepository.getAllImages()
-            _albums.value = mediaRepository.getAlbums()
+            val images = mediaRepository.getAllImages()
+            _allImages.value = images
+            _cameraRollImages.value = mediaRepository.getCameraRollImages(images)
+            _albums.value = mediaRepository.getAlbums(images)
             _isLoading.value = false
         }
     }
@@ -90,6 +120,47 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
     fun toggleFavorite(photoId: Long) {
         viewModelScope.launch {
             favoritesDataStore.toggleFavorite(photoId)
+        }
+    }
+
+    fun deletePhoto(
+        activity: android.app.Activity,
+        photo: MediaImage,
+        onIntentSenderRequired: (android.content.IntentSender) -> Unit,
+        onDeleted: () -> Unit
+    ) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                try {
+                    val pi = android.provider.MediaStore.createDeleteRequest(
+                        activity.contentResolver,
+                        listOf(photo.uri)
+                    )
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        onIntentSenderRequired(pi.intentSender)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            } else {
+                try {
+                    val count = activity.contentResolver.delete(photo.uri, null, null)
+                    if (count > 0) {
+                        loadMedia()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            onDeleted()
+                        }
+                    }
+                } catch (e: SecurityException) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && e is android.app.RecoverableSecurityException) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            onIntentSenderRequired(e.userAction.actionIntent.intentSender)
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
     }
 

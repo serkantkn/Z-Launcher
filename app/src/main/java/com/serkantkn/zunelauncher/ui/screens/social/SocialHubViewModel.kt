@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.social
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.content.Intent
 import android.os.Bundle
@@ -8,10 +9,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
-import com.serkantkn.zunelauncher.data.repository.SettingsRepository
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,7 +20,7 @@ import kotlinx.coroutines.flow.stateIn
 
 class SocialHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val settingsRepository = SettingsRepository(SettingsDataStore(application))
+    private val settingsRepository = application.appContainer.settingsRepository
 
     val layout: StateFlow<SocialHubLayout> = settingsRepository.socialHubLayout
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SocialHubLayout.TIMELINE)
@@ -94,5 +93,18 @@ class SocialHubViewModel(application: Application) : AndroidViewModel(applicatio
         if (_selectedMessage.value?.id == message.id) {
             _selectedMessage.value = null
         }
+    }
+
+    fun clearAll() {
+        try {
+            val listener = com.serkantkn.zunelauncher.data.service.SocialNotificationListener.instance
+            messages.value.forEach { msg ->
+                try {
+                    listener?.cancelNotification(msg.id)
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+        SocialRepository.clearAll()
+        _selectedMessage.value = null
     }
 }

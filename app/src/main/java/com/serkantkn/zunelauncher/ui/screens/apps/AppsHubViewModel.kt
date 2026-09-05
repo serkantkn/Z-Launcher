@@ -1,11 +1,11 @@
 package com.serkantkn.zunelauncher.ui.screens.apps
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.graphics.drawable.Drawable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.AppInfo
-import com.serkantkn.zunelauncher.data.repository.AppRepository
 import com.serkantkn.zunelauncher.domain.usecase.SearchAppsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 class AppsHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val appRepository = AppRepository(application)
+    private val appRepository = application.appContainer.appRepository
     private val searchAppsUseCase = SearchAppsUseCase()
 
     private val _allApps = MutableStateFlow<List<AppInfo>>(emptyList())

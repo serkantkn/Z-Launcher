@@ -1,9 +1,10 @@
 package com.serkantkn.zunelauncher
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,21 +13,25 @@ import androidx.compose.runtime.getValue
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.VolumeBarStyle
 import com.serkantkn.zunelauncher.ui.screens.LauncherScreen
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 import com.serkantkn.zunelauncher.ui.theme.ZuneLauncherTheme
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+
+    companion object {
+        /** Set by ReceiveNoteActivity; the Notes hub itself is opened through NotesBridge. */
+        const val EXTRA_OPEN_NOTES = "open_notes"
+    }
 
     private var currentVolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val settingsDataStore = SettingsDataStore(this)
+        val settingsDataStore = appContainer.settingsDataStore
         lifecycleScope.launch {
             settingsDataStore.volumeBarStyle.collect { style ->
                 currentVolumeBarStyle = style
@@ -71,6 +76,18 @@ class MainActivity : ComponentActivity() {
         }
 
         setLauncherContent()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        com.serkantkn.zunelauncher.data.repository.SocialRepository.isLauncherForeground = true
+        com.serkantkn.zunelauncher.data.service.WpToastOverlay.hide()
+        com.serkantkn.zunelauncher.data.service.WpVolumeOverlay.hide()
+    }
+
+    override fun onPause() {
+        com.serkantkn.zunelauncher.data.repository.SocialRepository.isLauncherForeground = false
+        super.onPause()
     }
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {

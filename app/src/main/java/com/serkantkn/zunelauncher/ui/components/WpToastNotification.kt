@@ -56,7 +56,11 @@ import kotlinx.coroutines.launch
 fun WpToastNotification(
     message: SocialMessageModel?,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Fires when the quick-reply section opens/closes; the overlay host toggles window focus with it. */
+    onExpandedChange: (Boolean) -> Unit = {},
+    /** False when hosted in a WRAP_CONTENT overlay window so the window is only as tall as the banner. */
+    fillHeight: Boolean = true
 ) {
     if (message == null) return
 
@@ -99,6 +103,10 @@ fun WpToastNotification(
         }
     }
 
+    LaunchedEffect(message.id, isExpanded) {
+        onExpandedChange(isExpanded)
+    }
+
     // Auto dismiss timer (6s) if user hasn't interacted or expanded
     LaunchedEffect(message.id, isExpanded, isReplying, isClosing) {
         if (!isExpanded && !isReplying && !isClosing) {
@@ -110,7 +118,9 @@ fun WpToastNotification(
     val bannerBgColor = zuneColors.accentColor
 
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier),
         contentAlignment = if (isWideScreen) Alignment.TopEnd else Alignment.TopCenter
     ) {
         Surface(

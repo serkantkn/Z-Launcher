@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.WallpaperManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -81,7 +82,7 @@ fun ZuneBackground(
     // Track wallpaper changes so blur surfaces stay up-to-date
     var wallpaperVersion by remember { mutableStateOf(0) }
 
-    val settingsDataStore = remember { com.serkantkn.zunelauncher.data.datastore.SettingsDataStore(context) }
+    val settingsDataStore = remember { context.appContainer.settingsDataStore }
     val customWallpaperPath by settingsDataStore.customWallpaperPath.collectAsState(initial = null)
     val solidBackgroundEnabled by settingsDataStore.solidBackgroundEnabled.collectAsState(initial = false)
 

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.webkit.URLUtil
 import androidx.lifecycle.AndroidViewModel
@@ -7,11 +8,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.BrowserDownload
 import com.serkantkn.zunelauncher.data.model.BrowserFavorite
 import com.serkantkn.zunelauncher.data.model.BrowserHistory
-import com.serkantkn.zunelauncher.data.repository.SettingsRepository
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
@@ -91,7 +90,7 @@ val popularSites = listOf(
 )
 
 class BrowserViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = SettingsRepository(SettingsDataStore(application))
+    private val repository = application.appContainer.settingsRepository
     private val gson = Gson()
     
     private val _state = MutableStateFlow(BrowserState())

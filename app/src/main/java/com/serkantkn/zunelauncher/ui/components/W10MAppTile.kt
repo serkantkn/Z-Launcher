@@ -104,7 +104,7 @@ fun W10MAppTile(
         Color.White.copy(alpha = 0.55f)
     }
 
-    val hasNotifications = notificationCount > 0
+    val hasNotifications = notificationCount > 0 && (!notificationTitle.isNullOrBlank() || !notificationText.isNullOrBlank())
     var showBack by remember { mutableStateOf(false) }
 
     LaunchedEffect(hasNotifications, isEditing) {

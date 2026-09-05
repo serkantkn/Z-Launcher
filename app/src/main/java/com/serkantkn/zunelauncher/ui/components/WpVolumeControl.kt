@@ -53,7 +53,11 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun WpVolumeControl(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** False when hosted in a WRAP_CONTENT overlay window so the window is only as tall as the bar. */
+    fillHeight: Boolean = true,
+    /** Called once the close flip has finished; the overlay host removes its window here. */
+    onHidden: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val zuneColors = LocalZuneColors.current
@@ -84,6 +88,7 @@ fun WpVolumeControl(
                 animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
             )
             isClosing = false
+            onHidden()
         }
     }
 
@@ -100,7 +105,9 @@ fun WpVolumeControl(
     val bannerBgColor = zuneColors.accentColor
 
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier),
         contentAlignment = if (isWideScreen) Alignment.TopEnd else Alignment.TopCenter
     ) {
         Surface(

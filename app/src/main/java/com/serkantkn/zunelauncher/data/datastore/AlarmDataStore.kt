@@ -41,6 +41,8 @@ class AlarmDataStore(private val context: Context) {
                             label = obj.optString("label", ""),
                             isEnabled = obj.optBoolean("isEnabled", true),
                             daysOfWeek = daysSet
+                            , noteId = if (obj.isNull("noteId")) null else obj.optString("noteId", "").ifEmpty { null }
+                            , exactTimeMillis = if (obj.isNull("exactTimeMillis")) null else obj.optLong("exactTimeMillis")
                         )
                     )
                 }
@@ -67,6 +69,8 @@ class AlarmDataStore(private val context: Context) {
                 daysArray.put(day)
             }
             obj.put("daysOfWeek", daysArray)
+            obj.put("noteId", alarm.noteId ?: JSONObject.NULL)
+            obj.put("exactTimeMillis", alarm.exactTimeMillis ?: JSONObject.NULL)
             array.put(obj)
         }
         val jsonString = array.toString()

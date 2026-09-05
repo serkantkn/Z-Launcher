@@ -1,12 +1,11 @@
 package com.serkantkn.zunelauncher.ui.screens.phone
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.CallLogModel
 import com.serkantkn.zunelauncher.data.model.ContactModel
-import com.serkantkn.zunelauncher.data.repository.CallLogRepository
-import com.serkantkn.zunelauncher.data.repository.ContactRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,8 +13,8 @@ import kotlinx.coroutines.launch
 
 class PhoneViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val callLogRepository = CallLogRepository(application)
-    private val contactRepository = ContactRepository(application)
+    private val callLogRepository = application.appContainer.callLogRepository
+    private val contactRepository = application.appContainer.contactRepository
 
     private val _recentCalls = MutableStateFlow<List<CallLogModel>>(emptyList())
     val recentCalls: StateFlow<List<CallLogModel>> = _recentCalls.asStateFlow()

@@ -1,9 +1,9 @@
 package com.serkantkn.zunelauncher.ui.screens.calendar
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.serkantkn.zunelauncher.data.datastore.CalendarDataStore
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +15,7 @@ import java.util.Calendar
 
 class CalendarHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val calendarDataStore = CalendarDataStore(application)
+    private val calendarDataStore = application.appContainer.calendarDataStore
 
     private val _events = MutableStateFlow<List<CalendarEvent>>(emptyList())
     val events: StateFlow<List<CalendarEvent>> = _events.asStateFlow()

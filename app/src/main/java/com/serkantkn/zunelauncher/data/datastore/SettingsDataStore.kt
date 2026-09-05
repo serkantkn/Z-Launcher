@@ -105,6 +105,7 @@ class SettingsDataStore(private val context: Context) {
             com.serkantkn.zunelauncher.data.model.HubType.FILES,
             com.serkantkn.zunelauncher.data.model.HubType.CLOCK,
             com.serkantkn.zunelauncher.data.model.HubType.CALENDAR,
+            com.serkantkn.zunelauncher.data.model.HubType.NOTES,
             com.serkantkn.zunelauncher.data.model.HubType.SETTINGS
         )
         val saved = prefs[HUB_ORDER]
@@ -133,6 +134,7 @@ class SettingsDataStore(private val context: Context) {
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.FILES, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CLOCK, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CALENDAR, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.NOTES, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.SETTINGS, 2)
     )
 

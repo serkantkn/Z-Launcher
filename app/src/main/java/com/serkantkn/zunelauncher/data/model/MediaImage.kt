@@ -8,7 +8,8 @@ data class MediaImage(
     val dateAdded: Long,
     val bucketId: Long,
     val bucketName: String,
-    val displayName: String
+    val displayName: String,
+    val relativePath: String = ""
 )
 
 data class MediaAlbum(

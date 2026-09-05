@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -71,7 +72,8 @@ fun PhotoViewer(
     favoritePhotoIds: Set<String>,
     onDismiss: () -> Unit,
     onToggleFavorite: (MediaImage) -> Unit,
-    onEditPhoto: (MediaImage) -> Unit = {}
+    onEditPhoto: (MediaImage) -> Unit = {},
+    onDeletePhoto: (MediaImage) -> Unit = {}
 ) {
     AnimatedVisibility(
         visible = !photos.isNullOrEmpty(),
@@ -170,6 +172,11 @@ fun PhotoViewer(
                             icon = Icons.Default.Edit,
                             label = "düzenle",
                             onClick = { onEditPhoto(currentPhoto) }
+                        ),
+                        WpBarAction(
+                            icon = Icons.Default.Delete,
+                            label = "sil",
+                            onClick = { onDeletePhoto(currentPhoto) }
                         ),
                         WpBarAction(
                             icon = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -66,6 +67,7 @@ private fun getHubIcon(hubType: HubType): ImageVector {
         HubType.MUSIC -> Icons.Default.MusicNote
         HubType.INTERNET -> Icons.Default.Language
         HubType.FILES -> Icons.Default.Folder
+        HubType.NOTES -> Icons.Default.StickyNote2
         HubType.SETTINGS -> Icons.Default.Settings
         HubType.CLOCK -> Icons.Default.Schedule
         HubType.CALENDAR -> Icons.Default.CalendarMonth

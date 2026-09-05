@@ -1,11 +1,10 @@
 package com.serkantkn.zunelauncher.ui.screens.clock
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.serkantkn.zunelauncher.data.datastore.AlarmDataStore
 import com.serkantkn.zunelauncher.data.model.Alarm
-import com.serkantkn.zunelauncher.data.service.AlarmScheduler
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,8 +24,8 @@ data class WorldCity(
 
 class ClockHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val alarmDataStore = AlarmDataStore(application)
-    private val alarmScheduler = AlarmScheduler(application)
+    private val alarmDataStore = application.appContainer.alarmDataStore
+    private val alarmScheduler = application.appContainer.alarmScheduler
 
     // --- ALARMS ---
     private val _alarms = MutableStateFlow<List<Alarm>>(emptyList())

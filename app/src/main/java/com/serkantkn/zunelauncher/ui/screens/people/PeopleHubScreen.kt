@@ -365,7 +365,6 @@ fun PeopleHubScreen(
         // People Hub Content & Background Layer with Left-Entry -> 60% Right Swing -> Ultra Slow Landing Motion
         if (hubHingeAnim.value > 0f) {
             val leftStartPx = with(density) { (-140).dp.toPx() }
-            val rightMaxPx = with(density) { 80.dp.toPx() }
 
             Column(
                 modifier = Modifier
@@ -375,15 +374,13 @@ fun PeopleHubScreen(
                         val p = entranceAnim.value * hubHingeAnim.value
                         val inv = 1f - p
                         
-                        // Trajectory: Start from left (-140dp), arc out across 60% right (+80dp), settle at 0
-                        val currentX = leftStartPx * inv * inv + rightMaxPx * 3.5f * p * inv * inv
-                        
+                        // Straight approach from the left/front, never drifting past x = 0
                         rotationY = -48f * inv * inv
-                        translationX = currentX
+                        translationX = leftStartPx * inv * inv
                         scaleX = 0.82f + (0.18f * p)
                         scaleY = 0.82f + (0.18f * p)
-                        
-                        transformOrigin = TransformOrigin(0.6f, 0.5f) // 60% right perspective center
+
+                        transformOrigin = TransformOrigin(0f, 0.5f) // hinged on the screen-left edge
                         cameraDistance = 32f * density.density
                         alpha = (p * 3f).coerceIn(0f, 1f)
                     }

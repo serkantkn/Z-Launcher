@@ -3,13 +3,18 @@ package com.serkantkn.zunelauncher.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.serkantkn.zunelauncher.data.model.HubType
 
 /**
  * Manages hub navigation stack for the launcher.
  * Hubs behave like applets in a backstack, and support Tablet Split Screen Mode.
+ *
+ * The state survives configuration changes and process death via [Saver]
+ * (see [rememberZuneNavigationState]).
  */
 class ZuneNavigationState {
     /** Stack of currently open hubs. */
@@ -120,9 +125,55 @@ class ZuneNavigationState {
         hubStack = emptyList()
         exitSplitMode()
     }
+
+    companion object {
+        private const val NONE = ""
+
+        /**
+         * Persists the full navigation state as a flat list of Strings so it fits in a Bundle.
+         * Layout: [hubStack joined by ",", rightHub, leftHub, isSplitMode, lastHub].
+         * Unknown enum names (e.g. a hub removed in a future version) are skipped safely.
+         */
+        val Saver: Saver<ZuneNavigationState, Any> = listSaver(
+            save = { state ->
+                listOf(
+                    state.hubStack.joinToString(",") { it.name },
+                    state.rightHub?.name ?: NONE,
+                    state.leftHub?.name ?: NONE,
+                    state.isSplitMode.toString(),
+                    state.lastHub.name
+                )
+            },
+            restore = { saved ->
+                ZuneNavigationState().apply {
+                    hubStack = saved.getOrNull(0)
+                        ?.split(",")
+                        ?.mapNotNull { it.toHubTypeOrNull() }
+                        ?: emptyList()
+                    rightHub = saved.getOrNull(1)?.toHubTypeOrNull()
+                    leftHub = saved.getOrNull(2)?.toHubTypeOrNull()
+                    isSplitMode = saved.getOrNull(3)?.toBoolean() ?: false
+                    lastHub = saved.getOrNull(4)?.toHubTypeOrNull() ?: HubType.MUSIC
+
+                    // Split mode without a docked hub is meaningless; fall back to stack mode.
+                    if (isSplitMode && rightHub == null && leftHub == null) {
+                        isSplitMode = false
+                    }
+                }
+            }
+        )
+
+        private fun String.toHubTypeOrNull(): HubType? =
+            if (isEmpty()) null else HubType.entries.firstOrNull { it.name == this }
+    }
 }
 
+/**
+ * Remembers the navigation state across recompositions, configuration changes and
+ * process death. Restoring from a saved Bundle re-opens the same hub (or split panes)
+ * the user was on.
+ */
 @Composable
 fun rememberZuneNavigationState(): ZuneNavigationState {
-    return remember { ZuneNavigationState() }
+    return rememberSaveable(saver = ZuneNavigationState.Saver) { ZuneNavigationState() }
 }

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.app.role.RoleManager
 import android.content.Intent
@@ -9,7 +10,6 @@ import android.provider.Telephony
 import android.telecom.TelecomManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.AccentColor
@@ -17,7 +17,6 @@ import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
-import com.serkantkn.zunelauncher.data.repository.SettingsRepository
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.util.SystemSettingsManager
 import java.io.File
@@ -31,9 +30,7 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val settingsRepository = SettingsRepository(
-        SettingsDataStore(application)
-    )
+    private val settingsRepository = application.appContainer.settingsRepository
 
     init {
         viewModelScope.launch {
@@ -119,7 +116,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     val installedApps: kotlinx.coroutines.flow.Flow<List<com.serkantkn.zunelauncher.data.model.AppInfo>> =
-        com.serkantkn.zunelauncher.data.repository.AppRepository(getApplication()).getInstalledApps()
+        application.appContainer.appRepository.getInstalledApps()
 
     val hubOrder: StateFlow<List<HubType>> = settingsRepository.hubOrder
         .stateIn(
@@ -135,6 +132,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 HubType.FILES,
                 HubType.CLOCK,
                 HubType.CALENDAR,
+                HubType.NOTES,
                 HubType.SETTINGS
             )
         )

@@ -21,6 +21,9 @@ object SocialRepository {
     val latestToastMessage: StateFlow<SocialMessageModel?> = _latestToastMessage.asStateFlow()
 
     private val shownToastIds = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+
+    /** True while MainActivity is resumed; then LauncherScreen draws the toast instead of the overlay. */
+    @Volatile var isLauncherForeground: Boolean = false
     private var disabledApps: Set<String> = emptySet()
 
     fun updateDisabledApps(apps: Set<String>) {
@@ -33,6 +36,12 @@ object SocialRepository {
 
     fun updateNotificationCounts(counts: Map<String, Int>) {
         _notificationCounts.value = counts
+    }
+
+    private fun recalculateNotificationCounts() {
+        _notificationCounts.value = _messages.value
+            .groupBy { it.packageName }
+            .mapValues { it.value.size }
     }
 
     fun markAsShown(id: String) {
@@ -49,15 +58,13 @@ object SocialRepository {
         }
         currentList.sortByDescending { it.timestamp }
         _messages.value = currentList
+        recalculateNotificationCounts()
 
         // Only trigger toast popup IF this notification has NOT been shown before
         if (!shownToastIds.contains(message.id)) {
             shownToastIds.add(message.id)
             _latestToastMessage.value = message
-        }
-
-        context?.let { ctx ->
-            showOverlayIfPermitted(ctx, message, accentColor)
+            context?.let { ctx -> showOverlayIfPermitted(ctx, message, accentColor) }
         }
     }
 
@@ -67,6 +74,7 @@ object SocialRepository {
         if (_latestToastMessage.value?.id == id) {
             _latestToastMessage.value = null
         }
+        recalculateNotificationCounts()
     }
 
     fun clearToast() {
@@ -123,11 +131,14 @@ object SocialRepository {
         message: SocialMessageModel,
         accentColor: androidx.compose.ui.graphics.Color? = null
     ) {
-        // Overlay notifications managed via plugin module
+        // Windows Phone banner over other apps (system overlay). No-op while the launcher is in front.
+        com.serkantkn.zunelauncher.data.service.WpToastOverlay.show(context, message)
     }
 
     fun clearAll() {
         _messages.value = emptyList()
+        shownToastIds.clear()
         _latestToastMessage.value = null
+        _notificationCounts.value = emptyMap()
     }
 }

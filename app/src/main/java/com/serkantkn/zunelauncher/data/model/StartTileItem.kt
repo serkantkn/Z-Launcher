@@ -6,6 +6,11 @@ data class StartTileItem(
 ) {
     val isHub: Boolean get() = id.startsWith("hub:")
     val isApp: Boolean get() = id.startsWith("app:")
+    val isNote: Boolean get() = id.startsWith("note:") && !isQuickNote
+    /** The "hızlı not" tile: opens a blank editor. */
+    val isQuickNote: Boolean get() = id == QUICK_NOTE_ID
+
+    val noteId: String? get() = if (isNote) id.removePrefix("note:") else null
 
     val hubType: HubType? get() {
         if (!isHub) return null
@@ -28,5 +33,10 @@ data class StartTileItem(
 
         fun fromApp(packageName: String, span: Int = 2): StartTileItem =
             StartTileItem("app:$packageName", span)
+
+        fun fromNote(noteId: String, span: Int = 2): StartTileItem =
+            StartTileItem("note:$noteId", span)
+
+        const val QUICK_NOTE_ID = "note:new"
     }
 }
