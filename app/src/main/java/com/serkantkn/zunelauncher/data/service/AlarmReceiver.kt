@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.service
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -43,7 +44,7 @@ class AlarmReceiver : BroadcastReceiver() {
         try {
             context.startActivity(alarmIntent)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("AlarmReceiver", "onReceive failed", e)
         }
 
         // Re-arm or retire the alarm record off the main thread.
@@ -71,7 +72,7 @@ class AlarmReceiver : BroadcastReceiver() {
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("AlarmReceiver", "onReceive failed", e)
             } finally {
                 pendingResult.finish()
             }

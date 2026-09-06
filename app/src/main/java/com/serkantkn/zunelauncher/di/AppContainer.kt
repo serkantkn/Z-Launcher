@@ -4,16 +4,20 @@ import android.content.Context
 import com.serkantkn.zunelauncher.ZuneLauncherApp
 import com.serkantkn.zunelauncher.data.datastore.AlarmDataStore
 import com.serkantkn.zunelauncher.data.datastore.CalendarDataStore
+import com.serkantkn.zunelauncher.data.datastore.EmailDataStore
 import com.serkantkn.zunelauncher.data.datastore.FavoritePhotosDataStore
 import com.serkantkn.zunelauncher.data.datastore.NotesDataStore
 import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.repository.AppRepository
 import com.serkantkn.zunelauncher.data.repository.CallLogRepository
 import com.serkantkn.zunelauncher.data.repository.ContactRepository
+import com.serkantkn.zunelauncher.data.repository.EmailCache
+import com.serkantkn.zunelauncher.data.repository.EmailRepository
 import com.serkantkn.zunelauncher.data.repository.MediaRepository
 import com.serkantkn.zunelauncher.data.repository.MusicRepository
-import com.serkantkn.zunelauncher.data.repository.SettingsRepository
 import com.serkantkn.zunelauncher.data.service.AlarmScheduler
+import com.serkantkn.zunelauncher.data.service.EmailSyncScheduler
+import com.serkantkn.zunelauncher.util.SecretStore
 
 /**
  * Process-wide, manually wired dependency container.
@@ -32,17 +36,21 @@ class AppContainer(private val appContext: Context) {
     val alarmDataStore: AlarmDataStore by lazy { AlarmDataStore(appContext) }
     val calendarDataStore: CalendarDataStore by lazy { CalendarDataStore(appContext) }
     val notesDataStore: NotesDataStore by lazy { NotesDataStore(appContext) }
+    val emailDataStore: EmailDataStore by lazy { EmailDataStore(appContext) }
 
     // --- Repositories ---
-    val settingsRepository: SettingsRepository by lazy { SettingsRepository(settingsDataStore) }
     val appRepository: AppRepository by lazy { AppRepository(appContext) }
     val mediaRepository: MediaRepository by lazy { MediaRepository(appContext) }
     val contactRepository: ContactRepository by lazy { ContactRepository(appContext) }
     val callLogRepository: CallLogRepository by lazy { CallLogRepository(appContext) }
     val musicRepository: MusicRepository by lazy { MusicRepository(appContext) }
+    val emailCache: EmailCache by lazy { EmailCache(appContext) }
+    val emailRepository: EmailRepository by lazy { EmailRepository(appContext, secretStore, emailCache) }
 
     // --- Services ---
     val alarmScheduler: AlarmScheduler by lazy { AlarmScheduler(appContext) }
+    val emailSyncScheduler: EmailSyncScheduler by lazy { EmailSyncScheduler(appContext) }
+    val secretStore: SecretStore by lazy { SecretStore(appContext) }
 }
 
 /**

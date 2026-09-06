@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -26,6 +27,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+import kotlinx.coroutines.launch
+
+/**
+ * Pivot header bound to an infinite [ZuneLoopingPagerState]: the highlighted tab follows the
+ * normalized logical page and tapping a tab animates the pager to the nearest instance of that
+ * page. [onSelected] is invoked after the scroll is launched for any extra per-hub side effect.
+ */
+@Composable
+fun ZunePivotTabs(
+    tabs: List<String>,
+    state: ZuneLoopingPagerState,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 72.sp,
+    onSelected: (Int) -> Unit = {}
+) {
+    val scope = rememberCoroutineScope()
+    ZunePivotTabs(
+        tabs = tabs,
+        pagerState = state.pagerState,
+        onSelected = { index ->
+            scope.launch { state.animateScrollToPage(index) }
+            onSelected(index)
+        },
+        modifier = modifier,
+        fontSize = fontSize
+    )
+}
 
 @Composable
 fun ZunePivotTabs(

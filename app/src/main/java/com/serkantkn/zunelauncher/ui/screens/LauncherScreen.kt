@@ -1,13 +1,11 @@
 package com.serkantkn.zunelauncher.ui.screens
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.Context
 import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -76,7 +74,7 @@ private fun setStatusBarExpandDisabled(context: Context, disabled: Boolean) {
         }
         disableMethod.invoke(statusBarService, flag)
     } catch (e: Exception) {
-        e.printStackTrace()
+        ZuneLog.e("LauncherScreen", "setStatusBarExpandDisabled failed", e)
     }
 }
 
@@ -112,6 +110,13 @@ fun LauncherScreen(
     LaunchedEffect(pendingNoteRequest) {
         if (pendingNoteRequest != null && navState.currentHub != HubType.NOTES) {
             navState.openHub(HubType.NOTES)
+        }
+    }
+    // Cross-hub requests for the Email hub (notifications, mailto:, share sheet)
+    val pendingEmailRequest by com.serkantkn.zunelauncher.data.repository.EmailBridge.pending.collectAsState()
+    LaunchedEffect(pendingEmailRequest) {
+        if (pendingEmailRequest != null && navState.currentHub != HubType.EMAIL) {
+            navState.openHub(HubType.EMAIL)
         }
     }
     val context = LocalContext.current
@@ -338,7 +343,7 @@ fun LauncherScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Fullscreen,
-                                            contentDescription = "Tam Ekran Yap",
+                                            contentDescription = stringResource(R.string.launcher_fullscreen),
                                             tint = Color.White
                                         )
                                     }
@@ -351,7 +356,7 @@ fun LauncherScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
-                                            contentDescription = "Hubı Kapat",
+                                            contentDescription = stringResource(R.string.launcher_close_hub),
                                             tint = Color.White
                                         )
                                     }
@@ -417,7 +422,7 @@ fun LauncherScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Fullscreen,
-                                            contentDescription = "Tam Ekran Yap",
+                                            contentDescription = stringResource(R.string.launcher_fullscreen),
                                             tint = Color.White
                                         )
                                     }
@@ -430,7 +435,7 @@ fun LauncherScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
-                                            contentDescription = "Hubı Kapat",
+                                            contentDescription = stringResource(R.string.launcher_close_hub),
                                             tint = Color.White
                                         )
                                     }
@@ -591,6 +596,9 @@ private fun RenderHubScreen(
         HubType.NOTES -> com.serkantkn.zunelauncher.ui.screens.notes.NotesHubScreen(
             onBack = { if (!navState.popHub()) navState.closeHub() }
         )
+        HubType.EMAIL -> com.serkantkn.zunelauncher.ui.screens.email.EmailHubScreen(
+            onBack = { if (!navState.popHub()) navState.closeHub() }
+        )
         else -> {}
     }
 }
@@ -606,6 +614,6 @@ private fun expandNotificationPanel(context: Context) {
         }
         expand.invoke(statusBarService)
     } catch (e: Exception) {
-        e.printStackTrace()
+        ZuneLog.e("LauncherScreen", "expandNotificationPanel failed", e)
     }
 }

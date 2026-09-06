@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.people
 
+import com.serkantkn.zunelauncher.util.toUserMessage
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.content.pm.PackageManager
@@ -19,6 +21,10 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _hasPermission = MutableStateFlow(checkPermission())
     val hasPermission: StateFlow<Boolean> = _hasPermission.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    /** Last load failure as user text, or null. Shown by the hub's empty state. */
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -64,17 +70,21 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
     fun loadContacts() {
         viewModelScope.launch {
             _isLoading.value = true
-            val contacts = contactRepository.getContacts()
-            _allContacts.value = contacts
-            
-            updateGroupedContacts(contacts, _searchQuery.value)
-            
-            _favoriteContacts.value = contacts.filter { it.isFavorite }
-            _recentContacts.value = contacts.filter { it.lastTimeContacted > 0 }
-                .sortedByDescending { it.lastTimeContacted }
-                .take(20) // Show top 20 recent
-            
-            _isLoading.value = false
+            try {
+                val contacts = contactRepository.getContacts()
+                _allContacts.value = contacts
+                updateGroupedContacts(contacts, _searchQuery.value)
+                _favoriteContacts.value = contacts.filter { it.isFavorite }
+                _recentContacts.value = contacts.filter { it.lastTimeContacted > 0 }
+                    .sortedByDescending { it.lastTimeContacted }
+                    .take(20) // Show top 20 recent
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                ZuneLog.e("PeopleHubViewModel", "loadContacts failed", e)
+                _errorMessage.value = e.toUserMessage(getApplication())
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 

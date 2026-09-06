@@ -6,7 +6,6 @@ import android.graphics.drawable.Drawable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.AppInfo
-import com.serkantkn.zunelauncher.domain.usecase.SearchAppsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +18,6 @@ import kotlinx.coroutines.launch
 class AppsHubViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appRepository = application.appContainer.appRepository
-    private val searchAppsUseCase = SearchAppsUseCase()
 
     private val _allApps = MutableStateFlow<List<AppInfo>>(emptyList())
 
@@ -34,7 +32,7 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
         _allApps,
         _searchQuery
     ) { apps, query ->
-        val filtered = searchAppsUseCase(apps, query)
+        val filtered = if (query.isBlank()) apps else apps.filter { it.label.contains(query, ignoreCase = true) }
         filtered.groupBy {
             val firstChar = it.label.firstOrNull()?.uppercaseChar() ?: '#'
             if (firstChar.isLetter()) firstChar else '#'

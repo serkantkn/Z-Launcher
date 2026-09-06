@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -15,9 +17,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -33,8 +32,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.data.model.MediaImage
-import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -170,22 +166,22 @@ fun PhotoViewer(
                     actions = listOf(
                         WpBarAction(
                             icon = Icons.Default.Edit,
-                            label = "düzenle",
+                            label = stringResource(R.string.common_edit),
                             onClick = { onEditPhoto(currentPhoto) }
                         ),
                         WpBarAction(
                             icon = Icons.Default.Delete,
-                            label = "sil",
+                            label = stringResource(R.string.common_delete),
                             onClick = { onDeletePhoto(currentPhoto) }
                         ),
                         WpBarAction(
                             icon = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            label = "favori",
+                            label = stringResource(R.string.common_favorite),
                             onClick = { onToggleFavorite(currentPhoto) }
                         ),
                         WpBarAction(
                             icon = Icons.Default.Close,
-                            label = "kapat",
+                            label = stringResource(R.string.common_close),
                             onClick = onDismiss
                         )
                     )

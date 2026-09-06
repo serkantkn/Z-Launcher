@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.pictures
 
+import com.serkantkn.zunelauncher.util.toUserMessage
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.content.pm.PackageManager
@@ -28,6 +30,10 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
     private val _allImages = MutableStateFlow<List<MediaImage>>(emptyList())
     private val _cameraRollImages = MutableStateFlow<List<MediaImage>>(emptyList())
     private val _albums = MutableStateFlow<List<MediaAlbum>>(emptyList())
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    /** Last load failure as user text, or null. Shown by the hub's empty state. */
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
 
     val allImages: StateFlow<List<MediaImage>> = _allImages.asStateFlow()
@@ -67,7 +73,7 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
                 mediaContentObserver
             )
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("PicturesHubViewModel", "onChange failed", e)
         }
         if (_hasPermission.value) {
             loadMedia()
@@ -79,7 +85,7 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
         try {
             getApplication<Application>().contentResolver.unregisterContentObserver(mediaContentObserver)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("PicturesHubViewModel", "onCleared failed", e)
         }
     }
 
@@ -105,11 +111,18 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
     fun loadMedia() {
         viewModelScope.launch {
             _isLoading.value = true
-            val images = mediaRepository.getAllImages()
-            _allImages.value = images
-            _cameraRollImages.value = mediaRepository.getCameraRollImages(images)
-            _albums.value = mediaRepository.getAlbums(images)
-            _isLoading.value = false
+            try {
+                val images = mediaRepository.getAllImages()
+                _allImages.value = images
+                _cameraRollImages.value = mediaRepository.getCameraRollImages(images)
+                _albums.value = mediaRepository.getAlbums(images)
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                ZuneLog.e("PicturesHubViewModel", "loadMedia failed", e)
+                _errorMessage.value = e.toUserMessage(getApplication())
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -140,7 +153,7 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
                         onIntentSenderRequired(pi.intentSender)
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    ZuneLog.e("PicturesHubViewModel", "deletePhoto failed", e)
                 }
             } else {
                 try {
@@ -158,7 +171,7 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
                         }
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    ZuneLog.e("PicturesHubViewModel", "deletePhoto failed", e)
                 }
             }
         }

@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -68,8 +70,8 @@ private fun EmbeddedNoteRow(note: Note, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
             val sub = when {
-                note.isLocked -> "kilitli"
-                note.isChecklist -> "${note.checkedCount}/${note.items.size} tamamlandı"
+                note.isLocked -> stringResource(R.string.notes_locked)
+                note.isChecklist -> stringResource(R.string.notes_completed, note.checkedCount, note.items.size)
                 else -> note.preview
             }
             if (sub.isNotBlank()) {
@@ -105,13 +107,13 @@ fun ContactNotesSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = "notlar",
+                text = stringResource(R.string.hub_notes),
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Light, fontSize = 22.sp),
                 color = if (zuneColors.isDark) Color.White else Color.Black,
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "+ yeni not",
+                text = stringResource(R.string.notes_new_note_plus),
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = zuneColors.accentColor,
                 modifier = Modifier
@@ -122,7 +124,7 @@ fun ContactNotesSection(
         Spacer(modifier = Modifier.height(12.dp))
         if (linked.isEmpty()) {
             Text(
-                text = "bu kişiye bağlı not yok",
+                text = stringResource(R.string.notes_none_for_contact),
                 style = MaterialTheme.typography.bodyMedium,
                 color = zuneColors.textDim,
                 modifier = Modifier.padding(vertical = 8.dp)
@@ -134,7 +136,7 @@ fun ContactNotesSection(
                 }
                 if (linked.size > 5) {
                     Text(
-                        text = "+${linked.size - 5} not daha",
+                        text = stringResource(R.string.notes_more_notes, linked.size - 5),
                         style = MaterialTheme.typography.bodySmall,
                         color = zuneColors.textDim
                     )
@@ -145,7 +147,7 @@ fun ContactNotesSection(
 }
 
 /**
- * Social page: "bugün düzenlenen notlar" group shown above the notification stream.
+ * Social page: stringResource(R.string.notes_edited_today) group shown above the notification stream.
  * Renders nothing when no note was touched today.
  */
 @Composable
@@ -167,7 +169,7 @@ fun TodayNotesGroup(modifier: Modifier = Modifier) {
 
     Column(modifier = modifier.fillMaxWidth().padding(bottom = 20.dp)) {
         Text(
-            text = "bugün düzenlenen notlar",
+            text = stringResource(R.string.notes_edited_today),
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 18.sp, letterSpacing = 1.sp),
             color = zuneColors.textMuted,
             modifier = Modifier.padding(bottom = 8.dp)

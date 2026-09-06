@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.drawable.Drawable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -19,7 +21,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -321,7 +322,7 @@ fun W10MAppTile(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Kaldır",
+                    contentDescription = stringResource(R.string.notes_remove_cap),
                     tint = Color.Black,
                     modifier = Modifier.size(16.dp)
                 )
@@ -341,7 +342,7 @@ fun W10MAppTile(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = "Boyutlandır",
+                    contentDescription = stringResource(R.string.notes_resize_cap),
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )

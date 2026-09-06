@@ -22,6 +22,12 @@ android {
         buildConfig = true
     }
 
+    packaging {
+        resources {
+            excludes += setOf("META-INF/NOTICE.md", "META-INF/LICENSE.md", "META-INF/NOTICE", "META-INF/LICENSE", "META-INF/DEPENDENCIES")
+        }
+    }
+
     flavorDimensions += "tier"
     productFlavors {
         create("free") {
@@ -68,8 +74,10 @@ dependencies {
     // Coil
     implementation(libs.coil.compose)
 
-    // Haze (Glassmorphism)
-    implementation(libs.haze)
+    // JavaMail (Email hub: IMAP + SMTP)
+    implementation(libs.android.mail)
+    implementation(libs.android.activation)
+    implementation(libs.play.services.auth)
 
     // AndroidX
     implementation(libs.androidx.core.ktx)
@@ -85,7 +93,6 @@ dependencies {
 
     // DataStore & Serialization
     implementation(libs.androidx.datastore.preferences)
-    implementation("com.google.code.gson:gson:2.11.0")
     
     // Biometric
     implementation("androidx.biometric:biometric:1.1.0")

@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.files
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -14,8 +16,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -31,10 +31,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,11 +45,15 @@ import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
 import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
+import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
+import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
+import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequestStyle
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
+import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
-import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -69,6 +71,7 @@ fun FilesHubScreen(
     val hasPermission by viewModel.hasPermission.collectAsState()
     val currentDirectory by viewModel.currentDirectory.collectAsState()
     val fileItems by viewModel.fileItems.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -101,15 +104,8 @@ fun FilesHubScreen(
     var itemToRename by remember { mutableStateOf<FileItemModel?>(null) }
     var selectedItemForMenu by remember { mutableStateOf<FileItemModel?>(null) }
 
-    val tabs = listOf("tümü", "kategoriler", "hızlı erişim")
-    val actualPageCount = tabs.size
-    val loopCount = 1000
-    val initialPage = (loopCount / 2) * actualPageCount
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { loopCount * actualPageCount }
-    )
-    val coroutineScope = rememberCoroutineScope()
+    val tabs = listOf(stringResource(R.string.common_all), stringResource(R.string.files_tab_categories), stringResource(R.string.files_tab_quick))
+    val pager = rememberLoopingPagerState(pageCount = tabs.size)
 
     // Handle back button for subfolder navigation
     BackHandler {
@@ -121,59 +117,41 @@ fun FilesHubScreen(
         }
     }
 
-    val bottomBarActions = remember {
-        listOf(
-            WpBarAction(
-                icon = Icons.Default.CreateNewFolder,
-                label = "yeni klasör",
-                onClick = { showNewFolderDialog = true }
-            ),
-            WpBarAction(
-                icon = Icons.Default.Search,
-                label = "ara",
-                onClick = { isSearchActive = !isSearchActive }
-            ),
-            WpBarAction(
-                icon = Icons.Default.Refresh,
-                label = "yenile",
-                onClick = { viewModel.loadDirectory(currentDirectory) }
-            )
+    val bottomBarActions = listOf(
+        WpBarAction(
+            icon = Icons.Default.CreateNewFolder,
+            label = stringResource(R.string.files_new_folder),
+            onClick = { showNewFolderDialog = true }
+        ),
+        WpBarAction(
+            icon = Icons.Default.Search,
+            label = stringResource(R.string.common_search),
+            onClick = { isSearchActive = !isSearchActive }
+        ),
+        WpBarAction(
+            icon = Icons.Default.Refresh,
+            label = stringResource(R.string.common_refresh),
+            onClick = { viewModel.loadDirectory(currentDirectory) }
         )
-    }
+    )
 
-    val bottomBarMenuItems = remember {
-        listOf(
-            WpBarMenuItem(
-                text = "ana dizine git",
-                onClick = { viewModel.loadDirectory(Environment.getExternalStorageDirectory()) }
-            )
+    val bottomBarMenuItems = listOf(
+        WpBarMenuItem(
+            text = stringResource(R.string.files_go_root),
+            onClick = { viewModel.loadDirectory(Environment.getExternalStorageDirectory()) }
         )
-    }
+    )
 
     ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
-            val overflowYPx = with(LocalDensity.current) { (-24).dp.toPx() }
-
             if (isWideScreen) {
                 // Tablet Header
-                Text(
-                    text = "dosyalar",
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 96.sp,
-                        letterSpacing = (-4).sp,
-                        lineHeight = 96.sp
-                    ),
-                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                    modifier = Modifier
-                        .padding(start = 72.dp, top = 4.dp, bottom = 24.dp)
-                        .graphicsLayer { translationY = overflowYPx }
-                )
+                ZuneWideHubTitle(text = stringResource(R.string.hub_files))
             } else {
                 // Mobile Header
                 Text(
-                    text = "dosyalar",
+                    text = stringResource(R.string.hub_files),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 18.sp,
@@ -185,15 +163,7 @@ fun FilesHubScreen(
 
                 ZunePivotTabs(
                     tabs = tabs,
-                    pagerState = pagerState,
-                    onSelected = { index ->
-                        val current = pagerState.currentPage
-                        val currentActual = ((current % actualPageCount) + actualPageCount) % actualPageCount
-                        var diff = index - currentActual
-                        if (diff > actualPageCount / 2) diff -= actualPageCount
-                        else if (diff < -actualPageCount / 2) diff += actualPageCount
-                        coroutineScope.launch { pagerState.animateScrollToPage(current + diff) }
-                    },
+                    state = pager,
                     modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
                 )
             }
@@ -208,8 +178,13 @@ fun FilesHubScreen(
             }
 
             if (!hasPermission) {
-                PermissionRequestView(
-                    onGrant = {
+                ZunePermissionRequest(
+                    title = stringResource(R.string.files_permission_title),
+                    message = stringResource(R.string.files_permission_message),
+                    buttonLabel = stringResource(R.string.files_permission_button),
+                    style = ZunePermissionRequestStyle.Centered,
+                    icon = Icons.Default.Folder,
+                    onRequest = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                             try {
                                 val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
@@ -246,6 +221,7 @@ fun FilesHubScreen(
                             .padding(start = 72.dp, end = 48.dp)
                     ) {
                         FileList(
+                            errorMessage = errorMessage,
                             items = fileItems,
                             searchQuery = searchQuery,
                             onItemClick = { item ->
@@ -256,13 +232,13 @@ fun FilesHubScreen(
                         )
                     }
                 } else {
-                    HorizontalPager(
-                        state = pagerState,
+                    ZuneLoopingPager(
+                        state = pager,
                         modifier = Modifier.weight(1f).fillMaxWidth()
                     ) { page ->
-                        val actualPage = page % actualPageCount
-                        when (tabs[actualPage]) {
-                            "tümü" -> FileList(
+                        when (page) {
+                            0 -> FileList(
+                                errorMessage = errorMessage,
                                 items = fileItems,
                                 searchQuery = searchQuery,
                                 onItemClick = { item ->
@@ -271,13 +247,13 @@ fun FilesHubScreen(
                                 },
                                 onItemLongClick = { item -> selectedItemForMenu = item }
                             )
-                            "kategoriler" -> CategoriesView(
+                            1 -> CategoriesView(
                                 onCategoryClick = { folderName ->
                                     val dir = File(Environment.getExternalStorageDirectory(), folderName)
                                     if (dir.exists()) viewModel.navigateTo(dir)
                                 }
                             )
-                            "hızlı erişim" -> QuickAccessView(
+                            2 -> QuickAccessView(
                                 onQuickClick = { dir -> viewModel.navigateTo(dir) }
                             )
                         }
@@ -297,8 +273,8 @@ fun FilesHubScreen(
         // New Folder Metro Dialog
         if (showNewFolderDialog) {
             InputDialog(
-                title = "yeni klasör",
-                hint = "klasör adı",
+                title = stringResource(R.string.files_new_folder),
+                hint = stringResource(R.string.files_folder_name),
                 onDismiss = { showNewFolderDialog = false },
                 onConfirm = { name ->
                     showNewFolderDialog = false
@@ -310,9 +286,9 @@ fun FilesHubScreen(
         // Rename Item Metro Dialog
         itemToRename?.let { item ->
             InputDialog(
-                title = "yeniden adlandır",
+                title = stringResource(R.string.common_rename),
                 initialText = item.name,
-                hint = "yeni ad",
+                hint = stringResource(R.string.files_new_name),
                 onDismiss = { itemToRename = null },
                 onConfirm = { newName ->
                     val target = itemToRename
@@ -355,10 +331,10 @@ fun FilesHubScreen(
         itemToDelete?.let { item ->
             ZuneFlipDialog(
                 onDismissRequest = { itemToDelete = null },
-                title = "dosyayı sil",
+                title = stringResource(R.string.files_delete_title),
                 confirmButton = {
                     ZuneDialogButton(
-                        text = "evet",
+                        text = stringResource(R.string.common_yes),
                         borderColor = Color.Red,
                         onClick = {
                             dismissWithAnim {
@@ -371,13 +347,13 @@ fun FilesHubScreen(
                 },
                 dismissButton = {
                     ZuneDialogButton(
-                        text = "hayır",
+                        text = stringResource(R.string.common_no),
                         onClick = { dismissWithAnim { itemToDelete = null } }
                     )
                 }
             ) {
                 Text(
-                    text = "\"${item.name}\" kalıcı olarak silinecek. Onaylıyor musunuz?",
+                    text = stringResource(R.string.files_delete_confirm, item.name),
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White.copy(alpha = 0.9f)
                 )
@@ -397,10 +373,11 @@ private fun PathBreadcrumbBar(
 ) {
     val zuneColors = LocalZuneColors.current
     val rootPath = Environment.getExternalStorageDirectory().absolutePath
-    val relativePath = remember(currentDir) {
+    val internalStorage = stringResource(R.string.files_internal_storage)
+    val relativePath = remember(currentDir, internalStorage) {
         val path = currentDir.absolutePath
-        if (path == rootPath) "Dahili Depolama"
-        else "Dahili Depolama / " + path.removePrefix(rootPath).trim('/')
+        if (path == rootPath) internalStorage
+        else "$internalStorage / " + path.removePrefix(rootPath).trim('/')
     }
 
     Row(
@@ -416,7 +393,7 @@ private fun PathBreadcrumbBar(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Yukarı Dizin",
+                    contentDescription = stringResource(R.string.files_parent_dir),
                     tint = zuneColors.accentColor
                 )
             }
@@ -437,6 +414,7 @@ private fun PathBreadcrumbBar(
 
 @Composable
 private fun FileList(
+    errorMessage: String? = null,
     items: List<FileItemModel>,
     searchQuery: String,
     onItemClick: (FileItemModel) -> Unit,
@@ -456,7 +434,7 @@ private fun FileList(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (searchQuery.isBlank()) "klasör boş" else "dosya bulunamadı",
+                text = errorMessage ?: if (searchQuery.isBlank()) stringResource(R.string.files_empty_folder) else stringResource(R.string.files_not_found),
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Light),
                 color = zuneColors.textMuted
             )
@@ -493,8 +471,9 @@ private fun FileListItemRow(
     val formattedDate = remember(item.lastModified) {
         SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(item.lastModified))
     }
-    val formattedSize = remember(item.size, item.isDirectory) {
-        if (item.isDirectory) "klasör" else formatFileSize(item.size)
+    val folderLabel = stringResource(R.string.files_folder)
+    val formattedSize = remember(item.size, item.isDirectory, folderLabel) {
+        if (item.isDirectory) folderLabel else formatFileSize(item.size)
     }
 
     val icon = remember(item) { getFileIcon(item) }
@@ -564,11 +543,11 @@ private fun FileListItemRow(
 @Composable
 private fun CategoriesView(onCategoryClick: (folderName: String) -> Unit) {
     val categories = listOf(
-        Triple("Download", "İndirilenler", Icons.Default.Download),
-        Triple("Pictures", "Resimler", Icons.Default.Image),
-        Triple("Music", "Müzikler", Icons.Default.MusicNote),
-        Triple("Movies", "Videolar", Icons.Default.Movie),
-        Triple("Documents", "Belgeler", Icons.Default.Description)
+        Triple("Download", stringResource(R.string.files_cat_downloads), Icons.Default.Download),
+        Triple("Pictures", stringResource(R.string.files_cat_pictures), Icons.Default.Image),
+        Triple("Music", stringResource(R.string.files_cat_music), Icons.Default.MusicNote),
+        Triple("Movies", stringResource(R.string.files_cat_movies), Icons.Default.Movie),
+        Triple("Documents", stringResource(R.string.files_cat_documents), Icons.Default.Description)
     )
 
     LazyColumn(
@@ -614,10 +593,10 @@ private fun CategoriesView(onCategoryClick: (folderName: String) -> Unit) {
 private fun QuickAccessView(onQuickClick: (dir: File) -> Unit) {
     val root = Environment.getExternalStorageDirectory()
     val quickLocations = listOf(
-        "DCIM/Camera" to "Kamera Fotoğrafları",
-        "Download" to "İndirmeler",
-        "WhatsApp/Media" to "WhatsApp Medya",
-        "Music" to "Müzik Arşivi"
+        "DCIM/Camera" to stringResource(R.string.files_quick_camera),
+        "Download" to stringResource(R.string.files_quick_downloads),
+        "WhatsApp/Media" to stringResource(R.string.files_quick_whatsapp),
+        "Music" to stringResource(R.string.files_quick_music)
     )
 
     LazyColumn(
@@ -698,12 +677,12 @@ private fun FileOptionsBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            ListItemOption(icon = Icons.Default.FolderOpen, label = "Aç", onClick = onOpen)
+            ListItemOption(icon = Icons.Default.FolderOpen, label = stringResource(R.string.files_open_cap), onClick = onOpen)
             if (!item.isDirectory) {
-                ListItemOption(icon = Icons.Default.Share, label = "Paylaş", onClick = onShare)
+                ListItemOption(icon = Icons.Default.Share, label = stringResource(R.string.files_share_cap), onClick = onShare)
             }
-            ListItemOption(icon = Icons.Default.Edit, label = "Yeniden Adlandır", onClick = onRename)
-            ListItemOption(icon = Icons.Default.Delete, label = "Sil", textColor = Color.Red, onClick = onDelete)
+            ListItemOption(icon = Icons.Default.Edit, label = stringResource(R.string.files_rename_cap), onClick = onRename)
+            ListItemOption(icon = Icons.Default.Delete, label = stringResource(R.string.files_delete_cap), textColor = Color.Red, onClick = onDelete)
 
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -763,7 +742,7 @@ private fun SearchBar(
             Spacer(modifier = Modifier.width(8.dp))
             Box(modifier = Modifier.weight(1f)) {
                 if (query.isEmpty()) {
-                    Text(text = "dosyalarda ara...", style = MaterialTheme.typography.bodyMedium, color = zuneColors.textDim)
+                    Text(text = stringResource(R.string.files_search_hint), style = MaterialTheme.typography.bodyMedium, color = zuneColors.textDim)
                 }
                 BasicTextField(
                     value = query,
@@ -807,32 +786,14 @@ private fun InputDialog(
             )
             Spacer(modifier = Modifier.height(20.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text("İptal", color = zuneColors.textMuted) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel_cap), color = zuneColors.textMuted) }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = { onConfirm(text) },
                     colors = ButtonDefaults.buttonColors(containerColor = zuneColors.accentColor)
                 ) {
-                    Text("Tamam")
+                    Text(stringResource(R.string.common_ok_cap))
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PermissionRequestView(onGrant: () -> Unit) {
-    val zuneColors = LocalZuneColors.current
-    Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(imageVector = Icons.Default.Folder, contentDescription = null, tint = zuneColors.accentColor, modifier = Modifier.size(64.dp))
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = "Tüm Dosyalara Erişim İzni Gerekli", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Cihazınızdaki klasör ve dosyaları Zune tarzında gezebilmek için dosya erişim izni verin.", style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onGrant, colors = ButtonDefaults.buttonColors(containerColor = zuneColors.accentColor)) {
-                Text("İzin Ver")
             }
         }
     }

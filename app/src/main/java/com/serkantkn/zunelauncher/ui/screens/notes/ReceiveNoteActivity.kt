@@ -1,5 +1,8 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
+import android.content.Context
+import com.serkantkn.zunelauncher.util.AppLocale
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -16,6 +19,10 @@ import kotlinx.coroutines.launch
  * then brings the launcher to the front with that note open. Has no UI of its own.
  */
 class ReceiveNoteActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,7 +43,7 @@ class ReceiveNoteActivity : ComponentActivity() {
                 store.saveNotes(current + note)
                 NotesBridge.open(note.id)
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("ReceiveNoteActivity", "onCreate failed", e)
             }
             val launcherIntent = Intent(this@ReceiveNoteActivity, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)

@@ -1,11 +1,12 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -123,7 +124,7 @@ fun DesktopBrowserHeader(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = tab.title.ifBlank { "Yeni Sekme" },
+                                text = tab.title.ifBlank { stringResource(R.string.browser_new_tab) },
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontSize = 13.sp,
                                     fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
@@ -143,7 +144,7 @@ fun DesktopBrowserHeader(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Kapat",
+                                    contentDescription = stringResource(R.string.common_close_cap),
                                     tint = if (zuneColors.isDark) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.7f),
                                     modifier = Modifier.size(14.dp)
                                 )
@@ -165,7 +166,7 @@ fun DesktopBrowserHeader(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Yeni Sekme",
+                    contentDescription = stringResource(R.string.browser_new_tab),
                     tint = if (zuneColors.isDark) Color.White else Color.Black,
                     modifier = Modifier.size(18.dp)
                 )
@@ -192,7 +193,7 @@ fun DesktopBrowserHeader(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.common_back_cap),
                         tint = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier.size(20.dp)
                     )
@@ -208,7 +209,7 @@ fun DesktopBrowserHeader(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowForward,
-                        contentDescription = "İleri",
+                        contentDescription = stringResource(R.string.browser_forward_cap),
                         tint = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier.size(20.dp)
                     )
@@ -223,7 +224,7 @@ fun DesktopBrowserHeader(
                 ) {
                     Icon(
                         imageVector = if (isLoading) Icons.Default.Close else Icons.Default.Refresh,
-                        contentDescription = "Yenile",
+                        contentDescription = stringResource(R.string.common_refresh_cap),
                         tint = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier.size(20.dp)
                     )
@@ -271,7 +272,7 @@ fun DesktopBrowserHeader(
                         )
                         if (inputText.isEmpty()) {
                             Text(
-                                text = "arama yapın veya url girin",
+                                text = stringResource(R.string.browser_address_hint),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                                 color = zuneColors.textMuted
                             )
@@ -290,7 +291,7 @@ fun DesktopBrowserHeader(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Temizle",
+                                contentDescription = stringResource(R.string.common_clear_cap),
                                 tint = zuneColors.textMuted,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -312,7 +313,7 @@ fun DesktopBrowserHeader(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Home,
-                        contentDescription = "Ana Sayfa",
+                        contentDescription = stringResource(R.string.browser_home_cap),
                         tint = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier.size(20.dp)
                     )
@@ -327,7 +328,7 @@ fun DesktopBrowserHeader(
                 ) {
                     Icon(
                         imageVector = if (isFavorited) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = "Favori",
+                        contentDescription = stringResource(R.string.common_favorite_cap),
                         tint = if (isFavorited) zuneColors.accentColor else (if (zuneColors.isDark) Color.White else Color.Black),
                         modifier = Modifier.size(20.dp)
                     )
@@ -342,7 +343,7 @@ fun DesktopBrowserHeader(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Download,
-                        contentDescription = "İndirmeler",
+                        contentDescription = stringResource(R.string.browser_downloads_cap),
                         tint = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier.size(20.dp)
                     )
@@ -357,7 +358,7 @@ fun DesktopBrowserHeader(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "Ayarlar",
+                        contentDescription = stringResource(R.string.common_settings_cap),
                         tint = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier.size(20.dp)
                     )

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.service
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.app.Notification
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -46,7 +47,7 @@ class SocialNotificationListener : NotificationListenerService() {
             }
             updateAllNotificationCounts()
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SocialNotificationListener", "onListenerConnected failed", e)
         }
     }
 
@@ -58,7 +59,7 @@ class SocialNotificationListener : NotificationListenerService() {
                 selfCanceledKeys.add(sbn.key)
                 cancelNotification(sbn.key)
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("SocialNotificationListener", "onNotificationPosted failed", e)
             }
         }
         updateAllNotificationCounts()
@@ -98,7 +99,7 @@ class SocialNotificationListener : NotificationListenerService() {
             val icon: Icon? = notification.getLargeIcon() ?: notification.smallIcon
             val drawable = icon?.loadDrawable(this)
             iconBitmap = drawableToBitmap(drawable)
-        } catch (e: Exception) {}
+        } catch (e: Exception) { ZuneLog.w("SocialNotificationListener", "processAndAddNotification ignored Exception", e) }
 
         var replyActionModel: ReplyAction? = null
         for (action in notification.actions ?: emptyArray()) {
@@ -180,7 +181,7 @@ class SocialNotificationListener : NotificationListenerService() {
                 .mapValues { it.value.size }
             SocialRepository.updateNotificationCounts(counts)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SocialNotificationListener", "updateAllNotificationCounts failed", e)
         }
     }
 

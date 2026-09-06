@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.service
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -33,8 +34,9 @@ class BootReceiver : BroadcastReceiver() {
                     if (alarm.noteId != null && alarm.exactTimeMillis != null && alarm.exactTimeMillis < now) return@forEach
                     scheduler.schedule(alarm)
                 }
+                container.emailSyncScheduler.reschedule()
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("BootReceiver", "onReceive failed", e)
             } finally {
                 pendingResult.finish()
             }

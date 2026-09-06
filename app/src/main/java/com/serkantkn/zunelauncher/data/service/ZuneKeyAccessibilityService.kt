@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.service
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ComponentName
@@ -36,20 +37,20 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        android.util.Log.d(TAG, "connected; flags=${serviceInfo?.flags}")
+        ZuneLog.d(TAG, "connected; flags=${serviceInfo?.flags}")
         try {
             val info = serviceInfo ?: AccessibilityServiceInfo()
             info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
             serviceInfo = info
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("ZuneKeyAccessibilityService", "onServiceConnected failed", e)
         }
         styleJob?.cancel()
         styleJob = scope.launch {
             try {
                 applicationContext.appContainer.settingsDataStore.volumeBarStyle.collect { volumeBarStyle = it }
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("ZuneKeyAccessibilityService", "volumeBarStyle collect failed", e)
             }
         }
     }

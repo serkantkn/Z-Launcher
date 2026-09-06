@@ -16,11 +16,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -43,7 +40,6 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -58,13 +54,26 @@ import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.components.ZuneAlphabetIndex
+import com.serkantkn.zunelauncher.ui.components.ZuneEmptyState
+import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
+import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
+import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
+import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
+import com.serkantkn.zunelauncher.ui.components.rememberZuneHubEntranceState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
+
+/** People hub entrance: an even slower, heavier landing than the standard hub curve. */
+private val PeopleHubEntranceEasing = CubicBezierEasing(0.0f, 0.98f, 0.05f, 1.0f)
+private const val PeopleHubEntranceDurationMillis = 950
+private const val PeopleHubBottomBarDurationMillis = 380
 
 @Composable
 fun PeopleHubScreen(
@@ -77,6 +86,7 @@ fun PeopleHubScreen(
     val isWideScreen = LocalIsWideScreen.current
     val hasPermission by viewModel.hasPermission.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val groupedContacts by viewModel.groupedContacts.collectAsState()
     val favoriteContacts by viewModel.favoriteContacts.collectAsState()
     val recentContacts by viewModel.recentContacts.collectAsState()
@@ -92,34 +102,15 @@ fun PeopleHubScreen(
     val editContactHingeAnim = remember { Animatable(0f) }
     var isTransitioning by remember { mutableStateOf(false) }
 
-    val entranceAnim = remember { Animatable(0f) }
-    val bottomBarSlideAnim = remember { Animatable(1f) }
-
-    LaunchedEffect(Unit) {
-        entranceAnim.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 950,
-                easing = CubicBezierEasing(0.0f, 0.98f, 0.05f, 1.0f)
-            )
-        )
-        bottomBarSlideAnim.animateTo(
-            targetValue = 0f,
-            animationSpec = tween(
-                durationMillis = 380,
-                easing = FastOutSlowInEasing
-            )
-        )
-    }
-
-    val tabs = listOf("tümü", "favoriler", "son kullanılanlar")
-    val actualPageCount = tabs.size
-    val loopCount = 1000
-    val initialPage = (loopCount / 2) * actualPageCount
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { loopCount * actualPageCount }
+    // Hoisted so the entrance keeps playing even while the hub is hinged out behind a detail screen.
+    val entrance = rememberZuneHubEntranceState(
+        entranceDurationMillis = PeopleHubEntranceDurationMillis,
+        entranceEasing = PeopleHubEntranceEasing,
+        bottomBarDurationMillis = PeopleHubBottomBarDurationMillis
     )
+
+    val tabs = listOf(stringResource(R.string.common_all), stringResource(R.string.people_tab_favorites), stringResource(R.string.recent_apps))
+    val pager = rememberLoopingPagerState(pageCount = tabs.size)
     val coroutineScope = rememberCoroutineScope()
 
     val openNewContactScreen: () -> Unit = {
@@ -222,29 +213,25 @@ fun PeopleHubScreen(
         }
     }
 
-    val bottomBarActions = remember {
-        listOf(
-            WpBarAction(
-                icon = Icons.Default.Add,
-                label = "yeni kişi",
-                onClick = { openNewContactScreen() }
-            ),
-            WpBarAction(
-                icon = Icons.Default.Search,
-                label = "ara",
-                onClick = { isSearchVisible = !isSearchVisible }
-            )
+    val bottomBarActions = listOf(
+        WpBarAction(
+            icon = Icons.Default.Add,
+            label = stringResource(R.string.people_new_contact),
+            onClick = { openNewContactScreen() }
+        ),
+        WpBarAction(
+            icon = Icons.Default.Search,
+            label = stringResource(R.string.common_search),
+            onClick = { isSearchVisible = !isSearchVisible }
         )
-    }
+    )
 
-    val bottomBarMenuItems = remember {
-        listOf(
-            WpBarMenuItem(
-                text = "yenile",
-                onClick = { viewModel.loadContacts() }
-            )
+    val bottomBarMenuItems = listOf(
+        WpBarMenuItem(
+            text = stringResource(R.string.common_refresh),
+            onClick = { viewModel.loadContacts() }
         )
-    }
+    )
 
     Box(modifier = modifier.fillMaxSize()) {
         val configuration = LocalConfiguration.current
@@ -254,10 +241,10 @@ fun PeopleHubScreen(
         val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
         val overflowYPx = with(density) { (-24).dp.toPx() }
 
-        val renderPage: @Composable (String) -> Unit = { tabName ->
+        val renderPage: @Composable (Int) -> Unit = { tabIndex ->
             ZunePageTransition {
-                when (tabName) {
-                    "tümü" -> {
+                when (tabIndex) {
+                    0 -> {
                         val listState = rememberLazyListState()
                         Column(modifier = Modifier.fillMaxSize()) {
                             AnimatedVisibility(visible = isSearchVisible) {
@@ -270,9 +257,10 @@ fun PeopleHubScreen(
                             }
 
                             if (groupedContacts.isEmpty()) {
-                                EmptyStateView(
-                                    if (searchQuery.isNotBlank()) "sonuç bulunamadı"
-                                    else stringResource(R.string.no_contacts)
+                                ZuneEmptyState(
+                                    errorMessage?.let { stringResource(R.string.people_load_failed, it) }
+                                        ?: if (searchQuery.isNotBlank()) stringResource(R.string.common_no_results)
+                                        else stringResource(R.string.no_contacts)
                                 )
                             } else {
                                 Box(modifier = Modifier.weight(1f)) {
@@ -316,9 +304,9 @@ fun PeopleHubScreen(
                             }
                         }
                     }
-                    "favoriler" -> {
+                    1 -> {
                         if (favoriteContacts.isEmpty()) {
-                            EmptyStateView(stringResource(R.string.no_favorite_contacts))
+                            ZuneEmptyState(errorMessage?.let { stringResource(R.string.people_load_failed, it) } ?: stringResource(R.string.no_favorite_contacts))
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(2),
@@ -342,9 +330,9 @@ fun PeopleHubScreen(
                             }
                         }
                     }
-                    "son kullanılanlar" -> {
+                    2 -> {
                         if (recentContacts.isEmpty()) {
-                            EmptyStateView(stringResource(R.string.no_recent_contacts))
+                            ZuneEmptyState(errorMessage?.let { stringResource(R.string.people_load_failed, it) } ?: stringResource(R.string.no_recent_contacts))
                         } else {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
@@ -362,207 +350,154 @@ fun PeopleHubScreen(
             }
         }
 
-        // People Hub Content & Background Layer with Left-Entry -> 60% Right Swing -> Ultra Slow Landing Motion
+        // People Hub Content & Background Layer: signature left-edge entrance, folded back out by the
+        // hub hinge whenever a detail / edit screen is open on top.
         if (hubHingeAnim.value > 0f) {
-            val leftStartPx = with(density) { (-140).dp.toPx() }
-
-            Column(
+            ZuneHubEntranceLayout(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .graphicsLayer {
-                        val p = entranceAnim.value * hubHingeAnim.value
-                        val inv = 1f - p
-                        
-                        // Straight approach from the left/front, never drifting past x = 0
-                        rotationY = -48f * inv * inv
-                        translationX = leftStartPx * inv * inv
-                        scaleX = 0.82f + (0.18f * p)
-                        scaleY = 0.82f + (0.18f * p)
+                    .background(MaterialTheme.colorScheme.background),
+                state = entrance,
+                progressScale = { hubHingeAnim.value },
+                offscreenCompositing = false
+            ) { bottomBarModifier ->
+                Column(modifier = Modifier.fillMaxSize()) {
+                    if (isWideScreen) {
+                        ZuneWideHubTitle(text = stringResource(R.string.people_hub))
 
-                        transformOrigin = TransformOrigin(0f, 0.5f) // hinged on the screen-left edge
-                        cameraDistance = 32f * density.density
-                        alpha = (p * 3f).coerceIn(0f, 1f)
-                    }
-            ) {
-                if (isWideScreen) {
-                    Text(
-                        text = "kişiler",
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Light,
-                            fontSize = 96.sp,
-                            letterSpacing = (-4).sp,
-                            lineHeight = 96.sp
-                        ),
-                        color = if (zuneColors.isDark) Color.White else Color.Black,
-                        modifier = Modifier.padding(
-                            start = 72.dp,
-                            top = 4.dp,
-                            bottom = 24.dp
-                        ).graphicsLayer { translationY = overflowYPx }
-                    )
-
-                    if (!hasPermission) {
-                        PermissionRequestView(
-                            onRequestPermission = {
-                                permissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.READ_CONTACTS,
-                                        Manifest.permission.WRITE_CONTACTS
+                        if (!hasPermission) {
+                            PeoplePermissionRequest(
+                                onRequestPermission = {
+                                    permissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.READ_CONTACTS,
+                                            Manifest.permission.WRITE_CONTACTS
+                                        )
                                     )
-                                )
-                            }
-                        )
-                    } else if (isLoading) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = zuneColors.accentColor)
-                        }
-                    } else {
-                        LazyRow(
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            contentPadding = PaddingValues(start = 72.dp, end = 48.dp),
-                            horizontalArrangement = Arrangement.spacedBy(48.dp)
-                        ) {
-                            items(tabs.size) { index ->
-                                Column(modifier = Modifier.width(360.dp).fillMaxHeight()) {
-                                    Text(
-                                        text = tabs[index],
-                                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
-                                        color = zuneColors.accentColor,
-                                        modifier = Modifier.padding(bottom = 16.dp)
-                                    )
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        renderPage(tabs[index])
-                                    }
                                 }
-                            }
-                        }
-                    }
-                } else {
-                    // Mobile Header — Zune large typography
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                top = 28.dp,
-                                bottom = 4.dp,
-                                start = ZuneDimens.ScreenPaddingHorizontal
                             )
-                    ) {
-                        val cycle = (pagerState.currentPage + pagerState.currentPageOffsetFraction) % actualPageCount
-                        val actualCycle = if (cycle < 0) cycle + actualPageCount else cycle
-                        val threshold = (actualPageCount - 1).toFloat()
-
-                        val translationX1: Float
-                        val translationX2: Float
-
-                        if (actualCycle <= threshold) {
-                            translationX1 = -actualCycle * parallaxMultiplierPx
-                            translationX2 = screenWidthPx
+                        } else if (isLoading) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = zuneColors.accentColor)
+                            }
                         } else {
-                            val fraction = actualCycle - threshold
-                            translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
-                            translationX2 = screenWidthPx - fraction * screenWidthPx
-                        }
-
-                        Text(
-                            text = "kişiler",
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.Light,
-                                fontSize = 96.sp,
-                                letterSpacing = (-4).sp,
-                                lineHeight = 96.sp
-                            ),
-                            color = if (zuneColors.isDark) Color.White else Color.Black,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.graphicsLayer {
-                                translationX = translationX1
-                                translationY = overflowYPx
+                            ZuneWidePanorama(
+                                tabs = tabs,
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                fillPageHeight = true
+                            ) { index ->
+                                renderPage(index)
                             }
-                        )
-                        Text(
-                            text = "kişiler",
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.Light,
-                                fontSize = 96.sp,
-                                letterSpacing = (-4).sp,
-                                lineHeight = 96.sp
-                            ),
-                            color = if (zuneColors.isDark) Color.White else Color.Black,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.graphicsLayer {
-                                translationX = translationX2
-                                translationY = overflowYPx
-                            }
-                        )
-                    }
-
-                    // Tabs — Zune Pivot
-                    ZunePivotTabs(
-                        tabs = tabs,
-                        pagerState = pagerState,
-                        fontSize = 36.sp,
-                        onSelected = { index ->
-                            val current = pagerState.currentPage
-                            val size = actualPageCount
-                            val currentActual = ((current % size) + size) % size
-                            var diff = index - currentActual
-                            if (diff > size / 2) {
-                                diff -= size
-                            } else if (diff < -size / 2) {
-                                diff += size
-                            }
-                            val targetPage = current + diff
-                            coroutineScope.launch { pagerState.animateScrollToPage(targetPage) }
-                        },
-                        modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
-                    )
-
-                    // Content area
-                    if (!hasPermission) {
-                        PermissionRequestView(
-                            onRequestPermission = {
-                                permissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.READ_CONTACTS,
-                                        Manifest.permission.WRITE_CONTACTS
-                                    )
-                                )
-                            }
-                        )
-                    } else if (isLoading) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = zuneColors.accentColor)
                         }
                     } else {
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            contentPadding = PaddingValues(
-                                start = ZuneDimens.ScreenPaddingHorizontal,
-                                end = 48.dp
-                            ),
-                            pageSpacing = 24.dp
-                        ) { page ->
-                            val actualPage = page % actualPageCount
-                            renderPage(tabs[actualPage])
+                        // Mobile Header — Zune large typography
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    top = 28.dp,
+                                    bottom = 4.dp,
+                                    start = ZuneDimens.ScreenPaddingHorizontal
+                                )
+                        ) {
+                            val pageCount = pager.pageCount
+                            val cycle = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % pageCount
+                            val actualCycle = if (cycle < 0) cycle + pageCount else cycle
+                            val threshold = (pageCount - 1).toFloat()
+
+                            val translationX1: Float
+                            val translationX2: Float
+
+                            if (actualCycle <= threshold) {
+                                translationX1 = -actualCycle * parallaxMultiplierPx
+                                translationX2 = screenWidthPx
+                            } else {
+                                val fraction = actualCycle - threshold
+                                translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
+                                translationX2 = screenWidthPx - fraction * screenWidthPx
+                            }
+
+                            Text(
+                                text = stringResource(R.string.people_hub),
+                                style = MaterialTheme.typography.displayLarge.copy(
+                                    fontWeight = FontWeight.Light,
+                                    fontSize = 96.sp,
+                                    letterSpacing = (-4).sp,
+                                    lineHeight = 96.sp
+                                ),
+                                color = if (zuneColors.isDark) Color.White else Color.Black,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.graphicsLayer {
+                                    translationX = translationX1
+                                    translationY = overflowYPx
+                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.people_hub),
+                                style = MaterialTheme.typography.displayLarge.copy(
+                                    fontWeight = FontWeight.Light,
+                                    fontSize = 96.sp,
+                                    letterSpacing = (-4).sp,
+                                    lineHeight = 96.sp
+                                ),
+                                color = if (zuneColors.isDark) Color.White else Color.Black,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.graphicsLayer {
+                                    translationX = translationX2
+                                    translationY = overflowYPx
+                                }
+                            )
+                        }
+
+                        // Tabs — Zune Pivot
+                        ZunePivotTabs(
+                            tabs = tabs,
+                            state = pager,
+                            fontSize = 36.sp,
+                            modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
+                        )
+
+                        // Content area
+                        if (!hasPermission) {
+                            PeoplePermissionRequest(
+                                onRequestPermission = {
+                                    permissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.READ_CONTACTS,
+                                            Manifest.permission.WRITE_CONTACTS
+                                        )
+                                    )
+                                }
+                            )
+                        } else if (isLoading) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = zuneColors.accentColor)
+                            }
+                        } else {
+                            ZuneLoopingPager(
+                                state = pager,
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                contentPadding = PaddingValues(
+                                    start = ZuneDimens.ScreenPaddingHorizontal,
+                                    end = 48.dp
+                                ),
+                                pageSpacing = 24.dp
+                            ) { page ->
+                                renderPage(page)
+                            }
                         }
                     }
-                }
 
-                // Windows Phone Bottom Bar (Slides up from bottom when entrance completes)
-                if (hasPermission) {
-                    val bottomBarOffsetPx = with(density) { 90.dp.toPx() }
-                    WindowsPhoneBottomBar(
-                        actions = bottomBarActions,
-                        menuItems = bottomBarMenuItems,
-                        modifier = Modifier.graphicsLayer {
-                            translationY = bottomBarSlideAnim.value * bottomBarOffsetPx
-                            alpha = 1f - bottomBarSlideAnim.value
-                        }
-                    )
+                    // Windows Phone Bottom Bar (Slides up from bottom when entrance completes)
+                    if (hasPermission) {
+                        WindowsPhoneBottomBar(
+                            actions = bottomBarActions,
+                            menuItems = bottomBarMenuItems,
+                            modifier = bottomBarModifier
+                        )
+                    }
                 }
             }
         }
@@ -673,25 +608,23 @@ private fun NewContactScreen(
     var saveToGoogle by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
 
-    val bottomBarActions = remember(firstName, phone, isSaving) {
-        listOf(
-            WpBarAction(
-                icon = Icons.Default.Check,
-                label = "kaydet",
-                onClick = {
-                    if (firstName.isNotBlank() && !isSaving) {
-                        isSaving = true
-                        onSave(firstName, lastName, phone, email, saveToGoogle)
-                    }
+    val bottomBarActions = listOf(
+        WpBarAction(
+            icon = Icons.Default.Check,
+            label = stringResource(R.string.common_save),
+            onClick = {
+                if (firstName.isNotBlank() && !isSaving) {
+                    isSaving = true
+                    onSave(firstName, lastName, phone, email, saveToGoogle)
                 }
-            ),
-            WpBarAction(
-                icon = Icons.Default.Close,
-                label = "iptal",
-                onClick = onClose
-            )
+            }
+        ),
+        WpBarAction(
+            icon = Icons.Default.Close,
+            label = stringResource(R.string.common_cancel),
+            onClick = onClose
         )
-    }
+    )
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -706,7 +639,7 @@ private fun NewContactScreen(
                     .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 12.dp)
             ) {
                 Text(
-                    text = "yeni kişi",
+                    text = stringResource(R.string.people_new_contact),
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 72.sp,
@@ -724,7 +657,7 @@ private fun NewContactScreen(
                     item {
                         Column {
                             Text(
-                                text = "kaydedilecek hesap",
+                                text = stringResource(R.string.people_save_account),
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
                                 color = zuneColors.textMuted,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -735,13 +668,13 @@ private fun NewContactScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 ChoiceChip(
-                                    label = "Google Hesabı",
+                                    label = stringResource(R.string.people_account_google),
                                     selected = saveToGoogle,
                                     onSelect = { saveToGoogle = true },
                                     modifier = Modifier.weight(1f)
                                 )
                                 ChoiceChip(
-                                    label = "Telefon Hafızası",
+                                    label = stringResource(R.string.people_account_device),
                                     selected = !saveToGoogle,
                                     onSelect = { saveToGoogle = false },
                                     modifier = Modifier.weight(1f)
@@ -752,25 +685,25 @@ private fun NewContactScreen(
 
                     item {
                         InputFieldGroup(
-                            label = "ad",
+                            label = stringResource(R.string.people_first_name),
                             value = firstName,
                             onValueChange = { firstName = it },
-                            placeholder = "Adını girin"
+                            placeholder = stringResource(R.string.people_first_name_hint)
                         )
                     }
 
                     item {
                         InputFieldGroup(
-                            label = "soyad",
+                            label = stringResource(R.string.people_last_name),
                             value = lastName,
                             onValueChange = { lastName = it },
-                            placeholder = "Soyadını girin"
+                            placeholder = stringResource(R.string.people_last_name_hint)
                         )
                     }
 
                     item {
                         InputFieldGroup(
-                            label = "telefon numarası",
+                            label = stringResource(R.string.people_phone_number),
                             value = phone,
                             onValueChange = { phone = it },
                             placeholder = "05xx xxx xx xx"
@@ -779,7 +712,7 @@ private fun NewContactScreen(
 
                     item {
                         InputFieldGroup(
-                            label = "e-posta adresi",
+                            label = stringResource(R.string.people_email),
                             value = email,
                             onValueChange = { email = it },
                             placeholder = "ornek@gmail.com"
@@ -997,43 +930,14 @@ private fun ContactListItem(
 
 // ── Permission Request ──────────────────────────────────────────────────────
 
+/** Contacts permission prompt shared by the phone and wide-screen branches. */
 @Composable
-private fun PermissionRequestView(onRequestPermission: () -> Unit) {
-    val zuneColors = LocalZuneColors.current
-    Column(modifier = Modifier.padding(top = ZuneDimens.SpacingHuge)) {
-        Text(
-            text = stringResource(R.string.contacts_permission_title).lowercase(),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.contacts_permission_message),
-            style = MaterialTheme.typography.bodyMedium,
-            color = zuneColors.textMuted
-        )
-        Spacer(modifier = Modifier.height(ZuneDimens.SpacingLg))
-        Button(
-            onClick = onRequestPermission,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = zuneColors.accentColor,
-                contentColor = Color.White
-            )
-        ) {
-            Text(text = stringResource(R.string.grant_permission).lowercase())
-        }
-    }
-}
-
-// ── Empty State ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun EmptyStateView(message: String) {
-    Text(
-        text = message.lowercase(),
-        style = MaterialTheme.typography.bodyMedium,
-        color = LocalZuneColors.current.textDim,
-        modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
+private fun PeoplePermissionRequest(onRequestPermission: () -> Unit) {
+    ZunePermissionRequest(
+        title = stringResource(R.string.contacts_permission_title).lowercase(),
+        message = stringResource(R.string.contacts_permission_message),
+        buttonLabel = stringResource(R.string.grant_permission).lowercase(),
+        onRequest = onRequestPermission
     )
 }
 

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.util
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -31,7 +32,7 @@ class SystemSettingsManager(private val context: Context) {
             val current = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128)
             _brightness.value = current / max
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SystemSettingsManager", "updateBrightness failed", e)
         }
     }
 
@@ -50,7 +51,7 @@ class SystemSettingsManager(private val context: Context) {
             Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, newBrightness)
             _brightness.value = value
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SystemSettingsManager", "setBrightness failed", e)
         }
     }
 
@@ -64,7 +65,7 @@ class SystemSettingsManager(private val context: Context) {
             val currentRing = audioManager.getStreamVolume(AudioManager.STREAM_RING).toFloat()
             _ringVolume.value = if (maxRing > 0) currentRing / maxRing else 0f
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SystemSettingsManager", "updateVolumes failed", e)
         }
     }
 
@@ -75,7 +76,7 @@ class SystemSettingsManager(private val context: Context) {
             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
             _mediaVolume.value = value
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SystemSettingsManager", "setMediaVolume failed", e)
         }
     }
 
@@ -86,7 +87,7 @@ class SystemSettingsManager(private val context: Context) {
             audioManager.setStreamVolume(AudioManager.STREAM_RING, newVol, 0)
             _ringVolume.value = value
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SystemSettingsManager", "setRingVolume failed", e)
         }
     }
 }

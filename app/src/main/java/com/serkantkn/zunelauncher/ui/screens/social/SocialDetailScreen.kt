@@ -143,17 +143,17 @@ fun SocialDetailScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.common_back_cap),
                             tint = zuneColors.textMuted,
                             modifier = Modifier.size(22.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "geri", style = MaterialTheme.typography.bodyLarge, color = zuneColors.textMuted)
+                        Text(text = stringResource(R.string.common_back), style = MaterialTheme.typography.bodyLarge, color = zuneColors.textMuted)
                     }
                     IconButton(onClick = { onBack() }, modifier = Modifier.size(36.dp)) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.common_close_cap),
                             tint = zuneColors.textMuted,
                             modifier = Modifier.size(24.dp)
                         )
@@ -250,7 +250,7 @@ fun SocialDetailScreen(
                     }
                 } else if (displayMessage.openIntent != null) {
                     Text(
-                        text = "uygulamada aç",
+                        text = stringResource(R.string.social_open_in_app),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = zuneColors.accentColor,
                         modifier = Modifier.padding(vertical = 16.dp).clickable { onOpen(displayMessage) }

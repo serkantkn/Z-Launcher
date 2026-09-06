@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.app.DownloadManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -85,7 +87,7 @@ fun BrowserDownloadsScreen(
                     )
             ) {
                 Text(
-                    text = "internet",
+                    text = stringResource(R.string.hub_internet),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 18.sp,
@@ -97,7 +99,7 @@ fun BrowserDownloadsScreen(
                 )
 
                 Text(
-                    text = "indirmeler",
+                    text = stringResource(R.string.browser_downloads),
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 46.sp,
@@ -119,7 +121,7 @@ fun BrowserDownloadsScreen(
                     contentAlignment = Alignment.TopStart
                 ) {
                     Text(
-                        text = "indirme geçmişiniz boş",
+                        text = stringResource(R.string.browser_downloads_empty),
                         style = MaterialTheme.typography.bodyLarge,
                         color = zuneColors.textMuted
                     )
@@ -180,7 +182,7 @@ fun BrowserDownloadsScreen(
                                 )
                         ) {
                             Text(
-                                text = "tümünü temizle",
+                                text = stringResource(R.string.common_clear_all),
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = FontWeight.Normal,
                                     fontSize = 15.sp
@@ -204,7 +206,7 @@ fun BrowserDownloadsScreen(
                             )
                     ) {
                         Text(
-                            text = "kapat",
+                            text = stringResource(R.string.common_close),
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 16.sp
@@ -244,7 +246,7 @@ private fun DownloadItemRow(
     val isFailed = download.status == DownloadManager.STATUS_FAILED
 
     val formattedDate = remember(download.timestamp) {
-        val sdf = SimpleDateFormat("dd MMM, HH:mm", Locale("tr"))
+        val sdf = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
         sdf.format(Date(download.timestamp))
     }
 
@@ -301,11 +303,11 @@ private fun DownloadItemRow(
                             val percent = ((download.downloadedBytes.toFloat() / download.totalBytes) * 100).toInt()
                             "%$percent • ${formatBytes(download.downloadedBytes)} / ${formatBytes(download.totalBytes)}"
                         } else {
-                            "indiriliyor..."
+                            stringResource(R.string.browser_downloading_lower)
                         }
                     }
-                    isSuccess -> "tamamlandı • ${formatBytes(download.totalBytes.coerceAtLeast(download.downloadedBytes))} • $formattedDate"
-                    isFailed -> "başarısız • $formattedDate"
+                    isSuccess -> stringResource(R.string.browser_download_done, formatBytes(download.totalBytes.coerceAtLeast(download.downloadedBytes)), formattedDate)
+                    isFailed -> stringResource(R.string.browser_download_failed_status, formattedDate)
                     else -> formattedDate
                 }
 
@@ -324,7 +326,7 @@ private fun DownloadItemRow(
             IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Sil",
+                    contentDescription = stringResource(R.string.files_delete_cap),
                     tint = zuneColors.textMuted,
                     modifier = Modifier.size(18.dp)
                 )

@@ -1,5 +1,9 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.util.AppLanguage
+import com.serkantkn.zunelauncher.util.AppLocale
+import kotlinx.coroutines.flow.Flow
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.app.role.RoleManager
@@ -30,12 +34,16 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val settingsRepository = application.appContainer.settingsRepository
+    /** Hot, lifecycle-aware view of a settings flow: the one-liner every setting uses. */
+    private fun <T> Flow<T>.asState(default: T): StateFlow<T> =
+        stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), default)
+
+    private val settingsDataStore = application.appContainer.settingsDataStore
 
     init {
         viewModelScope.launch {
-            val path = settingsRepository.customWallpaperPath.firstOrNull()
-            val color = settingsRepository.dynamicThemeColor.firstOrNull()
+            val path = settingsDataStore.customWallpaperPath.firstOrNull()
+            val color = settingsDataStore.dynamicThemeColor.firstOrNull()
             if (path != null && color == null) {
                 try {
                     val file = java.io.File(path)
@@ -46,18 +54,28 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                                 val swatch = palette?.dominantSwatch ?: palette?.vibrantSwatch ?: palette?.swatches?.maxByOrNull { it.population }
                                 if (swatch != null) {
                                     viewModelScope.launch {
-                                        settingsRepository.setDynamicThemeColor(swatch.rgb)
+                                        settingsDataStore.setDynamicThemeColor(swatch.rgb)
                                     }
                                 }
                             }
                         }
                     }
-                } catch (e: Exception) {}
+                } catch (e: Exception) { ZuneLog.w("SettingsViewModel", "init ignored Exception", e) }
             }
         }
     }
 
     private val systemSettings = SystemSettingsManager(application)
+
+    private val _appLanguage = MutableStateFlow(AppLocale.current(application))
+    /** In-app language (Ayarlar > sistem > dil). */
+    val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
+
+    /** Persists [language]; returns true when the caller must recreate its activity (pre-Android 13). */
+    fun setAppLanguage(language: AppLanguage): Boolean {
+        _appLanguage.value = language
+        return AppLocale.apply(getApplication(), language)
+    }
 
     private val _targetTab = MutableStateFlow<String?>(null)
     val targetTab: StateFlow<String?> = _targetTab.asStateFlow()
@@ -74,51 +92,40 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val mediaVolume: StateFlow<Float> = systemSettings.mediaVolume
     val ringVolume: StateFlow<Float> = systemSettings.ringVolume
 
-    val themeMode: StateFlow<ThemeMode> = settingsRepository.themeMode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeMode.DARK)
+    val themeMode: StateFlow<ThemeMode> = settingsDataStore.themeMode.asState(ThemeMode.DARK)
 
-    val fontScale: StateFlow<Float> = settingsRepository.fontScale
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
+    val fontScale: StateFlow<Float> = settingsDataStore.fontScale.asState(1.0f)
 
-    val animationsEnabled: StateFlow<Boolean> = settingsRepository.animationsEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val animationsEnabled: StateFlow<Boolean> = settingsDataStore.animationsEnabled.asState(true)
 
-    val socialHubLayout: StateFlow<SocialHubLayout> = settingsRepository.socialHubLayout
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SocialHubLayout.TIMELINE)
+    val socialHubLayout: StateFlow<SocialHubLayout> = settingsDataStore.socialHubLayout.asState(SocialHubLayout.TIMELINE)
 
-    val accentColor: StateFlow<AccentColor> = settingsRepository.accentColor
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AccentColor.MAGENTA)
+    val accentColor: StateFlow<AccentColor> = settingsDataStore.accentColor.asState(AccentColor.MAGENTA)
 
-    val directCallEnabled: StateFlow<Boolean> = settingsRepository.directCallEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val directCallEnabled: StateFlow<Boolean> = settingsDataStore.directCallEnabled.asState(false)
 
-    val notificationStyle: StateFlow<NotificationStyle> = settingsRepository.notificationStyle
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationStyle.WINDOWS_PHONE)
+    val notificationStyle: StateFlow<NotificationStyle> = settingsDataStore.notificationStyle.asState(NotificationStyle.WINDOWS_PHONE)
 
-    val volumeBarStyle: StateFlow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = settingsRepository.volumeBarStyle
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE)
+    val volumeBarStyle: StateFlow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = settingsDataStore.volumeBarStyle.asState(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE)
 
-    val disabledNotificationApps: StateFlow<Set<String>> = settingsRepository.disabledNotificationApps
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    val disabledNotificationApps: StateFlow<Set<String>> = settingsDataStore.disabledNotificationApps.asState(emptySet())
 
-    val timeFormat: StateFlow<String> = settingsRepository.timeFormat
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "HH:mm")
+    val timeFormat: StateFlow<String> = settingsDataStore.timeFormat.asState("HH:mm")
 
-    val dateFormat: StateFlow<String> = settingsRepository.dateFormat
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "EEEE, MMMM d")
+    val dateFormat: StateFlow<String> = settingsDataStore.dateFormat.asState("EEEE, MMMM d")
 
     fun setTimeFormat(format: String) {
-        viewModelScope.launch { settingsRepository.setTimeFormat(format) }
+        viewModelScope.launch { settingsDataStore.setTimeFormat(format) }
     }
 
     fun setDateFormat(format: String) {
-        viewModelScope.launch { settingsRepository.setDateFormat(format) }
+        viewModelScope.launch { settingsDataStore.setDateFormat(format) }
     }
 
     val installedApps: kotlinx.coroutines.flow.Flow<List<com.serkantkn.zunelauncher.data.model.AppInfo>> =
         application.appContainer.appRepository.getInstalledApps()
 
-    val hubOrder: StateFlow<List<HubType>> = settingsRepository.hubOrder
+    val hubOrder: StateFlow<List<HubType>> = settingsDataStore.hubOrder
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
@@ -133,6 +140,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 HubType.CLOCK,
                 HubType.CALENDAR,
                 HubType.NOTES,
+                HubType.EMAIL,
                 HubType.SETTINGS
             )
         )
@@ -143,7 +151,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         if (index in current.indices && targetIndex in current.indices) {
             val item = current.removeAt(index)
             current.add(targetIndex, item)
-            viewModelScope.launch { settingsRepository.setHubOrder(current) }
+            viewModelScope.launch { settingsDataStore.setHubOrder(current) }
         }
     }
 
@@ -156,57 +164,57 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             HubType.INTERNET,
             HubType.SETTINGS
         )
-        viewModelScope.launch { settingsRepository.setHubOrder(defaultOrder) }
+        viewModelScope.launch { settingsDataStore.setHubOrder(defaultOrder) }
     }
 
     fun setThemeMode(mode: ThemeMode) {
-        viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+        viewModelScope.launch { settingsDataStore.setThemeMode(mode) }
     }
 
     fun setFontScale(scale: Float) {
-        viewModelScope.launch { settingsRepository.setFontScale(scale) }
+        viewModelScope.launch { settingsDataStore.setFontScale(scale) }
     }
 
     fun setAnimationsEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setAnimationsEnabled(enabled) }
+        viewModelScope.launch { settingsDataStore.setAnimationsEnabled(enabled) }
     }
 
     fun setSocialHubLayout(layout: SocialHubLayout) {
-        viewModelScope.launch { settingsRepository.setSocialHubLayout(layout) }
+        viewModelScope.launch { settingsDataStore.setSocialHubLayout(layout) }
     }
 
     fun setDirectCallEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setDirectCallEnabled(enabled) }
+        viewModelScope.launch { settingsDataStore.setDirectCallEnabled(enabled) }
     }
 
     fun setNotificationStyle(style: NotificationStyle) {
         viewModelScope.launch {
-            settingsRepository.setNotificationStyle(style)
+            settingsDataStore.setNotificationStyle(style)
         }
     }
 
     fun setVolumeBarStyle(style: com.serkantkn.zunelauncher.data.model.VolumeBarStyle) {
         viewModelScope.launch {
-            settingsRepository.setVolumeBarStyle(style)
+            settingsDataStore.setVolumeBarStyle(style)
         }
     }
 
     fun setDisabledNotificationApps(apps: Set<String>) {
         viewModelScope.launch {
-            settingsRepository.setDisabledNotificationApps(apps)
+            settingsDataStore.setDisabledNotificationApps(apps)
         }
     }
 
     fun setAccentColor(color: AccentColor) {
-        viewModelScope.launch { settingsRepository.setAccentColor(color) }
+        viewModelScope.launch { settingsDataStore.setAccentColor(color) }
     }
 
     fun setCustomThemeColor(color: Int?) {
-        viewModelScope.launch { settingsRepository.setCustomThemeColor(color) }
+        viewModelScope.launch { settingsDataStore.setCustomThemeColor(color) }
     }
 
     fun setSolidBackgroundEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setSolidBackgroundEnabled(enabled) }
+        viewModelScope.launch { settingsDataStore.setSolidBackgroundEnabled(enabled) }
     }
 
     fun setBrightness(value: Float) {
@@ -259,7 +267,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(intent)
                 return
-            } catch (_: Exception) {}
+            } catch (e: Exception) { ZuneLog.w("SettingsViewModel", "openDefaultAppsSettings ignored Exception", e) }
         }
     }
 
@@ -272,7 +280,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     launcher.launch(intent)
                     return
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    ZuneLog.e("SettingsViewModel", "requestDefaultPhoneApp failed", e)
                 }
             }
         }
@@ -288,7 +296,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(intent)
                 return
-            } catch (_: Exception) {}
+            } catch (e: Exception) { ZuneLog.w("SettingsViewModel", "requestDefaultPhoneApp ignored Exception", e) }
         }
     }
 
@@ -301,7 +309,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     launcher.launch(intent)
                     return
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    ZuneLog.e("SettingsViewModel", "requestDefaultSmsApp failed", e)
                 }
             }
         }
@@ -317,7 +325,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(intent)
                 return
-            } catch (_: Exception) {}
+            } catch (e: Exception) { ZuneLog.w("SettingsViewModel", "requestDefaultSmsApp ignored Exception", e) }
         }
     }
 
@@ -330,7 +338,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     launcher.launch(intent)
                     return
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    ZuneLog.e("SettingsViewModel", "requestDefaultBrowserApp failed", e)
                 }
             }
         }
@@ -344,7 +352,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(intent)
                 return
-            } catch (_: Exception) {}
+            } catch (e: Exception) { ZuneLog.w("SettingsViewModel", "requestDefaultBrowserApp ignored Exception", e) }
         }
     }
 
@@ -353,72 +361,61 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         getApplication<Application>().startActivity(intent)
     }
 
-    val customWallpaperPath: StateFlow<String?> = settingsRepository.customWallpaperPath
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val customWallpaperPath: StateFlow<String?> = settingsDataStore.customWallpaperPath.asState(null)
 
-    val customHubWallpaperPath: StateFlow<String?> = settingsRepository.customHubWallpaperPath
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val customHubWallpaperPath: StateFlow<String?> = settingsDataStore.customHubWallpaperPath.asState(null)
 
-    val hubBackgroundMode: StateFlow<HubBackgroundMode> = settingsRepository.hubBackgroundMode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HubBackgroundMode.MATCH_LAUNCHER)
+    val hubBackgroundMode: StateFlow<HubBackgroundMode> = settingsDataStore.hubBackgroundMode.asState(HubBackgroundMode.MATCH_LAUNCHER)
 
-    val hubBackgroundOpacity: StateFlow<Float> = settingsRepository.hubBackgroundOpacity
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.85f)
+    val hubBackgroundOpacity: StateFlow<Float> = settingsDataStore.hubBackgroundOpacity.asState(0.85f)
 
-    val tileCornerStyle: StateFlow<TileCornerStyle> = settingsRepository.tileCornerStyle
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TileCornerStyle.ROUNDED)
+    val tileCornerStyle: StateFlow<TileCornerStyle> = settingsDataStore.tileCornerStyle.asState(TileCornerStyle.ROUNDED)
 
-    val tileSpacing: StateFlow<Int> = settingsRepository.tileSpacing
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
+    val tileSpacing: StateFlow<Int> = settingsDataStore.tileSpacing.asState(2)
 
-    val tileColumns: StateFlow<Int> = settingsRepository.tileColumns
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 4)
+    val tileColumns: StateFlow<Int> = settingsDataStore.tileColumns.asState(4)
 
-    val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsRepository.homeScreenLayout
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeScreenLayout.ZUNE)
+    val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsDataStore.homeScreenLayout.asState(HomeScreenLayout.ZUNE)
 
-    val dynamicThemeColor: StateFlow<Int?> = settingsRepository.dynamicThemeColor
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val dynamicThemeColor: StateFlow<Int?> = settingsDataStore.dynamicThemeColor.asState(null)
 
-    val customThemeColor: StateFlow<Int?> = settingsRepository.customThemeColor
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val customThemeColor: StateFlow<Int?> = settingsDataStore.customThemeColor.asState(null)
 
-    val solidBackgroundEnabled: StateFlow<Boolean> = settingsRepository.solidBackgroundEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val solidBackgroundEnabled: StateFlow<Boolean> = settingsDataStore.solidBackgroundEnabled.asState(false)
 
     fun setHubBackgroundMode(mode: HubBackgroundMode) {
         viewModelScope.launch {
-            settingsRepository.setHubBackgroundMode(mode)
+            settingsDataStore.setHubBackgroundMode(mode)
         }
     }
 
     fun setHubBackgroundOpacity(opacity: Float) {
         viewModelScope.launch {
-            settingsRepository.setHubBackgroundOpacity(opacity)
+            settingsDataStore.setHubBackgroundOpacity(opacity)
         }
     }
 
     fun setTileCornerStyle(style: TileCornerStyle) {
         viewModelScope.launch {
-            settingsRepository.setTileCornerStyle(style)
+            settingsDataStore.setTileCornerStyle(style)
         }
     }
 
     fun setTileSpacing(spacing: Int) {
         viewModelScope.launch {
-            settingsRepository.setTileSpacing(spacing)
+            settingsDataStore.setTileSpacing(spacing)
         }
     }
 
     fun setTileColumns(columns: Int) {
         viewModelScope.launch {
-            settingsRepository.setTileColumns(columns)
+            settingsDataStore.setTileColumns(columns)
         }
     }
 
     fun setHomeScreenLayout(layout: HomeScreenLayout) {
         viewModelScope.launch {
-            settingsRepository.setHomeScreenLayout(layout)
+            settingsDataStore.setHomeScreenLayout(layout)
         }
     }
 
@@ -433,14 +430,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 outputStream.flush()
                 outputStream.close()
                 
-                settingsRepository.setCustomWallpaperPath(file.absolutePath)
+                settingsDataStore.setCustomWallpaperPath(file.absolutePath)
 
                 // Extract dominant color
                 androidx.palette.graphics.Palette.from(bitmap).generate { palette ->
                     val swatch = palette?.dominantSwatch ?: palette?.vibrantSwatch ?: palette?.swatches?.maxByOrNull { it.population }
                     val dominantColor = swatch?.rgb
                     viewModelScope.launch {
-                        settingsRepository.setDynamicThemeColor(dominantColor)
+                        settingsDataStore.setDynamicThemeColor(dominantColor)
                     }
                 }
 
@@ -453,18 +450,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     wm.setStream(fileInputStream)
                     fileInputStream.close()
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    ZuneLog.e("SettingsViewModel", "saveCroppedWallpaper failed", e)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("SettingsViewModel", "saveCroppedWallpaper failed", e)
             }
         }
     }
 
     fun clearCustomWallpaper() {
         viewModelScope.launch {
-            settingsRepository.setCustomWallpaperPath(null)
-            settingsRepository.setDynamicThemeColor(null)
+            settingsDataStore.setCustomWallpaperPath(null)
+            settingsDataStore.setDynamicThemeColor(null)
         }
     }
 
@@ -478,23 +475,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 outputStream.flush()
                 outputStream.close()
 
-                settingsRepository.setCustomHubWallpaperPath(file.absolutePath)
-                settingsRepository.setHubBackgroundMode(HubBackgroundMode.CUSTOM)
+                settingsDataStore.setCustomHubWallpaperPath(file.absolutePath)
+                settingsDataStore.setHubBackgroundMode(HubBackgroundMode.CUSTOM)
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("SettingsViewModel", "saveCroppedHubWallpaper failed", e)
             }
         }
     }
 
     fun clearCustomHubWallpaper() {
         viewModelScope.launch {
-            settingsRepository.setCustomHubWallpaperPath(null)
+            settingsDataStore.setCustomHubWallpaperPath(null)
         }
     }
 
     fun clearBrowserHistory() {
         viewModelScope.launch {
-            settingsRepository.setBrowserHistory("[]")
+            settingsDataStore.setBrowserHistory("[]")
         }
     }
 }

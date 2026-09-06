@@ -10,8 +10,8 @@ kotlin = "2.4.10"
 composeBom = "2026.06.01"
 datastorePreferences = "1.2.1"
 coil = "2.7.0"
-haze = "1.7.2"
-blurview = "version-1.6.6"
+androidMail = "1.6.7"
+playServicesAuth = "21.3.0"
 palette = "1.0.0"
 media3 = "1.10.1"
 
@@ -53,9 +53,14 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 # Coil
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
+# JavaMail (IMAP/SMTP) for the Email hub
+android-mail = { group = "com.sun.mail", name = "android-mail", version.ref = "androidMail" }
+android-activation = { group = "com.sun.mail", name = "android-activation", version.ref = "androidMail" }
+
+# Google sign-in / OAuth authorization for Gmail (XOAUTH2)
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+
 # Haze
-haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
-blurview = { group = "com.github.Dimezis", name = "BlurView", version.ref = "blurview" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

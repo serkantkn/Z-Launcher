@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.repository
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.Context
 import android.net.Uri
 import android.provider.ContactsContract
@@ -63,7 +64,8 @@ object SmsRepository {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SmsRepository", "getConversations failed", e)
+            throw e
         }
         conversations
     }
@@ -114,7 +116,8 @@ object SmsRepository {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SmsRepository", "getMessagesForThread failed", e)
+            throw e
         }
         messages
     }
@@ -126,7 +129,7 @@ object SmsRepository {
             smsManager.sendTextMessage(phoneNumber, null, messageText, null, null)
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SmsRepository", "sendSms failed", e)
             false
         }
     }

@@ -1,5 +1,8 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import androidx.annotation.StringRes
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -9,10 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,20 +33,24 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
+import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
+import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
 
-private enum class SettingsTab(val title: String) {
-    LOOK("görünüm"),
-    HUBS("hub"),
-    NOTIFICATIONS("bildirimler"),
-    DISPLAY_AND_SOUND("ekran+ses"),
-    CONNECTIVITY("bağlantılar"),
-    SYSTEM("sistem"),
-    ABOUT("hakkında")
+private enum class SettingsTab(@StringRes val titleRes: Int) {
+    LOOK(R.string.settings_tab_look),
+    HUBS(R.string.settings_tab_hubs),
+    NOTIFICATIONS(R.string.settings_tab_notifications),
+    DISPLAY_AND_SOUND(R.string.settings_tab_display_sound),
+    CONNECTIVITY(R.string.settings_tab_connectivity),
+    SYSTEM(R.string.settings_tab_system),
+    ABOUT(R.string.settings_tab_about)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -70,29 +72,16 @@ fun SettingsScreen(
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
     val tabs = SettingsTab.entries
-    val actualPageCount = tabs.size
-    val loopCount = 1000
-    val initialPage = (loopCount / 2) * actualPageCount
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { loopCount * actualPageCount }
-    )
+    val pager = rememberLoopingPagerState(pageCount = tabs.size)
     val targetTab by viewModel.targetTab.collectAsState()
 
     LaunchedEffect(targetTab) {
         targetTab?.let { tabName ->
             val foundIndex = tabs.indexOfFirst {
-                it.name.equals(tabName, ignoreCase = true) || it.title.equals(tabName, ignoreCase = true)
+                it.name.equals(tabName, ignoreCase = true)
             }
             if (foundIndex >= 0) {
-                val current = pagerState.currentPage
-                val size = actualPageCount
-                val currentActual = ((current % size) + size) % size
-                var diff = foundIndex - currentActual
-                if (diff > size / 2) diff -= size
-                if (diff < -size / 2) diff += size
-                val targetPage = current + diff
-                pagerState.scrollToPage(targetPage)
+                pager.scrollToPage(foundIndex)
             }
             viewModel.clearTargetTab()
         }
@@ -168,80 +157,44 @@ fun SettingsScreen(
                 Column(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    val configuration = LocalConfiguration.current
-                    val overflowYPx = with(density) { (-24).dp.toPx() }
-
                     if (isWideScreen) {
-                        Text(
-                            text = "ayarlar",
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.Light,
-                                fontSize = 96.sp,
-                                letterSpacing = (-4).sp,
-                                lineHeight = 96.sp
-                            ),
-                            color = if (zuneColors.isDark) Color.White else Color.Black,
-                            modifier = Modifier
-                                .padding(
-                                    start = 72.dp,
-                                    top = 4.dp,
-                                    bottom = 24.dp
-                                )
-                                .graphicsLayer { translationY = overflowYPx }
-                        )
+                        ZuneWideHubTitle(text = stringResource(R.string.common_settings))
 
-                        LazyRow(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                start = 72.dp,
-                                end = 48.dp
-                            ),
-                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(48.dp)
-                        ) {
-                            items(tabs.size) { index ->
-                                Column(modifier = Modifier.width(360.dp)) {
-                                    Text(
-                                        text = tabs[index].title,
-                                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
-                                        color = zuneColors.accentColor,
-                                        modifier = Modifier.padding(bottom = 16.dp)
-                                    )
-                                    when (tabs[index]) {
-                                        SettingsTab.LOOK -> LookSettingsPage(
-                                            viewModel = viewModel,
-                                            themeMode = themeMode,
-                                            accentColor = accentColor,
-                                            fontScale = fontScale,
-                                            animationsEnabled = animationsEnabled,
-                                            onThemeModeChanged = viewModel::setThemeMode,
-                                            onAccentColorChanged = viewModel::setAccentColor,
-                                            onFontScaleChanged = viewModel::setFontScale,
-                                            onAnimationsChanged = viewModel::setAnimationsEnabled
-                                        )
-                                        SettingsTab.HUBS -> HubSettingsPage(
-                                            viewModel = viewModel,
-                                            socialHubLayout = socialHubLayout,
-                                            directCallEnabled = directCallEnabled,
-                                            onSocialHubLayoutChanged = viewModel::setSocialHubLayout,
-                                            onDirectCallChanged = viewModel::setDirectCallEnabled,
-                                            onClearBrowserHistory = viewModel::clearBrowserHistory
-                                        )
-                                        SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(
-                                            viewModel = viewModel,
-                                            onOpenAppFilter = { openAppFilter() }
-                                        )
-                                        SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
-                                        SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
-                                        SettingsTab.SYSTEM -> SystemSettingsPage(viewModel = viewModel)
-                                        SettingsTab.ABOUT -> AboutSettingsPage()
-                                    }
-                                }
+                        ZuneWidePanorama(tabs = tabs.map { stringResource(it.titleRes) }) { index ->
+                            when (tabs[index]) {
+                                SettingsTab.LOOK -> LookSettingsPage(
+                                    viewModel = viewModel,
+                                    themeMode = themeMode,
+                                    accentColor = accentColor,
+                                    fontScale = fontScale,
+                                    animationsEnabled = animationsEnabled,
+                                    onThemeModeChanged = viewModel::setThemeMode,
+                                    onAccentColorChanged = viewModel::setAccentColor,
+                                    onFontScaleChanged = viewModel::setFontScale,
+                                    onAnimationsChanged = viewModel::setAnimationsEnabled
+                                )
+                                SettingsTab.HUBS -> HubSettingsPage(
+                                    viewModel = viewModel,
+                                    socialHubLayout = socialHubLayout,
+                                    directCallEnabled = directCallEnabled,
+                                    onSocialHubLayoutChanged = viewModel::setSocialHubLayout,
+                                    onDirectCallChanged = viewModel::setDirectCallEnabled,
+                                    onClearBrowserHistory = viewModel::clearBrowserHistory
+                                )
+                                SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(
+                                    viewModel = viewModel,
+                                    onOpenAppFilter = { openAppFilter() }
+                                )
+                                SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
+                                SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
+                                SettingsTab.SYSTEM -> SystemSettingsPage(viewModel = viewModel)
+                                SettingsTab.ABOUT -> AboutSettingsPage()
                             }
                         }
                     } else {
                         // Fixed small header title
                         Text(
-                            text = "ayarlar",
+                            text = stringResource(R.string.common_settings),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 18.sp,
@@ -259,25 +212,13 @@ fun SettingsScreen(
 
                         // Giant pivot tabs
                         ZunePivotTabs(
-                            tabs = tabs.map { it.title },
-                            pagerState = pagerState,
-                            onSelected = { index ->
-                                val current = pagerState.currentPage
-                                val size = actualPageCount
-                                val currentActual = ((current % size) + size) % size
-                                var diff = index - currentActual
-                                if (diff > size / 2) diff -= size
-                                if (diff < -size / 2) diff += size
-                                val targetPage = current + diff
-                                scope.launch {
-                                    pagerState.animateScrollToPage(targetPage)
-                                }
-                            },
+                            tabs = tabs.map { stringResource(it.titleRes) },
+                            state = pager,
                             modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
                         )
 
-                        HorizontalPager(
-                            state = pagerState,
+                        ZuneLoopingPager(
+                            state = pager,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(
                                 start = ZuneDimens.ScreenPaddingHorizontal,
@@ -285,8 +226,7 @@ fun SettingsScreen(
                             ),
                             pageSpacing = 24.dp
                         ) { page ->
-                            val actualPage = page % actualPageCount
-                            when (tabs[actualPage]) {
+                            when (tabs[page]) {
                                 SettingsTab.LOOK -> LookSettingsPage(
                                     viewModel = viewModel,
                                     themeMode = themeMode,

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.social
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.content.Intent
@@ -20,9 +21,9 @@ import kotlinx.coroutines.flow.stateIn
 
 class SocialHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val settingsRepository = application.appContainer.settingsRepository
+    private val settingsDataStore = application.appContainer.settingsDataStore
 
-    val layout: StateFlow<SocialHubLayout> = settingsRepository.socialHubLayout
+    val layout: StateFlow<SocialHubLayout> = settingsDataStore.socialHubLayout
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SocialHubLayout.TIMELINE)
 
     val messages: StateFlow<List<SocialMessageModel>> = SocialRepository.messages
@@ -69,7 +70,7 @@ class SocialHubViewModel(application: Application) : AndroidViewModel(applicatio
             SocialRepository.removeMessage(message.id)
             _selectedMessage.value = null
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SocialHubViewModel", "sendReply failed", e)
         }
     }
     
@@ -79,7 +80,7 @@ class SocialHubViewModel(application: Application) : AndroidViewModel(applicatio
             SocialRepository.removeMessage(message.id)
             _selectedMessage.value = null
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SocialHubViewModel", "openMessage failed", e)
         }
     }
 
@@ -87,7 +88,7 @@ class SocialHubViewModel(application: Application) : AndroidViewModel(applicatio
         try {
             com.serkantkn.zunelauncher.data.service.SocialNotificationListener.instance?.cancelNotification(message.id)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SocialHubViewModel", "dismissMessage failed", e)
         }
         SocialRepository.removeMessage(message.id)
         if (_selectedMessage.value?.id == message.id) {
@@ -101,9 +102,9 @@ class SocialHubViewModel(application: Application) : AndroidViewModel(applicatio
             messages.value.forEach { msg ->
                 try {
                     listener?.cancelNotification(msg.id)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { ZuneLog.w("SocialHubViewModel", "clearAll ignored Exception", e) }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { ZuneLog.w("SocialHubViewModel", "clearAll ignored Exception", e) }
         SocialRepository.clearAll()
         _selectedMessage.value = null
     }

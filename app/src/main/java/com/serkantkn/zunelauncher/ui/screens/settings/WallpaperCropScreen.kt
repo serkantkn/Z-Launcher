@@ -1,5 +1,8 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -15,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,7 +67,7 @@ fun WallpaperCropScreen(
                 val stream = context.contentResolver.openInputStream(uri)
                 BitmapFactory.decodeStream(stream)
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("WallpaperCropScreen", "WallpaperCropScreen failed", e)
                 null
             }
         }
@@ -86,7 +88,7 @@ fun WallpaperCropScreen(
             ) {
                 Image(
                     bitmap = originalBitmap!!.asImageBitmap(),
-                    contentDescription = "Duvar Kağıdı Önizleme",
+                    contentDescription = stringResource(R.string.settings_wallpaper_preview),
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer(
@@ -120,7 +122,7 @@ fun WallpaperCropScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text("İptal")
+                    Text(stringResource(R.string.common_cancel_cap))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Button(
@@ -130,7 +132,7 @@ fun WallpaperCropScreen(
                                 val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
                                 onApply(bitmap)
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                ZuneLog.e("WallpaperCropScreen", "WallpaperCropScreen failed", e)
                             }
                         }
                     },
@@ -140,12 +142,12 @@ fun WallpaperCropScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text("Uygula")
+                    Text(stringResource(R.string.common_apply_cap))
                 }
             }
         } else {
             Text(
-                text = "Resim Yükleniyor...",
+                text = stringResource(R.string.settings_image_loading),
                 color = Color.White,
                 modifier = Modifier.align(Alignment.Center)
             )

@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -40,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -236,7 +237,7 @@ fun WP8AddressBar(
                         )
                         if (inputText.isEmpty()) {
                             Text(
-                                text = "arama yapın veya url girin",
+                                text = stringResource(R.string.browser_address_hint),
                                 style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
                                 color = zuneColors.textMuted
                             )
@@ -261,7 +262,7 @@ fun WP8AddressBar(
                         val tint = if (isFocused || inputText != url) zuneColors.textMuted else (if (zuneColors.isDark) Color.White else Color.Black)
                         Icon(
                             imageVector = icon,
-                            contentDescription = "Aksiyon",
+                            contentDescription = stringResource(R.string.browser_action),
                             tint = tint,
                             modifier = Modifier.size(18.dp)
                         )
@@ -284,7 +285,7 @@ fun WP8AddressBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreHoriz,
-                    contentDescription = "Daha Fazla",
+                    contentDescription = stringResource(R.string.browser_more),
                     tint = if (zuneColors.isDark) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f),
                     modifier = Modifier.size(24.dp)
                 )
@@ -303,34 +304,34 @@ fun WP8AddressBar(
                     .background(wp8MenuBarColor)
                     .padding(vertical = 8.dp)
             ) {
-                WP8MenuItem(text = "ana sayfa", subtitle = null, enabled = true) {
+                WP8MenuItem(text = stringResource(R.string.browser_home), subtitle = null, enabled = true) {
                     menuExpanded = false
                     onGoHome()
                 }
-                val favText = if (isFavorited) "sık kullanılanlardan sil" else "sık kullanılanlara ekle"
+                val favText = if (isFavorited) stringResource(R.string.browser_remove_favorite) else stringResource(R.string.browser_add_to_favorites)
                 WP8MenuItem(text = favText, subtitle = null, enabled = true) {
                     menuExpanded = false
                     onToggleFavorite()
                 }
-                WP8MenuItem(text = "sekmeler (${tabs.size})", subtitle = null, enabled = true) {
+                WP8MenuItem(text = stringResource(R.string.browser_tabs_count, tabs.size), subtitle = null, enabled = true) {
                     menuExpanded = false
                     tabsExpanded = true
                 }
-                WP8MenuItem(text = "indirmeler (${downloadsCount})", subtitle = null, enabled = true) {
+                WP8MenuItem(text = stringResource(R.string.browser_downloads_count, downloadsCount), subtitle = null, enabled = true) {
                     menuExpanded = false
                     onOpenDownloads()
                 }
-                WP8MenuItem(text = "ayarlar", subtitle = null, enabled = true) {
+                WP8MenuItem(text = stringResource(R.string.common_settings), subtitle = null, enabled = true) {
                     menuExpanded = false
                     onOpenSettings?.invoke()
                 }
-                WP8MenuItem(text = "geri", subtitle = null, enabled = canGoBack) {
+                WP8MenuItem(text = stringResource(R.string.common_back), subtitle = null, enabled = canGoBack) {
                     if (canGoBack) {
                         menuExpanded = false
                         onGoBack()
                     }
                 }
-                WP8MenuItem(text = "ileri", subtitle = null, enabled = canGoForward) {
+                WP8MenuItem(text = stringResource(R.string.browser_forward), subtitle = null, enabled = canGoForward) {
                     if (canGoForward) {
                         menuExpanded = false
                         onGoForward()
@@ -358,7 +359,7 @@ fun WP8AddressBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "sekmeler",
+                        text = stringResource(R.string.browser_tabs),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier.weight(1f)
@@ -371,7 +372,7 @@ fun WP8AddressBar(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "Yeni Sekme",
+                            contentDescription = stringResource(R.string.browser_new_tab),
                             tint = if (zuneColors.isDark) Color.White else Color.Black,
                             modifier = Modifier.size(24.dp)
                         )
@@ -404,7 +405,7 @@ fun WP8AddressBar(
                                     .padding(8.dp)
                             ) {
                                 Text(
-                                    text = tab.title.ifBlank { "Yeni Sekme" },
+                                    text = tab.title.ifBlank { stringResource(R.string.browser_new_tab) },
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                     color = if (zuneColors.isDark) Color.White else Color.Black,
                                     maxLines = 2,
@@ -423,7 +424,7 @@ fun WP8AddressBar(
                             // Close button for tab
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Kapat",
+                                contentDescription = stringResource(R.string.common_close_cap),
                                 tint = if (zuneColors.isDark) Color.White else Color.Black,
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)

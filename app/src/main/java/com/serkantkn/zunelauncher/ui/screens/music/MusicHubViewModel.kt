@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.music
 
+import com.serkantkn.zunelauncher.util.toUserMessage
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.graphics.Bitmap
@@ -22,6 +24,10 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
     private val musicRepository = application.appContainer.musicRepository
     val globalMediaController = ThirdPartyMediaController(application)
     val localMediaController = LocalMediaController(application)
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    /** Last load failure as user text, or null. Shown by the hub's empty state. */
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     private val _localSongs = MutableStateFlow<List<SongModel>>(emptyList())
     val localSongs: StateFlow<List<SongModel>> = _localSongs.asStateFlow()
@@ -46,8 +52,13 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadLocalSongs() {
         viewModelScope.launch {
-            val songs = musicRepository.getLocalSongs()
-            _localSongs.value = songs
+            try {
+                _localSongs.value = musicRepository.getLocalSongs()
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                ZuneLog.e("MusicHubViewModel", "loadLocalSongs failed", e)
+                _errorMessage.value = e.toUserMessage(getApplication())
+            }
         }
     }
 

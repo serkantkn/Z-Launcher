@@ -1,5 +1,8 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
+import com.serkantkn.zunelauncher.util.localizedString
+import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.graphics.drawable.Drawable
@@ -8,6 +11,8 @@ import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.AppInfo
 import com.serkantkn.zunelauncher.data.model.FavoriteAppItem
 import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
+import com.serkantkn.zunelauncher.data.model.Alarm
+import com.serkantkn.zunelauncher.data.model.CalendarEvent
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.data.model.StartTileItem
@@ -60,15 +65,17 @@ sealed interface StartTileUIModel {
 class HomeHubViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appRepository = application.appContainer.appRepository
-    private val settingsRepository = application.appContainer.settingsRepository
+    private val settingsDataStore = application.appContainer.settingsDataStore
     private val mediaRepository = application.appContainer.mediaRepository
     private val favoritePhotosDataStore = application.appContainer.favoritePhotosDataStore
     private val notesDataStore = application.appContainer.notesDataStore
+    private val alarmDataStore = application.appContainer.alarmDataStore
+    private val calendarDataStore = application.appContainer.calendarDataStore
 
     private val _allApps = MutableStateFlow<List<AppInfo>>(emptyList())
     private val _allImages = MutableStateFlow<List<MediaImage>>(emptyList())
 
-    val hubOrder: StateFlow<List<HubType>> = settingsRepository.hubOrder
+    val hubOrder: StateFlow<List<HubType>> = settingsDataStore.hubOrder
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
@@ -88,7 +95,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
                     var i = 0
                     while (true) {
                         val note = pool[i % pool.size]
-                        emit(if (note.isLocked) "kilitli not" else note.displayTitle)
+                        emit(if (note.isLocked) getApplication<Application>().localizedString(R.string.notes_locked_note) else note.displayTitle)
                         i++
                         delay(6000)
                     }
@@ -98,6 +105,26 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Badge for the Notes hub tile: number of pinned, non-archived notes. */
+    /** Enabled alarms (clock alarms and note reminders) for the saat live tile. */
+    val enabledAlarms: StateFlow<List<Alarm>> = alarmDataStore.alarmsFlow
+        .map { alarms -> alarms.filter { it.isEnabled } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Events from the start of today onwards, soonest first, for the takvim live tile. */
+    val upcomingEvents: StateFlow<List<CalendarEvent>> = calendarDataStore.eventsFlow
+        .map { events ->
+            val startOfToday = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            events.filter { it.timestamp >= startOfToday }
+                .sortedWith(compareBy({ it.timestamp }, { it.hour }, { it.minute }))
+                .take(6)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Unread mail across every inbox: badge of the e-posta tile. */
+    val emailUnreadCount: StateFlow<Int> = application.appContainer.emailCache.inboxUnread
+
     val pinnedNotesCount: StateFlow<Int> = notesDataStore.notesFlow
         .map { notes -> notes.count { it.isPinned && !it.isArchived && !it.isInTrash } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -127,7 +154,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val startTiles: StateFlow<List<StartTileItem>> = settingsRepository.startTiles
+    val startTiles: StateFlow<List<StartTileItem>> = settingsDataStore.startTiles
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val unifiedStartTiles: StateFlow<List<StartTileUIModel>> = combine(
@@ -184,16 +211,16 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    val tileCornerStyle: StateFlow<TileCornerStyle> = settingsRepository.tileCornerStyle
+    val tileCornerStyle: StateFlow<TileCornerStyle> = settingsDataStore.tileCornerStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TileCornerStyle.ROUNDED)
 
-    val tileSpacing: StateFlow<Int> = settingsRepository.tileSpacing
+    val tileSpacing: StateFlow<Int> = settingsDataStore.tileSpacing
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
 
-    val tileColumns: StateFlow<Int> = settingsRepository.tileColumns
+    val tileColumns: StateFlow<Int> = settingsDataStore.tileColumns
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 4)
 
-    val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsRepository.homeScreenLayout
+    val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsDataStore.homeScreenLayout
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeScreenLayout.ZUNE)
 
     private val _hubCustomSpans = MutableStateFlow<Map<HubType, Int>>(
@@ -208,7 +235,8 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             HubType.SETTINGS to 2,
             HubType.CLOCK to 2,
             HubType.CALENDAR to 2,
-            HubType.NOTES to 2
+            HubType.NOTES to 2,
+            HubType.EMAIL to 2
         )
     )
     val hubCustomSpans: StateFlow<Map<HubType, Int>> = _hubCustomSpans
@@ -242,8 +270,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 _allImages.value = mediaRepository.getAllImages()
-            } catch (_: Exception) {
-            }
+            } catch (e: Exception) { ZuneLog.w("HomeHubViewModel", "loadImages ignored Exception", e) }
         }
     }
 
@@ -263,7 +290,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     fun updateStartTilesOrder(uiModels: List<StartTileUIModel>) {
         viewModelScope.launch {
             val items = uiModels.map { StartTileItem(it.id, it.span) }
-            settingsRepository.setStartTiles(items)
+            settingsDataStore.setStartTiles(items)
         }
     }
 
@@ -280,7 +307,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
                 }
                 val updatedList = currentList.toMutableList()
                 updatedList[index] = updatedList[index].copy(span = newSpan)
-                settingsRepository.setStartTiles(updatedList)
+                settingsDataStore.setStartTiles(updatedList)
                 if (id.startsWith("app:")) {
                     val pkg = id.removePrefix("app:")
                     appRepository.updateSpan(pkg, newSpan)
@@ -288,7 +315,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             } else {
                 val updatedList = currentList.toMutableList()
                 updatedList.add(StartTileItem(id, 4))
-                settingsRepository.setStartTiles(updatedList)
+                settingsDataStore.setStartTiles(updatedList)
             }
         }
     }
@@ -297,7 +324,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val currentList = (if (startTiles.value.isNotEmpty()) startTiles.value else unifiedStartTiles.value.map { StartTileItem(it.id, it.span) }).toMutableList()
             currentList.removeAll { it.id == id }
-            settingsRepository.setStartTiles(currentList)
+            settingsDataStore.setStartTiles(currentList)
             if (id.startsWith("app:")) {
                 val pkg = id.removePrefix("app:")
                 appRepository.toggleFavorite(pkg)

@@ -1,19 +1,17 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.WallpaperManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.util.Log
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,18 +27,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.IntSize
-import com.serkantkn.zunelauncher.ui.theme.LocalBackgroundSize
-import com.serkantkn.zunelauncher.ui.theme.LocalBlurredWallpaperBitmap
-import com.serkantkn.zunelauncher.ui.theme.LocalHazeState
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
-import com.serkantkn.zunelauncher.ui.theme.LocalWallpaperBitmap
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import com.serkantkn.zunelauncher.util.SimpleBlur
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -74,8 +64,6 @@ fun ZuneBackground(
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    val hazeState = rememberHazeState()
-    var backgroundSize by remember { mutableStateOf(IntSize.Zero) }
     var wallpaperBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var blurredWallpaperBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
@@ -91,7 +79,7 @@ fun ZuneBackground(
     DisposableEffect(Unit) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(ctx: android.content.Context?, intent: android.content.Intent?) {
-                Log.d(TAG, "Wallpaper changed, reloading…")
+                ZuneLog.d(TAG, "Wallpaper changed, reloading…")
                 if (System.currentTimeMillis() - ZuneWallpaperManager.lastInternalWallpaperChangeTime > 5000) {
                     // External wallpaper change: clear our internal custom wallpaper
                     coroutineScope.launch {
@@ -137,7 +125,7 @@ fun ZuneBackground(
                         )
                         SimpleBlur.blur(scaleDown, radius = 3, iterations = 2)
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        ZuneLog.e("ZuneBackground", "onReceive failed", e)
                         b
                     }
                     b to blurred
@@ -153,14 +141,7 @@ fun ZuneBackground(
         }
     }
 
-    var backgroundCoordinates by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .onSizeChanged { backgroundSize = it }
-            .onGloballyPositioned { backgroundCoordinates = it }
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         Crossfade(
             targetState = forceModeOverride ?: if (solidBackgroundEnabled) BackgroundMode.SOLID else mode,
             modifier = Modifier
@@ -180,15 +161,7 @@ fun ZuneBackground(
                 BackgroundMode.SOLID -> SolidBackground()
             }
         }
-        CompositionLocalProvider(
-            LocalWallpaperBitmap provides wallpaperBitmap,
-            LocalBlurredWallpaperBitmap provides blurredWallpaperBitmap,
-            LocalBackgroundSize provides backgroundSize,
-            com.serkantkn.zunelauncher.ui.theme.LocalBackgroundCoordinates provides backgroundCoordinates,
-            LocalHazeState provides hazeState
-        ) {
-            content()
-        }
+        content()
     }
 }
 
@@ -208,7 +181,7 @@ private fun loadWallpaperBitmap(
             }
         }
     } catch (e: Exception) {
-        Log.w(TAG, "getWallpaperFile failed; trying drawable fallback", e)
+        ZuneLog.w(TAG, "getWallpaperFile failed; trying drawable fallback", e)
     }
 
     val drawable = runCatching { wallpaperManager.drawable }.getOrNull()

@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.annotation.SuppressLint
 import android.app.Application
 import android.graphics.Bitmap
@@ -157,7 +159,7 @@ fun BrowserHubScreen(
                                 if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
                                     viewModel.toggleFavorite(activeTab.title, activeTab.url)
                                 } else {
-                                    Toast.makeText(context, "Sık kullanılanlara site ekleme özelliği sadece Z Launcher Pro'da geçerlidir.", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.browser_fav_add_pro), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             onNewTab = { viewModel.openNewTab() },
@@ -268,7 +270,7 @@ fun BrowserHubScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "internet",
+                                    text = stringResource(R.string.hub_internet),
                                     style = MaterialTheme.typography.displayMedium.copy(
                                         fontWeight = FontWeight.Medium,
                                         fontSize = if (isWideScreen) 48.sp else 36.sp
@@ -310,7 +312,7 @@ fun BrowserHubScreen(
                                 if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
                                     viewModel.toggleFavorite(activeTab.title, activeTab.url)
                                 } else {
-                                    Toast.makeText(context, "Sık kullanılanlara site ekleme özelliği sadece Z Launcher Pro'da geçerlidir.", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.browser_fav_add_pro), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             onNewTab = { viewModel.openNewTab() },

@@ -1,17 +1,14 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
-import androidx.compose.animation.AnimatedVisibility
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -41,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,13 +47,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.RectangleShape
 import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.data.model.BrowserFavorite
 import com.serkantkn.zunelauncher.data.model.BrowserHistory
@@ -103,7 +96,7 @@ fun BrowserStartScreen(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
-                    text = "sık kullanılanlar",
+                    text = stringResource(R.string.browser_favorites),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = if (isWideScreen) 36.sp else 32.sp
@@ -116,12 +109,12 @@ fun BrowserStartScreen(
             if (favorites.isEmpty()) {
                 item {
                     FavoriteActionTile(
-                        title = "ekle",
+                        title = stringResource(R.string.common_add),
                         onClick = { 
                             if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
                                 showAddDialog = true 
                             } else {
-                                android.widget.Toast.makeText(context, "Sık kullanılanlara site ekleme özelliği sadece Z Launcher Pro'da geçerlidir.", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, context.getString(R.string.browser_fav_add_pro), android.widget.Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -138,7 +131,7 @@ fun BrowserStartScreen(
                             if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
                                 favoriteToAction = fav 
                             } else {
-                                android.widget.Toast.makeText(context, "Sık kullanılanları düzenleme özelliği sadece Z Launcher Pro'da geçerlidir.", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, context.getString(R.string.browser_fav_edit_pro), android.widget.Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -146,12 +139,12 @@ fun BrowserStartScreen(
                 }
                 item {
                     FavoriteActionTile(
-                        title = "ekle",
+                        title = stringResource(R.string.common_add),
                         onClick = { 
                             if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
                                 showAddDialog = true 
                             } else {
-                                android.widget.Toast.makeText(context, "Sık kullanılanlara site ekleme özelliği sadece Z Launcher Pro'da geçerlidir.", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, context.getString(R.string.browser_fav_add_pro), android.widget.Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -161,7 +154,7 @@ fun BrowserStartScreen(
 
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
-                    text = "geçmiş",
+                    text = stringResource(R.string.common_history),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = if (isWideScreen) 36.sp else 32.sp
@@ -174,7 +167,7 @@ fun BrowserStartScreen(
             if (history.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
-                        text = "geçmişiniz boş",
+                        text = stringResource(R.string.browser_history_empty),
                         style = MaterialTheme.typography.bodyLarge,
                         color = zuneColors.textMuted
                     )
@@ -201,7 +194,7 @@ fun BrowserStartScreen(
                 title = fav.title,
                 confirmButton = {
                     com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
-                        text = "düzenle",
+                        text = stringResource(R.string.common_edit),
                         onClick = {
                             dismissWithAnim {
                                 favoriteToAction = null
@@ -213,7 +206,7 @@ fun BrowserStartScreen(
                 },
                 dismissButton = {
                     com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
-                        text = "kaldır",
+                        text = stringResource(R.string.common_remove),
                         onClick = {
                             dismissWithAnim {
                                 onRemoveFavorite(fav.url)
@@ -225,7 +218,7 @@ fun BrowserStartScreen(
                 }
             ) {
                 Text(
-                    text = "ne yapmak istersiniz?",
+                    text = stringResource(R.string.browser_what_to_do),
                     style = MaterialTheme.typography.bodyLarge,
                     color = zuneColors.textMuted
                 )
@@ -241,10 +234,10 @@ fun BrowserStartScreen(
                     showAddDialog = false
                     favoriteToEdit = null
                 },
-                title = if (favoriteToEdit != null) "sık kullanılanı düzenle" else "sık kullanılan ekle",
+                title = if (favoriteToEdit != null) stringResource(R.string.browser_edit_favorite) else stringResource(R.string.browser_add_favorite),
                 confirmButton = {
                     com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
-                        text = "kaydet",
+                        text = stringResource(R.string.common_save),
                         onClick = {
                             dismissWithAnim {
                                 if (favoriteToEdit != null) {
@@ -260,7 +253,7 @@ fun BrowserStartScreen(
                 },
                 dismissButton = {
                     com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
-                        text = "iptal",
+                        text = stringResource(R.string.common_cancel),
                         onClick = {
                             dismissWithAnim {
                                 showAddDialog = false
@@ -275,14 +268,14 @@ fun BrowserStartScreen(
                     OutlinedTextField(
                         value = editTitle,
                         onValueChange = { editTitle = it },
-                        label = { Text("başlık") },
+                        label = { Text(stringResource(R.string.browser_title_label)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = editUrl,
                         onValueChange = { editUrl = it },
-                        label = { Text("url") },
+                        label = { Text(stringResource(R.string.browser_url_label)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )

@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -39,7 +41,7 @@ fun ZuneWeather(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "partly cloudy",
+                text = stringResource(R.string.weather_condition),
                 style = MaterialTheme.typography.bodySmall,
                 color = LocalZuneColors.current.textMuted
             )

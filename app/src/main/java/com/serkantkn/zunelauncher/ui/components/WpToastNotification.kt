@@ -1,5 +1,8 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
+import com.serkantkn.zunelauncher.util.ZuneLog
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -157,7 +160,7 @@ fun WpToastNotification(
                                 message.openIntent?.send()
                                 dismissWithFlip()
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                ZuneLog.e("WpToastNotification", "WpToastNotification failed", e)
                             }
                         }
                     }
@@ -222,7 +225,7 @@ fun WpToastNotification(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.common_close_cap),
                             tint = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.size(16.dp)
                         )
@@ -285,7 +288,7 @@ fun WpToastNotification(
                     ) {
                         if (message.replyAction != null) {
                             Text(
-                                text = "hızlı yanıt ver:",
+                                text = stringResource(R.string.toast_quick_reply),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = Color.White.copy(alpha = 0.85f),
                                 modifier = Modifier.padding(bottom = 4.dp)
@@ -321,7 +324,7 @@ fun WpToastNotification(
                                                 if (replyText.isNotBlank()) {
                                                     val success = SocialRepository.sendReply(context, message.replyAction, replyText)
                                                     if (success) {
-                                                        android.widget.Toast.makeText(context, "Yanıt gönderildi", android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.toast_reply_sent), android.widget.Toast.LENGTH_SHORT).show()
                                                     }
                                                     dismissWithFlip()
                                                 }
@@ -331,7 +334,7 @@ fun WpToastNotification(
                                     )
                                     if (replyText.isEmpty()) {
                                         Text(
-                                            text = "yanıtınızı yazın...",
+                                            text = stringResource(R.string.toast_reply_hint),
                                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                                             color = Color.White.copy(alpha = 0.55f)
                                         )
@@ -349,7 +352,7 @@ fun WpToastNotification(
                                         .clickable(enabled = replyText.isNotBlank()) {
                                             val success = SocialRepository.sendReply(context, message.replyAction, replyText)
                                             if (success) {
-                                                android.widget.Toast.makeText(context, "Yanıt gönderildi", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.toast_reply_sent), android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                             dismissWithFlip()
                                         }
@@ -361,13 +364,13 @@ fun WpToastNotification(
                                     ) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.Send,
-                                            contentDescription = "Gönder",
+                                            contentDescription = stringResource(R.string.msg_send_cap),
                                             tint = bannerBgColor,
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = "gönder",
+                                            text = stringResource(R.string.send),
                                             style = MaterialTheme.typography.labelMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 12.sp
@@ -379,7 +382,7 @@ fun WpToastNotification(
                             }
                         } else {
                             Text(
-                                text = "uygulamayı açmak için dokunun",
+                                text = stringResource(R.string.toast_tap_to_open),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = Color.White.copy(alpha = 0.75f),
                                 modifier = Modifier.padding(top = 4.dp)

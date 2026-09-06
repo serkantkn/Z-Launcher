@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.phone
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -8,12 +10,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -34,7 +31,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -49,8 +45,6 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Dialpad
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
@@ -135,10 +129,10 @@ fun WpCallScreen(
     if (callStatus == CallStatus.IDLE) return
 
     val statusText = when (callStatus) {
-        CallStatus.INCOMING -> "gelen çağrı..."
-        CallStatus.OUTGOING -> "aranıyor..."
-        CallStatus.ACTIVE -> if (isOnHold) "çağrı bekletiliyor" else CallManager.formatDuration(callDurationSeconds)
-        CallStatus.ENDED -> "çağrı sonlandırıldı"
+        CallStatus.INCOMING -> stringResource(R.string.call_incoming_ellipsis)
+        CallStatus.OUTGOING -> stringResource(R.string.call_dialing)
+        CallStatus.ACTIVE -> if (isOnHold) stringResource(R.string.call_on_hold) else CallManager.formatDuration(callDurationSeconds)
+        CallStatus.ENDED -> stringResource(R.string.call_ended)
         CallStatus.IDLE -> ""
     }
 
@@ -289,7 +283,7 @@ fun WpCallScreen(
 
                         if (phoneNumber.isNotBlank()) {
                             Text(
-                                text = "Mobil: $phoneNumber",
+                                text = stringResource(R.string.call_mobile_number, phoneNumber),
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Normal,
                                     fontSize = 20.sp
@@ -322,7 +316,7 @@ fun WpCallScreen(
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             WpGridSquareTile(
-                                title = "hoparlör",
+                                title = stringResource(R.string.call_speaker),
                                 icon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                                 isActive = isSpeakerOn,
                                 enabled = callStatus == CallStatus.ACTIVE,
@@ -330,7 +324,7 @@ fun WpCallScreen(
                                 modifier = Modifier.weight(1f)
                             )
                             WpGridSquareTile(
-                                title = "sessize al",
+                                title = stringResource(R.string.call_mute),
                                 icon = if (isMuted) Icons.Default.MicOff else Icons.Default.Mic,
                                 isActive = isMuted,
                                 enabled = callStatus == CallStatus.ACTIVE,
@@ -338,12 +332,12 @@ fun WpCallScreen(
                                 modifier = Modifier.weight(1f)
                             )
                             WpGridSquareTile(
-                                title = "çağrı ekle",
+                                title = stringResource(R.string.call_add),
                                 icon = Icons.Default.PersonAdd,
                                 isActive = false,
                                 enabled = callStatus == CallStatus.ACTIVE,
                                 onClick = {
-                                    Toast.makeText(context, "Çağrı ekleme", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.call_add_toast), Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.weight(1f)
                             )
@@ -357,7 +351,7 @@ fun WpCallScreen(
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             WpGridSquareTile(
-                                title = "beklet",
+                                title = stringResource(R.string.call_hold),
                                 icon = if (isOnHold) Icons.Default.PlayArrow else Icons.Default.Pause,
                                 isActive = isOnHold,
                                 enabled = callStatus == CallStatus.ACTIVE,
@@ -365,7 +359,7 @@ fun WpCallScreen(
                                 modifier = Modifier.weight(1f)
                             )
                             WpGridSquareTile(
-                                title = "klavye",
+                                title = stringResource(R.string.phone_keypad),
                                 icon = Icons.Default.Dialpad,
                                 isActive = isKeypadOpen,
                                 enabled = callStatus == CallStatus.ACTIVE,
@@ -378,7 +372,7 @@ fun WpCallScreen(
                                 isActive = false,
                                 enabled = callStatus == CallStatus.ACTIVE,
                                 onClick = {
-                                    Toast.makeText(context, "Bluetooth ses", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.call_bluetooth_toast), Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.weight(1f)
                             )
@@ -403,7 +397,7 @@ fun WpCallScreen(
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     Text(
-                                        text = "kapat",
+                                        text = stringResource(R.string.call_hang_up),
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Medium,
                                             fontSize = 19.sp
@@ -453,12 +447,12 @@ fun WpCallScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "klavye",
+                            text = stringResource(R.string.phone_keypad),
                             style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Light),
                             color = Color.White
                         )
                         Text(
-                            text = "kapat",
+                            text = stringResource(R.string.call_hang_up),
                             style = MaterialTheme.typography.titleMedium,
                             color = zuneColors.accentColor,
                             modifier = Modifier.clickable { CallManager.setKeypadOpen(false) }
@@ -535,7 +529,7 @@ fun WpCallScreen(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.CallEnd,
-                                contentDescription = "Kapat",
+                                contentDescription = stringResource(R.string.common_close_cap),
                                 tint = Color.White,
                                 modifier = Modifier.size(32.dp)
                             )
@@ -567,17 +561,17 @@ fun WpCallScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "mesajla yanıtla",
+                                text = stringResource(R.string.call_reply_message),
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal),
                                 color = zuneColors.accentColor,
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
 
                             val messages = listOf(
-                                "Şu an konuşamıyorum, sonra arayacağım.",
-                                "Yoldayım, birazdan ulaşacağım.",
-                                "Önemli bir şey mi var? Mesaj atın.",
-                                "Sizi 10 dakika içinde arayacağım."
+                                stringResource(R.string.call_quick_1),
+                                stringResource(R.string.call_quick_2),
+                                stringResource(R.string.call_quick_3),
+                                stringResource(R.string.call_quick_4)
                             )
 
                             messages.forEach { msg ->
@@ -588,7 +582,7 @@ fun WpCallScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            Toast.makeText(context, "Mesaj gönderildi: $msg", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, context.getString(R.string.call_message_sent, msg), Toast.LENGTH_LONG).show()
                                             isQuickSmsOpen = false
                                             CallManager.declineCall()
                                         }
@@ -654,13 +648,13 @@ private fun WpIncomingCallSwipeScreen(
         ) {
             Icon(
                 imageVector = Icons.Default.CallEnd,
-                contentDescription = "Yoksay",
+                contentDescription = stringResource(R.string.call_ignore_cap),
                 tint = Color(0xFFC0392B),
                 modifier = Modifier.size(32.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "yoksay (reddet)",
+                text = stringResource(R.string.call_ignore),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
                 color = Color(0xFFC0392B)
             )
@@ -677,13 +671,13 @@ private fun WpIncomingCallSwipeScreen(
         ) {
             Icon(
                 imageVector = Icons.Default.Call,
-                contentDescription = "Cevapla",
+                contentDescription = stringResource(R.string.call_answer_cap),
                 tint = Color(0xFF27AE60),
                 modifier = Modifier.size(32.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "cevapla (kabul et)",
+                text = stringResource(R.string.call_answer),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
                 color = Color(0xFF27AE60)
             )
@@ -793,7 +787,7 @@ private fun WpIncomingCallSwipeScreen(
                     .padding(top = 28.dp, start = 24.dp, end = 24.dp)
             ) {
                 Text(
-                    text = "gelen çağrı...",
+                    text = stringResource(R.string.call_incoming_ellipsis),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Normal,
                         fontSize = 20.sp
@@ -820,7 +814,7 @@ private fun WpIncomingCallSwipeScreen(
 
                 if (phoneNumber.isNotBlank()) {
                     Text(
-                        text = "Mobil: $phoneNumber",
+                        text = stringResource(R.string.call_mobile_number, phoneNumber),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Normal,
                             fontSize = 20.sp
@@ -849,13 +843,13 @@ private fun WpIncomingCallSwipeScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Message,
-                        contentDescription = "Mesajla Yanıtla",
+                        contentDescription = stringResource(R.string.call_reply_message_cap),
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "mesajla yanıtla",
+                        text = stringResource(R.string.call_reply_message),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
                         color = Color.White
                     )

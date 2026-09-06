@@ -1,10 +1,12 @@
 package com.serkantkn.zunelauncher.ui.screens.files
 
+import com.serkantkn.zunelauncher.util.localizedString
+import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.webkit.MimeTypeMap
@@ -27,6 +29,10 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     private val _currentDirectory = MutableStateFlow<File>(rootDirectory)
     val currentDirectory: StateFlow<File> = _currentDirectory.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    /** Last load failure as user text, or null. Shown by the hub's empty state. */
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     private val _fileItems = MutableStateFlow<List<FileItemModel>>(emptyList())
     val fileItems: StateFlow<List<FileItemModel>> = _fileItems.asStateFlow()
@@ -70,6 +76,13 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     fun loadDirectory(directory: File) {
         viewModelScope.launch {
             _currentDirectory.value = directory
+            if (!directory.exists() || !directory.canRead()) {
+                ZuneLog.w("FilesHubViewModel", "loadDirectory: unreadable ${directory.absolutePath}")
+                _errorMessage.value = if (!directory.exists()) getApplication<Application>().localizedString(R.string.files_folder_missing) else getApplication<Application>().localizedString(R.string.files_folder_unreadable)
+                _fileItems.value = emptyList()
+                return@launch
+            }
+            _errorMessage.value = null
             val items = withContext(Dispatchers.IO) {
                 val files = directory.listFiles() ?: emptyArray()
                 files.map { file ->
@@ -92,7 +105,9 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun navigateTo(directory: File) {
-        if (directory.isDirectory && directory.canRead()) {
+        // Unreadable folders are entered too: loadDirectory shows "klasör okunamıyor" instead of
+        // silently ignoring the tap.
+        if (directory.isDirectory) {
             loadDirectory(directory)
         }
     }
@@ -155,7 +170,7 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
             }
             context.startActivity(intent)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("FilesHubViewModel", "openFile failed", e)
         }
     }
 
@@ -173,9 +188,9 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(Intent.createChooser(intent, "Dosyayı Paylaş"))
+            context.startActivity(Intent.createChooser(intent, context.getString(R.string.files_share_chooser)))
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("FilesHubViewModel", "shareFile failed", e)
         }
     }
 

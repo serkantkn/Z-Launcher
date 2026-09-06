@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.repository
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.Context
 import android.provider.CallLog
 import com.serkantkn.zunelauncher.data.model.CallLogModel
@@ -58,16 +59,23 @@ class CallLogRepository(private val context: Context) {
             }
         } catch (e: SecurityException) {
             // Permission not granted
-            e.printStackTrace()
+            ZuneLog.e("CallLogRepository", "getRecentCalls failed", e)
+            throw e
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("CallLogRepository", "getRecentCalls failed", e)
+            throw e
         }
         return@withContext callLogs
     }
 
     suspend fun getCallLogsForContact(phoneNumbers: List<String>): List<CallLogModel> = withContext(Dispatchers.IO) {
         if (phoneNumbers.isEmpty()) return@withContext emptyList()
-        val allLogs = getRecentCalls()
+        val allLogs = try {
+            getRecentCalls()
+        } catch (e: Exception) {
+            ZuneLog.w("CallLogRepository", "getCallLogsForContact: call log unavailable", e)
+            return@withContext emptyList()
+        }
         val cleanNumbers = phoneNumbers.map { it.replace(Regex("[^0-9+]"), "") }.filter { it.isNotEmpty() }
 
         allLogs.filter { log ->

@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.music
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -13,9 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -42,27 +41,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.layout.onSizeChanged
-import com.serkantkn.zunelauncher.data.model.ThemeMode
-import com.serkantkn.zunelauncher.ui.theme.ZuneExtendedColors
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
+import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
+import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.LazyRow
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import java.util.concurrent.TimeUnit
@@ -75,7 +66,6 @@ fun MusicHubScreen(
 ) {
     val mediaState by viewModel.mediaState.collectAsState()
     val dominantColor by viewModel.dominantColor.collectAsState()
-    val coroutineScope = rememberCoroutineScope()
     
     // Animate accent color transition
     val animatedAccent by animateColorAsState(
@@ -106,14 +96,8 @@ fun MusicHubScreen(
                 )
             }
 
-            val pages = listOf("oynatılıyor", "albümler", "sanatçılar", "şarkılar")
-            val actualPageCount = pages.size
-            val loopCount = 1000
-            val initialPage = (loopCount / 2) * actualPageCount
-            val pagerState = rememberPagerState(
-                initialPage = initialPage,
-                pageCount = { loopCount * actualPageCount }
-            )
+            val pages = listOf(stringResource(R.string.music_tab_now_playing), stringResource(R.string.pics_tab_albums), stringResource(R.string.music_tab_artists), stringResource(R.string.music_tab_songs))
+            val pager = rememberLoopingPagerState(pageCount = pages.size)
 
             val configuration = LocalConfiguration.current
             val screenWidthDp = configuration.screenWidthDp.dp
@@ -125,45 +109,14 @@ fun MusicHubScreen(
             
             Column(modifier = Modifier.fillMaxSize()) {
                 if (isWideScreen) {
-                    Text(
-                        text = "müzik",
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Light,
-                            fontSize = 96.sp,
-                            letterSpacing = (-4).sp,
-                            lineHeight = 96.sp
-                        ),
-                        color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
-                        modifier = Modifier.padding(
-                            start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
-                            top = 4.dp,
-                            bottom = 24.dp
-                        ).graphicsLayer { translationY = overflowYPx }
-                    )
+                    ZuneWideHubTitle(text = stringResource(R.string.music_hub))
 
-                    LazyRow(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
-                            end = 48.dp
-                        ),
-                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(48.dp)
-                    ) {
-                        items(pages.size) { index ->
-                            Column(modifier = Modifier.width(360.dp)) {
-                                Text(
-                                    text = pages[index],
-                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
-                                    color = LocalZuneColors.current.accentColor,
-                                    modifier = Modifier.padding(bottom = 16.dp)
-                                )
-                                when (index) {
-                                    0 -> NowPlayingPage(viewModel)
-                                    1 -> AlbumsPage(viewModel)
-                                    2 -> ArtistsPage(viewModel)
-                                    3 -> SongsPage(viewModel)
-                                }
-                            }
+                    ZuneWidePanorama(tabs = pages) { index ->
+                        when (index) {
+                            0 -> NowPlayingPage(viewModel)
+                            1 -> AlbumsPage(viewModel)
+                            2 -> ArtistsPage(viewModel)
+                            3 -> SongsPage(viewModel)
                         }
                     }
                 } else {
@@ -176,9 +129,10 @@ fun MusicHubScreen(
                             start = ZuneDimens.ScreenPaddingHorizontal
                         )
                 ) {
-                    val cycle = (pagerState.currentPage + pagerState.currentPageOffsetFraction) % actualPageCount
-                    val actualCycle = if (cycle < 0) cycle + actualPageCount else cycle
-                    val threshold = (actualPageCount - 1).toFloat()
+                    val pageCount = pager.pageCount
+                    val cycle = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % pageCount
+                    val actualCycle = if (cycle < 0) cycle + pageCount else cycle
+                    val threshold = (pageCount - 1).toFloat()
 
                     val translationX1: Float
                     val translationX2: Float
@@ -193,7 +147,7 @@ fun MusicHubScreen(
                     }
 
                     Text(
-                        text = "müzik",
+                        text = stringResource(R.string.music_hub),
                         style = MaterialTheme.typography.displayLarge.copy(
                             fontWeight = FontWeight.Light,
                             fontSize = 96.sp,
@@ -209,7 +163,7 @@ fun MusicHubScreen(
                         }
                     )
                     Text(
-                        text = "müzik",
+                        text = stringResource(R.string.music_hub),
                         style = MaterialTheme.typography.displayLarge.copy(
                             fontWeight = FontWeight.Light,
                             fontSize = 96.sp,
@@ -228,30 +182,16 @@ fun MusicHubScreen(
 
                 ZunePivotTabs(
                     tabs = pages,
-                    pagerState = pagerState,
+                    state = pager,
                     fontSize = 36.sp,
-                    onSelected = { index ->
-                        val current = pagerState.currentPage
-                        val size = actualPageCount
-                        val currentActual = ((current % size) + size) % size
-                        var diff = index - currentActual
-                        if (diff > size / 2) {
-                            diff -= size
-                        } else if (diff < -size / 2) {
-                            diff += size
-                        }
-                        val targetPage = current + diff
-                        coroutineScope.launch { pagerState.animateScrollToPage(targetPage) }
-                    },
                     modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
                 )
 
-                HorizontalPager(
-                    state = pagerState,
+                ZuneLoopingPager(
+                    state = pager,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    val actualPage = page % actualPageCount
-                    when (actualPage) {
+                    when (page) {
                         0 -> NowPlayingPage(viewModel)
                         1 -> AlbumsPage(viewModel)
                         2 -> ArtistsPage(viewModel)
@@ -281,7 +221,7 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
         if (mediaState.albumArt != null) {
             Image(
                 bitmap = mediaState.albumArt!!.asImageBitmap(),
-                contentDescription = "Album Art",
+                contentDescription = stringResource(R.string.music_album_art),
                 modifier = Modifier
                     .size(280.dp)
                     .clip(RoundedCornerShape(12.dp)),
@@ -295,7 +235,7 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No Media",
+                    text = stringResource(R.string.music_no_media),
                     color = Color.LightGray,
                     style = MaterialTheme.typography.titleLarge
                 )
@@ -306,7 +246,7 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
 
         // Title and Artist
         Text(
-            text = mediaState.title.ifEmpty { "Bilinmeyen Şarkı" },
+            text = mediaState.title.ifEmpty { stringResource(R.string.music_unknown_song) },
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.Bold,
                 fontSize = 28.sp
@@ -315,7 +255,7 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
             maxLines = 1
         )
         Text(
-            text = mediaState.artist.ifEmpty { "Bilinmeyen Sanatçı" },
+            text = mediaState.artist.ifEmpty { stringResource(R.string.music_unknown_artist) },
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
             color = LocalZuneColors.current.accentColor,
             maxLines = 1
@@ -341,7 +281,7 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous",
+                        contentDescription = stringResource(R.string.music_previous),
                         tint = Color.White,
                         modifier = Modifier.size(48.dp)
                     )
@@ -353,7 +293,7 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
                 ) {
                     Icon(
                         imageVector = if (mediaState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play/Pause",
+                        contentDescription = stringResource(R.string.music_play_pause),
                         tint = LocalZuneColors.current.accentColor,
                         modifier = Modifier.size(64.dp)
                     )
@@ -365,7 +305,7 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
+                        contentDescription = stringResource(R.string.music_next),
                         tint = Color.White,
                         modifier = Modifier.size(48.dp)
                     )
@@ -380,24 +320,25 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
 @Composable
 fun AlbumsPage(viewModel: MusicHubViewModel) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Albümler (Yapım Aşamasında)", color = LocalZuneColors.current.textMuted)
+        Text(stringResource(R.string.music_albums_wip), color = LocalZuneColors.current.textMuted)
     }
 }
 
 @Composable
 fun ArtistsPage(viewModel: MusicHubViewModel) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Sanatçılar (Yapım Aşamasında)", color = LocalZuneColors.current.textMuted)
+        Text(stringResource(R.string.music_artists_wip), color = LocalZuneColors.current.textMuted)
     }
 }
 
 @Composable
 fun SongsPage(viewModel: MusicHubViewModel) {
     val songs by viewModel.localSongs.collectAsState()
-    
+    val errorMessage by viewModel.errorMessage.collectAsState()
+
     if (songs.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Müzik bulunamadı", color = LocalZuneColors.current.textMuted)
+            Text(errorMessage?.let { stringResource(R.string.music_load_failed, it) } ?: stringResource(R.string.music_not_found), color = LocalZuneColors.current.textMuted)
         }
     } else {
         LazyColumn(

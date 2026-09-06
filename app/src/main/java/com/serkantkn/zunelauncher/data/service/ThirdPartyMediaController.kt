@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.service
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.ComponentName
 import android.content.Context
 import android.graphics.Bitmap
@@ -50,7 +51,7 @@ class ThirdPartyMediaController(private val context: Context) {
             mediaSessionManager.addOnActiveSessionsChangedListener(activeSessionsListener, componentName)
         } catch (e: SecurityException) {
             // Notification access not granted
-            e.printStackTrace()
+            ZuneLog.e("ThirdPartyMediaController", "startListening failed", e)
         }
     }
 
@@ -60,7 +61,7 @@ class ThirdPartyMediaController(private val context: Context) {
             activeController?.unregisterCallback(callback)
             activeController = null
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("ThirdPartyMediaController", "stopListening failed", e)
         }
     }
 

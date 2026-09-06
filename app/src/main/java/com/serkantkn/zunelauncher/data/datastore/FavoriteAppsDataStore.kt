@@ -1,49 +1,52 @@
 package com.serkantkn.zunelauncher.data.datastore
 
 import android.content.Context
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.serkantkn.zunelauncher.data.model.FavoriteAppItem
+import com.serkantkn.zunelauncher.data.model.parseJsonObjectList
+import com.serkantkn.zunelauncher.data.model.toJsonArrayString
+import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlin.coroutines.cancellation.CancellationException
 
 private val Context.favoriteAppsDataStore by preferencesDataStore(name = "favorite_apps_datastore")
 
+/**
+ * Ordered list of apps pinned to the Start screen, stored as a JSON array of
+ * [FavoriteAppItem.toJson] objects. Two legacy formats are still read and migrated on first
+ * collection: an unordered string set of package names (v1) and a "pkg:span,pkg:span" string (v2).
+ */
 class FavoriteAppsDataStore(private val context: Context) {
 
     companion object {
-        // Deprecated old key
-        private val OLD_FAVORITE_APPS_KEY = stringSetPreferencesKey("favorite_app_packages")
-        // New ordered list key format: "pkg1:span1,pkg2:span2"
-        private val FAVORITE_APPS_DATA_KEY = stringPreferencesKey("favorite_apps_data_v2")
+        private const val TAG = "FavoriteAppsDataStore"
+        /** v1: unordered set of package names (span defaults to 2). */
+        private val LEGACY_SET_KEY = stringSetPreferencesKey("favorite_app_packages")
+        /** v2: ordered "pkg1:span1,pkg2:span2" string. */
+        private val LEGACY_DELIMITED_KEY = stringPreferencesKey("favorite_apps_data_v2")
+        /** v3: JSON array of {"packageName","span"} objects, order preserved. */
+        private val FAVORITE_APPS_JSON_KEY = stringPreferencesKey("favorite_apps_json")
     }
 
-    val favoritePackages: Flow<List<FavoriteAppItem>> = context.favoriteAppsDataStore.data
-        .map { preferences ->
-            val newData = preferences[FAVORITE_APPS_DATA_KEY]
-            if (newData != null) {
-                // Parse new data
-                if (newData.isEmpty()) return@map emptyList()
-                newData.split(",").mapNotNull {
-                    val parts = it.split(":")
-                    if (parts.size == 2) {
-                        FavoriteAppItem(parts[0], parts[1].toIntOrNull() ?: 2)
-                    } else null
-                }
-            } else {
-                // Migrate from old data if it exists
-                val oldData = preferences[OLD_FAVORITE_APPS_KEY] ?: emptySet()
-                oldData.map { FavoriteAppItem(it, 2) }
-            }
-        }
+    val favoritePackages: Flow<List<FavoriteAppItem>> = flow {
+        migrateLegacyIfNeeded()
+        emitAll(context.favoriteAppsDataStore.data.map { preferences -> readList(preferences) })
+    }
 
     suspend fun addFavorite(packageName: String) {
         context.favoriteAppsDataStore.edit { preferences ->
-            val currentList = getListFromPreferences(preferences).toMutableList()
+            val currentList = readList(preferences).toMutableList()
             if (currentList.none { it.packageName == packageName }) {
-                currentList.add(FavoriteAppItem(packageName, 2))
+                currentList.add(FavoriteAppItem(packageName, FavoriteAppItem.DEFAULT_SPAN))
                 saveListToPreferences(preferences, currentList)
             }
         }
@@ -51,7 +54,7 @@ class FavoriteAppsDataStore(private val context: Context) {
 
     suspend fun removeFavorite(packageName: String) {
         context.favoriteAppsDataStore.edit { preferences ->
-            val currentList = getListFromPreferences(preferences).toMutableList()
+            val currentList = readList(preferences).toMutableList()
             currentList.removeAll { it.packageName == packageName }
             saveListToPreferences(preferences, currentList)
         }
@@ -59,11 +62,11 @@ class FavoriteAppsDataStore(private val context: Context) {
 
     suspend fun toggleFavorite(packageName: String) {
         context.favoriteAppsDataStore.edit { preferences ->
-            val currentList = getListFromPreferences(preferences).toMutableList()
+            val currentList = readList(preferences).toMutableList()
             if (currentList.any { it.packageName == packageName }) {
                 currentList.removeAll { it.packageName == packageName }
             } else {
-                currentList.add(FavoriteAppItem(packageName, 2))
+                currentList.add(FavoriteAppItem(packageName, FavoriteAppItem.DEFAULT_SPAN))
             }
             saveListToPreferences(preferences, currentList)
         }
@@ -71,7 +74,7 @@ class FavoriteAppsDataStore(private val context: Context) {
 
     suspend fun updateSpan(packageName: String, span: Int) {
         context.favoriteAppsDataStore.edit { preferences ->
-            val currentList = getListFromPreferences(preferences).toMutableList()
+            val currentList = readList(preferences).toMutableList()
             val index = currentList.indexOfFirst { it.packageName == packageName }
             if (index != -1) {
                 currentList[index] = currentList[index].copy(span = span)
@@ -86,30 +89,47 @@ class FavoriteAppsDataStore(private val context: Context) {
         }
     }
 
-    private fun getListFromPreferences(preferences: androidx.datastore.preferences.core.Preferences): List<FavoriteAppItem> {
-        val newData = preferences[FAVORITE_APPS_DATA_KEY]
-        if (newData != null) {
-            if (newData.isEmpty()) return emptyList()
-            return newData.split(",").mapNotNull {
-                val parts = it.split(":")
-                if (parts.size == 2) {
-                    FavoriteAppItem(parts[0], parts[1].toIntOrNull() ?: 2)
-                } else null
-            }
+    /** JSON first, then the v2 delimited string, then the v1 set (in its iteration order). */
+    private fun readList(preferences: Preferences): List<FavoriteAppItem> {
+        val json = preferences[FAVORITE_APPS_JSON_KEY]
+        if (json != null) return parseJsonObjectList(json, TAG, FavoriteAppItem::fromJson)
+        val delimited = preferences[LEGACY_DELIMITED_KEY]
+        if (delimited != null) {
+            if (delimited.isEmpty()) return emptyList()
+            return delimited.split(",").mapNotNull { FavoriteAppItem.fromLegacyString(it) }
         }
-        val oldData = preferences[OLD_FAVORITE_APPS_KEY] ?: emptySet()
-        return oldData.map { FavoriteAppItem(it, 2) }
+        return preferences[LEGACY_SET_KEY]?.map { FavoriteAppItem(it, FavoriteAppItem.DEFAULT_SPAN) }
+            ?: emptyList()
     }
 
-    private fun saveListToPreferences(
-        preferences: androidx.datastore.preferences.core.MutablePreferences,
-        list: List<FavoriteAppItem>
-    ) {
-        val serialized = list.joinToString(",") { "${it.packageName}:${it.span}" }
-        preferences[FAVORITE_APPS_DATA_KEY] = serialized
-        // Clean up old key on first save
-        if (preferences.contains(OLD_FAVORITE_APPS_KEY)) {
-            preferences.remove(OLD_FAVORITE_APPS_KEY)
+    /** Writes the JSON form and drops both legacy keys. */
+    private fun saveListToPreferences(preferences: MutablePreferences, list: List<FavoriteAppItem>) {
+        preferences[FAVORITE_APPS_JSON_KEY] = list.toJsonArrayString { it.toJson() }
+        preferences.remove(LEGACY_DELIMITED_KEY)
+        preferences.remove(LEGACY_SET_KEY)
+    }
+
+    /** Rewrites a legacy value as JSON once, so the legacy parsers are only a fallback. */
+    @Volatile
+    private var legacyMigrated = false
+
+    private suspend fun migrateLegacyIfNeeded() {
+        if (legacyMigrated) return
+        try {
+            val preferences = context.favoriteAppsDataStore.data.first()
+            legacyMigrated = true
+            if (preferences.contains(FAVORITE_APPS_JSON_KEY)) return
+            if (!preferences.contains(LEGACY_DELIMITED_KEY) && !preferences.contains(LEGACY_SET_KEY)) return
+            context.favoriteAppsDataStore.edit { mutable ->
+                if (!mutable.contains(FAVORITE_APPS_JSON_KEY)) {
+                    saveListToPreferences(mutable, readList(mutable))
+                }
+            }
+            ZuneLog.d(TAG, "migrated legacy favorite apps to json")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "legacy favorite apps migration failed; legacy value kept as fallback", e)
         }
     }
 }

@@ -1,20 +1,15 @@
 package com.serkantkn.zunelauncher.ui.screens.calendar
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,8 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -43,10 +36,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
+import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -60,19 +54,11 @@ fun CalendarHubScreen(
     viewModel: CalendarHubViewModel = viewModel()
 ) {
     val zuneColors = LocalZuneColors.current
-    val coroutineScope = rememberCoroutineScope()
 
-    val tabs = listOf("ajanda", "ay", "gün", "etkinlikler")
-    val actualPageCount = tabs.size
-    val loopCount = 1000
-    val initialPage = (loopCount / 2) * actualPageCount
+    val tabs = listOf(stringResource(R.string.cal_tab_agenda), stringResource(R.string.cal_tab_month), stringResource(R.string.cal_tab_day), stringResource(R.string.cal_tab_events))
+    val pager = rememberLoopingPagerState(pageCount = tabs.size)
 
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { loopCount * actualPageCount }
-    )
-
-    val currentTab = ((pagerState.currentPage % actualPageCount) + actualPageCount) % actualPageCount
+    val currentTab = pager.currentPage
 
     var showAddEventDialog by remember { mutableStateOf(false) }
 
@@ -97,7 +83,7 @@ fun CalendarHubScreen(
                     .padding(top = 28.dp, bottom = 8.dp)
             ) {
                 Text(
-                    text = "takvim",
+                    text = stringResource(R.string.hub_calendar),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 18.sp,
@@ -115,29 +101,19 @@ fun CalendarHubScreen(
 
                 ZunePivotTabs(
                     tabs = tabs,
-                    pagerState = pagerState,
-                    onSelected = { index ->
-                        val current = pagerState.currentPage
-                        val currentActual = ((current % actualPageCount) + actualPageCount) % actualPageCount
-                        var diff = index - currentActual
-                        if (diff > actualPageCount / 2) diff -= actualPageCount
-                        if (diff < -actualPageCount / 2) diff += actualPageCount
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(current + diff)
-                        }
-                    },
+                    state = pager,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
 
             // --- PAGER CONTENT ---
-            HorizontalPager(
-                state = pagerState,
+            ZuneLoopingPager(
+                state = pager,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) { page ->
-                when (page % actualPageCount) {
+                when (page) {
                     0 -> AgendaTabContent(
                         events = events,
                         onDeleteEvent = { viewModel.deleteEvent(it) }
@@ -169,8 +145,8 @@ fun CalendarHubScreen(
         com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar(
             modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
             actions = listOf(
-                com.serkantkn.zunelauncher.ui.components.WpBarAction(Icons.Default.Add, "etkinlik ekle") { showAddEventDialog = true },
-                com.serkantkn.zunelauncher.ui.components.WpBarAction(Icons.Default.DateRange, "bugün") { viewModel.goToToday() }
+                com.serkantkn.zunelauncher.ui.components.WpBarAction(Icons.Default.Add, stringResource(R.string.cal_add_event)) { showAddEventDialog = true },
+                com.serkantkn.zunelauncher.ui.components.WpBarAction(Icons.Default.DateRange, stringResource(R.string.common_today)) { viewModel.goToToday() }
             )
         )
     }
@@ -231,7 +207,7 @@ fun AgendaTabContent(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Yaklaşan herhangi bir etkinlik yok.",
+                        text = stringResource(R.string.cal_no_upcoming),
                         style = MaterialTheme.typography.bodyLarge,
                         color = zuneColors.textMuted,
                         textAlign = TextAlign.Center
@@ -258,7 +234,7 @@ fun AgendaEventItem(
     var isDeleting by remember { mutableStateOf(false) }
 
     val dateStr = remember(event.timestamp) {
-        val sdf = SimpleDateFormat("d MMMM EEEE", Locale("tr"))
+        val sdf = SimpleDateFormat("d MMMM EEEE", Locale.getDefault())
         sdf.format(Date(event.timestamp))
     }
 
@@ -304,7 +280,7 @@ fun AgendaEventItem(
             }
             if (event.linkedNoteId != null) {
                 Text(
-                    text = "notu aç",
+                    text = stringResource(R.string.cal_open_note),
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                     color = zuneColors.accentColor,
                     modifier = Modifier
@@ -318,7 +294,7 @@ fun AgendaEventItem(
             IconButton(onClick = onDelete) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Sil",
+                    contentDescription = stringResource(R.string.files_delete_cap),
                     tint = zuneColors.accentColor
                 )
             }
@@ -341,7 +317,7 @@ fun MonthTabContent(
     val zuneColors = LocalZuneColors.current
 
     val monthYearStr = remember(currentMonth) {
-        val sdf = SimpleDateFormat("MMMM yyyy", Locale("tr"))
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
         sdf.format(currentMonth.time).uppercase()
     }
 
@@ -363,7 +339,7 @@ fun MonthTabContent(
         list
     }
 
-    val weekDays = listOf("Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz")
+    val weekDays = listOf(R.string.cal_mon, R.string.cal_tue, R.string.cal_wed, R.string.cal_thu, R.string.cal_fri, R.string.cal_sat, R.string.cal_sun).map { stringResource(it) }
 
     Column(
         modifier = Modifier
@@ -381,7 +357,7 @@ fun MonthTabContent(
             IconButton(onClick = onPreviousMonth) {
                 Icon(
                     imageVector = Icons.Default.ChevronLeft,
-                    contentDescription = "Önceki Ay",
+                    contentDescription = stringResource(R.string.cal_prev_month),
                     tint = zuneColors.accentColor
                 )
             }
@@ -396,7 +372,7 @@ fun MonthTabContent(
             IconButton(onClick = onNextMonth) {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
-                    contentDescription = "Sonraki Ay",
+                    contentDescription = stringResource(R.string.cal_next_month),
                     tint = zuneColors.accentColor
                 )
             }
@@ -490,7 +466,7 @@ fun MonthTabContent(
         }
 
         val selectedDateStr = remember(selectedDate) {
-            val sdf = SimpleDateFormat("d MMMM EEEE", Locale("tr"))
+            val sdf = SimpleDateFormat("d MMMM EEEE", Locale.getDefault())
             sdf.format(selectedDate.time)
         }
 
@@ -503,7 +479,7 @@ fun MonthTabContent(
 
         if (selectedDayEvents.isEmpty()) {
             Text(
-                text = "Bu tarih için etkinlik bulunmuyor.",
+                text = stringResource(R.string.cal_no_events_day),
                 style = MaterialTheme.typography.bodyMedium,
                 color = zuneColors.textMuted
             )
@@ -550,7 +526,7 @@ fun DayTabContent(
     val zuneColors = LocalZuneColors.current
 
     val dayStr = remember(selectedDate) {
-        val sdf = SimpleDateFormat("EEEE, d MMMM yyyy", Locale("tr"))
+        val sdf = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault())
         sdf.format(selectedDate.time)
     }
 
@@ -666,7 +642,7 @@ fun AllEventsTabContent(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Etkinliklerde ara...", color = zuneColors.textMuted) },
+            placeholder = { Text(stringResource(R.string.cal_search_hint), color = zuneColors.textMuted) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = zuneColors.textMuted) },
             singleLine = true,
             modifier = Modifier
@@ -692,7 +668,7 @@ fun AllEventsTabContent(
             if (filteredEvents.isEmpty()) {
                 item {
                     Text(
-                        text = if (searchQuery.isEmpty()) "Henüz kayıtlı etkinlik bulunmuyor." else "Aramanıza uygun etkinlik bulunamadı.",
+                        text = if (searchQuery.isEmpty()) stringResource(R.string.cal_no_events) else stringResource(R.string.cal_no_search_results),
                         style = MaterialTheme.typography.bodyMedium,
                         color = zuneColors.textMuted,
                         modifier = Modifier.padding(top = 24.dp)
@@ -726,10 +702,10 @@ fun AddEventDialog(
 
     com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog(
         onDismissRequest = onDismiss,
-        title = "Yeni Etkinlik Ekle",
+        title = stringResource(R.string.cal_new_event_cap),
         confirmButton = {
             com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
-                text = "Ekle",
+                text = stringResource(R.string.common_add_cap),
                 onClick = {
                     dismissWithAnim {
                         if (title.isNotBlank()) {
@@ -742,7 +718,7 @@ fun AddEventDialog(
         },
         dismissButton = {
             com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
-                text = "İptal",
+                text = stringResource(R.string.common_cancel_cap),
                 onClick = { dismissWithAnim() },
                 borderColor = zuneColors.textMuted
             )
@@ -752,14 +728,14 @@ fun AddEventDialog(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Etkinlik Başlığı") },
+                label = { Text(stringResource(R.string.cal_event_title)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = desc,
                 onValueChange = { desc = it },
-                label = { Text("Açıklama / Konum") },
+                label = { Text(stringResource(R.string.cal_event_description)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -768,7 +744,7 @@ fun AddEventDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Saat:", style = MaterialTheme.typography.bodyMedium, color = if (zuneColors.isDark) Color.White else Color.Black)
+                Text(stringResource(R.string.cal_time_label), style = MaterialTheme.typography.bodyMedium, color = if (zuneColors.isDark) Color.White else Color.Black)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { if (hour > 0) hour-- }) { Text("-", style = MaterialTheme.typography.headlineSmall, color = zuneColors.accentColor) }
                     Text(String.format("%02d:%02d", hour, minute), style = MaterialTheme.typography.titleMedium, color = if (zuneColors.isDark) Color.White else Color.Black)

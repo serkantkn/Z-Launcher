@@ -1,5 +1,8 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
@@ -204,13 +207,13 @@ internal fun NoteEditorScreen(
     fun startSpeech() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "tr-TR")
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "konuş, yazıya dökülsün")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, java.util.Locale.getDefault().toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.notes_speech_prompt))
         }
         try {
             speechLauncher.launch(intent)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("NoteEditorScreen", "startSpeech failed", e)
         }
     }
 
@@ -237,8 +240,7 @@ internal fun NoteEditorScreen(
         if (isNew) {
             try {
                 titleFocus.requestFocus()
-            } catch (e: Exception) {
-            }
+            } catch (e: Exception) { ZuneLog.w("NoteEditorScreen", "toggleRecording ignored Exception", e) }
         }
     }
 
@@ -263,7 +265,7 @@ internal fun NoteEditorScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "notlar",
+                    text = stringResource(R.string.hub_notes),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 18.sp,
@@ -273,7 +275,7 @@ internal fun NoteEditorScreen(
                     modifier = Modifier.clickable { onClose() }
                 )
                 Text(
-                    text = "  >  ${if (isNew) "yeni" else "düzenle"}",
+                    text = "  >  ${if (isNew) stringResource(R.string.common_new) else stringResource(R.string.common_edit)}",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 18.sp,
@@ -292,7 +294,7 @@ internal fun NoteEditorScreen(
                     ) {
                         Icon(Icons.Default.Stop, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("kaydediliyor · durdur", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.notes_recording_stop), color = Color.White, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -310,7 +312,7 @@ internal fun NoteEditorScreen(
                 Box(modifier = Modifier.fillMaxWidth()) {
                     if (note.title.isEmpty()) {
                         Text(
-                            text = "başlık",
+                            text = stringResource(R.string.notes_title_hint),
                             style = MaterialTheme.typography.displayMedium.copy(
                                 fontWeight = FontWeight.Light,
                                 fontSize = 36.sp
@@ -332,8 +334,7 @@ internal fun NoteEditorScreen(
                         keyboardActions = KeyboardActions(onNext = {
                             try {
                                 if (note.isChecklist) newItemFocus.requestFocus() else bodyFocus.requestFocus()
-                            } catch (e: Exception) {
-                            }
+                            } catch (e: Exception) { ZuneLog.w("NoteEditorScreen", "toggleRecording ignored Exception", e) }
                         }),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -354,10 +355,10 @@ internal fun NoteEditorScreen(
                 if (note.linkedContactName != null || note.reminderAt != null || note.tags.isNotEmpty()) {
                     Column(modifier = Modifier.padding(bottom = 12.dp)) {
                         note.linkedContactName?.let { name ->
-                            LinkLine(text = "kişi: ${name.lowercase()}", accent = accent, onClick = { viewModel.loadContacts(); showContactDialog = true })
+                            LinkLine(text = stringResource(R.string.notes_contact_line, name.lowercase()), accent = accent, onClick = { viewModel.loadContacts(); showContactDialog = true })
                         }
                         note.reminderAt?.let { at ->
-                            LinkLine(text = "hatırlatıcı: ${formatReminderDate(at)}", accent = accent, onClick = { showReminderDialog = true })
+                            LinkLine(text = stringResource(R.string.notes_reminder_line, formatReminderDate(at)), accent = accent, onClick = { showReminderDialog = true })
                         }
                         if (note.tags.isNotEmpty()) {
                             LinkLine(text = note.tags.joinToString("  ") { "#$it" }, accent = accent, onClick = { showTagsDialog = true })
@@ -371,9 +372,9 @@ internal fun NoteEditorScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(bottom = 12.dp)
                     ) {
-                        FormatButton(Icons.Default.FormatBold, "kalın", accent) { applyFormat("bold") }
-                        FormatButton(Icons.Default.Title, "başlık", accent) { applyFormat("heading") }
-                        FormatButton(Icons.Default.FormatListBulleted, "madde", accent) { applyFormat("bullet") }
+                        FormatButton(Icons.Default.FormatBold, stringResource(R.string.notes_bold), accent) { applyFormat("bold") }
+                        FormatButton(Icons.Default.Title, stringResource(R.string.notes_heading), accent) { applyFormat("heading") }
+                        FormatButton(Icons.Default.FormatListBulleted, stringResource(R.string.notes_bullet), accent) { applyFormat("bullet") }
                     }
                 }
 
@@ -395,7 +396,7 @@ internal fun NoteEditorScreen(
                     ) {
                         if (contentField.text.isEmpty()) {
                             Text(
-                                text = "notunu yaz…",
+                                text = stringResource(R.string.notes_content_hint),
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = FontWeight.Light,
                                     fontSize = 18.sp
@@ -453,12 +454,12 @@ internal fun NoteEditorScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 val counts = if (note.isChecklist) {
-                    "${note.checkedCount}/${note.items.size} tamamlandı"
+                    stringResource(R.string.notes_completed, note.checkedCount, note.items.size)
                 } else {
-                    "${wordCount(note.content)} kelime · ${note.content.length} karakter"
+                    stringResource(R.string.notes_word_count, wordCount(note.content), note.content.length)
                 }
                 Text(
-                    text = "$counts · son düzenleme ${formatNoteDate(note.updatedAt)}",
+                    text = stringResource(R.string.notes_last_edited, counts, formatNoteDate(note.updatedAt)),
                     style = MaterialTheme.typography.labelSmall,
                     color = zuneColors.textDim
                 )
@@ -473,42 +474,42 @@ internal fun NoteEditorScreen(
                 .align(Alignment.BottomCenter)
                 .then(bottomBarModifier),
             actions = listOf(
-                WpBarAction(Icons.Default.Done, "kaydet") { onClose() },
-                WpBarAction(Icons.Default.Undo, "geri al") { undo() },
-                WpBarAction(Icons.Default.AddCircle, "ekle") { showInsertDialog = true },
-                WpBarAction(Icons.Default.TextFormat, "biçim") {
+                WpBarAction(Icons.Default.Done, stringResource(R.string.common_save)) { onClose() },
+                WpBarAction(Icons.Default.Undo, stringResource(R.string.common_undo)) { undo() },
+                WpBarAction(Icons.Default.AddCircle, stringResource(R.string.common_add)) { showInsertDialog = true },
+                WpBarAction(Icons.Default.TextFormat, stringResource(R.string.notes_format)) {
                     if (note.isChecklist) showTagsDialog = true else showFormatBar = !showFormatBar
                 },
-                WpBarAction(Icons.Default.Delete, "sil") { showDeleteDialog = true }
+                WpBarAction(Icons.Default.Delete, stringResource(R.string.common_delete)) { showDeleteDialog = true }
             ),
             menuItems = buildList {
-                add(WpBarMenuItem("yinele") { redo() })
-                add(WpBarMenuItem(if (note.isPinned) "sabitlemeyi kaldır" else "sabitle") {
+                add(WpBarMenuItem(stringResource(R.string.notes_redo)) { redo() })
+                add(WpBarMenuItem(if (note.isPinned) stringResource(R.string.notes_unpin) else stringResource(R.string.notes_pin)) {
                     change(note.copy(isPinned = !note.isPinned), coalesce = false)
                 })
-                add(WpBarMenuItem(if (isPinnedToStart) "start'tan kaldır" else "start'a sabitle") { onTogglePinToStart() })
-                add(WpBarMenuItem("renk") { showColorDialog = true })
-                add(WpBarMenuItem("etiketler") { showTagsDialog = true })
-                add(WpBarMenuItem(if (note.isLocked) "kilidi aç" else "kilitle") {
+                add(WpBarMenuItem(if (isPinnedToStart) stringResource(R.string.notes_unpin_start) else stringResource(R.string.notes_pin_start)) { onTogglePinToStart() })
+                add(WpBarMenuItem(stringResource(R.string.notes_color)) { showColorDialog = true })
+                add(WpBarMenuItem(stringResource(R.string.notes_tags)) { showTagsDialog = true })
+                add(WpBarMenuItem(if (note.isLocked) stringResource(R.string.notes_unlock) else stringResource(R.string.notes_lock)) {
                     if (!note.isLocked && !canUseDeviceLock(context)) {
-                        onStatus("kilitlemek için önce cihaz ekran kilidi ayarla")
+                        onStatus(context.getString(R.string.notes_lock_needs_device_lock))
                     } else {
                         change(note.copy(isLocked = !note.isLocked), coalesce = false)
                     }
                 })
-                add(WpBarMenuItem("paylaş") { onShare() })
-                add(WpBarMenuItem("dışa aktar (.txt)") { viewModel.exportNoteToDocuments(note, markdown = false) })
-                add(WpBarMenuItem("dışa aktar (.md)") { viewModel.exportNoteToDocuments(note, markdown = true) })
-                add(WpBarMenuItem(if (note.isArchived) "arşivden çıkar" else "arşivle") { onToggleArchive() })
+                add(WpBarMenuItem(stringResource(R.string.common_share)) { onShare() })
+                add(WpBarMenuItem(stringResource(R.string.notes_export_txt)) { viewModel.exportNoteToDocuments(note, markdown = false) })
+                add(WpBarMenuItem(stringResource(R.string.notes_export_md)) { viewModel.exportNoteToDocuments(note, markdown = true) })
+                add(WpBarMenuItem(if (note.isArchived) stringResource(R.string.notes_unarchive) else stringResource(R.string.notes_archive)) { onToggleArchive() })
                 if (note.isChecklist) {
-                    add(WpBarMenuItem("işaretlileri sil") {
+                    add(WpBarMenuItem(stringResource(R.string.notes_delete_checked)) {
                         change(note.copy(items = note.items.filter { !it.isChecked }), coalesce = false)
                     })
-                    add(WpBarMenuItem("tümünü sıfırla") {
+                    add(WpBarMenuItem(stringResource(R.string.notes_uncheck_all)) {
                         change(note.copy(items = note.items.map { it.copy(isChecked = false) }), coalesce = false)
                     })
                 }
-                add(WpBarMenuItem(if (note.isChecklist) "nota çevir" else "listeye çevir") {
+                add(WpBarMenuItem(if (note.isChecklist) stringResource(R.string.notes_to_note) else stringResource(R.string.notes_to_list)) {
                     change(convertNoteType(note), coalesce = false)
                 })
             }
@@ -555,7 +556,7 @@ internal fun NoteEditorScreen(
     }
     if (showReminderDialog) {
         ReminderDialog(
-            title = "Hatırlat",
+            title = stringResource(R.string.notes_remind_cap),
             initial = note.reminderAt,
             onSet = { time ->
                 showReminderDialog = false
@@ -570,7 +571,7 @@ internal fun NoteEditorScreen(
     }
     itemReminderTarget?.let { item ->
         ReminderDialog(
-            title = "Öğeyi hatırlat",
+            title = stringResource(R.string.notes_remind_item_cap),
             initial = item.reminderAt,
             onSet = { time ->
                 itemReminderTarget = null
@@ -700,7 +701,7 @@ private fun ChecklistEditor(
                 }
                 Icon(
                     imageVector = Icons.Default.Notifications,
-                    contentDescription = "öğeyi hatırlat",
+                    contentDescription = stringResource(R.string.notes_remind_item),
                     tint = if (item.reminderAt != null) accent else zuneColors.textDim,
                     modifier = Modifier
                         .size(20.dp)
@@ -709,7 +710,7 @@ private fun ChecklistEditor(
                 Spacer(modifier = Modifier.width(12.dp))
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "öğeyi kaldır",
+                    contentDescription = stringResource(R.string.notes_remove_item),
                     tint = zuneColors.textDim,
                     modifier = Modifier
                         .size(20.dp)
@@ -739,7 +740,7 @@ private fun ChecklistEditor(
             Box(modifier = Modifier.weight(1f)) {
                 if (newItemText.isEmpty()) {
                     Text(
-                        text = "öğe ekle",
+                        text = stringResource(R.string.notes_add_item),
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontWeight = FontWeight.Light,
                             fontSize = 18.sp

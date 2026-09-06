@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,8 +20,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
@@ -58,7 +58,10 @@ import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.components.ZuneAlphabetIndex
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
+import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
+import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.components.ZuneSearchBar
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
@@ -79,10 +82,10 @@ private sealed interface TabKind {
 }
 
 /**
- * Notes Hub ("notlar").
+ * Notes Hub (stringResource(R.string.hub_notes)).
  *
  * Follows the canonical hub template: ZuneHubEntranceLayout → small header → ZunePivotTabs →
- * infinite HorizontalPager → WindowsPhoneBottomBar. The note editor opens as a sub-screen with
+ * infinite ZuneLoopingPager → WindowsPhoneBottomBar. The note editor opens as a sub-screen with
  * the 2-stage 3D door hinge (Settings Hub pattern) on phones, and as a docked right pane on
  * wide screens (Messaging Hub pattern).
  */
@@ -117,26 +120,23 @@ fun NotesHubScreen(
     val tabKinds: List<TabKind> = remember(allTags) {
         listOf(TabKind.Notes, TabKind.Lists) + allTags.map { TabKind.Tag(it) } + listOf(TabKind.Archive, TabKind.Trash)
     }
-    val tabs: List<String> = remember(tabKinds) {
+    val tabNotes = stringResource(R.string.hub_notes)
+    val tabLists = stringResource(R.string.notes_tab_lists)
+    val tabArchive = stringResource(R.string.notes_tab_archive)
+    val tabTrash = stringResource(R.string.notes_tab_trash)
+    val tabs: List<String> = remember(tabKinds, tabNotes, tabLists, tabArchive, tabTrash) {
         tabKinds.map {
             when (it) {
-                TabKind.Notes -> "notlar"
-                TabKind.Lists -> "listeler"
+                TabKind.Notes -> tabNotes
+                TabKind.Lists -> tabLists
                 is TabKind.Tag -> "#${it.tag}"
-                TabKind.Archive -> "arşiv"
-                TabKind.Trash -> "çöp"
+                TabKind.Archive -> tabArchive
+                TabKind.Trash -> tabTrash
             }
         }
     }
-    val actualPageCount = tabs.size
-    val loopCount = 1000
-    val initialPage = remember { (loopCount / 2) * 4 }
-
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { loopCount * tabs.size }
-    )
-    val currentTab = ((pagerState.currentPage % actualPageCount) + actualPageCount) % actualPageCount
+    val pager = rememberLoopingPagerState(pageCount = tabs.size)
+    val currentTab = pager.currentPage
     val currentKind = tabKinds.getOrElse(currentTab) { TabKind.Notes }
 
     // ── Editor draft (owned here, persisted on close) ─────────────────────
@@ -259,44 +259,44 @@ fun NotesHubScreen(
         val selectedCount = selectedIds.size
         if (currentKind == TabKind.Trash) {
             listOf(
-                WpBarAction(Icons.Default.Restore, "geri yükle") { if (selectedCount > 0) viewModel.restoreFromTrash(selectedIds) },
-                WpBarAction(Icons.Default.DeleteForever, "kalıcı sil") { if (selectedCount > 0) showDeleteForeverDialog = true },
-                WpBarAction(Icons.Default.SelectAll, "tümü") { viewModel.selectAll(visibleList.map { it.id }) },
-                WpBarAction(Icons.Default.Close, "iptal") { viewModel.exitSelectionMode() }
+                WpBarAction(Icons.Default.Restore, stringResource(R.string.notes_restore)) { if (selectedCount > 0) viewModel.restoreFromTrash(selectedIds) },
+                WpBarAction(Icons.Default.DeleteForever, stringResource(R.string.notes_delete_forever)) { if (selectedCount > 0) showDeleteForeverDialog = true },
+                WpBarAction(Icons.Default.SelectAll, stringResource(R.string.common_all)) { viewModel.selectAll(visibleList.map { it.id }) },
+                WpBarAction(Icons.Default.Close, stringResource(R.string.common_cancel)) { viewModel.exitSelectionMode() }
             )
         } else {
             listOf(
                 if (currentKind == TabKind.Archive) {
-                    WpBarAction(Icons.Default.Unarchive, "geri al") { if (selectedCount > 0) viewModel.setArchived(selectedIds, false) }
+                    WpBarAction(Icons.Default.Unarchive, stringResource(R.string.common_undo)) { if (selectedCount > 0) viewModel.setArchived(selectedIds, false) }
                 } else {
-                    WpBarAction(Icons.Default.Archive, "arşivle") { if (selectedCount > 0) viewModel.setArchived(selectedIds, true) }
+                    WpBarAction(Icons.Default.Archive, stringResource(R.string.notes_archive)) { if (selectedCount > 0) viewModel.setArchived(selectedIds, true) }
                 },
-                WpBarAction(Icons.Default.Delete, "sil") { if (selectedCount > 0) showBulkDeleteDialog = true },
-                WpBarAction(Icons.Default.ContentCopy, "çoğalt") { if (selectedCount > 0) viewModel.duplicateNotes(selectedIds) },
-                WpBarAction(Icons.Default.SelectAll, "tümü") { viewModel.selectAll(visibleList.map { it.id }) },
-                WpBarAction(Icons.Default.Close, "iptal") { viewModel.exitSelectionMode() }
+                WpBarAction(Icons.Default.Delete, stringResource(R.string.common_delete)) { if (selectedCount > 0) showBulkDeleteDialog = true },
+                WpBarAction(Icons.Default.ContentCopy, stringResource(R.string.notes_duplicate)) { if (selectedCount > 0) viewModel.duplicateNotes(selectedIds) },
+                WpBarAction(Icons.Default.SelectAll, stringResource(R.string.common_all)) { viewModel.selectAll(visibleList.map { it.id }) },
+                WpBarAction(Icons.Default.Close, stringResource(R.string.common_cancel)) { viewModel.exitSelectionMode() }
             )
         }
     } else {
         when (val kind = currentKind) {
             TabKind.Notes -> listOf(
-                WpBarAction(Icons.Default.Add, "yeni") { openEditor(Note(), isNew = true) },
-                WpBarAction(Icons.Default.Search, "ara") { viewModel.toggleSearch() },
-                WpBarAction(Icons.Default.Checklist, "seç") { viewModel.enterSelectionMode() }
+                WpBarAction(Icons.Default.Add, stringResource(R.string.common_new)) { openEditor(Note(), isNew = true) },
+                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) { viewModel.toggleSearch() },
+                WpBarAction(Icons.Default.Checklist, stringResource(R.string.common_select)) { viewModel.enterSelectionMode() }
             )
             TabKind.Lists -> listOf(
-                WpBarAction(Icons.Default.Add, "yeni liste") { openEditor(Note(isList = true), isNew = true) },
-                WpBarAction(Icons.Default.Search, "ara") { viewModel.toggleSearch() },
-                WpBarAction(Icons.Default.Checklist, "seç") { viewModel.enterSelectionMode() }
+                WpBarAction(Icons.Default.Add, stringResource(R.string.notes_new_list)) { openEditor(Note(isList = true), isNew = true) },
+                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) { viewModel.toggleSearch() },
+                WpBarAction(Icons.Default.Checklist, stringResource(R.string.common_select)) { viewModel.enterSelectionMode() }
             )
             is TabKind.Tag -> listOf(
-                WpBarAction(Icons.Default.Add, "yeni") { openEditor(Note(tags = listOf(kind.tag)), isNew = true) },
-                WpBarAction(Icons.Default.Search, "ara") { viewModel.toggleSearch() },
-                WpBarAction(Icons.Default.Checklist, "seç") { viewModel.enterSelectionMode() }
+                WpBarAction(Icons.Default.Add, stringResource(R.string.common_new)) { openEditor(Note(tags = listOf(kind.tag)), isNew = true) },
+                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) { viewModel.toggleSearch() },
+                WpBarAction(Icons.Default.Checklist, stringResource(R.string.common_select)) { viewModel.enterSelectionMode() }
             )
             else -> listOf(
-                WpBarAction(Icons.Default.Search, "ara") { viewModel.toggleSearch() },
-                WpBarAction(Icons.Default.Checklist, "seç") { viewModel.enterSelectionMode() }
+                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) { viewModel.toggleSearch() },
+                WpBarAction(Icons.Default.Checklist, stringResource(R.string.common_select)) { viewModel.enterSelectionMode() }
             )
         }
     }
@@ -304,7 +304,7 @@ fun NotesHubScreen(
     val bottomBarMenuItems: List<WpBarMenuItem> = if (isSelectionMode) {
         buildList {
             if (selectedIds.size == 1) {
-                add(WpBarMenuItem("kopyala") {
+                add(WpBarMenuItem(stringResource(R.string.common_copy)) {
                     visibleList.firstOrNull { it.id == selectedIds.first() }?.let { viewModel.copyToClipboard(it) }
                     viewModel.exitSelectionMode()
                 })
@@ -312,21 +312,21 @@ fun NotesHubScreen(
         }
     } else {
         buildList {
-            add(WpBarMenuItem("sırala: ${sortMode.title}") { showSortDialog = true })
+            add(WpBarMenuItem(stringResource(R.string.notes_sort_menu, stringResource(sortMode.titleRes))) { showSortDialog = true })
             when (currentKind) {
                 TabKind.Notes -> {
-                    add(WpBarMenuItem("yeni liste") { openEditor(Note(isList = true), isNew = true) })
-                    add(WpBarMenuItem("yedekle") {
+                    add(WpBarMenuItem(stringResource(R.string.notes_new_list)) { openEditor(Note(isList = true), isNew = true) })
+                    add(WpBarMenuItem(stringResource(R.string.notes_backup)) {
                         val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
                         createBackup.launch("zune-notlar-$stamp.json")
                     })
-                    add(WpBarMenuItem("yedekten geri yükle") { restoreBackup.launch(arrayOf("application/json", "text/plain", "*/*")) })
-                    add(WpBarMenuItem(if (isQuickNoteTileOnStart) "hızlı not tile'ını kaldır" else "start'a hızlı not tile'ı ekle") {
+                    add(WpBarMenuItem(stringResource(R.string.notes_restore_backup)) { restoreBackup.launch(arrayOf("application/json", "text/plain", "*/*")) })
+                    add(WpBarMenuItem(if (isQuickNoteTileOnStart) stringResource(R.string.notes_quick_tile_remove) else stringResource(R.string.notes_quick_tile_add)) {
                         viewModel.toggleQuickNoteTile()
                     })
                 }
-                TabKind.Archive -> add(WpBarMenuItem("arşivi temizle") { if (archivedNotes.isNotEmpty()) showClearArchiveDialog = true })
-                TabKind.Trash -> add(WpBarMenuItem("çöpü boşalt") { if (trashNotes.isNotEmpty()) showEmptyTrashDialog = true })
+                TabKind.Archive -> add(WpBarMenuItem(stringResource(R.string.notes_clear_archive)) { if (archivedNotes.isNotEmpty()) showClearArchiveDialog = true })
+                TabKind.Trash -> add(WpBarMenuItem(stringResource(R.string.notes_empty_trash)) { if (trashNotes.isNotEmpty()) showEmptyTrashDialog = true })
                 else -> {}
             }
         }
@@ -402,43 +402,43 @@ fun NotesHubScreen(
                 .weight(1f)
                 .fillMaxWidth()
         ) {
-            HorizontalPager(
-                state = pagerState,
+            ZuneLoopingPager(
+                state = pager,
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = !isSelectionMode
             ) { page ->
-                val kind = tabKinds.getOrElse(page % actualPageCount) { TabKind.Notes }
+                val kind = tabKinds.getOrElse(page) { TabKind.Notes }
                 val searching = searchQuery.isNotBlank()
                 when (kind) {
                     TabKind.Notes -> NotesListPage(
                         kind = kind,
                         notes = activeNotes,
-                        emptyTitle = if (searching) "sonuç yok" else "henüz not yok",
-                        emptySubtitle = if (searching) "farklı bir arama dene" else "alt çubuktan \"yeni\" ile ilk notunu oluştur"
+                        emptyTitle = if (searching) stringResource(R.string.notes_no_results) else stringResource(R.string.notes_empty_notes),
+                        emptySubtitle = if (searching) stringResource(R.string.notes_try_other_search) else stringResource(R.string.notes_empty_notes_hint)
                     )
                     TabKind.Lists -> NotesListPage(
                         kind = kind,
                         notes = checklistNotes,
-                        emptyTitle = if (searching) "sonuç yok" else "liste yok",
-                        emptySubtitle = if (searching) "farklı bir arama dene" else "alışveriş, yapılacaklar… \"yeni liste\" ile başla"
+                        emptyTitle = if (searching) stringResource(R.string.notes_no_results) else stringResource(R.string.notes_empty_lists),
+                        emptySubtitle = if (searching) stringResource(R.string.notes_try_other_search) else stringResource(R.string.notes_empty_lists_hint)
                     )
                     is TabKind.Tag -> NotesListPage(
                         kind = kind,
                         notes = notesFor(kind),
-                        emptyTitle = "#${kind.tag} boş",
-                        emptySubtitle = "bu etiketli not kalmadı"
+                        emptyTitle = stringResource(R.string.notes_tag_empty, kind.tag),
+                        emptySubtitle = stringResource(R.string.notes_tag_empty_hint)
                     )
                     TabKind.Archive -> NotesListPage(
                         kind = kind,
                         notes = archivedNotes,
-                        emptyTitle = "arşiv boş",
-                        emptySubtitle = "arşivlenen notlar burada saklanır"
+                        emptyTitle = stringResource(R.string.notes_archive_empty),
+                        emptySubtitle = stringResource(R.string.notes_archive_empty_hint)
                     )
                     TabKind.Trash -> NotesListPage(
                         kind = kind,
                         notes = trashNotes,
-                        emptyTitle = "çöp boş",
-                        emptySubtitle = "silinen notlar 30 gün burada bekler"
+                        emptyTitle = stringResource(R.string.notes_trash_empty),
+                        emptySubtitle = stringResource(R.string.notes_trash_empty_hint)
                     )
                 }
             }
@@ -470,22 +470,13 @@ fun NotesHubScreen(
             ZuneSearchBar(
                 query = searchQuery,
                 onQueryChange = { viewModel.setSearchQuery(it) },
-                placeholder = "notlarda ara",
+                placeholder = stringResource(R.string.notes_search_hint),
                 modifier = Modifier.padding(
                     horizontal = ZuneDimens.ScreenPaddingHorizontal,
                     vertical = 8.dp
                 )
             )
         }
-    }
-
-    val onPivotSelected: (Int) -> Unit = { index ->
-        val current = pagerState.currentPage
-        val currentActual = ((current % actualPageCount) + actualPageCount) % actualPageCount
-        var diff = index - currentActual
-        if (diff > actualPageCount / 2) diff -= actualPageCount
-        if (diff < -actualPageCount / 2) diff += actualPageCount
-        coroutineScope.launch { pagerState.animateScrollToPage(current + diff) }
     }
 
     @Composable
@@ -541,24 +532,13 @@ fun NotesHubScreen(
                                 .fillMaxHeight()
                         ) {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                val overflowYPx = with(density) { (-24).dp.toPx() }
-                                Text(
-                                    text = if (isSelectionMode) "${selectedIds.size} seçili" else "notlar",
-                                    style = MaterialTheme.typography.displayLarge.copy(
-                                        fontWeight = FontWeight.Light,
-                                        fontSize = 96.sp,
-                                        letterSpacing = (-4).sp,
-                                        lineHeight = 96.sp
-                                    ),
-                                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                                    modifier = Modifier
-                                        .padding(start = 72.dp, top = 4.dp, bottom = 8.dp)
-                                        .graphicsLayer { translationY = overflowYPx }
+                                ZuneWideHubTitle(
+                                    text = if (isSelectionMode) stringResource(R.string.notes_selected_count, selectedIds.size) else stringResource(R.string.hub_notes),
+                                    bottomPadding = 8.dp
                                 )
                                 ZunePivotTabs(
                                     tabs = tabs,
-                                    pagerState = pagerState,
-                                    onSelected = onPivotSelected,
+                                    state = pager,
                                     fontSize = 40.sp,
                                     modifier = Modifier.padding(start = 48.dp)
                                 )
@@ -587,8 +567,8 @@ fun NotesHubScreen(
                             } else {
                                 NotesEmptyState(
                                     icon = Icons.Default.StickyNote2,
-                                    title = "bir not seç",
-                                    subtitle = "soldaki listeden bir not aç veya yeni oluştur"
+                                    title = stringResource(R.string.notes_pick_one),
+                                    subtitle = stringResource(R.string.notes_pick_one_hint)
                                 )
                             }
                         }
@@ -605,7 +585,7 @@ fun NotesHubScreen(
                                     .padding(top = 28.dp, bottom = 8.dp)
                             ) {
                                 Text(
-                                    text = if (isSelectionMode) "${selectedIds.size} seçili" else "notlar",
+                                    text = if (isSelectionMode) stringResource(R.string.notes_selected_count, selectedIds.size) else stringResource(R.string.hub_notes),
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 18.sp,
@@ -622,8 +602,7 @@ fun NotesHubScreen(
                                 )
                                 ZunePivotTabs(
                                     tabs = tabs,
-                                    pagerState = pagerState,
-                                    onSelected = onPivotSelected,
+                                    state = pager,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }

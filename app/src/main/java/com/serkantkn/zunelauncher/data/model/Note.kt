@@ -62,8 +62,8 @@ data class Note(
     /** Title shown in lists and on the live tile; falls back to the first content line. */
     val displayTitle: String
         get() = title.trim().ifEmpty {
-            if (isChecklist) items.firstOrNull { it.text.isNotBlank() }?.text?.trim() ?: "liste"
-            else content.trim().lineSequence().firstOrNull()?.take(40)?.stripMarkdown()?.ifEmpty { "not" } ?: "not"
+            if (isChecklist) items.firstOrNull { it.text.isNotBlank() }?.text?.trim() ?: NoteFallbackTitles.list
+            else content.trim().lineSequence().firstOrNull()?.take(40)?.stripMarkdown()?.ifEmpty { NoteFallbackTitles.note } ?: NoteFallbackTitles.note
         }
 
     /** Short body preview for list cards. */
@@ -114,3 +114,17 @@ fun String.stripMarkdown(): String = this
         line.removePrefix("# ").removePrefix("## ").removePrefix("- ").removePrefix("* ")
     }
     .replace("**", "")
+
+/**
+ * Titles used when a note has neither a title nor content. The model has no Context, so the app
+ * refreshes these for the active language (ZuneLauncherApp.onCreate and MainActivity.attachBaseContext).
+ */
+object NoteFallbackTitles {
+    @Volatile var note: String = "not"
+    @Volatile var list: String = "liste"
+
+    fun refresh(context: android.content.Context) {
+        note = context.getString(com.serkantkn.zunelauncher.R.string.notes_untitled_note)
+        list = context.getString(com.serkantkn.zunelauncher.R.string.notes_untitled_list)
+    }
+}

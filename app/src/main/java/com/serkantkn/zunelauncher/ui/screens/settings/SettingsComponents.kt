@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -114,9 +116,9 @@ internal fun ThemeChoiceRow(
     ) {
         ThemeMode.entries.forEach { mode ->
             val label = when (mode) {
-                ThemeMode.LIGHT -> "açık"
-                ThemeMode.DARK -> "koyu"
-                ThemeMode.SYSTEM -> "sistem"
+                ThemeMode.LIGHT -> stringResource(R.string.theme_light)
+                ThemeMode.DARK -> stringResource(R.string.theme_dark)
+                ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
             }
             SettingPill(
                 label = label,
@@ -181,7 +183,7 @@ internal fun AccentColorChoiceRow(
                             } else {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "Bu özellik sadece Z Launcher Pro'da geçerlidir.",
+                                    context.getString(R.string.pro_only_feature),
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -262,10 +264,10 @@ internal fun CustomColorPickerDialog(
 
     com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog(
         onDismissRequest = onDismiss,
-        title = "renk seçici",
+        title = stringResource(R.string.settings_color_picker),
         confirmButton = {
             com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
-                text = "Tamam",
+                text = stringResource(R.string.common_ok_cap),
                 onClick = {
                     dismissWithAnim {
                         val argb = android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value))
@@ -277,7 +279,7 @@ internal fun CustomColorPickerDialog(
         },
         dismissButton = {
             com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
-                text = "İptal",
+                text = stringResource(R.string.common_cancel_cap),
                 onClick = { dismissWithAnim() },
                 borderColor = LocalZuneColors.current.textMuted
             )
@@ -300,7 +302,7 @@ internal fun CustomColorPickerDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "renk özü (hue): ${hue.toInt()}°",
+                    text = stringResource(R.string.settings_hue, hue.toInt()),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -315,7 +317,7 @@ internal fun CustomColorPickerDialog(
                 )
 
                 Text(
-                    text = "doygunluk (saturation): ${(saturation * 100).toInt()}%",
+                    text = stringResource(R.string.settings_saturation, (saturation * 100).toInt()),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -330,7 +332,7 @@ internal fun CustomColorPickerDialog(
                 )
 
                 Text(
-                    text = "parlaklık (brightness): ${(value * 100).toInt()}%",
+                    text = stringResource(R.string.settings_brightness_pct, (value * 100).toInt()),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -412,7 +414,7 @@ internal fun WindowsPhoneSwitch(
         )
     ) {
         Text(
-            text = if (checked) "açık" else "kapalı",
+            text = if (checked) stringResource(R.string.theme_light) else stringResource(R.string.common_off),
             style = MaterialTheme.typography.bodySmall.copy(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Normal

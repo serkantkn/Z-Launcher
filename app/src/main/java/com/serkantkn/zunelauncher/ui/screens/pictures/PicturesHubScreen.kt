@@ -10,36 +10,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -49,14 +34,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -72,11 +54,16 @@ import com.serkantkn.zunelauncher.data.model.MediaImage
 import com.serkantkn.zunelauncher.ui.components.PhotoViewer
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
+import com.serkantkn.zunelauncher.ui.components.ZuneEmptyState
+import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
+import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
+import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
+import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
-import kotlinx.coroutines.launch
 
 @Composable
 fun PicturesHubScreen(
@@ -87,6 +74,7 @@ fun PicturesHubScreen(
     val zuneColors = LocalZuneColors.current
     val hasPermission by viewModel.hasPermission.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
     val cameraRollImages by viewModel.cameraRollImages.collectAsState()
     val albums by viewModel.albums.collectAsState()
@@ -102,15 +90,8 @@ fun PicturesHubScreen(
         }
     }
 
-    val tabs = listOf("film rulosu", "albümler", "favoriler")
-    val actualPageCount = tabs.size
-    val loopCount = 1000
-    val initialPage = (loopCount / 2) * actualPageCount
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { loopCount * actualPageCount }
-    )
-    val coroutineScope = rememberCoroutineScope()
+    val tabs = listOf(stringResource(R.string.pics_tab_camera_roll), stringResource(R.string.pics_tab_albums), stringResource(R.string.people_tab_favorites))
+    val pager = rememberLoopingPagerState(pageCount = tabs.size)
 
     var viewingPhotosList by remember { mutableStateOf<List<MediaImage>?>(null) }
     var viewingInitialIndex by remember { mutableIntStateOf(0) }
@@ -150,15 +131,14 @@ fun PicturesHubScreen(
         val density = LocalDensity.current
         val screenWidthPx = with(density) { screenWidthDp.toPx() }
         val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
-        val overflowYPx = with(density) { (-24).dp.toPx() }
         val isWideScreen = LocalIsWideScreen.current
 
-        val renderPage: @Composable (String) -> Unit = { tabName ->
+        val renderPage: @Composable (Int) -> Unit = { tabIndex ->
             ZunePageTransition {
-                when (tabName) {
-                    "film rulosu" -> {
+                when (tabIndex) {
+                    0 -> {
                         if (cameraRollImages.isEmpty()) {
-                            EmptyStateView(stringResource(R.string.no_photos))
+                            ZuneEmptyState(errorMessage?.let { stringResource(R.string.pics_load_failed, it) } ?: stringResource(R.string.no_photos))
                         } else {
                             PhotoGrid(images = cameraRollImages) { clickedPhoto ->
                                 viewingPhotosList = cameraRollImages
@@ -167,7 +147,7 @@ fun PicturesHubScreen(
                         }
                     }
 
-                    "albümler" -> {
+                    1 -> {
                         if (selectedAlbum != null) {
                             val albumImages =
                                 allImages.filter { it.bucketId == selectedAlbum!!.bucketId }
@@ -177,16 +157,16 @@ fun PicturesHubScreen(
                             }
                         } else {
                             if (albums.isEmpty()) {
-                                EmptyStateView(stringResource(R.string.no_albums))
+                                ZuneEmptyState(errorMessage?.let { stringResource(R.string.pics_albums_load_failed, it) } ?: stringResource(R.string.no_albums))
                             } else {
                                 AlbumGrid(albums = albums) { viewModel.selectAlbum(it) }
                             }
                         }
                     }
 
-                    "favoriler" -> {
+                    2 -> {
                         if (favoriteImages.isEmpty()) {
-                            EmptyStateView(stringResource(R.string.no_favorites))
+                            ZuneEmptyState(errorMessage?.let { stringResource(R.string.pics_load_failed, it) } ?: stringResource(R.string.no_favorites))
                         } else {
                             PhotoGrid(images = favoriteImages) { clickedPhoto ->
                                 viewingPhotosList = favoriteImages
@@ -202,21 +182,7 @@ fun PicturesHubScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             if (isWideScreen) {
-                Text(
-                    text = "fotoğraflar",
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 96.sp,
-                        letterSpacing = (-4).sp,
-                        lineHeight = 96.sp
-                    ),
-                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                    modifier = Modifier.padding(
-                            start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
-                        top = 4.dp,
-                        bottom = 24.dp
-                    ).graphicsLayer { translationY = overflowYPx }
-                )
+                ZuneWideHubTitle(text = stringResource(R.string.pictures_hub))
 
                 // Selected Album Context
                 AnimatedContent(
@@ -239,7 +205,7 @@ fun PicturesHubScreen(
                 }
 
                 if (!hasPermission) {
-                    PermissionRequestView(
+                    PicturesPermissionRequest(
                         onRequestPermission = {
                             val permission =
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -255,32 +221,13 @@ fun PicturesHubScreen(
                         CircularProgressIndicator(color = zuneColors.accentColor)
                     }
                 } else {
-                    LazyRow(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                                start = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
-                            end = 48.dp
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(48.dp)
-                    ) {
-                        items(tabs.size) { index ->
-                            Column(modifier = Modifier.width(360.dp).fillMaxHeight()) {
-                                Text(
-                                    text = tabs[index],
-                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
-                                    color = zuneColors.accentColor,
-                                    modifier = Modifier.padding(bottom = 16.dp)
-                                )
-                                Box(modifier = Modifier.weight(1f)) {
-                                    renderPage(tabs[index])
-                                }
-                            }
-                        }
+                    ZuneWidePanorama(tabs = tabs, fillPageHeight = true) { index ->
+                        renderPage(index)
                     }
                 }
             } else {
                 Text(
-                    text = "fotoğraflar",
+                    text = stringResource(R.string.pictures_hub),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 18.sp,
@@ -299,21 +246,8 @@ fun PicturesHubScreen(
                 // Tabs -> Zune Pivot
                 ZunePivotTabs(
                     tabs = tabs,
-                    pagerState = pagerState,
-                    onSelected = { index ->
-                        val current = pagerState.currentPage
-                        val size = actualPageCount
-                        val currentActual = ((current % size) + size) % size
-                        var diff = index - currentActual
-                        if (diff > size / 2) {
-                            diff -= size
-                        } else if (diff < -size / 2) {
-                            diff += size
-                        }
-                        val targetPage = current + diff
-                        coroutineScope.launch { pagerState.animateScrollToPage(targetPage) }
-                        viewModel.selectAlbum(null)
-                    },
+                    state = pager,
+                    onSelected = { viewModel.selectAlbum(null) },
                     modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
                 )
 
@@ -339,7 +273,7 @@ fun PicturesHubScreen(
 
                 // Content Area
                 if (!hasPermission) {
-                    PermissionRequestView(
+                    PicturesPermissionRequest(
                         onRequestPermission = {
                             val permission =
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -355,8 +289,8 @@ fun PicturesHubScreen(
                         CircularProgressIndicator(color = zuneColors.accentColor)
                     }
                 } else {
-                    HorizontalPager(
-                        state = pagerState,
+                    ZuneLoopingPager(
+                        state = pager,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             start = ZuneDimens.ScreenPaddingHorizontal,
@@ -364,8 +298,7 @@ fun PicturesHubScreen(
                         ),
                         pageSpacing = 24.dp
                     ) { page ->
-                        val actualPage = page % actualPageCount
-                        renderPage(tabs[actualPage])
+                        renderPage(page)
                     }
                 }
             } // close else
@@ -492,42 +425,13 @@ private fun AlbumGrid(
     }
 }
 
+/** Storage permission prompt shared by the phone and wide-screen branches. */
 @Composable
-private fun PermissionRequestView(onRequestPermission: () -> Unit) {
-    val zuneColors = LocalZuneColors.current
-    Column(
-        modifier = Modifier.padding(top = ZuneDimens.SpacingHuge)
-    ) {
-        Text(
-            text = stringResource(R.string.storage_permission_title).lowercase(),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.storage_permission_message),
-            style = MaterialTheme.typography.bodyMedium,
-            color = zuneColors.textMuted
-        )
-        Spacer(modifier = Modifier.height(ZuneDimens.SpacingLg))
-        Button(
-            onClick = onRequestPermission,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = zuneColors.accentColor,
-                contentColor = Color.White
-            )
-        ) {
-            Text(text = stringResource(R.string.grant_permission).lowercase())
-        }
-    }
-}
-
-@Composable
-private fun EmptyStateView(message: String) {
-    Text(
-        text = message.lowercase(),
-        style = MaterialTheme.typography.bodyMedium,
-        color = LocalZuneColors.current.textDim,
-        modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
+private fun PicturesPermissionRequest(onRequestPermission: () -> Unit) {
+    ZunePermissionRequest(
+        title = stringResource(R.string.storage_permission_title).lowercase(),
+        message = stringResource(R.string.storage_permission_message),
+        buttonLabel = stringResource(R.string.grant_permission).lowercase(),
+        onRequest = onRequestPermission
     )
 }

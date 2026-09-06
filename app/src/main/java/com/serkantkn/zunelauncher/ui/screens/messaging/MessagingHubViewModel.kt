@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
+import com.serkantkn.zunelauncher.util.toUserMessage
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.content.Context
 import android.content.pm.PackageManager
@@ -16,6 +18,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class MessagingHubViewModel : ViewModel() {
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    /** Last load failure as user text, or null. Shown by the hub's empty state. */
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     private val _conversations = MutableStateFlow<List<SmsConversationModel>>(emptyList())
     val conversations: StateFlow<List<SmsConversationModel>> = _conversations.asStateFlow()
@@ -49,15 +55,23 @@ class MessagingHubViewModel : ViewModel() {
 
     fun loadConversations(context: Context) {
         viewModelScope.launch {
-            val list = SmsRepository.getConversations(context)
-            _conversations.value = list
+            try {
+                _conversations.value = SmsRepository.getConversations(context)
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                ZuneLog.e("MessagingHubViewModel", "loadConversations failed", e)
+                _errorMessage.value = e.toUserMessage(context)
+            }
         }
     }
 
     fun loadContacts(context: Context) {
         viewModelScope.launch {
-            val contactList = context.appContainer.contactRepository.getContactsWithNumbers()
-            _contacts.value = contactList
+            try {
+                _contacts.value = context.appContainer.contactRepository.getContactsWithNumbers()
+            } catch (e: Exception) {
+                ZuneLog.e("MessagingHubViewModel", "loadContacts failed", e)
+            }
         }
     }
 
@@ -65,7 +79,13 @@ class MessagingHubViewModel : ViewModel() {
         _selectedConversation.value = conversation
         viewModelScope.launch {
             if (conversation.threadId > 0) {
-                val msgs = SmsRepository.getMessagesForThread(context, conversation.threadId)
+                val msgs = try {
+                    SmsRepository.getMessagesForThread(context, conversation.threadId)
+                } catch (e: Exception) {
+                    ZuneLog.e("MessagingHubViewModel", "openConversation failed", e)
+                    _errorMessage.value = e.toUserMessage(context)
+                    emptyList()
+                }
                 _threadMessages.value = msgs
             } else {
                 _threadMessages.value = emptyList()

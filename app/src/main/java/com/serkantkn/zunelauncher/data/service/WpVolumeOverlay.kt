@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.data.service
 
+import com.serkantkn.zunelauncher.util.localized
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Build
@@ -75,7 +77,7 @@ object WpVolumeOverlay {
             }
         }
 
-        val view = ComposeView(appContext).apply {
+        val view = ComposeView(appContext.localized()).apply {
             setViewTreeLifecycleOwner(owner)
             setViewTreeViewModelStoreOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)
@@ -86,13 +88,15 @@ object WpVolumeOverlay {
                 val dynamicThemeColor by settings.dynamicThemeColor.collectAsState(initial = null)
                 val customThemeColor by settings.customThemeColor.collectAsState(initial = null)
                 val solidBackgroundEnabled by settings.solidBackgroundEnabled.collectAsState(initial = false)
+                val fontScale by settings.fontScale.collectAsState(initial = 1.0f)
 
                 ZuneLauncherTheme(
                     themeMode = themeMode,
                     accentColor = accentColor,
                     dynamicThemeColor = dynamicThemeColor,
                     customThemeColor = customThemeColor,
-                    solidBackgroundEnabled = solidBackgroundEnabled
+                    solidBackgroundEnabled = solidBackgroundEnabled,
+                    fontScale = fontScale
                 ) {
                     WpVolumeControl(
                         fillHeight = false,
@@ -108,9 +112,9 @@ object WpVolumeOverlay {
             overlayView = view
             lifecycleOwner = owner
             owner.onResume()
-            android.util.Log.d(TAG, "attached volume overlay")
+            ZuneLog.d(TAG, "attached volume overlay")
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "addView failed", e)
+            ZuneLog.e(TAG, "addView failed", e)
             owner.onDestroy()
         }
     }
@@ -119,7 +123,7 @@ object WpVolumeOverlay {
         val wm = windowManager
         val view = overlayView
         val owner = lifecycleOwner
-        if (view != null) android.util.Log.d(TAG, "detach volume overlay")
+        if (view != null) ZuneLog.d(TAG, "detach volume overlay")
         overlayView = null
         lifecycleOwner = null
         windowManager = null
@@ -127,7 +131,7 @@ object WpVolumeOverlay {
             try {
                 if (view.isAttachedToWindow || view.windowToken != null) wm.removeViewImmediate(view)
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("WpVolumeOverlay", "detach failed", e)
             }
         }
         owner?.onDestroy()

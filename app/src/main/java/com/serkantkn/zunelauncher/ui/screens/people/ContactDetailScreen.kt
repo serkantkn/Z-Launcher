@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.people
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.content.ContentUris
 import android.content.Context
@@ -174,10 +175,10 @@ fun ContactDetailScreen(
     if (showDeleteConfirmDialog && currentDisplayDetail != null) {
         ZuneFlipDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
-            title = "kişiyi sil",
+            title = stringResource(R.string.people_delete_contact),
             confirmButton = {
                 ZuneDialogButton(
-                    text = "evet",
+                    text = stringResource(R.string.common_yes),
                     borderColor = Color.Red,
                     onClick = {
                         dismissWithAnim {
@@ -189,7 +190,7 @@ fun ContactDetailScreen(
             },
             dismissButton = {
                 ZuneDialogButton(
-                    text = "hayır",
+                    text = stringResource(R.string.common_no),
                     onClick = {
                         dismissWithAnim {
                             showDeleteConfirmDialog = false
@@ -199,7 +200,7 @@ fun ContactDetailScreen(
             }
         ) {
             Text(
-                text = "\"${currentDisplayDetail.contact.name}\" rehberinizden tamamen silinecektir. Onaylıyor musunuz?",
+                text = stringResource(R.string.people_delete_confirm, currentDisplayDetail.contact.name),
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White.copy(alpha = 0.9f)
             )
@@ -242,20 +243,18 @@ private fun ContactDetailContent(
         isLoadingLogs = false
     }
 
-    val bottomBarActions = remember {
-        listOf(
-            WpBarAction(
-                icon = Icons.Default.Edit,
-                label = "düzenle",
-                onClick = onEditClick
-            ),
-            WpBarAction(
-                icon = Icons.Default.Delete,
-                label = "sil",
-                onClick = onDeleteClick
-            )
+    val bottomBarActions = listOf(
+        WpBarAction(
+            icon = Icons.Default.Edit,
+            label = stringResource(R.string.common_edit),
+            onClick = onEditClick
+        ),
+        WpBarAction(
+            icon = Icons.Default.Delete,
+            label = stringResource(R.string.common_delete),
+            onClick = onDeleteClick
         )
-    }
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -340,7 +339,7 @@ private fun ContactDetailContent(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.common_close_cap),
                             tint = Color.White
                         )
                     }
@@ -362,7 +361,7 @@ private fun ContactDetailContent(
                         // Call Action Button
                         WpPrimaryActionButton(
                             icon = Icons.Default.Call,
-                            label = "ara",
+                            label = stringResource(R.string.call),
                             subtitle = primaryNumber,
                             accentColor = zuneColors.accentColor,
                             modifier = Modifier.weight(1f),
@@ -378,7 +377,7 @@ private fun ContactDetailContent(
                         // SMS Action Button
                         WpPrimaryActionButton(
                             icon = Icons.Default.Sms,
-                            label = "mesaj",
+                            label = stringResource(R.string.people_message),
                             subtitle = primaryNumber,
                             accentColor = zuneColors.accentColor,
                             modifier = Modifier.weight(1f),
@@ -415,7 +414,7 @@ private fun ContactDetailContent(
                             // WhatsApp Message
                             WpWhatsAppActionButton(
                                 icon = Icons.AutoMirrored.Filled.Chat,
-                                label = "mesaj",
+                                label = stringResource(R.string.people_message),
                                 modifier = Modifier.weight(1f),
                                 onClick = { launchWhatsAppChat(context, primaryNumber) }
                             )
@@ -423,7 +422,7 @@ private fun ContactDetailContent(
                             // WhatsApp Voice Call
                             WpWhatsAppActionButton(
                                 icon = Icons.Default.Phone,
-                                label = "sesli ara",
+                                label = stringResource(R.string.people_voice_call),
                                 modifier = Modifier.weight(1f),
                                 onClick = { launchWhatsAppCall(context, primaryNumber, isVideo = false) }
                             )
@@ -431,7 +430,7 @@ private fun ContactDetailContent(
                             // WhatsApp Video Call
                             WpWhatsAppActionButton(
                                 icon = Icons.Default.Videocam,
-                                label = "görüntülü",
+                                label = stringResource(R.string.people_video_call),
                                 modifier = Modifier.weight(1f),
                                 onClick = { launchWhatsAppCall(context, primaryNumber, isVideo = true) }
                             )
@@ -439,7 +438,7 @@ private fun ContactDetailContent(
                     }
                 } else {
                     Text(
-                        text = "telefon numarası kayıtlı değil",
+                        text = stringResource(R.string.people_no_number),
                         style = MaterialTheme.typography.bodyLarge,
                         color = zuneColors.textDim,
                         modifier = Modifier.padding(vertical = 12.dp)
@@ -462,7 +461,7 @@ private fun ContactDetailContent(
 
                 // ─── 3. CALL HISTORY LIST ───
                 Text(
-                    text = "arama geçmişi",
+                    text = stringResource(R.string.people_call_history),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 22.sp
@@ -474,7 +473,7 @@ private fun ContactDetailContent(
 
                 if (contactCallLogs.isEmpty()) {
                     Text(
-                        text = if (isLoadingLogs) "çağrı kayıtları yükleniyor..." else "bu kişiyle arama kaydı bulunmuyor",
+                        text = if (isLoadingLogs) stringResource(R.string.people_logs_loading) else stringResource(R.string.people_no_logs),
                         style = MaterialTheme.typography.bodyMedium,
                         color = zuneColors.textDim,
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -629,22 +628,22 @@ private fun ContactCallLogItem(
         CallLog.Calls.INCOMING_TYPE -> Triple(
             Icons.AutoMirrored.Filled.CallReceived,
             if (zuneColors.isDark) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f),
-            "gelen çağrı"
+            stringResource(R.string.call_incoming)
         )
         CallLog.Calls.OUTGOING_TYPE -> Triple(
             Icons.AutoMirrored.Filled.CallMade,
             if (zuneColors.isDark) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f),
-            "giden çağrı"
+            stringResource(R.string.call_outgoing)
         )
         CallLog.Calls.MISSED_TYPE, CallLog.Calls.REJECTED_TYPE -> Triple(
             Icons.AutoMirrored.Filled.CallMissed,
             zuneColors.accentColor,
-            if (call.type == CallLog.Calls.REJECTED_TYPE) "reddedilen çağrı" else "cevapsız çağrı"
+            if (call.type == CallLog.Calls.REJECTED_TYPE) stringResource(R.string.call_rejected) else stringResource(R.string.call_missed)
         )
         else -> Triple(
             Icons.Default.Call,
             zuneColors.textMuted,
-            "çağrı"
+            stringResource(R.string.call_generic)
         )
     }
 
@@ -706,11 +705,12 @@ private fun ContactCallLogItem(
     }
 }
 
+@Composable
 private fun formatDuration(durationSeconds: Long): String {
     if (durationSeconds <= 0) return ""
     val minutes = durationSeconds / 60
     val seconds = durationSeconds % 60
-    return if (minutes > 0) "${minutes} dk ${seconds} sn" else "${seconds} sn"
+    return if (minutes > 0) stringResource(R.string.duration_min_sec, minutes, seconds) else stringResource(R.string.duration_sec, seconds)
 }
 
 private fun isWhatsAppInstalled(context: Context): Boolean {
@@ -746,7 +746,7 @@ private fun launchWhatsAppChat(context: Context, phoneNumber: String) {
             context.startActivity(fallbackIntent)
         }
     } catch (e: Exception) {
-        e.printStackTrace()
+        ZuneLog.e("ContactDetailScreen", "launchWhatsAppChat failed", e)
     }
 }
 
@@ -802,7 +802,7 @@ private fun launchWhatsAppCall(context: Context, phoneNumber: String, isVideo: B
             return
         }
     } catch (e: Exception) {
-        e.printStackTrace()
+        ZuneLog.e("ContactDetailScreen", "launchWhatsAppCall failed", e)
     }
 
     // Fallback: Open WhatsApp Chat
@@ -846,20 +846,20 @@ fun EditContactScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "kişiyi düzenle",
+                    text = stringResource(R.string.people_edit_contact),
                     style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Light, fontSize = 36.sp),
                     color = if (zuneColors.isDark) Color.White else Color.Black
                 )
 
                 IconButton(onClick = onClose) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Kapat", tint = if (zuneColors.isDark) Color.White else Color.Black)
+                    Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(R.string.common_close_cap), tint = if (zuneColors.isDark) Color.White else Color.Black)
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // First Name Field
-            Text("ad", style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
+            Text(stringResource(R.string.people_first_name), style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
             Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = firstName,
@@ -877,7 +877,7 @@ fun EditContactScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Last Name Field
-            Text("soyad", style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
+            Text(stringResource(R.string.people_last_name), style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
             Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = lastName,
@@ -895,7 +895,7 @@ fun EditContactScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Phone Number Field
-            Text("telefon numarası", style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
+            Text(stringResource(R.string.people_phone_number), style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
             Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = phoneNumber,
@@ -919,7 +919,7 @@ fun EditContactScreen(
                 shape = RoundedCornerShape(2.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
-                Text("KAYDET", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                Text(stringResource(R.string.common_save).uppercase(), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
             }
         }
     }

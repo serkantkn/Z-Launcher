@@ -1,6 +1,9 @@
 package com.serkantkn.zunelauncher.data.model
 
-enum class NotificationStyle(val title: String) {
-    WINDOWS_PHONE("windows phone (pop-up kart)"),
-    SYSTEM("android varsayılan bildirimleri")
+import androidx.annotation.StringRes
+import com.serkantkn.zunelauncher.R
+
+enum class NotificationStyle(@StringRes val titleRes: Int) {
+    WINDOWS_PHONE(R.string.notification_style_wp),
+    SYSTEM(R.string.notification_style_system)
 }

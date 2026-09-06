@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.repository
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.ContentUris
 import android.content.Context
 import android.os.Build
@@ -93,7 +94,8 @@ class MediaRepository(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("MediaRepository", "getAllImages failed", e)
+            throw e
         }
         images
     }

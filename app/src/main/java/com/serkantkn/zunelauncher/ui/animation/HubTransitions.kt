@@ -1,11 +1,6 @@
 package com.serkantkn.zunelauncher.ui.animation
 
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 
 /**
  * Hinge-style animation for hub transitions.
@@ -34,22 +29,3 @@ object HingeAnimation {
     const val MAX_ROTATION_DEGREES = 90f
 }
 
-/**
- * Applies a 3D hinge rotation around the LEFT edge of the composable.
- *
- * @param rotationDegrees Y-axis rotation angle.
- *   Negative values rotate the surface backward (away from viewer).
- *   Positive values rotate the surface forward (toward viewer).
- * @param density Screen density for camera distance scaling.
- * @param alpha Content opacity.
- */
-fun Modifier.hingeRotation(
-    rotationDegrees: Float,
-    density: Float,
-    alpha: Float = 1f
-): Modifier = this.graphicsLayer {
-    rotationY = rotationDegrees
-    transformOrigin = TransformOrigin(0f, 0.5f)
-    cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
-    this.alpha = alpha
-}

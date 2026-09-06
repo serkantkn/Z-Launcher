@@ -14,13 +14,30 @@ import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.StartTileItem
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
+import com.serkantkn.zunelauncher.data.model.looksLikeJsonArray
+import com.serkantkn.zunelauncher.data.model.parseJsonObjectList
+import com.serkantkn.zunelauncher.data.model.parseJsonStringList
+import com.serkantkn.zunelauncher.data.model.toJsonArrayString
+import com.serkantkn.zunelauncher.data.model.toJsonStringArray
 import com.serkantkn.zunelauncher.settingsDataStore
+import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlin.coroutines.cancellation.CancellationException
 
+/**
+ * Launcher-wide settings. List-valued preferences ([HUB_ORDER], [START_TILES],
+ * [DISABLED_NOTIFICATION_APPS]) are stored as JSON arrays; their pre-JSON comma-delimited
+ * values are still read as a fallback and rewritten as JSON the first time they are collected.
+ * The browser keys hold JSON arrays produced by the Browser* model serializers.
+ */
 class SettingsDataStore(private val context: Context) {
 
     companion object {
+        private const val TAG = "SettingsDataStore"
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val FONT_SCALE = floatPreferencesKey("font_scale")
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
@@ -94,7 +111,13 @@ class SettingsDataStore(private val context: Context) {
         prefs[DIRECT_CALL_ENABLED] ?: false
     }
 
-    val hubOrder: Flow<List<com.serkantkn.zunelauncher.data.model.HubType>> = context.settingsDataStore.data.map { prefs ->
+    val hubOrder: Flow<List<com.serkantkn.zunelauncher.data.model.HubType>> = flow {
+        migrateLegacyListsIfNeeded()
+        emitAll(context.settingsDataStore.data.map { prefs -> readHubOrder(prefs[HUB_ORDER]) })
+    }
+
+    /** JSON array of HubType names, or the legacy "A,B,C" string; unknown names are skipped. */
+    private fun readHubOrder(saved: String?): List<com.serkantkn.zunelauncher.data.model.HubType> {
         val defaultOrder = listOf(
             com.serkantkn.zunelauncher.data.model.HubType.PHONE,
             com.serkantkn.zunelauncher.data.model.HubType.MESSAGING,
@@ -106,22 +129,21 @@ class SettingsDataStore(private val context: Context) {
             com.serkantkn.zunelauncher.data.model.HubType.CLOCK,
             com.serkantkn.zunelauncher.data.model.HubType.CALENDAR,
             com.serkantkn.zunelauncher.data.model.HubType.NOTES,
+            com.serkantkn.zunelauncher.data.model.HubType.EMAIL,
             com.serkantkn.zunelauncher.data.model.HubType.SETTINGS
         )
-        val saved = prefs[HUB_ORDER]
-        if (saved.isNullOrEmpty()) {
-            defaultOrder
-        } else {
-            val savedList = saved.split(",").mapNotNull { 
-                try {
-                    com.serkantkn.zunelauncher.data.model.HubType.valueOf(it)
-                } catch (e: Exception) {
-                    null
-                }
+        if (saved.isNullOrEmpty()) return defaultOrder
+        val names = if (saved.looksLikeJsonArray()) parseJsonStringList(saved, TAG) else saved.split(",")
+        val savedList = names.mapNotNull { name ->
+            try {
+                com.serkantkn.zunelauncher.data.model.HubType.valueOf(name)
+            } catch (e: IllegalArgumentException) {
+                ZuneLog.w(TAG, "skipping unknown hub in hub order: $name")
+                null
             }
-            val missingHubs = defaultOrder.filter { it !in savedList && it != com.serkantkn.zunelauncher.data.model.HubType.HOME }
-            (savedList + missingHubs).ifEmpty { defaultOrder }
         }
+        val missingHubs = defaultOrder.filter { it !in savedList && it != com.serkantkn.zunelauncher.data.model.HubType.HOME }
+        return (savedList + missingHubs).ifEmpty { defaultOrder }
     }
 
     val defaultStartTiles = listOf(
@@ -135,34 +157,26 @@ class SettingsDataStore(private val context: Context) {
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CLOCK, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CALENDAR, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.NOTES, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.EMAIL, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.SETTINGS, 2)
     )
 
-    val startTiles: Flow<List<StartTileItem>> = context.settingsDataStore.data.map { prefs ->
-        val saved = prefs[START_TILES]
-        if (saved.isNullOrEmpty()) {
-            defaultStartTiles
+    val startTiles: Flow<List<StartTileItem>> = flow {
+        migrateLegacyListsIfNeeded()
+        emitAll(context.settingsDataStore.data.map { prefs -> readStartTiles(prefs[START_TILES]) })
+    }
+
+    /** JSON array of [StartTileItem.toJson] objects, or the legacy "id#span,..." string. */
+    private fun readStartTiles(saved: String?): List<StartTileItem> {
+        if (saved.isNullOrEmpty()) return defaultStartTiles
+        val list = if (saved.looksLikeJsonArray()) {
+            parseJsonObjectList(saved, TAG, StartTileItem::fromJson)
         } else {
-            val list = saved.split(",").mapNotNull { itemStr ->
-                val hashParts = itemStr.split("#")
-                if (hashParts.size == 2) {
-                    val id = hashParts[0]
-                    val span = hashParts[1].toIntOrNull() ?: 2
-                    StartTileItem(id, span)
-                } else {
-                    val parts = itemStr.split(":")
-                    if (parts.size >= 3) {
-                        val type = parts[0]
-                        val id = parts[1]
-                        val span = parts[2].toIntOrNull() ?: 2
-                        StartTileItem("$type:$id", span)
-                    } else null
-                }
-            }
-            val existingHubs = list.filter { it.isHub }.mapNotNull { it.hubType }.toSet()
-            val missingHubs = defaultStartTiles.filter { it.isHub && it.hubType !in existingHubs }
-            (list + missingHubs).ifEmpty { defaultStartTiles }
+            saved.split(",").mapNotNull { StartTileItem.fromLegacyString(it) }
         }
+        val existingHubs = list.filter { it.isHub }.mapNotNull { it.hubType }.toSet()
+        val missingHubs = defaultStartTiles.filter { it.isHub && it.hubType !in existingHubs }
+        return (list + missingHubs).ifEmpty { defaultStartTiles }
     }
 
     val customWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
@@ -241,9 +255,61 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    val disabledNotificationApps: Flow<Set<String>> = context.settingsDataStore.data.map { prefs ->
-        val raw = prefs[DISABLED_NOTIFICATION_APPS] ?: ""
-        if (raw.isBlank()) emptySet() else raw.split(",").toSet()
+    val disabledNotificationApps: Flow<Set<String>> = flow {
+        migrateLegacyListsIfNeeded()
+        emitAll(context.settingsDataStore.data.map { prefs -> readDisabledNotificationApps(prefs[DISABLED_NOTIFICATION_APPS]) })
+    }
+
+    /** JSON array of package names, or the legacy "pkg1,pkg2" string. */
+    private fun readDisabledNotificationApps(raw: String?): Set<String> {
+        if (raw.isNullOrBlank()) return emptySet()
+        val names = if (raw.looksLikeJsonArray()) parseJsonStringList(raw, TAG) else raw.split(",")
+        return LinkedHashSet(names.filter { it.isNotBlank() })
+    }
+
+    @Volatile
+    private var legacyListsMigrated = false
+
+    /**
+     * Rewrites the comma-delimited [HUB_ORDER], [START_TILES] and [DISABLED_NOTIFICATION_APPS]
+     * values as JSON once per process, so the legacy parsers above are only a fallback.
+     */
+    private suspend fun migrateLegacyListsIfNeeded() {
+        if (legacyListsMigrated) return
+        try {
+            val prefs = context.settingsDataStore.data.first()
+            val needsMigration = listOf(HUB_ORDER, START_TILES, DISABLED_NOTIFICATION_APPS).any { key ->
+                val value = prefs[key]
+                !value.isNullOrEmpty() && !value.looksLikeJsonArray()
+            }
+            if (needsMigration) {
+                context.settingsDataStore.edit { mutable ->
+                    mutable[HUB_ORDER]?.let { raw ->
+                        if (raw.isNotEmpty() && !raw.looksLikeJsonArray()) {
+                            mutable[HUB_ORDER] = raw.split(",").filter { it.isNotBlank() }.toJsonStringArray()
+                        }
+                    }
+                    mutable[START_TILES]?.let { raw ->
+                        if (raw.isNotEmpty() && !raw.looksLikeJsonArray()) {
+                            mutable[START_TILES] = raw.split(",")
+                                .mapNotNull { StartTileItem.fromLegacyString(it) }
+                                .toJsonArrayString { it.toJson() }
+                        }
+                    }
+                    mutable[DISABLED_NOTIFICATION_APPS]?.let { raw ->
+                        if (raw.isNotEmpty() && !raw.looksLikeJsonArray()) {
+                            mutable[DISABLED_NOTIFICATION_APPS] = readDisabledNotificationApps(raw).toJsonStringArray()
+                        }
+                    }
+                }
+                ZuneLog.d(TAG, "migrated legacy delimited settings lists to json")
+            }
+            legacyListsMigrated = true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "legacy settings list migration failed; legacy values kept as fallback", e)
+        }
     }
 
     val timeFormat: Flow<String> = context.settingsDataStore.data.map { prefs ->
@@ -293,7 +359,7 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setHubOrder(order: List<com.serkantkn.zunelauncher.data.model.HubType>) {
         context.settingsDataStore.edit { prefs ->
-            prefs[HUB_ORDER] = order.joinToString(",") { it.name }
+            prefs[HUB_ORDER] = order.map { it.name }.toJsonStringArray()
         }
     }
 
@@ -411,7 +477,7 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setDisabledNotificationApps(apps: Set<String>) {
         context.settingsDataStore.edit { prefs ->
-            prefs[DISABLED_NOTIFICATION_APPS] = apps.joinToString(",")
+            prefs[DISABLED_NOTIFICATION_APPS] = apps.toJsonStringArray()
         }
     }
 
@@ -429,7 +495,7 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setStartTiles(tiles: List<StartTileItem>) {
         context.settingsDataStore.edit { prefs ->
-            prefs[START_TILES] = tiles.joinToString(",") { "${it.id}#${it.span}" }
+            prefs[START_TILES] = tiles.toJsonArrayString { it.toJson() }
         }
     }
 }

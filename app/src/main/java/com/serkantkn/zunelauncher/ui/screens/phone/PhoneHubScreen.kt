@@ -1,9 +1,9 @@
 package com.serkantkn.zunelauncher.ui.screens.phone
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.provider.CallLog
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -12,15 +12,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CallMade
 import androidx.compose.material.icons.automirrored.filled.CallMissed
@@ -31,9 +28,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +42,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.CallLogModel
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -65,6 +61,7 @@ fun PhoneHubScreen(
     
     val directCallEnabled by settingsViewModel.directCallEnabled.collectAsState()
     val recentCalls by viewModel.recentCalls.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val dialedNumber by viewModel.dialedNumber.collectAsState()
     val matchingContacts by viewModel.matchingContacts.collectAsState()
 
@@ -113,7 +110,7 @@ fun PhoneHubScreen(
             val overflowYPx = with(density) { (-24).dp.toPx() }
 
             Text(
-                text = "telefon",
+                text = stringResource(R.string.hub_phone),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Medium,
                     fontSize = 18.sp,
@@ -131,7 +128,7 @@ fun PhoneHubScreen(
             )
 
             Text(
-                text = "geçmiş",
+                text = stringResource(R.string.common_history),
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontWeight = FontWeight.Light,
                     fontSize = 72.sp,
@@ -149,6 +146,7 @@ fun PhoneHubScreen(
                 RecentCallsTab(
                     hasPermission = hasPermissions,
                     recentCalls = recentCalls,
+                    errorMessage = errorMessage,
                     onRequestPermission = {
                         permissionLauncher.launch(
                             arrayOf(
@@ -171,7 +169,7 @@ fun PhoneHubScreen(
         val bottomBarActions = listOf(
             com.serkantkn.zunelauncher.ui.components.WpBarAction(
                 icon = Icons.Default.Dialpad,
-                label = "klavye",
+                label = stringResource(R.string.phone_keypad),
                 onClick = {
                     viewModel.clearDialedNumber()
                     isDialerOpen = true
@@ -179,14 +177,14 @@ fun PhoneHubScreen(
             ),
             com.serkantkn.zunelauncher.ui.components.WpBarAction(
                 icon = Icons.Default.Call,
-                label = "giden çağrı",
+                label = stringResource(R.string.call_outgoing),
                 onClick = {
                     com.serkantkn.zunelauncher.data.service.CallManager.startOutgoingCall("Ahmet Yılmaz", "+90 (555) 123 45 67")
                 }
             ),
             com.serkantkn.zunelauncher.ui.components.WpBarAction(
                 icon = Icons.AutoMirrored.Filled.CallReceived,
-                label = "gelen çağrı",
+                label = stringResource(R.string.call_incoming),
                 onClick = {
                     com.serkantkn.zunelauncher.data.service.CallManager.startIncomingCall("Zeynep Kaya", "+90 (532) 987 65 43")
                 }
@@ -380,7 +378,7 @@ private fun DialerKeypad(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "ara",
+                    text = stringResource(R.string.call),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Light
                     ),
@@ -398,7 +396,7 @@ private fun DialerKeypad(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "sil",
+                    text = stringResource(R.string.common_delete),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Light
                     ),
@@ -455,13 +453,19 @@ private fun RecentCallsTab(
     hasPermission: Boolean,
     recentCalls: List<CallLogModel>,
     onRequestPermission: () -> Unit,
-    onCallClick: (String) -> Unit
+    onCallClick: (String) -> Unit,
+    errorMessage: String? = null
 ) {
     if (!hasPermission) {
-        PermissionRequestView(onRequestPermission)
+        ZunePermissionRequest(
+            title = stringResource(R.string.phone_permission_title),
+            message = stringResource(R.string.phone_permission_message),
+            buttonLabel = stringResource(R.string.grant_permission),
+            onRequest = onRequestPermission
+        )
     } else if (recentCalls.isEmpty()) {
         Text(
-            text = "çağrı geçmişi boş",
+            text = errorMessage?.let { stringResource(R.string.phone_history_failed, it) } ?: stringResource(R.string.phone_history_empty),
             style = MaterialTheme.typography.bodyMedium,
             color = LocalZuneColors.current.textDim,
             modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
@@ -527,34 +531,6 @@ private fun CallLogItem(call: CallLogModel, onClick: () -> Unit) {
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun PermissionRequestView(onRequestPermission: () -> Unit) {
-    val zuneColors = LocalZuneColors.current
-    Column(modifier = Modifier.padding(top = ZuneDimens.SpacingHuge)) {
-        Text(
-            text = "çağrı geçmişi izni",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "son arananlar listesini görebilmeniz için çağrı geçmişinize ve rehberinize erişim izni gereklidir.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = zuneColors.textMuted
-        )
-        Spacer(modifier = Modifier.height(ZuneDimens.SpacingLg))
-        Button(
-            onClick = onRequestPermission,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = zuneColors.accentColor,
-                contentColor = Color.White
-            )
-        ) {
-            Text(text = "izin ver".lowercase())
         }
     }
 }

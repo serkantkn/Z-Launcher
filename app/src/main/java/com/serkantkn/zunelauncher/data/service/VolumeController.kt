@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.service
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.Context
 import android.media.AudioManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +45,7 @@ object VolumeController {
         try {
             am.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("VolumeController", "handleVolumeKey failed", e)
         }
 
         updateStateFromSystem(context)
@@ -61,7 +62,7 @@ object VolumeController {
         try {
             am.setStreamVolume(AudioManager.STREAM_MUSIC, clamped, 0)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("VolumeController", "setMediaVolume failed", e)
         }
         updateStateFromSystem(context)
         _volumeState.value = _volumeState.value.copy(
@@ -76,7 +77,7 @@ object VolumeController {
         try {
             am.setStreamVolume(AudioManager.STREAM_RING, clamped, 0)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("VolumeController", "setRingerVolume failed", e)
         }
         updateStateFromSystem(context)
         _volumeState.value = _volumeState.value.copy(
@@ -95,7 +96,7 @@ object VolumeController {
             }
             am.ringerMode = newMode
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("VolumeController", "toggleRingerMode failed", e)
         }
         updateStateFromSystem(context)
         _volumeState.value = _volumeState.value.copy(eventId = System.currentTimeMillis())

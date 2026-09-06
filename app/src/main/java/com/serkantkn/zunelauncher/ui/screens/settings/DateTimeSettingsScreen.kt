@@ -1,12 +1,13 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,17 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -69,9 +64,9 @@ fun DateTimeSettingsScreen(
                         end = ZuneDimens.ScreenPaddingHorizontal
                     )
             ) {
-                // Small breadcrumb: "ayarlar > sistem" (clickable to go back)
+                // Small breadcrumb: stringResource(R.string.settings_breadcrumb_system) (clickable to go back)
                 Text(
-                    text = "ayarlar > sistem",
+                    text = stringResource(R.string.settings_breadcrumb_system),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 18.sp,
@@ -88,7 +83,7 @@ fun DateTimeSettingsScreen(
 
                 // Giant page title
                 Text(
-                    text = "tarih+saat ayarları",
+                    text = stringResource(R.string.settings_date_time_title),
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 42.sp,
@@ -102,7 +97,7 @@ fun DateTimeSettingsScreen(
                 )
 
                 Text(
-                    text = "ana ekrandaki saat ve tarih gösterim formatını seçin",
+                    text = stringResource(R.string.settings_date_time_help),
                     style = MaterialTheme.typography.bodySmall,
                     color = zuneColors.textMuted,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -118,16 +113,16 @@ fun DateTimeSettingsScreen(
                     .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
                     .navigationBarsPadding()
             ) {
-                SettingGroup(title = "saat formatı") {
+                SettingGroup(title = stringResource(R.string.settings_time_format)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SettingChoiceRow(
-                            title = "24 saat",
+                            title = stringResource(R.string.settings_time_24),
                             subtitle = "14:30",
                             selected = timeFormat == "HH:mm",
                             onClick = { viewModel.setTimeFormat("HH:mm") }
                         )
                         SettingChoiceRow(
-                            title = "12 saat (AM/PM)",
+                            title = stringResource(R.string.settings_time_12),
                             subtitle = "02:30 PM",
                             selected = timeFormat == "hh:mm a",
                             onClick = { viewModel.setTimeFormat("hh:mm a") }
@@ -137,28 +132,28 @@ fun DateTimeSettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                SettingGroup(title = "tarih formatı") {
+                SettingGroup(title = stringResource(R.string.settings_date_format)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SettingChoiceRow(
-                            title = "gün, gün ay",
-                            subtitle = "çarşamba, 12 ağustos",
+                            title = stringResource(R.string.settings_date_fmt_1),
+                            subtitle = stringResource(R.string.settings_date_fmt_1_sub),
                             selected = dateFormat == "EEEE, MMMM d",
                             onClick = { viewModel.setDateFormat("EEEE, MMMM d") }
                         )
                         SettingChoiceRow(
-                            title = "gün ay, gün",
-                            subtitle = "12 ağustos, çarşamba",
+                            title = stringResource(R.string.settings_date_fmt_2),
+                            subtitle = stringResource(R.string.settings_date_fmt_2_sub),
                             selected = dateFormat == "d MMMM, EEEE",
                             onClick = { viewModel.setDateFormat("d MMMM, EEEE") }
                         )
                         SettingChoiceRow(
-                            title = "gün ay yıl",
-                            subtitle = "12 ağustos 2026",
+                            title = stringResource(R.string.settings_date_fmt_3),
+                            subtitle = stringResource(R.string.settings_date_fmt_3_sub),
                             selected = dateFormat == "d MMMM yyyy",
                             onClick = { viewModel.setDateFormat("d MMMM yyyy") }
                         )
                         SettingChoiceRow(
-                            title = "sayısal",
+                            title = stringResource(R.string.settings_date_fmt_numeric),
                             subtitle = "12/08/2026",
                             selected = dateFormat == "dd/MM/yyyy",
                             onClick = { viewModel.setDateFormat("dd/MM/yyyy") }

@@ -1,5 +1,10 @@
 package com.serkantkn.zunelauncher
 
+import android.content.Context
+import android.content.Intent
+import com.serkantkn.zunelauncher.data.repository.EmailBridge
+import com.serkantkn.zunelauncher.data.model.NoteFallbackTitles
+import com.serkantkn.zunelauncher.util.AppLocale
 import com.serkantkn.zunelauncher.di.appContainer
 import android.content.pm.ActivityInfo
 import android.os.Bundle
@@ -21,9 +26,21 @@ import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {
 
+    override fun attachBaseContext(newBase: Context) {
+        val wrapped = AppLocale.wrap(newBase)
+        NoteFallbackTitles.refresh(wrapped)
+        super.attachBaseContext(wrapped)
+    }
+
     companion object {
         /** Set by ReceiveNoteActivity; the Notes hub itself is opened through NotesBridge. */
         const val EXTRA_OPEN_NOTES = "open_notes"
+
+        /** Set by ComposeEmailActivity / new-mail notifications; details travel through EmailBridge. */
+        const val EXTRA_OPEN_EMAIL = "open_email"
+        const val EXTRA_OPEN_EMAIL_ACCOUNT = "open_email_account"
+        const val EXTRA_OPEN_EMAIL_FOLDER = "open_email_folder"
+        const val EXTRA_OPEN_EMAIL_UID = "open_email_uid"
     }
 
     private var currentVolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
@@ -75,7 +92,22 @@ class MainActivity : FragmentActivity() {
             }
         }
 
+        handleEmailIntent(intent)
         setLauncherContent()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleEmailIntent(intent)
+    }
+
+    /** A new-mail notification tap carries the message address; hand it to the Email hub. */
+    private fun handleEmailIntent(intent: Intent?) {
+        val accountId = intent?.getStringExtra(EXTRA_OPEN_EMAIL_ACCOUNT) ?: return
+        val folder = intent.getStringExtra(EXTRA_OPEN_EMAIL_FOLDER) ?: return
+        val uid = intent.getLongExtra(EXTRA_OPEN_EMAIL_UID, -1L)
+        if (uid >= 0) EmailBridge.open(accountId, folder, uid)
+        intent.removeExtra(EXTRA_OPEN_EMAIL_ACCOUNT)
     }
 
     override fun onResume() {

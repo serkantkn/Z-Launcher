@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.repository
 
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.Context
 import android.net.Uri
 import android.provider.ContactsContract
@@ -136,7 +137,7 @@ class ContactRepository(private val context: Context) {
                         accountType = accounts[0].type
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    ZuneLog.e("ContactRepository", "saveContact failed", e)
                 }
             }
 
@@ -189,7 +190,7 @@ class ContactRepository(private val context: Context) {
             context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("ContactRepository", "saveContact failed", e)
             false
         }
     }
@@ -200,7 +201,7 @@ class ContactRepository(private val context: Context) {
             val rowsDeleted = context.contentResolver.delete(uri, null, null)
             rowsDeleted > 0
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("ContactRepository", "deleteContact failed", e)
             false
         }
     }
@@ -280,7 +281,7 @@ class ContactRepository(private val context: Context) {
             context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("ContactRepository", "updateContact failed", e)
             false
         }
     }

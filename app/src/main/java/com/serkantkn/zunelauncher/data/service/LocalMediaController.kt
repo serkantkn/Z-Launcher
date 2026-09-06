@@ -3,7 +3,6 @@ package com.serkantkn.zunelauncher.data.service
 import android.content.ComponentName
 import android.content.Context
 import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture

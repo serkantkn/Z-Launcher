@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.biometric.BiometricManager
@@ -115,7 +117,7 @@ internal fun formatNoteDate(timestamp: Long): String {
 }
 
 internal fun formatReminderDate(timestamp: Long): String {
-    return SimpleDateFormat("d MMMM EEEE, HH:mm", Locale("tr")).format(Date(timestamp))
+    return SimpleDateFormat("d MMMM EEEE, HH:mm", Locale.getDefault()).format(Date(timestamp))
 }
 
 internal fun wordCount(text: String): Int =
@@ -196,7 +198,7 @@ internal fun authenticateForNote(
 ) {
     val activity = context.findFragmentActivity()
     if (activity == null) {
-        onFailure("doğrulama başlatılamadı")
+        onFailure(context.getString(R.string.notes_auth_unavailable))
         return
     }
     val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
@@ -225,7 +227,7 @@ internal fun authenticateForNote(
     )
     val info = BiometricPrompt.PromptInfo.Builder()
         .setTitle(title)
-        .setSubtitle("kilitli notu açmak için doğrula")
+        .setSubtitle(context.getString(R.string.notes_auth_subtitle))
         .setAllowedAuthenticators(authenticators)
         .build()
     prompt.authenticate(info)
@@ -338,7 +340,7 @@ internal fun WpTagChip(
             Spacer(modifier = Modifier.width(6.dp))
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "kaldır",
+                contentDescription = stringResource(R.string.common_remove),
                 tint = if (selected) Color.White else zuneColors.textMuted,
                 modifier = Modifier
                     .size(14.dp)
@@ -435,7 +437,7 @@ internal fun NoteCard(
                     if (note.isLocked) {
                         Icon(
                             imageVector = Icons.Default.Lock,
-                            contentDescription = "kilitli",
+                            contentDescription = stringResource(R.string.notes_locked),
                             tint = zuneColors.textMuted,
                             modifier = Modifier.padding(start = 8.dp).size(16.dp)
                         )
@@ -443,7 +445,7 @@ internal fun NoteCard(
                     if (isPinnedToStart) {
                         Icon(
                             imageVector = Icons.Default.PushPin,
-                            contentDescription = "start'ta",
+                            contentDescription = stringResource(R.string.notes_on_start),
                             tint = zuneColors.textMuted,
                             modifier = Modifier.padding(start = 8.dp).size(14.dp).alpha(0.7f)
                         )
@@ -451,7 +453,7 @@ internal fun NoteCard(
                     if (note.isPinned) {
                         Icon(
                             imageVector = Icons.Default.PushPin,
-                            contentDescription = "sabitli",
+                            contentDescription = stringResource(R.string.notes_pinned),
                             tint = stripe,
                             modifier = Modifier.padding(start = 8.dp).size(16.dp)
                         )
@@ -462,7 +464,7 @@ internal fun NoteCard(
 
                 if (note.isLocked) {
                     Text(
-                        text = "kilitli not · açmak için doğrula",
+                        text = stringResource(R.string.notes_locked_hint),
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
                         color = zuneColors.textMuted
                     )
@@ -493,7 +495,7 @@ internal fun NoteCard(
                     }
                     if (note.items.size > visibleItems.size) {
                         Text(
-                            text = "+${note.items.size - visibleItems.size} öğe daha",
+                            text = stringResource(R.string.notes_more_items, note.items.size - visibleItems.size),
                             style = MaterialTheme.typography.bodySmall,
                             color = zuneColors.textDim,
                             modifier = Modifier.padding(top = 2.dp)
@@ -545,8 +547,8 @@ internal fun NoteCard(
 
                 Text(
                     text = when {
-                        note.isInTrash -> "silindi ${formatNoteDate(note.deletedAt ?: note.updatedAt)}"
-                        note.isChecklist -> "${note.checkedCount}/${note.items.size} tamamlandı · ${formatNoteDate(note.updatedAt)}"
+                        note.isInTrash -> stringResource(R.string.notes_deleted_at, formatNoteDate(note.deletedAt ?: note.updatedAt))
+                        note.isChecklist -> stringResource(R.string.notes_completed_at, note.checkedCount, note.items.size, formatNoteDate(note.updatedAt))
                         else -> formatNoteDate(note.updatedAt)
                     },
                     style = MaterialTheme.typography.labelSmall,
@@ -635,7 +637,7 @@ internal fun ImageStrip(
                         .clickable { onRemove(path) },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "görseli kaldır", tint = Color.White, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.notes_remove_image), tint = Color.White, modifier = Modifier.size(14.dp))
                 }
             }
         }
@@ -668,20 +670,20 @@ internal fun AudioRow(
         ) {
             Icon(
                 imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "durdur" else "oynat",
+                contentDescription = if (isPlaying) stringResource(R.string.notes_stop) else stringResource(R.string.notes_play),
                 tint = Color.White
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
         Text(
-            text = if (isPlaying) "sesli not çalıyor…" else "sesli not",
+            text = if (isPlaying) stringResource(R.string.notes_audio_playing) else stringResource(R.string.notes_audio_note),
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f)
         )
         Icon(
             imageVector = Icons.Default.Close,
-            contentDescription = "sesi kaldır",
+            contentDescription = stringResource(R.string.notes_remove_audio),
             tint = zuneColors.textDim,
             modifier = Modifier
                 .size(18.dp)
@@ -758,7 +760,7 @@ internal fun ConfirmDialog(
         },
         dismissButton = {
             ZuneDialogButton(
-                text = "İptal",
+                text = stringResource(R.string.common_cancel_cap),
                 onClick = { dismissWithAnim { onDismiss() } },
                 borderColor = zuneColors.textMuted
             )
@@ -775,9 +777,9 @@ internal fun ConfirmDialog(
 @Composable
 internal fun DeleteNotesDialog(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     ConfirmDialog(
-        title = if (count > 1) "$count notu çöpe taşı" else "Notu çöpe taşı",
-        message = "Çöpteki notlar 30 gün sonra kalıcı olarak silinir. İstediğin zaman geri yükleyebilirsin.",
-        confirmText = "Çöpe taşı",
+        title = if (count > 1) stringResource(R.string.notes_trash_many, count) else stringResource(R.string.notes_trash_one),
+        message = stringResource(R.string.notes_trash_message),
+        confirmText = stringResource(R.string.notes_trash_confirm),
         onConfirm = onConfirm,
         onDismiss = onDismiss
     )
@@ -786,9 +788,9 @@ internal fun DeleteNotesDialog(count: Int, onConfirm: () -> Unit, onDismiss: () 
 @Composable
 internal fun DeleteForeverDialog(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     ConfirmDialog(
-        title = if (count > 1) "$count notu kalıcı sil" else "Notu kalıcı sil",
-        message = "Bu işlem geri alınamaz. Bağlı hatırlatıcılar, görseller ve ses kayıtları da silinir.",
-        confirmText = "Kalıcı sil",
+        title = if (count > 1) stringResource(R.string.notes_forever_many, count) else stringResource(R.string.notes_forever_one),
+        message = stringResource(R.string.notes_forever_message),
+        confirmText = stringResource(R.string.notes_forever_confirm),
         onConfirm = onConfirm,
         onDismiss = onDismiss
     )
@@ -797,9 +799,9 @@ internal fun DeleteForeverDialog(count: Int, onConfirm: () -> Unit, onDismiss: (
 @Composable
 internal fun ClearArchiveDialog(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     ConfirmDialog(
-        title = "Arşivi temizle",
-        message = "Arşivdeki $count not çöpe taşınacak.",
-        confirmText = "Temizle",
+        title = stringResource(R.string.notes_clear_archive_cap),
+        message = stringResource(R.string.notes_clear_archive_message, count),
+        confirmText = stringResource(R.string.common_clear_cap),
         onConfirm = onConfirm,
         onDismiss = onDismiss
     )
@@ -808,9 +810,9 @@ internal fun ClearArchiveDialog(count: Int, onConfirm: () -> Unit, onDismiss: ()
 @Composable
 internal fun EmptyTrashDialog(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     ConfirmDialog(
-        title = "Çöpü boşalt",
-        message = "Çöpteki $count not kalıcı olarak silinecek. Bu işlem geri alınamaz.",
-        confirmText = "Boşalt",
+        title = stringResource(R.string.notes_empty_trash_cap),
+        message = stringResource(R.string.notes_empty_trash_message, count),
+        confirmText = stringResource(R.string.notes_empty_confirm),
         onConfirm = onConfirm,
         onDismiss = onDismiss
     )
@@ -825,15 +827,15 @@ internal fun SortDialog(
     val zuneColors = LocalZuneColors.current
     ZuneFlipDialog(
         onDismissRequest = onDismiss,
-        title = "Sırala",
+        title = stringResource(R.string.notes_sort_cap),
         dismissButton = {
-            ZuneDialogButton(text = "Kapat", onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
+            ZuneDialogButton(text = stringResource(R.string.common_close_cap), onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
         }
     ) {
         Column {
             NoteSortMode.entries.forEach { mode ->
                 WpRadioRow(
-                    text = mode.title,
+                    text = stringResource(mode.titleRes),
                     selected = mode == current,
                     onClick = { dismissWithAnim { onSelect(mode) } }
                 )
@@ -852,9 +854,9 @@ internal fun NoteColorDialog(
     val zuneColors = LocalZuneColors.current
     ZuneFlipDialog(
         onDismissRequest = onDismiss,
-        title = "Not rengi",
+        title = stringResource(R.string.notes_color_cap),
         dismissButton = {
-            ZuneDialogButton(text = "Kapat", onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
+            ZuneDialogButton(text = stringResource(R.string.common_close_cap), onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
         }
     ) {
         FlowRow(
@@ -909,16 +911,16 @@ internal fun TagsDialog(
 
     ZuneFlipDialog(
         onDismissRequest = onDismiss,
-        title = "Etiketler",
+        title = stringResource(R.string.notes_tags_cap),
         confirmButton = {
             ZuneDialogButton(
-                text = "Kaydet",
+                text = stringResource(R.string.common_save_cap),
                 onClick = { addTag(); dismissWithAnim { onSave(selected) } },
                 borderColor = zuneColors.accentColor
             )
         },
         dismissButton = {
-            ZuneDialogButton(text = "İptal", onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
+            ZuneDialogButton(text = stringResource(R.string.common_cancel_cap), onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
         }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -931,7 +933,7 @@ internal fun TagsDialog(
             ) {
                 Box(modifier = Modifier.weight(1f)) {
                     if (newTag.isEmpty()) {
-                        Text("yeni etiket", color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.notes_new_tag), color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.bodyMedium)
                     }
                     BasicTextField(
                         value = newTag,
@@ -945,7 +947,7 @@ internal fun TagsDialog(
                     )
                 }
                 Text(
-                    text = "ekle",
+                    text = stringResource(R.string.common_add),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                     color = Color.White,
                     modifier = Modifier
@@ -957,7 +959,7 @@ internal fun TagsDialog(
             val union = (selected + allTags).distinct()
             if (union.isEmpty()) {
                 Text(
-                    text = "henüz etiket yok",
+                    text = stringResource(R.string.notes_no_tags),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.6f)
                 )
@@ -994,12 +996,12 @@ internal fun ContactPickerDialog(
     }
     ZuneFlipDialog(
         onDismissRequest = onDismiss,
-        title = "Kişi bağla",
+        title = stringResource(R.string.notes_link_contact_cap),
         confirmButton = if (currentContactId != null) {
-            { ZuneDialogButton(text = "Bağı kaldır", onClick = { dismissWithAnim { onClear() } }, borderColor = zuneColors.accentColor) }
+            { ZuneDialogButton(text = stringResource(R.string.notes_unlink_cap), onClick = { dismissWithAnim { onClear() } }, borderColor = zuneColors.accentColor) }
         } else null,
         dismissButton = {
-            ZuneDialogButton(text = "Kapat", onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
+            ZuneDialogButton(text = stringResource(R.string.common_close_cap), onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
         }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -1010,7 +1012,7 @@ internal fun ContactPickerDialog(
                     .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 if (query.isEmpty()) {
-                    Text("kişi ara", color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.search_contacts), color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.bodyMedium)
                 }
                 BasicTextField(
                     value = query,
@@ -1024,7 +1026,7 @@ internal fun ContactPickerDialog(
             Spacer(modifier = Modifier.height(8.dp))
             if (contacts.isEmpty()) {
                 Text(
-                    text = "kişi bulunamadı. Kişiler izni verilmiş mi?",
+                    text = stringResource(R.string.notes_no_contacts_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.7f),
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -1093,7 +1095,7 @@ internal fun ReminderDialog(
             }
         )
     }
-    val options = listOf(0 to "bugün", 1 to "yarın", 3 to "3 gün", 7 to "1 hafta")
+    val options = listOf(0 to stringResource(R.string.common_today), 1 to stringResource(R.string.notes_tomorrow), 3 to stringResource(R.string.notes_in_3_days), 7 to stringResource(R.string.notes_in_1_week))
 
     fun resolve(): Long {
         val cal = Calendar.getInstance().apply {
@@ -1111,16 +1113,16 @@ internal fun ReminderDialog(
         title = title,
         confirmButton = {
             ZuneDialogButton(
-                text = "Ayarla",
+                text = stringResource(R.string.common_set_cap),
                 onClick = { dismissWithAnim { onSet(resolve()) } },
                 borderColor = zuneColors.accentColor
             )
         },
         dismissButton = {
             if (onClear != null && initial != null) {
-                ZuneDialogButton(text = "Kaldır", onClick = { dismissWithAnim { onClear() } }, borderColor = zuneColors.textMuted)
+                ZuneDialogButton(text = stringResource(R.string.notes_remove_cap), onClick = { dismissWithAnim { onClear() } }, borderColor = zuneColors.textMuted)
             } else {
-                ZuneDialogButton(text = "İptal", onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
+                ZuneDialogButton(text = stringResource(R.string.common_cancel_cap), onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
             }
         }
     ) {
@@ -1142,7 +1144,7 @@ internal fun ReminderDialog(
     }
 }
 
-/** "ekle" menu: attachments and links, as a Metro text list. */
+/** stringResource(R.string.common_add) menu: attachments and links, as a Metro text list. */
 @Composable
 internal fun InsertDialog(
     hasAudio: Boolean,
@@ -1156,18 +1158,18 @@ internal fun InsertDialog(
     val zuneColors = LocalZuneColors.current
     ZuneFlipDialog(
         onDismissRequest = onDismiss,
-        title = "Ekle",
+        title = stringResource(R.string.common_add_cap),
         dismissButton = {
-            ZuneDialogButton(text = "Kapat", onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
+            ZuneDialogButton(text = stringResource(R.string.common_close_cap), onClick = { dismissWithAnim { onDismiss() } }, borderColor = zuneColors.textMuted)
         }
     ) {
         Column {
             listOf(
-                Triple(Icons.Default.Image, "görsel", onPickImage),
-                Triple(Icons.Default.Mic, if (hasAudio) "sesli notu yeniden kaydet" else "sesli not", onRecordAudio),
-                Triple(Icons.Default.Mic, "sesle yaz", onSpeech),
-                Triple(Icons.Default.Person, "kişi bağla", onLinkContact),
-                Triple(Icons.Default.Notifications, "hatırlatıcı", onReminder)
+                Triple(Icons.Default.Image, stringResource(R.string.notes_insert_image), onPickImage),
+                Triple(Icons.Default.Mic, if (hasAudio) stringResource(R.string.notes_rerecord_audio) else stringResource(R.string.notes_audio_note), onRecordAudio),
+                Triple(Icons.Default.Mic, stringResource(R.string.notes_dictate), onSpeech),
+                Triple(Icons.Default.Person, stringResource(R.string.notes_link_contact), onLinkContact),
+                Triple(Icons.Default.Notifications, stringResource(R.string.notes_reminder), onReminder)
             ).forEach { (icon, label, action) ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

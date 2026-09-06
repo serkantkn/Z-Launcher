@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.phone
 
+import com.serkantkn.zunelauncher.util.toUserMessage
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -19,6 +21,10 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
     private val _recentCalls = MutableStateFlow<List<CallLogModel>>(emptyList())
     val recentCalls: StateFlow<List<CallLogModel>> = _recentCalls.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    /** Last load failure as user text, or null. Shown by the hub's empty state. */
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     private val _dialedNumber = MutableStateFlow("")
     val dialedNumber: StateFlow<String> = _dialedNumber.asStateFlow()
 
@@ -29,13 +35,23 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadRecentCalls() {
         viewModelScope.launch {
-            _recentCalls.value = callLogRepository.getRecentCalls()
+            try {
+                _recentCalls.value = callLogRepository.getRecentCalls()
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                ZuneLog.e("PhoneViewModel", "loadRecentCalls failed", e)
+                _errorMessage.value = e.toUserMessage(getApplication())
+            }
         }
     }
 
     fun loadContacts() {
         viewModelScope.launch {
-            _allContacts.value = contactRepository.getContactsWithNumbers()
+            try {
+                _allContacts.value = contactRepository.getContactsWithNumbers()
+            } catch (e: Exception) {
+                ZuneLog.e("PhoneViewModel", "loadContacts failed", e)
+            }
         }
     }
 

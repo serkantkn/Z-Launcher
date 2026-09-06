@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,10 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +51,8 @@ import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
+import com.serkantkn.zunelauncher.ui.components.ZuneEmptyState
+import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 
@@ -64,11 +62,9 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -136,21 +132,26 @@ fun SocialHubScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Lock,
-                        contentDescription = "Lock",
+                        contentDescription = stringResource(R.string.social_lock),
                         tint = zuneColors.textMuted,
                         modifier = Modifier.size(64.dp).padding(bottom = 16.dp)
                     )
                     Text(
-                        text = "Social Hub sadece Z Launcher Pro'da geçerlidir.",
+                        text = stringResource(R.string.social_pro_only),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onBackground,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             } else if (!hasPermission) {
-                PermissionRequestView(onOpenSettings = { viewModel.openNotificationSettings() })
+                ZunePermissionRequest(
+                    title = stringResource(R.string.notification_permission_title).lowercase(),
+                    message = stringResource(R.string.notification_permission_message),
+                    buttonLabel = stringResource(R.string.open_settings).lowercase(),
+                    onRequest = { viewModel.openNotificationSettings() }
+                )
             } else if (messages.isEmpty()) {
-                EmptyStateView()
+                ZuneEmptyState(stringResource(R.string.no_notifications))
             } else {
                 when (layout) {
                     SocialHubLayout.TIMELINE -> TimelineLayout(
@@ -184,13 +185,13 @@ fun SocialHubScreen(
                 actions = listOf(
                     WpBarAction(
                         icon = Icons.Default.Delete,
-                        label = "temizle",
+                        label = stringResource(R.string.common_clear),
                         onClick = { viewModel.clearAll() }
                     )
                 ),
                 menuItems = listOf(
-                    WpBarMenuItem("tümünü temizle") { viewModel.clearAll() },
-                    WpBarMenuItem("bildirim ayarları") { viewModel.openNotificationSettings() }
+                    WpBarMenuItem(stringResource(R.string.common_clear_all)) { viewModel.clearAll() },
+                    WpBarMenuItem(stringResource(R.string.social_notification_settings)) { viewModel.openNotificationSettings() }
                 )
             )
         }
@@ -302,14 +303,14 @@ private fun SwipeableMessageListItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Sil",
+                        contentDescription = stringResource(R.string.files_delete_cap),
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                     if (offsetX.value > revealWidthPx - 15f) {
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "sil",
+                            text = stringResource(R.string.common_delete),
                             color = Color.White,
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                         )
@@ -437,42 +438,4 @@ private fun MessageListItem(message: SocialMessageModel, onClick: () -> Unit) {
             )
         }
     }
-}
-
-@Composable
-private fun PermissionRequestView(onOpenSettings: () -> Unit) {
-    val zuneColors = LocalZuneColors.current
-    Column(modifier = Modifier.padding(top = ZuneDimens.SpacingHuge)) {
-        Text(
-            text = stringResource(R.string.notification_permission_title).lowercase(),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.notification_permission_message),
-            style = MaterialTheme.typography.bodyMedium,
-            color = zuneColors.textMuted
-        )
-        Spacer(modifier = Modifier.height(ZuneDimens.SpacingLg))
-        Button(
-            onClick = onOpenSettings,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = zuneColors.accentColor,
-                contentColor = Color.White
-            )
-        ) {
-            Text(text = stringResource(R.string.open_settings).lowercase())
-        }
-    }
-}
-
-@Composable
-private fun EmptyStateView() {
-    Text(
-        text = stringResource(R.string.no_notifications).lowercase(),
-        style = MaterialTheme.typography.bodyMedium,
-        color = LocalZuneColors.current.textDim,
-        modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
-    )
 }

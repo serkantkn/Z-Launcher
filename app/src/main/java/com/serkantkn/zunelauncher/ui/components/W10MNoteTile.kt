@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -50,7 +52,7 @@ import kotlinx.coroutines.delay
 
 /**
  * Windows 10 Mobile live tile for a single pinned note (or, when [note] is null, the
- * "hızlı not" quick-capture tile). Shares the size model, press/drag scale table, flip
+ * stringResource(R.string.notes_quick_note) quick-capture tile). Shares the size model, press/drag scale table, flip
  * animation and edit-mode overlay of [W10MHubTile].
  *
  * Front: note icon + title. Back (flips every 6-9 s when the note has content): first lines
@@ -140,7 +142,7 @@ fun W10MNoteTile(
 
     val iconSize = if (span == 1) 22.dp else if (gridColumns >= 8) 24.dp else 28.dp
     val labelSize = if (span == 1) 11.sp else 14.sp
-    val label = note?.displayTitle?.lowercase() ?: "hızlı not"
+    val label = note?.displayTitle?.lowercase() ?: stringResource(R.string.notes_quick_note)
     val icon = when {
         note == null -> Icons.Default.Add
         note.isLocked -> Icons.Default.Lock
@@ -244,7 +246,7 @@ fun W10MNoteTile(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Kaldır",
+                    contentDescription = stringResource(R.string.notes_remove_cap),
                     tint = Color.Black,
                     modifier = Modifier.size(16.dp)
                 )
@@ -262,7 +264,7 @@ fun W10MNoteTile(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = "Boyutlandır",
+                    contentDescription = stringResource(R.string.notes_resize_cap),
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )

@@ -1,5 +1,9 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
+import com.serkantkn.zunelauncher.util.localizedString
+import androidx.annotation.StringRes
+import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -18,7 +22,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.Alarm
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
-import com.serkantkn.zunelauncher.data.model.ChecklistItem
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.data.model.Note
 import com.serkantkn.zunelauncher.data.model.StartTileItem
@@ -40,10 +43,10 @@ import java.util.Calendar
 import java.util.UUID
 
 /** Ordering options offered in the "sırala" dialog. */
-enum class NoteSortMode(val title: String) {
-    DATE("tarihe göre"),
-    NAME("ada göre"),
-    COLOR("renge göre")
+enum class NoteSortMode(@StringRes val titleRes: Int) {
+    DATE(R.string.note_sort_date),
+    NAME(R.string.note_sort_name),
+    COLOR(R.string.note_sort_color)
 }
 
 /**
@@ -54,7 +57,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
 
     private val container = application.appContainer
     private val notesDataStore = container.notesDataStore
-    private val settingsRepository = container.settingsRepository
+    private val settingsDataStore = container.settingsDataStore
     private val calendarDataStore = container.calendarDataStore
     private val alarmDataStore = container.alarmDataStore
     private val alarmScheduler = container.alarmScheduler
@@ -142,11 +145,11 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Note ids currently pinned to Start as their own tile. */
-    val startPinnedNoteIds: StateFlow<Set<String>> = settingsRepository.startTiles
+    val startPinnedNoteIds: StateFlow<Set<String>> = settingsDataStore.startTiles
         .map { tiles -> tiles.mapNotNull { it.noteId }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    val isQuickNoteTileOnStart: StateFlow<Boolean> = settingsRepository.startTiles
+    val isQuickNoteTileOnStart: StateFlow<Boolean> = settingsDataStore.startTiles
         .map { tiles -> tiles.any { it.isQuickNote } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -369,7 +372,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
             val copies = current.filter { it.id in ids }.map { source ->
                 source.copy(
                     id = UUID.randomUUID().toString(),
-                    title = if (source.title.isBlank()) "" else "${source.title} (kopya)",
+                    title = if (source.title.isBlank()) "" else getApplication<Application>().localizedString(R.string.notes_copy_suffix, source.title),
                     items = source.items.map { it.copy(id = UUID.randomUUID().toString(), reminderAt = null, alarmId = null) },
                     isPinned = false,
                     linkedEventId = null,
@@ -386,7 +389,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
     fun copyToClipboard(note: Note) {
         val clipboard = getApplication<Application>().getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboard?.setPrimaryClip(ClipData.newPlainText(note.displayTitle, note.toPlainText()))
-        _statusMessage.value = "panoya kopyalandı"
+        _statusMessage.value = getApplication<Application>().localizedString(R.string.notes_copied)
     }
 
     /** Toggles a checklist row directly from the list card without opening the editor. */
@@ -410,11 +413,11 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun togglePinToStart(note: Note) {
         viewModelScope.launch {
-            val tiles = settingsRepository.startTiles.first()
+            val tiles = settingsDataStore.startTiles.first()
             val id = "note:${note.id}"
             val updated = if (tiles.any { it.id == id }) tiles.filter { it.id != id }
             else tiles + StartTileItem.fromNote(note.id, 2)
-            settingsRepository.setStartTiles(updated)
+            settingsDataStore.setStartTiles(updated)
             // Make sure the note itself exists before the tile shows up.
             if (updated.any { it.id == id }) saveNote(note)
         }
@@ -422,17 +425,17 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun toggleQuickNoteTile() {
         viewModelScope.launch {
-            val tiles = settingsRepository.startTiles.first()
+            val tiles = settingsDataStore.startTiles.first()
             val updated = if (tiles.any { it.isQuickNote }) tiles.filter { !it.isQuickNote }
             else tiles + StartTileItem(StartTileItem.QUICK_NOTE_ID, 1)
-            settingsRepository.setStartTiles(updated)
+            settingsDataStore.setStartTiles(updated)
         }
     }
 
     private suspend fun unpinFromStart(noteId: String) {
-        val tiles = settingsRepository.startTiles.first()
+        val tiles = settingsDataStore.startTiles.first()
         if (tiles.any { it.noteId == noteId }) {
-            settingsRepository.setStartTiles(tiles.filter { it.noteId != noteId })
+            settingsDataStore.setStartTiles(tiles.filter { it.noteId != noteId })
         }
     }
 
@@ -445,7 +448,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
         val existing = events.firstOrNull { it.id == note.linkedEventId }
         val event = (existing ?: CalendarEvent(title = note.displayTitle, timestamp = timeMillis)).copy(
             title = note.displayTitle,
-            description = if (note.isChecklist) "${note.items.size} öğeli liste" else note.content.stripForEvent(),
+            description = if (note.isChecklist) getApplication<Application>().localizedString(R.string.notes_items_list, note.items.size) else note.content.stripForEvent(),
             timestamp = timeMillis,
             hour = cal.get(Calendar.HOUR_OF_DAY),
             minute = cal.get(Calendar.MINUTE),
@@ -539,7 +542,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
             try {
                 _contacts.value = contactRepository.getContacts()
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("NotesHubViewModel", "loadContacts failed", e)
             }
         }
     }
@@ -557,7 +560,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
             } ?: return@withContext null
             target.absolutePath
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("NotesHubViewModel", "importImage failed", e)
             null
         }
     }
@@ -595,7 +598,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
             _isRecording.value = true
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("NotesHubViewModel", "startRecording failed", e)
             recorder = null
             recordingFile = null
             _isRecording.value = false
@@ -610,7 +613,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
             rec.stop()
             recordingFile?.absolutePath
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("NotesHubViewModel", "stopRecording failed", e)
             recordingFile?.delete()
             null
         } finally {
@@ -637,7 +640,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
             player = mp
             _playingPath.value = path
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("NotesHubViewModel", "togglePlayback failed", e)
             stopPlayback()
         }
     }
@@ -646,8 +649,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
         try {
             player?.stop()
             player?.release()
-        } catch (e: Exception) {
-        }
+        } catch (e: Exception) { ZuneLog.w("NotesHubViewModel", "stopPlayback ignored Exception", e) }
         player = null
         _playingPath.value = null
     }
@@ -658,7 +660,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
     fun exportNoteToDocuments(note: Note, markdown: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             val app = getApplication<Application>()
-            val safeName = note.displayTitle.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(60).ifBlank { "not" }
+            val safeName = note.displayTitle.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(60).ifBlank { getApplication<Application>().localizedString(R.string.notes_untitled_note) }
             val fileName = if (markdown) "$safeName.md" else "$safeName.txt"
             val body = if (markdown) note.toMarkdown() else note.toPlainText()
             val result = try {
@@ -671,19 +673,19 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
                     val uri = app.contentResolver.insert(MediaStore.Files.getContentUri("external"), values)
                     if (uri != null) {
                         app.contentResolver.openOutputStream(uri)?.use { it.write(body.toByteArray()) }
-                        "Belgeler/ZuneNotes/$fileName"
+                        getApplication<Application>().localizedString(R.string.notes_export_path, fileName)
                     } else null
                 } else {
                     @Suppress("DEPRECATION")
                     val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "ZuneNotes").apply { mkdirs() }
                     File(dir, fileName).writeText(body)
-                    "Belgeler/ZuneNotes/$fileName"
+                    getApplication<Application>().localizedString(R.string.notes_export_path, fileName)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("NotesHubViewModel", "exportNoteToDocuments failed", e)
                 null
             }
-            _statusMessage.value = if (result != null) "dışa aktarıldı: $result" else "dışa aktarma başarısız"
+            _statusMessage.value = if (result != null) getApplication<Application>().localizedString(R.string.notes_exported, result) else getApplication<Application>().localizedString(R.string.notes_export_failed)
         }
     }
 
@@ -694,10 +696,10 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
                 val json = notesDataStore.exportJson()
                 getApplication<Application>().contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toByteArray()) } != null
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("NotesHubViewModel", "writeBackup failed", e)
                 false
             }
-            _statusMessage.value = if (ok) "yedek kaydedildi" else "yedekleme başarısız"
+            _statusMessage.value = if (ok) getApplication<Application>().localizedString(R.string.notes_backup_saved) else getApplication<Application>().localizedString(R.string.notes_backup_failed)
         }
     }
 
@@ -710,13 +712,13 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
                 } ?: ""
                 notesDataStore.importJson(json)
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("NotesHubViewModel", "readBackup failed", e)
                 -1
             }
             _statusMessage.value = when {
-                count < 0 -> "geçersiz yedek dosyası"
-                count == 0 -> "yedekte not bulunamadı"
-                else -> "$count not geri yüklendi"
+                count < 0 -> getApplication<Application>().localizedString(R.string.notes_backup_invalid)
+                count == 0 -> getApplication<Application>().localizedString(R.string.notes_backup_empty)
+                else -> getApplication<Application>().localizedString(R.string.notes_restored_count, count)
             }
         }
     }
@@ -727,13 +729,13 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
             putExtra(Intent.EXTRA_SUBJECT, note.displayTitle)
             putExtra(Intent.EXTRA_TEXT, note.toPlainText())
         }
-        val chooser = Intent.createChooser(intent, "notu paylaş").apply {
+        val chooser = Intent.createChooser(intent, getApplication<Application>().localizedString(R.string.notes_share_title)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         try {
             getApplication<Application>().startActivity(chooser)
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("NotesHubViewModel", "shareNote failed", e)
         }
     }
 

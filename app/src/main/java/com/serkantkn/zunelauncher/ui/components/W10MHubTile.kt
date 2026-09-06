@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.net.Uri
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
@@ -68,18 +71,11 @@ private fun getHubIcon(hubType: HubType): ImageVector {
         HubType.INTERNET -> Icons.Default.Language
         HubType.FILES -> Icons.Default.Folder
         HubType.NOTES -> Icons.Default.StickyNote2
+        HubType.EMAIL -> Icons.Default.Mail
         HubType.SETTINGS -> Icons.Default.Settings
         HubType.CLOCK -> Icons.Default.Schedule
         HubType.CALENDAR -> Icons.Default.CalendarMonth
         HubType.HOME -> Icons.Default.Home
-    }
-}
-
-fun getHubDefaultSpan(hubType: HubType): Int {
-    return when (hubType) {
-        HubType.PICTURES -> 4
-        HubType.MUSIC -> 4
-        else -> 2
     }
 }
 
@@ -221,7 +217,7 @@ fun W10MHubTile(
                         currentPhoto?.let { uri ->
                             AsyncImage(
                                 model = uri,
-                                contentDescription = "Favorite Photo",
+                                contentDescription = stringResource(R.string.tile_favorite_photo),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -240,7 +236,7 @@ fun W10MHubTile(
                         )
                         if (span > 1) {
                             Text(
-                                text = hubType.title,
+                                text = stringResource(hubType.titleRes),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontSize = if (span == 2 && gridColumns >= 8) 9.sp else 12.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -263,7 +259,7 @@ fun W10MHubTile(
                         nextPhoto?.let { uri ->
                             AsyncImage(
                                 model = uri,
-                                contentDescription = "Favorite Photo",
+                                contentDescription = stringResource(R.string.tile_favorite_photo),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -282,7 +278,7 @@ fun W10MHubTile(
                         )
                         if (span > 1) {
                             Text(
-                                text = hubType.title,
+                                text = stringResource(hubType.titleRes),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontSize = if (span == 2 && gridColumns >= 8) 9.sp else 12.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -309,7 +305,7 @@ fun W10MHubTile(
 
                     Icon(
                         imageVector = icon,
-                        contentDescription = hubType.title,
+                        contentDescription = stringResource(hubType.titleRes),
                         tint = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier
                             .size(iconSize)
@@ -334,7 +330,7 @@ fun W10MHubTile(
                     // Label at bottom-left
                     if (span > 1) {
                         Text(
-                            text = hubType.title,
+                            text = stringResource(hubType.titleRes),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontSize = if (span == 2 && gridColumns >= 8) 9.sp else 12.sp,
                                 fontWeight = FontWeight.Normal
@@ -375,7 +371,7 @@ fun W10MHubTile(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = hubType.title,
+                                text = stringResource(hubType.titleRes),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium
@@ -397,7 +393,7 @@ fun W10MHubTile(
                             )
                         } else if (badgeCount > 0) {
                             Text(
-                                text = "$badgeCount yeni bildirim",
+                                text = stringResource(R.string.tile_new_notifications, badgeCount),
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium
@@ -425,7 +421,7 @@ fun W10MHubTile(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Kaldır",
+                    contentDescription = stringResource(R.string.notes_remove_cap),
                     tint = Color.Black,
                     modifier = Modifier.size(16.dp)
                 )
@@ -445,7 +441,7 @@ fun W10MHubTile(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = "Boyutlandır",
+                    contentDescription = stringResource(R.string.notes_resize_cap),
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )

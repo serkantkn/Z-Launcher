@@ -1,16 +1,19 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.util.localizedString
+import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.webkit.URLUtil
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.serkantkn.zunelauncher.data.model.BrowserDownload
 import com.serkantkn.zunelauncher.data.model.BrowserFavorite
 import com.serkantkn.zunelauncher.data.model.BrowserHistory
+import com.serkantkn.zunelauncher.data.model.parseJsonObjectList
+import com.serkantkn.zunelauncher.data.model.toJsonArrayString
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
@@ -33,7 +36,7 @@ import java.net.URLEncoder
 data class BrowserTab(
     val id: String = java.util.UUID.randomUUID().toString(),
     val url: String = "",
-    val title: String = "Yeni Sekme",
+    val title: String = "",
     val isLoading: Boolean = false,
     val progress: Float = 0f,
     val showStartScreen: Boolean = true,
@@ -90,9 +93,12 @@ val popularSites = listOf(
 )
 
 class BrowserViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = application.appContainer.settingsRepository
-    private val gson = Gson()
-    
+    private companion object {
+        const val TAG = "BrowserViewModel"
+    }
+
+    private val repository = application.appContainer.settingsDataStore
+
     private val _state = MutableStateFlow(BrowserState())
     val state: StateFlow<BrowserState> = _state.asStateFlow()
 
@@ -106,33 +112,20 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         BrowserFavorite("Wikipedia", "https://www.wikipedia.org")
                     )
                 } else {
-                    try {
-                        val type = object : TypeToken<List<BrowserFavorite>>() {}.type
-                        gson.fromJson<List<BrowserFavorite>>(json, type) ?: emptyList()
-                    } catch (e: Exception) { emptyList() }
+                    parseJsonObjectList(json, TAG, BrowserFavorite::fromJson)
                 }
                 _state.update { it.copy(favorites = list) }
             }
         }
         viewModelScope.launch {
             repository.browserHistory.collect { json ->
-                val list = if (json.isNullOrEmpty()) emptyList() else {
-                    try {
-                        val type = object : TypeToken<List<BrowserHistory>>() {}.type
-                        gson.fromJson<List<BrowserHistory>>(json, type) ?: emptyList()
-                    } catch (e: Exception) { emptyList() }
-                }
+                val list = parseJsonObjectList(json, TAG, BrowserHistory::fromJson)
                 _state.update { it.copy(history = list) }
             }
         }
         viewModelScope.launch {
             repository.browserDownloads.collect { json ->
-                val list = if (json.isNullOrEmpty()) emptyList() else {
-                    try {
-                        val type = object : TypeToken<List<BrowserDownload>>() {}.type
-                        gson.fromJson<List<BrowserDownload>>(json, type) ?: emptyList()
-                    } catch (e: Exception) { emptyList() }
-                }
+                val list = parseJsonObjectList(json, TAG, BrowserDownload::fromJson)
                 _state.update { it.copy(downloads = list) }
                 if (list.any { it.status == DownloadManager.STATUS_RUNNING || it.status == DownloadManager.STATUS_PENDING }) {
                     startDownloadPolling()
@@ -163,19 +156,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     private fun saveFavorites(newFavorites: List<BrowserFavorite>) {
         viewModelScope.launch {
-            repository.setBrowserFavorites(gson.toJson(newFavorites))
+            repository.setBrowserFavorites(newFavorites.toJsonArrayString { it.toJson() })
         }
     }
 
     private fun saveHistory(newHistory: List<BrowserHistory>) {
         viewModelScope.launch {
-            repository.setBrowserHistory(gson.toJson(newHistory))
+            repository.setBrowserHistory(newHistory.toJsonArrayString { it.toJson() })
         }
     }
 
     private fun saveDownloads(newDownloads: List<BrowserDownload>) {
         viewModelScope.launch {
-            repository.setBrowserDownloads(gson.toJson(newDownloads))
+            repository.setBrowserDownloads(newDownloads.toJsonArrayString { it.toJson() })
         }
     }
 
@@ -204,7 +197,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     addRequestHeader("User-Agent", userAgent)
                 }
                 setTitle(fileName)
-                setDescription("İndiriliyor...")
+                setDescription(getApplication<Application>().localizedString(R.string.browser_downloading))
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
             }
@@ -225,13 +218,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             _state.update {
                 it.copy(
                     downloads = updatedList,
-                    errorMessage = "İndirme başlatıldı: $fileName"
+                    errorMessage = getApplication<Application>().localizedString(R.string.browser_download_started, fileName)
                 )
             }
             saveDownloads(updatedList)
             startDownloadPolling()
         } catch (e: Exception) {
-            _state.update { it.copy(errorMessage = "İndirme başlatılamadı: ${e.localizedMessage}") }
+            _state.update { it.copy(errorMessage = getApplication<Application>().localizedString(R.string.browser_download_failed, e.localizedMessage ?: "")) }
         }
     }
 
@@ -301,7 +294,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
             context.startActivity(intent)
         } catch (e: Exception) {
-            _state.update { it.copy(errorMessage = "Dosya açılamadı: ${e.localizedMessage}") }
+            _state.update { it.copy(errorMessage = getApplication<Application>().localizedString(R.string.browser_open_failed, e.localizedMessage ?: "")) }
         }
     }
 
@@ -312,7 +305,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun openNewTab() {
         _state.update { currentState ->
             if (currentState.tabs.size >= 10) {
-                return@update currentState.copy(errorMessage = "Maksimum 10 sekme açabilirsiniz.")
+                return@update currentState.copy(errorMessage = getApplication<Application>().localizedString(R.string.browser_max_tabs))
             }
             val newTabs = currentState.tabs + BrowserTab()
             currentState.copy(
@@ -427,7 +420,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e(TAG, "fetchSuggestions failed", e)
         }
 
         return@withContext list
@@ -454,7 +447,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun onPageStarted(tabId: String, url: String?, title: String?) {
-        updateTab(tabId) { it.copy(isLoading = true, url = url ?: it.url, title = title ?: "Yükleniyor...") }
+        updateTab(tabId) { it.copy(isLoading = true, url = url ?: it.url, title = title ?: getApplication<Application>().localizedString(R.string.browser_loading)) }
     }
 
     fun onPageFinished(tabId: String, url: String?, title: String?) {
@@ -480,7 +473,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         _state.update { it.copy(history = emptyList()) }
     }
     fun goHome(tabId: String) {
-        updateTab(tabId) { it.copy(showStartScreen = true, url = "", title = "Yeni Sekme") }
+        updateTab(tabId) { it.copy(showStartScreen = true, url = "", title = "") }
     }
     
     fun isFavorite(url: String): Boolean {

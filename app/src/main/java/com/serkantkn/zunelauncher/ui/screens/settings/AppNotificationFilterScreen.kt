@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import com.serkantkn.zunelauncher.di.appContainer
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
@@ -38,7 +40,7 @@ import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
  *  - WP 8.1 Settings → Notifications+Actions → Choose apps
  *  - Large lowercase page title, small muted breadcrumb header
  *  - Each app row uses WP-style rectangular toggle switch (açık/kapalı)
- *  - Sharp-cornered "bitti" (done) button at the bottom bar
+ *  - Sharp-cornered stringResource(R.string.common_done) (done) button at the bottom bar
  *  - Staggered entrance animation per row
  */
 @Composable
@@ -77,9 +79,9 @@ fun AppNotificationFilterScreen(
                         end = ZuneDimens.ScreenPaddingHorizontal
                     )
             ) {
-                // Small breadcrumb: "ayarlar"
+                // Small breadcrumb: stringResource(R.string.common_settings)
                 Text(
-                    text = "ayarlar",
+                    text = stringResource(R.string.common_settings),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 18.sp,
@@ -94,7 +96,7 @@ fun AppNotificationFilterScreen(
 
                 // Giant page title (WP oversized lowercase)
                 Text(
-                    text = "bildirim izinleri",
+                    text = stringResource(R.string.settings_notification_permissions),
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 46.sp,
@@ -109,7 +111,7 @@ fun AppNotificationFilterScreen(
 
                 // Subtitle instruction
                 Text(
-                    text = "bildirim vermesini istediğiniz uygulamaları seçin",
+                    text = stringResource(R.string.settings_notification_permissions_help),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 14.sp,
                         lineHeight = 18.sp
@@ -257,7 +259,7 @@ fun AppNotificationFilterScreen(
                             }
                     ) {
                         Text(
-                            text = "bitti",
+                            text = stringResource(R.string.common_done),
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 16.sp
@@ -283,7 +285,7 @@ fun AppNotificationFilterScreen(
                             ) { onClose() }
                     ) {
                         Text(
-                            text = "iptal",
+                            text = stringResource(R.string.common_cancel),
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = FontWeight.Normal,
                                 fontSize = 16.sp
@@ -328,7 +330,7 @@ private fun WpNotificationToggle(
         )
     ) {
         Text(
-            text = if (checked) "açık" else "kapalı",
+            text = if (checked) stringResource(R.string.common_on) else stringResource(R.string.common_off),
             style = MaterialTheme.typography.bodySmall.copy(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Normal

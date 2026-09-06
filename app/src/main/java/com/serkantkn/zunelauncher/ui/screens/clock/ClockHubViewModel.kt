@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.clock
 
+import androidx.annotation.StringRes
+import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -13,12 +15,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import java.util.TimeZone
 
 data class WorldCity(
     val id: String = java.util.UUID.randomUUID().toString(),
-    val cityName: String,
-    val countryName: String,
+    @StringRes val cityRes: Int,
+    @StringRes val countryRes: Int,
     val timeZoneId: String
 )
 
@@ -34,12 +35,12 @@ class ClockHubViewModel(application: Application) : AndroidViewModel(application
     // --- WORLD CLOCK ---
     private val _worldCities = MutableStateFlow<List<WorldCity>>(
         listOf(
-            WorldCity(cityName = "İstanbul", countryName = "Türkiye", timeZoneId = "Europe/Istanbul"),
-            WorldCity(cityName = "Londra", countryName = "Birleşik Krallık", timeZoneId = "Europe/London"),
-            WorldCity(cityName = "New York", countryName = "ABD", timeZoneId = "America/New_York"),
-            WorldCity(cityName = "Tokyo", countryName = "Japonya", timeZoneId = "Asia/Tokyo"),
-            WorldCity(cityName = "Paris", countryName = "Fransa", timeZoneId = "Europe/Paris"),
-            WorldCity(cityName = "Sidney", countryName = "Avustralya", timeZoneId = "Australia/Sydney")
+            WorldCity(cityRes = R.string.city_istanbul, countryRes = R.string.country_turkey, timeZoneId = "Europe/Istanbul"),
+            WorldCity(cityRes = R.string.city_london, countryRes = R.string.country_uk, timeZoneId = "Europe/London"),
+            WorldCity(cityRes = R.string.city_new_york, countryRes = R.string.country_usa, timeZoneId = "America/New_York"),
+            WorldCity(cityRes = R.string.city_tokyo, countryRes = R.string.country_japan, timeZoneId = "Asia/Tokyo"),
+            WorldCity(cityRes = R.string.city_paris, countryRes = R.string.country_france, timeZoneId = "Europe/Paris"),
+            WorldCity(cityRes = R.string.city_sydney, countryRes = R.string.country_australia, timeZoneId = "Australia/Sydney")
         )
     )
     val worldCities: StateFlow<List<WorldCity>> = _worldCities.asStateFlow()
@@ -112,7 +113,7 @@ class ClockHubViewModel(application: Application) : AndroidViewModel(application
 
     // --- WORLD CLOCK ACTIONS ---
     fun addWorldCity(city: WorldCity) {
-        if (_worldCities.value.none { it.cityName == city.cityName }) {
+        if (_worldCities.value.none { it.timeZoneId == city.timeZoneId }) {
             _worldCities.value = _worldCities.value + city
         }
     }

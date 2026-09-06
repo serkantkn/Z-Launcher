@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -9,13 +11,11 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -59,16 +59,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -87,15 +83,16 @@ import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.components.W10MAppTile
 import com.serkantkn.zunelauncher.ui.components.W10MHubTile
+import com.serkantkn.zunelauncher.ui.components.W10MCalendarTile
+import com.serkantkn.zunelauncher.ui.components.W10MClockTile
+import com.serkantkn.zunelauncher.data.model.CalendarEvent
+import com.serkantkn.zunelauncher.data.model.Alarm
 import com.serkantkn.zunelauncher.ui.components.W10MNoteTile
 import com.serkantkn.zunelauncher.data.model.Note
 import com.serkantkn.zunelauncher.data.repository.NotesBridge
-import com.serkantkn.zunelauncher.ui.components.getHubDefaultSpan
 import com.serkantkn.zunelauncher.ui.components.ZuneClock
 import com.serkantkn.zunelauncher.ui.components.ZuneDate
-import com.serkantkn.zunelauncher.ui.components.ZuneGlassSurface
 import com.serkantkn.zunelauncher.ui.components.ZuneHubTitle
-import com.serkantkn.zunelauncher.ui.components.ZuneWallpaperOverlay
 import com.serkantkn.zunelauncher.ui.components.ZuneWeather
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -127,6 +124,9 @@ fun HomeHubScreen(
     val notificationCounts by viewModel.notificationCounts.collectAsState()
     val notesTileSubtitle by viewModel.notesTileSubtitle.collectAsState()
     val pinnedNotesCount by viewModel.pinnedNotesCount.collectAsState()
+    val emailUnreadCount by viewModel.emailUnreadCount.collectAsState()
+    val enabledAlarms by viewModel.enabledAlarms.collectAsState()
+    val upcomingEvents by viewModel.upcomingEvents.collectAsState()
     val latestMessages by viewModel.latestMessages.collectAsState()
     val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
     val tileSpacing by viewModel.tileSpacing.collectAsState()
@@ -443,6 +443,10 @@ fun HomeHubScreen(
                                 notificationCounts = notificationCounts,
                                 notesLiveSubtitle = notesTileSubtitle,
                                 notesBadgeCount = pinnedNotesCount,
+                                emailBadgeCount = emailUnreadCount,
+                                enabledAlarms = enabledAlarms,
+                                upcomingEvents = upcomingEvents,
+                                timeFormat = timeFormat,
                                 latestMessages = latestMessages,
                                 wpGridState = wpGridState,
                                 wpGridDragDropState = wpGridDragDropState,
@@ -492,6 +496,10 @@ fun HomeHubScreen(
                                         notificationCounts = notificationCounts,
                                         notesLiveSubtitle = notesTileSubtitle,
                                         notesBadgeCount = pinnedNotesCount,
+                                emailBadgeCount = emailUnreadCount,
+                                enabledAlarms = enabledAlarms,
+                                upcomingEvents = upcomingEvents,
+                                timeFormat = timeFormat,
                                         latestMessages = latestMessages,
                                         wpGridState = wpGridState,
                                         wpGridDragDropState = wpGridDragDropState,
@@ -522,6 +530,10 @@ fun HomeHubScreen(
                                             notificationCounts = notificationCounts,
                                             notesLiveSubtitle = notesTileSubtitle,
                                             notesBadgeCount = pinnedNotesCount,
+                                emailBadgeCount = emailUnreadCount,
+                                enabledAlarms = enabledAlarms,
+                                upcomingEvents = upcomingEvents,
+                                timeFormat = timeFormat,
                                             latestMessages = latestMessages,
                                             wpGridState = wpGridState,
                                             wpGridDragDropState = wpGridDragDropState,
@@ -646,7 +658,7 @@ fun HomeHubScreen(
                 localHubOrder.forEachIndexed { index, hubType ->
                     val key = "hub_$hubType"
                     ZuneHubTitle(
-                        title = hubType.title,
+                        title = stringResource(hubType.titleRes),
                         accentColor = if (zuneColors.isDark) Color.White else Color.Black,
                         verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
                         onClick = {
@@ -752,7 +764,7 @@ fun HomeHubScreen(
                         if (favoriteApps.isNotEmpty()) {
                             item(key = "fav_label", span = { GridItemSpan(maxLineSpan) }) {
                                 Text(
-                                    text = "favoriler",
+                                    text = stringResource(R.string.people_tab_favorites),
                                     style = MaterialTheme.typography.displayLarge.copy(
                                         fontWeight = FontWeight.Light,
                                         fontSize = 96.sp,
@@ -993,6 +1005,10 @@ private fun RenderStartTileItem(
     notificationCounts: Map<String, Int>,
     notesLiveSubtitle: String?,
     notesBadgeCount: Int,
+    emailBadgeCount: Int = 0,
+    enabledAlarms: List<Alarm> = emptyList(),
+    upcomingEvents: List<CalendarEvent> = emptyList(),
+    timeFormat: String = "HH:mm",
     latestMessages: Map<String, SocialMessageModel>,
     wpGridState: androidx.compose.foundation.lazy.grid.LazyGridState,
     wpGridDragDropState: GridDragDropState,
@@ -1020,78 +1036,116 @@ private fun RenderStartTileItem(
                 HubType.MESSAGING -> notificationCounts["com.google.android.apps.messaging"] ?: 0
                 HubType.PHONE -> notificationCounts["com.google.android.dialer"] ?: 0
                 HubType.NOTES -> notesBadgeCount
+                HubType.EMAIL -> emailBadgeCount
                 else -> 0
             }
 
-            W10MHubTile(
-                hubType = hubType,
-                span = span,
-                gridColumns = gridCols,
-                spacing = tileSpacing,
-                photoUris = favoritePhotos,
-                isEditing = isEditMode,
-                isDragging = isDragging,
-                cornerStyle = tileCornerStyle,
-                badgeCount = badge,
-                liveSubtitle = if (hubType == HubType.NOTES) notesLiveSubtitle else null,
-                onClick = {
-                    handleLaunch(key) { onHubSelected(hubType) }
-                },
-                onLongClick = onEnterEditMode,
-                onRemoveClick = { onRemoveTile("hub:${hubType.name}") },
-                onResizeClick = { onToggleTileSize("hub:${hubType.name}") },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(if (isDragging) 10f else 0f)
-                    .then(itemModifier)
-                    .pointerInput(isEditMode) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = {
-                                onEnterEditMode()
-                                wpGridDragDropState.startDrag(absoluteIndex)
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                wpGridDragDropState.onDrag(dragAmount)
-                            },
-                            onDragEnd = {
-                                wpGridDragDropState.onDragInterrupted()
-                            },
-                            onDragCancel = {
-                                wpGridDragDropState.onDragInterrupted()
-                            }
-                        )
-                    }
-                    .graphicsLayer {
-                        if (isDragging) {
-                            val info = wpGridState.layoutInfo
-                                .visibleItemsInfo
-                                .firstOrNull { it.index == absoluteIndex }
-                                ?.offset
-                            if (info != null) {
-                                translationX =
-                                    wpGridDragDropState.draggingItemInitialOffset.x +
-                                            wpGridDragDropState.totalDragAmount.x -
-                                            info.x
-                                translationY =
-                                    wpGridDragDropState.draggingItemInitialOffset.y +
-                                            wpGridDragDropState.totalDragAmount.y -
-                                            info.y
-                            }
+            val tileModifier = Modifier
+                .fillMaxSize()
+                .zIndex(if (isDragging) 10f else 0f)
+                .then(itemModifier)
+                .pointerInput(isEditMode) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            onEnterEditMode()
+                            wpGridDragDropState.startDrag(absoluteIndex)
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            wpGridDragDropState.onDrag(dragAmount)
+                        },
+                        onDragEnd = {
+                            wpGridDragDropState.onDragInterrupted()
+                        },
+                        onDragCancel = {
+                            wpGridDragDropState.onDragInterrupted()
+                        }
+                    )
+                }
+                .graphicsLayer {
+                    if (isDragging) {
+                        val info = wpGridState.layoutInfo
+                            .visibleItemsInfo
+                            .firstOrNull { it.index == absoluteIndex }
+                            ?.offset
+                        if (info != null) {
+                            translationX =
+                                wpGridDragDropState.draggingItemInitialOffset.x +
+                                        wpGridDragDropState.totalDragAmount.x -
+                                        info.x
+                            translationY =
+                                wpGridDragDropState.draggingItemInitialOffset.y +
+                                        wpGridDragDropState.totalDragAmount.y -
+                                        info.y
                         }
                     }
-                    .w10mEditWiggle(
-                        isEditing = isEditMode,
-                        isDragging = isDragging,
-                        index = hubIndex
-                    )
-                    .w10mStaggeredAnimation(
-                        progress = animationProgress.value,
-                        index = 2 + hubIndex,
-                        isClicked = clickedItemKey == key,
-                        exitOrder = hubIndex.toFloat() / (tileCount - 1).coerceAtLeast(1)
-                    )
-            )
+                }
+                .w10mEditWiggle(
+                    isEditing = isEditMode,
+                    isDragging = isDragging,
+                    index = hubIndex
+                )
+                .w10mStaggeredAnimation(
+                    progress = animationProgress.value,
+                    index = 2 + hubIndex,
+                    isClicked = clickedItemKey == key,
+                    exitOrder = hubIndex.toFloat() / (tileCount - 1).coerceAtLeast(1)
+                )
+
+            when (hubType) {
+                HubType.CLOCK -> W10MClockTile(
+                    timeFormat = timeFormat,
+                    alarms = enabledAlarms,
+                    span = span,
+                    gridColumns = gridCols,
+                    spacing = tileSpacing,
+                    isEditing = isEditMode,
+                    isDragging = isDragging,
+                    cornerStyle = tileCornerStyle,
+                    onClick = {
+                        handleLaunch(key) { onHubSelected(hubType) }
+                    },
+                    onLongClick = onEnterEditMode,
+                    onRemoveClick = { onRemoveTile("hub:${hubType.name}") },
+                    onResizeClick = { onToggleTileSize("hub:${hubType.name}") },
+                    modifier = tileModifier
+                )
+                HubType.CALENDAR -> W10MCalendarTile(
+                    events = upcomingEvents,
+                    span = span,
+                    gridColumns = gridCols,
+                    spacing = tileSpacing,
+                    isEditing = isEditMode,
+                    isDragging = isDragging,
+                    cornerStyle = tileCornerStyle,
+                    onClick = {
+                        handleLaunch(key) { onHubSelected(hubType) }
+                    },
+                    onLongClick = onEnterEditMode,
+                    onRemoveClick = { onRemoveTile("hub:${hubType.name}") },
+                    onResizeClick = { onToggleTileSize("hub:${hubType.name}") },
+                    modifier = tileModifier
+                )
+                else -> W10MHubTile(
+                    hubType = hubType,
+                    span = span,
+                    gridColumns = gridCols,
+                    spacing = tileSpacing,
+                    photoUris = favoritePhotos,
+                    isEditing = isEditMode,
+                    isDragging = isDragging,
+                    cornerStyle = tileCornerStyle,
+                    badgeCount = badge,
+                    liveSubtitle = if (hubType == HubType.NOTES) notesLiveSubtitle else null,
+                    onClick = {
+                        handleLaunch(key) { onHubSelected(hubType) }
+                    },
+                    onLongClick = onEnterEditMode,
+                    onRemoveClick = { onRemoveTile("hub:${hubType.name}") },
+                    onResizeClick = { onToggleTileSize("hub:${hubType.name}") },
+                    modifier = tileModifier
+                )
+            }
         }
         is TileItem.Note, is TileItem.QuickNote -> {
             val absoluteIndex = tileItem.index

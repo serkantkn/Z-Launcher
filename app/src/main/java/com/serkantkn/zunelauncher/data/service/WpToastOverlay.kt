@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.data.service
 
+import com.serkantkn.zunelauncher.util.localized
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Build
@@ -73,12 +75,12 @@ object WpToastOverlay {
     fun show(context: Context, message: SocialMessageModel) {
         val appContext = context.applicationContext
         if (!isAvailable(appContext)) {
-            android.util.Log.w(TAG, "show: overlay permission missing")
+            ZuneLog.w(TAG, "show: overlay permission missing")
             return
         }
         // The launcher draws its own banner while it is on screen.
         if (SocialRepository.isLauncherForeground) {
-            android.util.Log.d(TAG, "show: launcher in foreground, LauncherScreen handles the toast")
+            ZuneLog.d(TAG, "show: launcher in foreground, LauncherScreen handles the toast")
             return
         }
 
@@ -89,7 +91,7 @@ object WpToastOverlay {
                 NotificationStyle.WINDOWS_PHONE
             }
             if (style != NotificationStyle.WINDOWS_PHONE) {
-                android.util.Log.d(TAG, "show: notification style is $style, skipping")
+                ZuneLog.d(TAG, "show: notification style is $style, skipping")
                 return@launch
             }
             attachOrUpdate(appContext, message)
@@ -124,7 +126,7 @@ object WpToastOverlay {
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         }
 
-        val view = ComposeView(appContext).apply {
+        val view = ComposeView(appContext.localized()).apply {
             setViewTreeLifecycleOwner(owner)
             setViewTreeViewModelStoreOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)
@@ -136,6 +138,7 @@ object WpToastOverlay {
                 val dynamicThemeColor by settings.dynamicThemeColor.collectAsState(initial = null)
                 val customThemeColor by settings.customThemeColor.collectAsState(initial = null)
                 val solidBackgroundEnabled by settings.solidBackgroundEnabled.collectAsState(initial = false)
+                val fontScale by settings.fontScale.collectAsState(initial = 1.0f)
                 val shown by currentMessage.collectAsState()
 
                 ZuneLauncherTheme(
@@ -143,7 +146,8 @@ object WpToastOverlay {
                     accentColor = accentColor,
                     dynamicThemeColor = dynamicThemeColor,
                     customThemeColor = customThemeColor,
-                    solidBackgroundEnabled = solidBackgroundEnabled
+                    solidBackgroundEnabled = solidBackgroundEnabled,
+                    fontScale = fontScale
                 ) {
                     WpToastNotification(
                         message = shown,
@@ -168,9 +172,9 @@ object WpToastOverlay {
             layoutParams = params
             lifecycleOwner = owner
             owner.onResume()
-            android.util.Log.d(TAG, "attached overlay for ${message.appName}: ${message.title}")
+            ZuneLog.d(TAG, "attached overlay for ${message.appName}: ${message.title}")
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "addView failed", e)
+            ZuneLog.e(TAG, "addView failed", e)
             owner.onDestroy()
             currentMessage.value = null
         }
@@ -185,7 +189,7 @@ object WpToastOverlay {
             wm.updateViewLayout(view, params)
             if (focusable) view.requestFocus()
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("WpToastOverlay", "setFocusable failed", e)
         }
     }
 
@@ -200,7 +204,7 @@ object WpToastOverlay {
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
 
     private fun detach() {
-        if (overlayView != null) android.util.Log.d(TAG, "detach overlay")
+        if (overlayView != null) ZuneLog.d(TAG, "detach overlay")
         val wm = windowManager
         val view = overlayView
         val owner = lifecycleOwner
@@ -213,7 +217,7 @@ object WpToastOverlay {
             try {
                 if (view.isAttachedToWindow || view.windowToken != null) wm.removeViewImmediate(view)
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("WpToastOverlay", "detach failed", e)
             }
         }
         owner?.onDestroy()

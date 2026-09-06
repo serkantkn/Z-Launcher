@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.data.datastore
 
+import com.serkantkn.zunelauncher.data.model.optLongOrNull
+import com.serkantkn.zunelauncher.data.model.optStringOrNull
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -170,12 +172,6 @@ class NotesDataStore(private val context: Context) {
             updatedAt = optLong("updatedAt", now)
         )
     }
-
-    private fun JSONObject.optStringOrNull(key: String): String? =
-        if (isNull(key)) null else optString(key, "").ifEmpty { null }
-
-    private fun JSONObject.optLongOrNull(key: String): Long? =
-        if (isNull(key)) null else optLong(key)
 
     private fun JSONArray?.toStringList(): List<String> {
         if (this == null) return emptyList()

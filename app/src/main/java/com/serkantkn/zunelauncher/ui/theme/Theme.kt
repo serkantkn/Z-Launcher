@@ -10,12 +10,15 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 import com.serkantkn.zunelauncher.data.model.AccentColor
 import com.serkantkn.zunelauncher.data.model.ThemeMode
@@ -89,6 +92,11 @@ data class ZuneExtendedColors(
 val LocalZuneColors = staticCompositionLocalOf { ZuneExtendedColors() }
 val LocalIsWideScreen = staticCompositionLocalOf { false }
 
+/**
+ * App theme. [fontScale] is the user's font-size preference (SettingsDataStore.fontScale). It is
+ * multiplied into [LocalDensity].fontScale, so every sp-based size (ZuneTypography and raw `.sp`
+ * values) scales on top of the system font size. 1.0f leaves the platform density untouched.
+ */
 @Composable
 fun ZuneLauncherTheme(
     themeMode: ThemeMode = ThemeMode.DARK,
@@ -183,9 +191,16 @@ fun ZuneLauncherTheme(
         }
     }
 
+    val platformDensity = LocalDensity.current
+    val scaledDensity = remember(platformDensity, fontScale) {
+        if (fontScale == 1.0f) platformDensity
+        else Density(density = platformDensity.density, fontScale = platformDensity.fontScale * fontScale)
+    }
+
     CompositionLocalProvider(
         LocalZuneColors provides zuneColors,
-        LocalIsWideScreen provides isWideScreen
+        LocalIsWideScreen provides isWideScreen,
+        LocalDensity provides scaledDensity
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -195,7 +210,7 @@ fun ZuneLauncherTheme(
     }
 }
 /** Walks ContextWrapper chain to the hosting Activity, or null for service/application contexts. */
-private fun android.content.Context.findActivity(): Activity? {
+fun android.content.Context.findActivity(): Activity? {
     var ctx: android.content.Context? = this
     while (ctx is android.content.ContextWrapper) {
         if (ctx is Activity) return ctx

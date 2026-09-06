@@ -1,5 +1,10 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.ui.theme.findActivity
+import com.serkantkn.zunelauncher.util.AppLanguage
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Intent
@@ -118,7 +123,7 @@ internal fun LookSettingsPage(
 
     SettingsLazyColumn {
         item(key = "theme") {
-            SettingGroup(title = "tema") {
+            SettingGroup(title = stringResource(R.string.theme_setting)) {
                 ThemeChoiceRow(
                     selectedMode = themeMode,
                     onSelected = onThemeModeChanged
@@ -128,11 +133,11 @@ internal fun LookSettingsPage(
 
         item(key = "wallpaper") {
             val context = LocalContext.current
-            SettingGroup(title = "duvar kağıdı") {
+            SettingGroup(title = stringResource(R.string.settings_wallpaper)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
-                        title = "sistem",
-                        subtitle = "sistem duvar kağıdı",
+                        title = stringResource(R.string.theme_system),
+                        subtitle = stringResource(R.string.settings_wallpaper_system_sub),
                         selected = !solidBackgroundEnabled && customWallpaperPath == null,
                         onClick = {
                             viewModel.setSolidBackgroundEnabled(false)
@@ -141,8 +146,8 @@ internal fun LookSettingsPage(
                     )
 
                     SettingChoiceRow(
-                        title = "özel resim",
-                        subtitle = if (customWallpaperPath != null) "özel resim aktif" else "resim seçilmedi",
+                        title = stringResource(R.string.settings_wallpaper_custom),
+                        subtitle = if (customWallpaperPath != null) stringResource(R.string.settings_wallpaper_custom_active) else stringResource(R.string.settings_wallpaper_none),
                         selected = !solidBackgroundEnabled && customWallpaperPath != null,
                         onClick = {
                             viewModel.setSolidBackgroundEnabled(false)
@@ -154,7 +159,7 @@ internal fun LookSettingsPage(
                                 } else {
                                     android.widget.Toast.makeText(
                                         context,
-                                        "Özel duvar kağıdı sadece Z Launcher Pro'da geçerlidir.",
+                                        context.getString(R.string.settings_wallpaper_pro_only),
                                         android.widget.Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -182,7 +187,7 @@ internal fun LookSettingsPage(
                                     contentColor = Color.White
                                 )
                             ) {
-                                Text("Resmi Değiştir")
+                                Text(stringResource(R.string.settings_wallpaper_change))
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             OutlinedButton(
@@ -193,14 +198,14 @@ internal fun LookSettingsPage(
                                     contentColor = LocalZuneColors.current.textMuted
                                 )
                             ) {
-                                Text("Temizle")
+                                Text(stringResource(R.string.common_clear))
                             }
                         }
                     }
 
                     SettingChoiceRow(
-                        title = "saf arkaplan",
-                        subtitle = "koyuda siyah, açıkta beyaz arkaplan",
+                        title = stringResource(R.string.settings_solid_background),
+                        subtitle = stringResource(R.string.settings_solid_background_sub),
                         selected = solidBackgroundEnabled,
                         onClick = {
                             viewModel.setSolidBackgroundEnabled(true)
@@ -212,11 +217,11 @@ internal fun LookSettingsPage(
 
         item(key = "hub_wallpaper") {
             val context = LocalContext.current
-            SettingGroup(title = "hub arkaplanı") {
+            SettingGroup(title = stringResource(R.string.settings_hub_background)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
-                        title = "başlangıç ekranı ile aynı",
-                        subtitle = "başlangıç ekranı duvar kağıdını kullan",
+                        title = stringResource(R.string.settings_hub_background_same),
+                        subtitle = stringResource(R.string.settings_hub_background_same_sub),
                         selected = hubBackgroundMode == HubBackgroundMode.MATCH_LAUNCHER,
                         onClick = {
                             viewModel.setHubBackgroundMode(HubBackgroundMode.MATCH_LAUNCHER)
@@ -224,8 +229,8 @@ internal fun LookSettingsPage(
                     )
 
                     SettingChoiceRow(
-                        title = "özel resim",
-                        subtitle = if (customHubWallpaperPath != null) "özel hub resmi aktif" else "resim seçilmedi",
+                        title = stringResource(R.string.settings_wallpaper_custom),
+                        subtitle = if (customHubWallpaperPath != null) stringResource(R.string.settings_hub_wallpaper_active) else stringResource(R.string.settings_wallpaper_none),
                         selected = hubBackgroundMode == HubBackgroundMode.CUSTOM,
                         onClick = {
                             if (customHubWallpaperPath == null) {
@@ -236,7 +241,7 @@ internal fun LookSettingsPage(
                                 } else {
                                     android.widget.Toast.makeText(
                                         context,
-                                        "Özel duvar kağıdı sadece Z Launcher Pro'da geçerlidir.",
+                                        context.getString(R.string.settings_wallpaper_pro_only),
                                         android.widget.Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -266,7 +271,7 @@ internal fun LookSettingsPage(
                                     contentColor = Color.White
                                 )
                             ) {
-                                Text("Resmi Değiştir")
+                                Text(stringResource(R.string.settings_wallpaper_change))
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             OutlinedButton(
@@ -278,14 +283,14 @@ internal fun LookSettingsPage(
                                     contentColor = LocalZuneColors.current.textMuted
                                 )
                             ) {
-                                Text("Temizle")
+                                Text(stringResource(R.string.common_clear))
                             }
                         }
                     }
 
                     SettingChoiceRow(
-                        title = "sistem",
-                        subtitle = "sistem duvar kağıdı",
+                        title = stringResource(R.string.theme_system),
+                        subtitle = stringResource(R.string.settings_wallpaper_system_sub),
                         selected = hubBackgroundMode == HubBackgroundMode.SYSTEM,
                         onClick = {
                             viewModel.setHubBackgroundMode(HubBackgroundMode.SYSTEM)
@@ -293,8 +298,8 @@ internal fun LookSettingsPage(
                     )
 
                     SettingChoiceRow(
-                        title = "saf arkaplan",
-                        subtitle = "koyuda siyah, açıkta beyaz arkaplan",
+                        title = stringResource(R.string.settings_solid_background),
+                        subtitle = stringResource(R.string.settings_solid_background_sub),
                         selected = hubBackgroundMode == HubBackgroundMode.SOLID,
                         onClick = {
                             viewModel.setHubBackgroundMode(HubBackgroundMode.SOLID)
@@ -315,7 +320,7 @@ internal fun LookSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "karartma opaklığı",
+                                    text = stringResource(R.string.settings_dim_opacity),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onBackground
                                 )
@@ -344,7 +349,7 @@ internal fun LookSettingsPage(
 
         item(key = "accent") {
             val customThemeColor by viewModel.customThemeColor.collectAsState()
-            SettingGroup(title = "vurgu rengi") {
+            SettingGroup(title = stringResource(R.string.settings_accent_color)) {
                 AccentColorChoiceRow(
                     selectedColor = accentColor,
                     customThemeColor = customThemeColor,
@@ -376,11 +381,11 @@ internal fun LookSettingsPage(
         }
 
         item(key = "home_screen_layout") {
-            SettingGroup(title = "başlangıç ekranı düzeni") {
+            SettingGroup(title = stringResource(R.string.settings_start_layout)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
-                        title = "zune",
-                        subtitle = "kayar hub listesi ve yan favoriler",
+                        title = stringResource(R.string.settings_layout_zune),
+                        subtitle = stringResource(R.string.settings_layout_zune_sub),
                         selected = homeScreenLayout == HomeScreenLayout.ZUNE,
                         onClick = {
                             viewModel.setHomeScreenLayout(HomeScreenLayout.ZUNE)
@@ -388,8 +393,8 @@ internal fun LookSettingsPage(
                     )
 
                     SettingChoiceRow(
-                        title = "windows phone",
-                        subtitle = "canlı hub ve uygulama karoları",
+                        title = stringResource(R.string.settings_layout_wp),
+                        subtitle = stringResource(R.string.settings_layout_wp_sub),
                         selected = homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE,
                         onClick = {
                             viewModel.setHomeScreenLayout(HomeScreenLayout.WINDOWS_PHONE)
@@ -401,11 +406,11 @@ internal fun LookSettingsPage(
 
         item(key = "tile_columns") {
             val tileColumns by viewModel.tileColumns.collectAsState()
-            SettingGroup(title = "karo düzeni (sütun sayısı)") {
+            SettingGroup(title = stringResource(R.string.settings_tile_columns)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
-                        title = "4 sütun",
-                        subtitle = "standart karo boyutu",
+                        title = stringResource(R.string.settings_columns_4),
+                        subtitle = stringResource(R.string.settings_columns_4_sub),
                         selected = tileColumns == 4,
                         onClick = {
                             viewModel.setTileColumns(4)
@@ -413,8 +418,8 @@ internal fun LookSettingsPage(
                     )
 
                     SettingChoiceRow(
-                        title = "8 sütun",
-                        subtitle = "daha fazla karo (küçük karolar)",
+                        title = stringResource(R.string.settings_columns_8),
+                        subtitle = stringResource(R.string.settings_columns_8_sub),
                         selected = tileColumns == 8,
                         onClick = {
                             viewModel.setTileColumns(8)
@@ -428,11 +433,11 @@ internal fun LookSettingsPage(
             val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
             val tileSpacing by viewModel.tileSpacing.collectAsState()
 
-            SettingGroup(title = "favoriler karoları") {
+            SettingGroup(title = stringResource(R.string.settings_favorite_tiles)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
-                        title = "köşeli",
-                        subtitle = "düz keskin köşeler (0 dp)",
+                        title = stringResource(R.string.settings_corners_square),
+                        subtitle = stringResource(R.string.settings_corners_square_sub),
                         selected = tileCornerStyle == TileCornerStyle.SHARP,
                         onClick = {
                             viewModel.setTileCornerStyle(TileCornerStyle.SHARP)
@@ -440,8 +445,8 @@ internal fun LookSettingsPage(
                     )
 
                     SettingChoiceRow(
-                        title = "yuvarlatılmış",
-                        subtitle = "kavisli köşeler (8 dp)",
+                        title = stringResource(R.string.settings_corners_rounded),
+                        subtitle = stringResource(R.string.settings_corners_rounded_sub),
                         selected = tileCornerStyle == TileCornerStyle.ROUNDED,
                         onClick = {
                             viewModel.setTileCornerStyle(TileCornerStyle.ROUNDED)
@@ -460,7 +465,7 @@ internal fun LookSettingsPage(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "karolar arası mesafe",
+                                text = stringResource(R.string.settings_tile_spacing),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
@@ -504,24 +509,24 @@ internal fun HubSettingsPage(
 
     if (showHistoryClearToast) {
         LaunchedEffect(Unit) {
-            android.widget.Toast.makeText(context, "Tarayıcı geçmişi temizlendi", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.settings_browser_history_cleared), android.widget.Toast.LENGTH_SHORT).show()
             showHistoryClearToast = false
         }
     }
 
     SettingsLazyColumn {
         item(key = "social") {
-            SettingGroup(title = "social hub") {
+            SettingGroup(title = stringResource(R.string.settings_group_social)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
-                        title = "zaman akışı",
-                        subtitle = "tek liste",
+                        title = stringResource(R.string.settings_social_timeline),
+                        subtitle = stringResource(R.string.settings_social_timeline_sub),
                         selected = socialHubLayout == SocialHubLayout.TIMELINE,
                         onClick = { onSocialHubLayoutChanged(SocialHubLayout.TIMELINE) }
                     )
                     SettingChoiceRow(
-                        title = "gruplu",
-                        subtitle = "uygulamalara göre",
+                        title = stringResource(R.string.settings_social_grouped),
+                        subtitle = stringResource(R.string.settings_social_grouped_sub),
                         selected = socialHubLayout == SocialHubLayout.GROUPED,
                         onClick = { onSocialHubLayoutChanged(SocialHubLayout.GROUPED) }
                     )
@@ -530,10 +535,10 @@ internal fun HubSettingsPage(
         }
 
         item(key = "phone") {
-            SettingGroup(title = "telefon hub") {
+            SettingGroup(title = stringResource(R.string.settings_group_phone)) {
                 SettingSwitchRow(
-                    title = "doğrudan arama",
-                    subtitle = if (directCallEnabled) "açık (hemen ara)" else "kapalı (çeviriciye kopyala)",
+                    title = stringResource(R.string.settings_direct_call),
+                    subtitle = if (directCallEnabled) stringResource(R.string.settings_direct_call_on) else stringResource(R.string.settings_direct_call_off),
                     checked = directCallEnabled,
                     onCheckedChange = onDirectCallChanged
                 )
@@ -541,10 +546,10 @@ internal fun HubSettingsPage(
         }
 
         item(key = "internet") {
-            SettingGroup(title = "internet hub") {
+            SettingGroup(title = stringResource(R.string.settings_group_internet)) {
                 SystemSettingRow(
-                    title = "geçmişi temizle",
-                    subtitle = "tarayıcı geçmişini siler",
+                    title = stringResource(R.string.settings_clear_history),
+                    subtitle = stringResource(R.string.settings_clear_history_sub),
                     onClick = {
                         onClearBrowserHistory()
                         showHistoryClearToast = true
@@ -554,10 +559,10 @@ internal fun HubSettingsPage(
         }
 
         item(key = "hub_order") {
-            SettingGroup(title = "ana ekran hub sırası") {
+            SettingGroup(title = stringResource(R.string.settings_hub_order)) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "ana ekrandaki hub başlıklarının sıralamasını yukarı/aşağı butonları ile değiştirin:",
+                        text = stringResource(R.string.settings_hub_order_help),
                         style = MaterialTheme.typography.bodySmall,
                         color = LocalZuneColors.current.textMuted,
                         modifier = Modifier.padding(bottom = 6.dp)
@@ -577,7 +582,7 @@ internal fun HubSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "${index + 1}. ${hubType.title.lowercase()}",
+                                    text = "${index + 1}. ${stringResource(hubType.titleRes).lowercase()}",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 15.sp
@@ -597,7 +602,7 @@ internal fun HubSettingsPage(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.KeyboardArrowUp,
-                                        contentDescription = "Yukarı Taşımak",
+                                        contentDescription = stringResource(R.string.settings_move_up),
                                         tint = MaterialTheme.colorScheme.onBackground
                                     )
                                 }
@@ -615,7 +620,7 @@ internal fun HubSettingsPage(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.KeyboardArrowDown,
-                                        contentDescription = "Aşağı Taşımak",
+                                        contentDescription = stringResource(R.string.settings_move_down),
                                         tint = MaterialTheme.colorScheme.onBackground
                                     )
                                 }
@@ -631,7 +636,7 @@ internal fun HubSettingsPage(
                         border = BorderStroke(1.dp, LocalZuneColors.current.accentColor)
                     ) {
                         Text(
-                            text = "varsayılana sıfırla",
+                            text = stringResource(R.string.settings_reset_default),
                             color = LocalZuneColors.current.accentColor
                         )
                     }
@@ -652,11 +657,11 @@ internal fun NotificationsSettingsPage(
 
     SettingsLazyColumn {
         item(key = "notification_filter") {
-            SettingGroup(title = "bildirim filtreleme") {
+            SettingGroup(title = stringResource(R.string.settings_notification_filter)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
-                        title = "bildirim izinli uygulamalar",
-                        subtitle = if (disabledNotificationApps.isEmpty()) "tüm uygulamalar izinli" else "${disabledNotificationApps.size} uygulama engellendi",
+                        title = stringResource(R.string.settings_notification_apps),
+                        subtitle = if (disabledNotificationApps.isEmpty()) stringResource(R.string.settings_notification_apps_all) else stringResource(R.string.settings_notification_apps_blocked, disabledNotificationApps.size),
                         selected = true,
                         onClick = onOpenAppFilter
                     )
@@ -665,17 +670,17 @@ internal fun NotificationsSettingsPage(
         }
 
         item(key = "notification_style") {
-            SettingGroup(title = "bildirim stili") {
+            SettingGroup(title = stringResource(R.string.settings_notification_style)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
-                        title = "windows phone (pop-up kart)",
-                        subtitle = "üstten kayan kart + aşağı çekince hızlı yanıt",
+                        title = stringResource(R.string.notification_style_wp),
+                        subtitle = stringResource(R.string.settings_notification_wp_sub),
                         selected = notificationStyle == NotificationStyle.WINDOWS_PHONE,
                         onClick = { viewModel.setNotificationStyle(NotificationStyle.WINDOWS_PHONE) }
                     )
                     SettingChoiceRow(
-                        title = "android varsayılan bildirimleri",
-                        subtitle = "sistem bildirimleri kullanılır",
+                        title = stringResource(R.string.notification_style_system),
+                        subtitle = stringResource(R.string.settings_notification_system_sub),
                         selected = notificationStyle == NotificationStyle.SYSTEM,
                         onClick = { viewModel.setNotificationStyle(NotificationStyle.SYSTEM) }
                     )
@@ -683,7 +688,7 @@ internal fun NotificationsSettingsPage(
                     val hasOverlayPermission = android.provider.Settings.canDrawOverlays(context)
                     if (notificationStyle == NotificationStyle.WINDOWS_PHONE && hasOverlayPermission) {
                         Text(
-                            text = "diğer uygulamaların üstünde gösterim açık: WhatsApp gibi uygulamalar açıkken de Windows Phone kartı görünür",
+                            text = stringResource(R.string.settings_overlay_on_info),
                             style = MaterialTheme.typography.bodySmall,
                             color = LocalZuneColors.current.textMuted,
                             modifier = Modifier.padding(top = 4.dp)
@@ -705,7 +710,7 @@ internal fun NotificationsSettingsPage(
                                 contentColor = Color.White
                             )
                         ) {
-                            Text("Üstte Gösterim İzni Ver (Gerekli)")
+                            Text(stringResource(R.string.settings_overlay_grant))
                         }
                     }
 
@@ -720,7 +725,7 @@ internal fun NotificationsSettingsPage(
                         border = BorderStroke(1.dp, currentAccentColor)
                     ) {
                         Text(
-                            text = "test bildirimi gönder",
+                            text = stringResource(R.string.settings_test_notification),
                             color = currentAccentColor
                         )
                     }
@@ -743,11 +748,11 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
 
     SettingsLazyColumn {
         item(key = "screen") {
-            SettingGroup(title = "ekran ve parlaklık") {
+            SettingGroup(title = stringResource(R.string.settings_display_brightness)) {
                 GlassPanel {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
-                            text = "parlaklık",
+                            text = stringResource(R.string.settings_brightness),
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Light
                             ),
@@ -770,17 +775,17 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
         }
 
         item(key = "volume_bar_style") {
-            SettingGroup(title = "ses arayüzü stili") {
+            SettingGroup(title = stringResource(R.string.settings_volume_style)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
-                        title = "windows phone (üst bar)",
-                        subtitle = "ekranın üstünden kayan köşeli wp ses kontrolü",
+                        title = stringResource(R.string.volume_bar_wp),
+                        subtitle = stringResource(R.string.settings_volume_wp_sub),
                         selected = volumeBarStyle == com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE,
                         onClick = { viewModel.setVolumeBarStyle(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE) }
                     )
                     SettingChoiceRow(
-                        title = "android varsayılan ses barı",
-                        subtitle = "sistemin kendi ses paneli kullanılır",
+                        title = stringResource(R.string.volume_bar_system),
+                        subtitle = stringResource(R.string.settings_volume_system_sub),
                         selected = volumeBarStyle == com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM,
                         onClick = { viewModel.setVolumeBarStyle(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM) }
                     )
@@ -791,14 +796,14 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                         val hasKeyService = com.serkantkn.zunelauncher.data.service.ZuneKeyAccessibilityService.isEnabled(ctx)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "diğer uygulamalar açıkken de wp ses barı için iki izin gerekir",
+                            text = stringResource(R.string.settings_volume_permissions_info),
                             style = MaterialTheme.typography.bodySmall,
                             color = LocalZuneColors.current.textMuted
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         SystemSettingRow(
-                            title = "üstte gösterim izni",
-                            subtitle = if (hasOverlay) "verildi" else "ses barının diğer uygulamaların üstünde çizilmesi için",
+                            title = stringResource(R.string.settings_overlay_permission),
+                            subtitle = if (hasOverlay) stringResource(R.string.settings_permission_granted) else stringResource(R.string.settings_overlay_permission_sub),
                             isActive = hasOverlay,
                             onClick = {
                                 ctx.startActivity(
@@ -810,8 +815,8 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                             }
                         )
                         SystemSettingRow(
-                            title = "ses tuşlarını yakalama (erişilebilirlik)",
-                            subtitle = if (hasKeyService) "etkin" else "Z Launcher ses tuşları servisini erişilebilirlik ayarlarından aç",
+                            title = stringResource(R.string.settings_key_service),
+                            subtitle = if (hasKeyService) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_key_service_sub),
                             isActive = hasKeyService,
                             onClick = { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
                         )
@@ -821,11 +826,11 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
         }
 
         item(key = "volume") {
-            SettingGroup(title = "ses seviyeleri") {
+            SettingGroup(title = stringResource(R.string.settings_volume_levels)) {
                 GlassPanel {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
-                            text = "medya sesi",
+                            text = stringResource(R.string.settings_media_volume),
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Light
                             ),
@@ -846,7 +851,7 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = "zil sesi",
+                            text = stringResource(R.string.settings_ring_volume),
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Light
                             ),
@@ -874,16 +879,16 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
 internal fun ConnectivitySettingsPage(viewModel: SettingsViewModel) {
     SettingsLazyColumn {
         item(key = "connections") {
-            SettingGroup(title = "bağlantılar") {
+            SettingGroup(title = stringResource(R.string.settings_tab_connectivity)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SystemSettingRow(
-                        title = "wi-fi",
-                        subtitle = "ağları yönet",
+                        title = stringResource(R.string.settings_wifi),
+                        subtitle = stringResource(R.string.settings_wifi_sub),
                         onClick = viewModel::openWifiSettings
                     )
                     SystemSettingRow(
-                        title = "bluetooth",
-                        subtitle = "cihazları eşleştir",
+                        title = stringResource(R.string.settings_bluetooth),
+                        subtitle = stringResource(R.string.settings_bluetooth_sub),
                         onClick = viewModel::openBluetoothSettings
                     )
                 }
@@ -960,14 +965,35 @@ internal fun SystemSettingsPage(
         viewModel.refreshSystemSettings()
     }
 
+    val appLanguage by viewModel.appLanguage.collectAsState()
+
     SettingsLazyColumn {
 
+        item(key = "language") {
+            SettingGroup(title = stringResource(R.string.settings_language)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppLanguage.entries.forEach { language ->
+                        SettingChoiceRow(
+                            title = stringResource(language.titleRes),
+                            subtitle = if (language == AppLanguage.SYSTEM) stringResource(R.string.settings_language_subtitle) else "",
+                            selected = appLanguage == language,
+                            onClick = {
+                                if (appLanguage != language && viewModel.setAppLanguage(language)) {
+                                    context.findActivity()?.recreate()
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
         item(key = "date_time") {
-            SettingGroup(title = "tarih ve saat") {
+            SettingGroup(title = stringResource(R.string.settings_date_time)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SystemSettingRow(
-                        title = "tarih+saat ayarları",
-                        subtitle = "ana ekran saat ve tarih formatını değiştirin",
+                        title = stringResource(R.string.settings_date_time_title),
+                        subtitle = stringResource(R.string.settings_date_time_sub),
                         onClick = onOpenDateTimeSettings
                     )
                 }
@@ -975,35 +1001,35 @@ internal fun SystemSettingsPage(
         }
 
         item(key = "device") {
-            SettingGroup(title = "cihaz") {
+            SettingGroup(title = stringResource(R.string.settings_device)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SystemSettingRow(
-                        title = "varsayılan telefon uygulaması",
-                        subtitle = "arama ve çevirici uygulaması",
+                        title = stringResource(R.string.settings_default_phone),
+                        subtitle = stringResource(R.string.settings_default_phone_sub),
                         isActive = isDefaultDialer,
                         onClick = { viewModel.requestDefaultPhoneApp(context, roleLauncher) }
                     )
                     SystemSettingRow(
-                        title = "varsayılan sms uygulaması",
-                        subtitle = "mesajlaşma uygulaması",
+                        title = stringResource(R.string.settings_default_sms),
+                        subtitle = stringResource(R.string.settings_default_sms_sub),
                         isActive = isDefaultSms,
                         onClick = { viewModel.requestDefaultSmsApp(context, roleLauncher) }
                     )
                     SystemSettingRow(
-                        title = "varsayılan internet tarayıcısı",
-                        subtitle = "web tarayıcı uygulaması",
+                        title = stringResource(R.string.settings_default_browser),
+                        subtitle = stringResource(R.string.settings_default_browser_sub),
                         isActive = isDefaultBrowser,
                         onClick = { viewModel.requestDefaultBrowserApp(context, roleLauncher) }
                     )
                     SystemSettingRow(
-                        title = "varsayılan launcher",
-                        subtitle = "ana ekran uygulaması",
+                        title = stringResource(R.string.settings_default_launcher),
+                        subtitle = stringResource(R.string.settings_default_launcher_sub),
                         isActive = isDefaultLauncher,
                         onClick = viewModel::openDefaultAppsSettings
                     )
                     SystemSettingRow(
-                        title = "bildirim erişimi",
-                        subtitle = "social hub izinleri",
+                        title = stringResource(R.string.settings_notification_access),
+                        subtitle = stringResource(R.string.settings_notification_access_sub),
                         isActive = hasNotificationAccess,
                         onClick = viewModel::openNotificationAccessSettings
                     )
@@ -1061,10 +1087,10 @@ internal fun AboutSettingsPage() {
 
     SettingsLazyColumn {
         item(key = "about") {
-            SettingGroup(title = "zune launcher") {
+            SettingGroup(title = stringResource(R.string.settings_about_group)) {
                 Column(modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)) {
                     Text(
-                        text = "sürüm 1.0",
+                        text = stringResource(R.string.settings_version),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Normal,
                             fontSize = 20.sp
@@ -1073,7 +1099,7 @@ internal fun AboutSettingsPage() {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "microsoft zune hd ve windows phone metro tasarımından ilham alınmıştır",
+                        text = stringResource(R.string.settings_about_inspired),
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
                         color = LocalZuneColors.current.textMuted
                     )
@@ -1082,18 +1108,18 @@ internal fun AboutSettingsPage() {
         }
 
         item(key = "permissions") {
-            SettingGroup(title = "uygulamaya verilen izinler") {
+            SettingGroup(title = stringResource(R.string.settings_permissions_group)) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "uygulamanın tüm özelliklerini sorunsuz kullanabilmek için aşağıdaki izinleri kontrol edebilir ve değiştirebilirsiniz:",
+                        text = stringResource(R.string.settings_permissions_help),
                         style = MaterialTheme.typography.bodySmall,
                         color = LocalZuneColors.current.textMuted,
                         modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
                     )
 
                     SettingSwitchRow(
-                        title = "kişiler erişimi",
-                        subtitle = "kişiler hubı ve telefon rehberi eşleştirmeleri için",
+                        title = stringResource(R.string.settings_perm_contacts),
+                        subtitle = stringResource(R.string.settings_perm_contacts_sub),
                         checked = hasContacts,
                         onCheckedChange = {
                             if (!hasContacts) {
@@ -1105,8 +1131,8 @@ internal fun AboutSettingsPage() {
                     )
 
                     SettingSwitchRow(
-                        title = "arama kayıtları",
-                        subtitle = "telefon hubında son aramaları ve geçmişi göstermek için",
+                        title = stringResource(R.string.settings_perm_call_log),
+                        subtitle = stringResource(R.string.settings_perm_call_log_sub),
                         checked = hasCallLog,
                         onCheckedChange = {
                             if (!hasCallLog) {
@@ -1118,8 +1144,8 @@ internal fun AboutSettingsPage() {
                     )
 
                     SettingSwitchRow(
-                        title = "sms ve mesajlaşma",
-                        subtitle = "mesajlar hubında sms almak ve yanıtlamak için",
+                        title = stringResource(R.string.settings_perm_sms),
+                        subtitle = stringResource(R.string.settings_perm_sms_sub),
                         checked = hasSms,
                         onCheckedChange = {
                             if (!hasSms) {
@@ -1136,8 +1162,8 @@ internal fun AboutSettingsPage() {
                     )
 
                     SettingSwitchRow(
-                        title = "dosya ve depolama",
-                        subtitle = "dosyalar hubı ve özel duvar kağıdı yüklemek için",
+                        title = stringResource(R.string.settings_perm_storage),
+                        subtitle = stringResource(R.string.settings_perm_storage_sub),
                         checked = hasStorage,
                         onCheckedChange = {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -1157,8 +1183,8 @@ internal fun AboutSettingsPage() {
                     )
 
                     SettingSwitchRow(
-                        title = "bildirim dinleme izni",
-                        subtitle = "social hub ve kilit ekranında canlı bildirimler için",
+                        title = stringResource(R.string.settings_perm_notification_listener),
+                        subtitle = stringResource(R.string.settings_perm_notification_listener_sub),
                         checked = hasNotificationAccess,
                         onCheckedChange = {
                             try {
@@ -1171,8 +1197,8 @@ internal fun AboutSettingsPage() {
                     )
 
                     SettingSwitchRow(
-                        title = "üstte gösterim izni",
-                        subtitle = "windows phone tarzı pop-up kartlar ve bildirim paneli için",
+                        title = stringResource(R.string.settings_overlay_permission),
+                        subtitle = stringResource(R.string.settings_perm_overlay_sub),
                         checked = hasOverlayAccess,
                         onCheckedChange = {
                             try {
@@ -1200,6 +1226,6 @@ private fun openAppSettings(context: android.content.Context) {
         )
         context.startActivity(intent)
     } catch (e: Exception) {
-        e.printStackTrace()
+        ZuneLog.e("SettingsPages", "openAppSettings failed", e)
     }
 }

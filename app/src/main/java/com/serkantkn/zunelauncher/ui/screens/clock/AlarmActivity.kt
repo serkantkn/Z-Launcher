@@ -1,5 +1,8 @@
 package com.serkantkn.zunelauncher.ui.screens.clock
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
+import com.serkantkn.zunelauncher.util.AppLocale
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.RingtoneManager
@@ -14,7 +17,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import android.content.pm.ActivityInfo
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,20 +26,22 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.ui.theme.ZuneLauncherTheme
-import kotlinx.coroutines.delay
 
 class AlarmActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
 
     private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
@@ -69,7 +73,8 @@ class AlarmActivity : ComponentActivity() {
         startAlarmSoundAndVibration()
 
         setContent {
-            ZuneLauncherTheme {
+            val fontScale by appContainer.settingsDataStore.fontScale.collectAsState(initial = 1.0f)
+            ZuneLauncherTheme(fontScale = fontScale) {
                 AlarmScreen(
                     label = label,
                     onDismiss = {
@@ -138,7 +143,7 @@ fun AlarmScreen(label: String, onDismiss: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "WAKE UP",
+                text = stringResource(R.string.alarm_wake_up),
                 style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold),
                 color = Color.White
             )
@@ -152,7 +157,7 @@ fun AlarmScreen(label: String, onDismiss: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(64.dp))
             Button(onClick = onDismiss) {
-                Text("Dismiss")
+                Text(stringResource(R.string.alarm_dismiss))
             }
         }
     }

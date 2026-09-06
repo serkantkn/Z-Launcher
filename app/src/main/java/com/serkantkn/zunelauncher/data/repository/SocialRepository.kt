@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.data.repository
 
+import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.app.RemoteInput
 import android.content.Context
 import android.content.Intent
@@ -83,7 +85,7 @@ object SocialRepository {
 
     fun sendReply(context: Context, replyAction: ReplyAction, replyText: String): Boolean {
         if (replyAction.remoteInputResultKey == "test_reply_key") {
-            android.widget.Toast.makeText(context, "Test yanıtı gönderildi: \"$replyText\"", android.widget.Toast.LENGTH_LONG).show()
+            android.widget.Toast.makeText(context, context.getString(R.string.social_test_reply_sent, replyText), android.widget.Toast.LENGTH_LONG).show()
             return true
         }
         return try {
@@ -98,7 +100,7 @@ object SocialRepository {
             replyAction.pendingIntent.send(context, 0, intent)
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            ZuneLog.e("SocialRepository", "sendReply failed", e)
             false
         }
     }
@@ -109,7 +111,7 @@ object SocialRepository {
             packageName = "com.whatsapp",
             appName = "WhatsApp",
             title = "Ahmet Yılmaz",
-            text = "Selam! Windows Phone bildirim kartı harika görünüyor. Bu kartı aşağı sürükleyerek bana hızlı yanıt yazmayı deneyebilirsin!",
+            text = context.getString(R.string.social_test_message),
             timestamp = System.currentTimeMillis(),
             icon = null,
             replyAction = ReplyAction(

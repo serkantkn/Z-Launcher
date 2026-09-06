@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.apps
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.drawable.Drawable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -29,7 +31,6 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -56,7 +57,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,7 +74,6 @@ import androidx.compose.ui.graphics.Shadow
 import com.serkantkn.zunelauncher.util.toImageBitmap
 import kotlinx.coroutines.launch
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -185,7 +184,7 @@ fun AppsHubScreen(
                 )
         ) {
             Text(
-                text = "uygulamalar",
+                text = stringResource(R.string.apps_hub),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Medium,
                     fontSize = 18.sp,
@@ -204,7 +203,7 @@ fun AppsHubScreen(
                 modifier = Modifier
                     .w10mStaggeredAnimation(animationProgress.value, 1)
                     .padding(bottom = ZuneDimens.SpacingLg),
-                placeholder = "uygulama ara"
+                placeholder = stringResource(R.string.search_apps)
             )
 
             // App list
@@ -265,7 +264,7 @@ fun AppsHubScreen(
                                     isFavorite = isFavorite,
                                     onToggleFavorite = {
                                         if (!isFavorite && !com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM && favoritePackages.size >= 10) {
-                                            android.widget.Toast.makeText(context, "Ücretsiz sürümde en fazla 10 favori uygulama ekleyebilirsiniz. Sınırı kaldırmak için Z Launcher Pro'ya geçin.", android.widget.Toast.LENGTH_SHORT).show()
+                                            android.widget.Toast.makeText(context, context.getString(R.string.apps_favorites_limit), android.widget.Toast.LENGTH_SHORT).show()
                                         } else {
                                             viewModel.toggleFavorite(pkg)
                                         }
@@ -344,7 +343,7 @@ private fun AccordionMenu(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = if (isFavorite) "favorilerden kaldır" else "favorilere ekle",
+                text = if (isFavorite) stringResource(R.string.apps_remove_favorite) else stringResource(R.string.apps_add_favorite),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )

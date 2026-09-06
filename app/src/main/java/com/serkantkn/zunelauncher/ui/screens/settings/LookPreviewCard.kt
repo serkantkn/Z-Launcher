@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
@@ -107,7 +109,7 @@ fun LookPreviewCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "önizleme",
+                text = stringResource(R.string.settings_preview),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -209,7 +211,7 @@ fun LookPreviewCard(
                                 ) {
                                     MiniTile(
                                         icon = Icons.Default.Image,
-                                        label = "fotoğraflar",
+                                        label = stringResource(R.string.pictures_hub),
                                         badge = null,
                                         accentColor = animatedAccentColor,
                                         tileShape = tileShape,
@@ -242,7 +244,7 @@ fun LookPreviewCard(
                                 // Row 3: 1 Full Wide Tile
                                 MiniTile(
                                     icon = Icons.Default.MusicNote,
-                                    label = "müzik",
+                                    label = stringResource(R.string.music_hub),
                                     badge = null,
                                     accentColor = animatedAccentColor,
                                     tileShape = tileShape,
@@ -264,7 +266,7 @@ fun LookPreviewCard(
                                 ) {
                                     MiniTile(
                                         icon = Icons.Default.Call,
-                                        label = "telefon",
+                                        label = stringResource(R.string.hub_phone),
                                         badge = null,
                                         accentColor = animatedAccentColor,
                                         tileShape = tileShape,
@@ -277,7 +279,7 @@ fun LookPreviewCard(
 
                                     MiniTile(
                                         icon = Icons.Default.Email,
-                                        label = "mesajlar",
+                                        label = stringResource(R.string.hub_messaging),
                                         badge = "2",
                                         accentColor = animatedAccentColor,
                                         tileShape = tileShape,
@@ -292,7 +294,7 @@ fun LookPreviewCard(
                                 // Row 2: 1 Wide Tile (Photos)
                                 MiniTile(
                                     icon = Icons.Default.Image,
-                                    label = "fotoğraflar",
+                                    label = stringResource(R.string.pictures_hub),
                                     badge = null,
                                     accentColor = animatedAccentColor,
                                     tileShape = tileShape,
@@ -310,7 +312,7 @@ fun LookPreviewCard(
                                 ) {
                                     MiniTile(
                                         icon = Icons.Default.MusicNote,
-                                        label = "müzik",
+                                        label = stringResource(R.string.music_hub),
                                         badge = null,
                                         accentColor = animatedAccentColor,
                                         tileShape = tileShape,
@@ -375,7 +377,7 @@ fun LookPreviewCard(
                                     letterSpacing = (-1).sp
                                 )
                                 Text(
-                                    text = "Salı, 18 Ağustos",
+                                    text = stringResource(R.string.settings_preview_date),
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Normal,
                                     color = textMuted
@@ -383,10 +385,10 @@ fun LookPreviewCard(
                             }
 
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(text = "müzik", fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
-                                Text(text = "kişiler", fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
-                                Text(text = "fotoğraflar", fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
-                                Text(text = "mesajlar", fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
+                                Text(text = stringResource(R.string.music_hub), fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
+                                Text(text = stringResource(R.string.people_hub), fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
+                                Text(text = stringResource(R.string.pictures_hub), fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
+                                Text(text = stringResource(R.string.hub_messaging), fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
                             }
                         }
 

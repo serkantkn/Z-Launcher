@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.media.AudioManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -11,12 +13,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Notifications
@@ -40,7 +39,6 @@ import com.serkantkn.zunelauncher.data.service.VolumeController
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * Windows Phone 8.1 / Windows 10 Mobile style Volume Bar.
@@ -198,7 +196,7 @@ fun WpVolumeControl(
                             }
                             Icon(
                                 imageVector = ringerIcon,
-                                contentDescription = "Zil Modu",
+                                contentDescription = stringResource(R.string.volume_ring_mode),
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -213,7 +211,7 @@ fun WpVolumeControl(
                         ) {
                             Icon(
                                 imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Genişlet",
+                                contentDescription = stringResource(R.string.volume_expand),
                                 tint = Color.White,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -258,7 +256,7 @@ fun WpVolumeControl(
                             )
 
                             Text(
-                                text = "ZİL SESİ + BİLDİRİMLER",
+                                text = stringResource(R.string.volume_ring_notifications),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 11.sp,

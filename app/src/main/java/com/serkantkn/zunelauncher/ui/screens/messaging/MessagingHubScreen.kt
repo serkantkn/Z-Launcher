@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -49,6 +51,7 @@ import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -62,6 +65,7 @@ fun MessagingHubScreen(
     modifier: Modifier = Modifier,
     viewModel: MessagingHubViewModel = viewModel()
 ) {
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
@@ -174,34 +178,29 @@ fun MessagingHubScreen(
         }
     }
 
-    val bottomBarActions = remember {
-        listOf(
+    val bottomBarActions = listOf(
             WpBarAction(
                 icon = Icons.Default.Add,
-                label = "yeni mesaj",
+                label = stringResource(R.string.msg_new),
                 onClick = { openContactPickerWithAnimation() }
             ),
             WpBarAction(
                 icon = Icons.Default.Search,
-                label = "ara",
+                label = stringResource(R.string.common_search),
                 onClick = { isSearchActive = !isSearchActive }
             )
         )
-    }
 
-    val bottomBarMenuItems = remember {
-        listOf(
+    val bottomBarMenuItems = listOf(
             WpBarMenuItem(
-                text = "yenile",
+                text = stringResource(R.string.common_refresh),
                 onClick = { viewModel.loadConversations(context) }
             )
         )
-    }
 
     ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
         Box(modifier = Modifier.fillMaxSize()) {
             val density = LocalDensity.current
-            val overflowYPx = with(density) { (-24).dp.toPx() }
 
             if (isWideScreen) {
                 // ─── TABLET DUAL-PANE LAYOUT WITH 3D LEFT-EDGE HINGE ANIMATION ───
@@ -217,19 +216,7 @@ fun MessagingHubScreen(
                         }
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        Text(
-                            text = "mesajlar",
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.Light,
-                                fontSize = 96.sp,
-                                letterSpacing = (-4).sp,
-                                lineHeight = 96.sp
-                            ),
-                            color = if (zuneColors.isDark) Color.White else Color.Black,
-                            modifier = Modifier
-                                .padding(start = 72.dp, top = 4.dp, bottom = 24.dp)
-                                .graphicsLayer { translationY = overflowYPx }
-                        )
+                        ZuneWideHubTitle(text = stringResource(R.string.hub_messaging))
 
                         if (!hasPermission) {
                             PermissionRequestCard(
@@ -266,6 +253,7 @@ fun MessagingHubScreen(
                                     }
 
                                     ThreadsPage(
+                                        errorMessage = errorMessage,
                                         conversations = conversations,
                                         searchQuery = searchQuery,
                                         onConversationClick = { conv -> openConversationWithAnimation(conv) }
@@ -303,7 +291,7 @@ fun MessagingHubScreen(
                                                 )
                                                 Spacer(modifier = Modifier.height(16.dp))
                                                 Text(
-                                                    text = "sohbet seçin",
+                                                    text = stringResource(R.string.msg_pick_conversation),
                                                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light),
                                                     color = zuneColors.textMuted
                                                 )
@@ -359,9 +347,9 @@ fun MessagingHubScreen(
                         }
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        // Top Label ("mesajlar")
+                        // Top Label (stringResource(R.string.hub_messaging))
                         Text(
-                            text = "mesajlar",
+                            text = stringResource(R.string.hub_messaging),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 18.sp,
@@ -378,9 +366,9 @@ fun MessagingHubScreen(
                             )
                         )
 
-                        // Main Header ("sohbetler")
+                        // Main Header (stringResource(R.string.msg_conversations))
                         Text(
-                            text = "sohbetler",
+                            text = stringResource(R.string.msg_conversations),
                             style = MaterialTheme.typography.displayLarge.copy(
                                 fontWeight = FontWeight.Light,
                                 fontSize = 72.sp,
@@ -428,6 +416,7 @@ fun MessagingHubScreen(
                                 )
                             } else {
                                 ThreadsPage(
+                                    errorMessage = errorMessage,
                                     conversations = conversations,
                                     searchQuery = searchQuery,
                                     onConversationClick = { conv -> openConversationWithAnimation(conv) }
@@ -555,7 +544,7 @@ private fun SearchBar(
             Box(modifier = Modifier.weight(1f)) {
                 if (query.isEmpty()) {
                     Text(
-                        text = "sohbetlerde ara...",
+                        text = stringResource(R.string.msg_search_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = hintColor
                     )
@@ -580,6 +569,7 @@ private fun SearchBar(
 @Composable
 private fun ThreadsPage(
     conversations: List<SmsConversationModel>,
+    errorMessage: String?,
     searchQuery: String,
     onConversationClick: (SmsConversationModel) -> Unit
 ) {
@@ -600,7 +590,7 @@ private fun ThreadsPage(
         if (filteredConversations.isEmpty()) {
             item {
                 Text(
-                    text = if (searchQuery.isNotBlank()) "sonuç bulunamadı" else "mesaj geçmişi boş",
+                    text = errorMessage?.let { stringResource(R.string.msg_load_failed, it) } ?: if (searchQuery.isNotBlank()) stringResource(R.string.common_no_results) else stringResource(R.string.msg_history_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = LocalZuneColors.current.textDim,
                     modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
@@ -707,7 +697,7 @@ private fun ContactPickerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "kişi seçin",
+                    text = stringResource(R.string.msg_pick_contact),
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 36.sp
@@ -718,7 +708,7 @@ private fun ContactPickerScreen(
                 IconButton(onClick = onClose) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.common_close_cap),
                         tint = if (zuneColors.isDark) Color.White else Color.Black
                     )
                 }
@@ -834,7 +824,7 @@ private fun ConversationDetailContent(
             IconButton(onClick = onClose) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Kapat",
+                    contentDescription = stringResource(R.string.common_close_cap),
                     tint = if (zuneColors.isDark) Color.White else Color.Black
                 )
             }
@@ -850,7 +840,7 @@ private fun ConversationDetailContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "henüz mesaj yok, sohbet başlatın",
+                    text = stringResource(R.string.msg_no_messages),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
                     color = zuneColors.textMuted
                 )
@@ -901,7 +891,7 @@ private fun ConversationDetailContent(
             OutlinedTextField(
                 value = inputMessage,
                 onValueChange = { inputMessage = it },
-                placeholder = { Text("mesaj yazın...", color = zuneColors.textMuted) },
+                placeholder = { Text(stringResource(R.string.msg_type_hint), color = zuneColors.textMuted) },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(2.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -927,7 +917,7 @@ private fun ConversationDetailContent(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Gönder",
+                    contentDescription = stringResource(R.string.msg_send_cap),
                     tint = Color.White
                 )
             }
@@ -949,13 +939,13 @@ private fun PermissionRequestCard(onGrant: () -> Unit) {
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "SMS ve Kişiler İzni Gerekli",
+                text = stringResource(R.string.msg_permission_title),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = if (zuneColors.isDark) Color.White else Color.Black
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "SMS mesajlarınızı ve rehberinizi Zune tarzında görüntüleyebilmek için erişim izni verin.",
+                text = stringResource(R.string.msg_permission_message),
                 style = MaterialTheme.typography.bodyMedium,
                 color = zuneColors.textMuted
             )
@@ -968,7 +958,7 @@ private fun PermissionRequestCard(onGrant: () -> Unit) {
                 ),
                 shape = RoundedCornerShape(2.dp)
             ) {
-                Text("İzinleri Ver")
+                Text(stringResource(R.string.msg_permission_button))
             }
         }
     }

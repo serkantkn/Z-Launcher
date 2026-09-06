@@ -1,12 +1,12 @@
 package com.serkantkn.zunelauncher.ui.screens.pictures
 
+import com.serkantkn.zunelauncher.R
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
+import com.serkantkn.zunelauncher.util.ZuneLog
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.RotateLeft
 import androidx.compose.material.icons.automirrored.filled.RotateRight
@@ -42,13 +41,11 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Flip
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Rotate90DegreesCw
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,7 +68,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,19 +81,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
-private enum class EditorTool(val label: String) {
-    CROP("kırp"),
-    ROTATE("döndür"),
-    MIRROR("aynala")
+private enum class EditorTool(@StringRes val labelRes: Int) {
+    CROP(R.string.editor_crop),
+    ROTATE(R.string.editor_rotate),
+    MIRROR(R.string.editor_mirror)
 }
 
-private enum class CropAspectRatio(val label: String, val ratio: Float?) {
-    FREE("serbest", null),
-    SQUARE("1:1 kare", 1f),
-    RATIO_4_3("4:3", 4f / 3f),
-    RATIO_3_4("3:4", 3f / 4f),
-    RATIO_16_9("16:9", 16f / 9f),
-    RATIO_9_16("9:16", 9f / 16f)
+private enum class CropAspectRatio(@StringRes val labelRes: Int, val ratio: Float?) {
+    FREE(R.string.editor_ratio_free, null),
+    SQUARE(R.string.editor_ratio_square, 1f),
+    RATIO_4_3(R.string.editor_ratio_4_3, 4f / 3f),
+    RATIO_3_4(R.string.editor_ratio_3_4, 3f / 4f),
+    RATIO_16_9(R.string.editor_ratio_16_9, 16f / 9f),
+    RATIO_9_16(R.string.editor_ratio_9_16, 9f / 16f)
 }
 
 /**
@@ -213,7 +209,7 @@ fun PhotoEditorScreen(
                     onSave(finalBitmap)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                ZuneLog.e("PhotoEditorScreen", "applyAndExport failed", e)
                 withContext(Dispatchers.Main) {
                     isSaving = false
                 }
@@ -238,7 +234,7 @@ fun PhotoEditorScreen(
             ) {
                 Column {
                     Text(
-                        text = "FOTOĞRAFLAR",
+                        text = stringResource(R.string.pictures_hub).uppercase(),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
@@ -247,7 +243,7 @@ fun PhotoEditorScreen(
                         color = zuneColors.accentColor
                     )
                     Text(
-                        text = "düzenle",
+                        text = stringResource(R.string.common_edit),
                         style = MaterialTheme.typography.displayMedium.copy(
                             fontWeight = FontWeight.Light,
                             fontSize = 42.sp,
@@ -266,7 +262,7 @@ fun PhotoEditorScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.common_close_cap),
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
@@ -328,7 +324,7 @@ fun PhotoEditorScreen(
                             // Base Image
                             Image(
                                 bitmap = previewBitmap.asImageBitmap(),
-                                contentDescription = "Önizleme",
+                                contentDescription = stringResource(R.string.editor_preview),
                                 modifier = Modifier.fillMaxSize()
                             )
 
@@ -362,7 +358,7 @@ fun PhotoEditorScreen(
                             CropAspectRatio.entries.forEach { ratioOption ->
                                 val isSelected = selectedAspectRatio == ratioOption
                                 Text(
-                                    text = ratioOption.label,
+                                    text = stringResource(ratioOption.labelRes),
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                         fontSize = 15.sp
@@ -384,21 +380,21 @@ fun PhotoEditorScreen(
                         ) {
                             WpSubToolTextButton(
                                 icon = Icons.AutoMirrored.Filled.RotateLeft,
-                                label = "90° sola",
+                                label = stringResource(R.string.editor_rotate_left),
                                 onClick = {
                                     rotationAngle = (rotationAngle - 90f + 360f) % 360f
                                 }
                             )
                             WpSubToolTextButton(
                                 icon = Icons.AutoMirrored.Filled.RotateRight,
-                                label = "90° sağa",
+                                label = stringResource(R.string.editor_rotate_right),
                                 onClick = {
                                     rotationAngle = (rotationAngle + 90f) % 360f
                                 }
                             )
                             WpSubToolTextButton(
                                 icon = Icons.Default.Rotate90DegreesCw,
-                                label = "180° çevir",
+                                label = stringResource(R.string.editor_rotate_180),
                                 onClick = {
                                     rotationAngle = (rotationAngle + 180f) % 360f
                                 }
@@ -414,13 +410,13 @@ fun PhotoEditorScreen(
                         ) {
                             WpSubToolTextButton(
                                 icon = Icons.Default.Flip,
-                                label = "yatay aynala ↔",
+                                label = stringResource(R.string.editor_mirror_h),
                                 isSelected = flipHorizontal,
                                 onClick = { flipHorizontal = !flipHorizontal }
                             )
                             WpSubToolTextButton(
                                 icon = Icons.Default.Flip,
-                                label = "dikey aynala ↕",
+                                label = stringResource(R.string.editor_mirror_v),
                                 isSelected = flipVertical,
                                 onClick = { flipVertical = !flipVertical }
                             )
@@ -434,32 +430,32 @@ fun PhotoEditorScreen(
                 actions = listOf(
                     WpBarAction(
                         icon = Icons.Default.Check,
-                        label = if (isSaving) "kaydediliyor" else "kaydet",
+                        label = if (isSaving) stringResource(R.string.editor_saving) else stringResource(R.string.common_save),
                         onClick = { if (!isSaving) applyAndExport() }
                     ),
                     WpBarAction(
                         icon = Icons.Default.Crop,
-                        label = "kırp",
+                        label = stringResource(R.string.editor_crop),
                         onClick = { activeTool = EditorTool.CROP }
                     ),
                     WpBarAction(
                         icon = Icons.AutoMirrored.Filled.RotateRight,
-                        label = "döndür",
+                        label = stringResource(R.string.editor_rotate),
                         onClick = { activeTool = EditorTool.ROTATE }
                     ),
                     WpBarAction(
                         icon = Icons.Default.Flip,
-                        label = "aynala",
+                        label = stringResource(R.string.editor_mirror),
                         onClick = { activeTool = EditorTool.MIRROR }
                     )
                 ),
                 menuItems = listOf(
                     WpBarMenuItem(
-                        text = "tümünü sıfırla",
+                        text = stringResource(R.string.editor_reset_all),
                         onClick = { resetAll() }
                     ),
                     WpBarMenuItem(
-                        text = "iptal et",
+                        text = stringResource(R.string.editor_cancel),
                         onClick = onCancel
                     )
                 )
@@ -767,7 +763,7 @@ private fun decodeBitmapWithExif(context: android.content.Context, uri: android.
         }
         orientedBitmap
     } catch (e: Exception) {
-        e.printStackTrace()
+        ZuneLog.e("PhotoEditorScreen", "decodeBitmapWithExif failed", e)
         null
     }
 }
