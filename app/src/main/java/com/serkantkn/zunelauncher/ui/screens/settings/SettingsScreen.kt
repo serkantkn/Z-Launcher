@@ -48,6 +48,7 @@ private enum class SettingsTab(@StringRes val titleRes: Int) {
     HUBS(R.string.settings_tab_hubs),
     NOTIFICATIONS(R.string.settings_tab_notifications),
     DISPLAY_AND_SOUND(R.string.settings_tab_display_sound),
+    KEYBOARD(R.string.settings_tab_keyboard),
     CONNECTIVITY(R.string.settings_tab_connectivity),
     SYSTEM(R.string.settings_tab_system),
     ABOUT(R.string.settings_tab_about)
@@ -71,7 +72,11 @@ fun SettingsScreen(
 
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
-    val tabs = SettingsTab.entries
+    val tabs = remember {
+        SettingsTab.entries.filter {
+            it != SettingsTab.KEYBOARD || com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM
+        }
+    }
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
     val targetTab by viewModel.targetTab.collectAsState()
 
@@ -186,6 +191,7 @@ fun SettingsScreen(
                                     onOpenAppFilter = { openAppFilter() }
                                 )
                                 SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
+                                SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
                                 SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
                                 SettingsTab.SYSTEM -> SystemSettingsPage(viewModel = viewModel)
                                 SettingsTab.ABOUT -> AboutSettingsPage()
@@ -251,6 +257,7 @@ fun SettingsScreen(
                                     onOpenAppFilter = { openAppFilter() }
                                 )
                                 SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
+                                SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
                                 SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
                                 SettingsTab.SYSTEM -> SystemSettingsPage(
                                     viewModel = viewModel,

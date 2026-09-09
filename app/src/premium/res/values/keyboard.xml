@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The system-wide Z keyboard is a premium feature; the service is disabled in the free build. -->
+    <bool name="zune_keyboard_enabled">true</bool>
+</resources>

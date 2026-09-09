@@ -45,6 +45,7 @@ import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.ui.components.ZunePivotHeader
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import java.text.SimpleDateFormat
 import java.util.*
@@ -127,14 +128,8 @@ fun PhoneHubScreen(
                 )
             )
 
-            Text(
+            ZunePivotHeader(
                 text = stringResource(R.string.common_history),
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontWeight = FontWeight.Light,
-                    fontSize = 72.sp,
-                    letterSpacing = (-3).sp
-                ),
-                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(
                     bottom = 12.dp,
                     start = ZuneDimens.ScreenPaddingHorizontal,

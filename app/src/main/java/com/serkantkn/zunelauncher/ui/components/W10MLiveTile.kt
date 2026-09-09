@@ -473,7 +473,7 @@ fun W10MCalendarTile(
                     Spacer(modifier = Modifier.width(if (span >= 4) 14.dp else 8.dp))
                     // Next appointment (right / below)
                     Column(
-                        modifier = Modifier.padding(top = if (span >= 4) 4.dp else 12.dp),
+                        modifier = Modifier.weight(1f).padding(top = if (span >= 4) 4.dp else 12.dp),
                         verticalArrangement = Arrangement.spacedBy(1.dp)
                     ) {
                         if (next != null) {

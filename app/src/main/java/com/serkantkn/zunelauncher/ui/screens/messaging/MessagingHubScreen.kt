@@ -54,6 +54,7 @@ import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.ui.components.ZunePivotHeader
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -367,14 +368,8 @@ fun MessagingHubScreen(
                         )
 
                         // Main Header (stringResource(R.string.msg_conversations))
-                        Text(
+                        ZunePivotHeader(
                             text = stringResource(R.string.msg_conversations),
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.Light,
-                                fontSize = 72.sp,
-                                letterSpacing = (-3).sp
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(
                                 bottom = 12.dp,
                                 start = ZuneDimens.ScreenPaddingHorizontal,

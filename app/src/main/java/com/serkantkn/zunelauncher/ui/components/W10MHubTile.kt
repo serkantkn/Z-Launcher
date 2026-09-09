@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
@@ -72,6 +73,7 @@ private fun getHubIcon(hubType: HubType): ImageVector {
         HubType.FILES -> Icons.Default.Folder
         HubType.NOTES -> Icons.Default.StickyNote2
         HubType.EMAIL -> Icons.Default.Mail
+        HubType.CALCULATOR -> Icons.Default.Calculate
         HubType.SETTINGS -> Icons.Default.Settings
         HubType.CLOCK -> Icons.Default.Schedule
         HubType.CALENDAR -> Icons.Default.CalendarMonth
@@ -461,7 +463,7 @@ fun Modifier.w10mTileSize(
         span == 1 -> width
         span == 2 -> width
         span == 4 -> ((width - spacingPx) / 2).coerceAtLeast(1)
-        span >= 8 -> ((width - 3 * spacingPx) / 4).coerceAtLeast(1)
+        span >= 8 -> width   // large 4x4: square
         else -> width
     }
     val placeable = measurable.measure(

@@ -38,7 +38,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.result.IntentSenderRequest
+import androidx.compose.foundation.BorderStroke
+import com.serkantkn.zunelauncher.data.model.CloudAccount
+import com.serkantkn.zunelauncher.data.model.CloudCrumb
+import com.serkantkn.zunelauncher.data.model.CloudItem
 import com.serkantkn.zunelauncher.data.model.FileItemModel
+import com.serkantkn.zunelauncher.data.repository.CloudAuthBridge
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
@@ -74,6 +80,13 @@ fun FilesHubScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
+    val cloudAccounts by viewModel.cloudAccounts.collectAsState()
+    val activeCloudAccount by viewModel.activeCloudAccount.collectAsState()
+    val cloudPath by viewModel.cloudPath.collectAsState()
+    val cloudItems by viewModel.cloudItems.collectAsState()
+    val cloudBusy by viewModel.cloudBusy.collectAsState()
+    val cloudMessage by viewModel.cloudMessage.collectAsState()
+
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -93,27 +106,98 @@ fun FilesHubScreen(
 
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
-        onResult = {
-            viewModel.refreshPermissionState()
-        }
+        onResult = { viewModel.refreshPermissionState() }
     )
+
+    // "Google ile oturum aç": Play services asks which account and grants the Drive scope, so the
+    // Drive app does not have to be installed and no password is ever seen by the launcher.
+    val googleSignIn = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val data = result.data
+        if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
+            runCatching { viewModel.googleResultFromIntent(data) }
+                .onSuccess { viewModel.completeGoogleSignIn(it) }
+                .onFailure { viewModel.reportCloudError(it) }
+        } else {
+            viewModel.reportCloudError(
+                com.serkantkn.zunelauncher.data.model.CloudException(R.string.cloud_error_cancelled)
+            )
+        }
+    }
+
+    fun startGoogleSignIn() {
+        viewModel.googleAuthorizeTask()
+            .addOnSuccessListener { result ->
+                val pending = result.pendingIntent
+                if (result.hasResolution() && pending != null) {
+                    googleSignIn.launch(IntentSenderRequest.Builder(pending.intentSender).build())
+                } else {
+                    viewModel.completeGoogleSignIn(result)
+                }
+            }
+            .addOnFailureListener { viewModel.reportCloudError(it) }
+    }
+
+    // "Microsoft ile oturum aç": the sign-in page opens in the browser and comes back through the
+    // launcher's redirect scheme (OAuth 2.0 with PKCE, no client secret).
+    fun startMicrosoftSignIn() {
+        val url = viewModel.microsoftAuthorizationUrl() ?: return
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: Exception) {
+            viewModel.reportCloudError(
+                com.serkantkn.zunelauncher.data.model.CloudException(R.string.cloud_error_no_browser, e.message, e)
+            )
+        }
+    }
+
+    val pendingAuthCode by CloudAuthBridge.pendingCode.collectAsState()
+    LaunchedEffect(pendingAuthCode) {
+        val code = CloudAuthBridge.consumeCode() ?: return@LaunchedEffect
+        viewModel.completeMicrosoftSignIn(code)
+    }
+    val pendingAuthError by CloudAuthBridge.pendingError.collectAsState()
+    LaunchedEffect(pendingAuthError) {
+        val error = CloudAuthBridge.consumeError() ?: return@LaunchedEffect
+        viewModel.reportCloudError(
+            com.serkantkn.zunelauncher.data.model.CloudException(R.string.cloud_error_cancelled, error)
+        )
+    }
 
     var isSearchActive by remember { mutableStateOf(false) }
     var showNewFolderDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<FileItemModel?>(null) }
     var itemToRename by remember { mutableStateOf<FileItemModel?>(null) }
     var selectedItemForMenu by remember { mutableStateOf<FileItemModel?>(null) }
+    var showCloudOnWide by remember { mutableStateOf(false) }
+    var showCloudFolderDialog by remember { mutableStateOf(false) }
+    var cloudItemForMenu by remember { mutableStateOf<CloudItem?>(null) }
+    var cloudItemToRename by remember { mutableStateOf<CloudItem?>(null) }
+    var cloudItemToDelete by remember { mutableStateOf<CloudItem?>(null) }
 
-    val tabs = listOf(stringResource(R.string.common_all), stringResource(R.string.files_tab_categories), stringResource(R.string.files_tab_quick))
+    val tabs = listOf(
+        stringResource(R.string.common_all),
+        stringResource(R.string.files_tab_categories),
+        stringResource(R.string.files_tab_quick),
+        stringResource(R.string.files_tab_cloud)
+    )
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
 
     // Handle back button for subfolder navigation
     BackHandler {
-        if (isSearchActive) {
-            isSearchActive = false
-            viewModel.updateSearchQuery("")
-        } else if (!viewModel.navigateUp()) {
-            onClose()
+        val browsingCloud = activeCloudAccount != null && (showCloudOnWide || pager.currentPage == CLOUD_TAB_INDEX)
+        when {
+            isSearchActive -> {
+                isSearchActive = false
+                viewModel.updateSearchQuery("")
+            }
+            browsingCloud && viewModel.cloudNavigateUp() -> Unit
+            browsingCloud -> viewModel.closeCloudAccount()
+            showCloudOnWide -> showCloudOnWide = false
+            !viewModel.navigateUp() -> onClose()
         }
     }
 
@@ -135,12 +219,26 @@ fun FilesHubScreen(
         )
     )
 
-    val bottomBarMenuItems = listOf(
-        WpBarMenuItem(
-            text = stringResource(R.string.files_go_root),
-            onClick = { viewModel.loadDirectory(Environment.getExternalStorageDirectory()) }
+    val bottomBarMenuItems = buildList {
+        add(
+            WpBarMenuItem(
+                text = stringResource(R.string.files_go_root),
+                onClick = { viewModel.loadDirectory(Environment.getExternalStorageDirectory()) }
+            )
         )
-    )
+        if (isWideScreen) {
+            add(
+                WpBarMenuItem(
+                    text = if (showCloudOnWide) {
+                        stringResource(R.string.hub_files)
+                    } else {
+                        stringResource(R.string.files_tab_cloud)
+                    },
+                    onClick = { showCloudOnWide = !showCloudOnWide }
+                )
+            )
+        }
+    }
 
     ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -177,7 +275,9 @@ fun FilesHubScreen(
                 )
             }
 
-            if (!hasPermission) {
+            // Cloud storage needs none of the local file permissions, so the gate only covers the
+            // pages that read the device itself.
+            val storagePermissionGate: @Composable () -> Unit = {
                 ZunePermissionRequest(
                     title = stringResource(R.string.files_permission_title),
                     message = stringResource(R.string.files_permission_message),
@@ -205,22 +305,87 @@ fun FilesHubScreen(
                         }
                     }
                 )
-            } else {
-                // Breadcrumb Path Bar
-                PathBreadcrumbBar(
-                    currentDir = currentDirectory,
-                    onNavigateUp = { viewModel.navigateUp() },
-                    modifier = Modifier.padding(horizontal = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal, vertical = 8.dp)
-                )
+            }
 
-                if (isWideScreen) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(start = 72.dp, end = 48.dp)
-                    ) {
-                        FileList(
+            // Breadcrumb Path Bar (local storage; the cloud page draws its own)
+            val showLocalPath = hasPermission &&
+                if (isWideScreen) !showCloudOnWide else pager.currentPage != CLOUD_TAB_INDEX
+            if (showLocalPath) PathBreadcrumbBar(
+                currentDir = currentDirectory,
+                onNavigateUp = { viewModel.navigateUp() },
+                modifier = Modifier.padding(horizontal = if (isWideScreen) 72.dp else ZuneDimens.ScreenPaddingHorizontal, vertical = 8.dp)
+            )
+
+            if (isWideScreen && showCloudOnWide) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(start = 72.dp, end = 48.dp)
+                ) {
+                    CloudView(
+                        accounts = cloudAccounts,
+                        activeAccount = activeCloudAccount,
+                        path = cloudPath,
+                        items = cloudItems,
+                        isBusy = cloudBusy,
+                        message = cloudMessage,
+                        microsoftConfigured = viewModel.isMicrosoftConfigured,
+                        onSignInGoogle = { startGoogleSignIn() },
+                        onSignInMicrosoft = { startMicrosoftSignIn() },
+                        onOpenAccount = { account -> viewModel.openCloudAccount(account) },
+                        onSignOut = { account -> viewModel.signOutCloudAccount(account) },
+                        onItemClick = { item -> viewModel.openCloudItem(item) },
+                        onItemLongClick = { item -> cloudItemForMenu = item },
+                        onNavigateUp = { if (!viewModel.cloudNavigateUp()) viewModel.closeCloudAccount() },
+                        onNewFolder = { showCloudFolderDialog = true }
+                    )
+                }
+            } else if (isWideScreen && !hasPermission) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) { storagePermissionGate() }
+            } else if (isWideScreen) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(start = 72.dp, end = 48.dp)
+                ) {
+                    FileList(
+                        errorMessage = errorMessage,
+                        items = fileItems,
+                        searchQuery = searchQuery,
+                        onItemClick = { item ->
+                            if (item.isDirectory) viewModel.navigateTo(item.file)
+                            else viewModel.openFile(context, item.file)
+                        },
+                        onItemLongClick = { item -> selectedItemForMenu = item }
+                    )
+                }
+            } else {
+                ZuneLoopingPager(
+                    state = pager,
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                ) { page ->
+                    when {
+                        page == CLOUD_TAB_INDEX -> CloudView(
+                            accounts = cloudAccounts,
+                            activeAccount = activeCloudAccount,
+                            path = cloudPath,
+                            items = cloudItems,
+                            isBusy = cloudBusy,
+                            message = cloudMessage,
+                            microsoftConfigured = viewModel.isMicrosoftConfigured,
+                            onSignInGoogle = { startGoogleSignIn() },
+                            onSignInMicrosoft = { startMicrosoftSignIn() },
+                            onOpenAccount = { account -> viewModel.openCloudAccount(account) },
+                            onSignOut = { account -> viewModel.signOutCloudAccount(account) },
+                            onItemClick = { item -> viewModel.openCloudItem(item) },
+                            onItemLongClick = { item -> cloudItemForMenu = item },
+                            onNavigateUp = { if (!viewModel.cloudNavigateUp()) viewModel.closeCloudAccount() },
+                            onNewFolder = { showCloudFolderDialog = true }
+                        )
+                        !hasPermission -> storagePermissionGate()
+                        page == 0 -> FileList(
                             errorMessage = errorMessage,
                             items = fileItems,
                             searchQuery = searchQuery,
@@ -230,33 +395,15 @@ fun FilesHubScreen(
                             },
                             onItemLongClick = { item -> selectedItemForMenu = item }
                         )
-                    }
-                } else {
-                    ZuneLoopingPager(
-                        state = pager,
-                        modifier = Modifier.weight(1f).fillMaxWidth()
-                    ) { page ->
-                        when (page) {
-                            0 -> FileList(
-                                errorMessage = errorMessage,
-                                items = fileItems,
-                                searchQuery = searchQuery,
-                                onItemClick = { item ->
-                                    if (item.isDirectory) viewModel.navigateTo(item.file)
-                                    else viewModel.openFile(context, item.file)
-                                },
-                                onItemLongClick = { item -> selectedItemForMenu = item }
-                            )
-                            1 -> CategoriesView(
-                                onCategoryClick = { folderName ->
-                                    val dir = File(Environment.getExternalStorageDirectory(), folderName)
-                                    if (dir.exists()) viewModel.navigateTo(dir)
-                                }
-                            )
-                            2 -> QuickAccessView(
-                                onQuickClick = { dir -> viewModel.navigateTo(dir) }
-                            )
-                        }
+                        page == 1 -> CategoriesView(
+                            onCategoryClick = { folderName ->
+                                val dir = File(Environment.getExternalStorageDirectory(), folderName)
+                                if (dir.exists()) viewModel.navigateTo(dir)
+                            }
+                        )
+                        page == 2 -> QuickAccessView(
+                            onQuickClick = { dir -> viewModel.navigateTo(dir) }
+                        )
                     }
                 }
             }
@@ -325,6 +472,90 @@ fun FilesHubScreen(
                     itemToDelete = target
                 }
             )
+        }
+
+        // New folder inside a cloud service
+        if (showCloudFolderDialog) {
+            InputDialog(
+                title = stringResource(R.string.files_new_folder),
+                hint = stringResource(R.string.files_folder_name),
+                onDismiss = { showCloudFolderDialog = false },
+                onConfirm = { name ->
+                    showCloudFolderDialog = false
+                    if (name.isNotBlank()) viewModel.createCloudFolder(name)
+                }
+            )
+        }
+
+        cloudItemToRename?.let { item ->
+            InputDialog(
+                title = stringResource(R.string.common_rename),
+                initialText = item.name,
+                hint = stringResource(R.string.files_new_name),
+                onDismiss = { cloudItemToRename = null },
+                onConfirm = { newName ->
+                    cloudItemToRename = null
+                    if (newName.isNotBlank()) viewModel.renameCloudItem(item, newName)
+                }
+            )
+        }
+
+        cloudItemForMenu?.let { item ->
+            CloudOptionsSheet(
+                item = item,
+                onDismiss = { cloudItemForMenu = null },
+                onOpen = {
+                    cloudItemForMenu = null
+                    viewModel.openCloudItem(item)
+                },
+                onShare = {
+                    cloudItemForMenu = null
+                    viewModel.shareCloudItem(item)
+                },
+                onSaveToDevice = {
+                    cloudItemForMenu = null
+                    viewModel.saveCloudItemToDevice(item)
+                },
+                onRename = {
+                    cloudItemForMenu = null
+                    cloudItemToRename = item
+                },
+                onDelete = {
+                    cloudItemForMenu = null
+                    cloudItemToDelete = item
+                }
+            )
+        }
+
+        cloudItemToDelete?.let { item ->
+            ZuneFlipDialog(
+                onDismissRequest = { cloudItemToDelete = null },
+                title = stringResource(R.string.files_delete_title),
+                confirmButton = {
+                    ZuneDialogButton(
+                        text = stringResource(R.string.common_yes),
+                        borderColor = Color.Red,
+                        onClick = {
+                            dismissWithAnim {
+                                cloudItemToDelete = null
+                                viewModel.deleteCloudItem(item)
+                            }
+                        }
+                    )
+                },
+                dismissButton = {
+                    ZuneDialogButton(
+                        text = stringResource(R.string.common_no),
+                        onClick = { dismissWithAnim { cloudItemToDelete = null } }
+                    )
+                }
+            ) {
+                Text(
+                    text = stringResource(R.string.files_delete_confirm, item.name),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+            }
         }
 
         // Standard ZuneFlipDialog for File Deletion
@@ -796,6 +1027,433 @@ private fun InputDialog(
                 }
             }
         }
+    }
+}
+
+// ── Cloud Storage Page ──────────────────────────────────────────────────────
+
+/** Index of the cloud pivot; used by the back gesture to know what it should close. */
+private const val CLOUD_TAB_INDEX = 3
+
+/**
+ * Cloud storage of the Files hub. Without an account open it lists the drives that are signed in
+ * and offers the two sign-in buttons; with one open it browses that drive like a local folder.
+ *
+ * The services are reached over their own web APIs, so nothing here depends on Drive's or
+ * OneDrive's Android app being installed.
+ */
+@Composable
+private fun CloudView(
+    accounts: List<CloudAccount>,
+    activeAccount: CloudAccount?,
+    path: List<CloudCrumb>,
+    items: List<CloudItem>,
+    isBusy: Boolean,
+    message: String?,
+    microsoftConfigured: Boolean,
+    onSignInGoogle: () -> Unit,
+    onSignInMicrosoft: () -> Unit,
+    onOpenAccount: (CloudAccount) -> Unit,
+    onSignOut: (CloudAccount) -> Unit,
+    onItemClick: (CloudItem) -> Unit,
+    onItemLongClick: (CloudItem) -> Unit,
+    onNavigateUp: () -> Unit,
+    onNewFolder: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+
+    if (activeAccount != null) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = null,
+                    tint = zuneColors.accentColor,
+                    modifier = Modifier.size(20.dp).clickable { onNavigateUp() }
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = path.joinToString(" › ") { it.title },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = zuneColors.textMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = stringResource(R.string.files_new_folder),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = zuneColors.accentColor,
+                    maxLines = 1,
+                    modifier = Modifier.clickable { onNewFolder() }
+                )
+            }
+
+            message?.let { CloudStatusLine(it) }
+
+            when {
+                isBusy && items.isEmpty() -> CloudMessage(stringResource(R.string.files_cloud_loading))
+                items.isEmpty() -> CloudMessage(stringResource(R.string.files_empty_folder))
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = ZuneDimens.ScreenPaddingHorizontal,
+                        end = ZuneDimens.ScreenPaddingHorizontal,
+                        bottom = 80.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(items, key = { it.id }) { item ->
+                        CloudItemRow(
+                            item = item,
+                            onClick = { onItemClick(item) },
+                            onLongClick = { onItemLongClick(item) }
+                        )
+                    }
+                }
+            }
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = ZuneDimens.ScreenPaddingHorizontal,
+            end = ZuneDimens.ScreenPaddingHorizontal,
+            bottom = 80.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        message?.let { text ->
+            item(key = "cloud_status") {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = zuneColors.accentColor
+                )
+            }
+        }
+
+        item(key = "cloud_hint") {
+            Text(
+                text = stringResource(
+                    if (isBusy) R.string.files_cloud_signing_in else R.string.files_cloud_hint
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = zuneColors.textMuted,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        }
+
+        item(key = "cloud_accounts_header") {
+            CloudSectionHeader(stringResource(R.string.files_cloud_accounts))
+        }
+
+        if (accounts.isEmpty()) {
+            item(key = "cloud_no_accounts") {
+                Text(
+                    text = stringResource(R.string.files_cloud_none_connected),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = zuneColors.textDim
+                )
+            }
+        } else {
+            items(accounts, key = { it.id }) { account ->
+                CloudAccountRow(
+                    account = account,
+                    onOpen = { onOpenAccount(account) },
+                    onSignOut = { onSignOut(account) }
+                )
+            }
+        }
+
+        item(key = "cloud_add_header") {
+            CloudSectionHeader(stringResource(R.string.files_cloud_add_account))
+        }
+
+        item(key = "cloud_sign_in_google") {
+            CloudActionButton(
+                icon = Icons.Default.CloudQueue,
+                label = stringResource(R.string.files_cloud_sign_in_google),
+                filled = true,
+                onClick = onSignInGoogle
+            )
+        }
+
+        item(key = "cloud_sign_in_microsoft") {
+            CloudActionButton(
+                icon = Icons.Default.CloudQueue,
+                label = stringResource(R.string.files_cloud_sign_in_microsoft),
+                filled = false,
+                onClick = onSignInMicrosoft
+            )
+            if (!microsoftConfigured) {
+                Text(
+                    text = stringResource(R.string.cloud_error_microsoft_config),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = zuneColors.textDim,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CloudStatusLine(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = LocalZuneColors.current.accentColor,
+        modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 2.dp)
+    )
+}
+
+@Composable
+private fun CloudSectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, letterSpacing = 1.sp),
+        color = LocalZuneColors.current.textMuted,
+        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+    )
+}
+
+@Composable
+private fun CloudMessage(text: String) {
+    Box(
+        modifier = Modifier.fillMaxSize().padding(vertical = 48.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Light),
+            color = LocalZuneColors.current.textMuted
+        )
+    }
+}
+
+/** Flat Metro button used by the sign-in actions. */
+@Composable
+private fun CloudActionButton(
+    icon: ImageVector,
+    label: String,
+    filled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val zuneColors = LocalZuneColors.current
+    Surface(
+        modifier = modifier.fillMaxWidth().clickable { onClick() },
+        color = if (filled) zuneColors.accentColor else Color.Transparent,
+        border = if (filled) null else BorderStroke(1.dp, zuneColors.accentColor),
+        shape = RoundedCornerShape(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (filled) Color.White else zuneColors.accentColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = if (filled) Color.White else zuneColors.accentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun CloudAccountRow(account: CloudAccount, onOpen: () -> Unit, onSignOut: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onOpen() },
+        color = if (zuneColors.isDark) Color(0xFF1A1A1A) else Color(0xFFF5F5F5),
+        shape = RoundedCornerShape(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(zuneColors.accentColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CloudDone,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = account.displayName,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (zuneColors.isDark) Color.White else Color.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(account.service.titleRes) +
+                        if (account.email.isBlank()) "" else " • ${account.email}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = zuneColors.textMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(
+                text = stringResource(R.string.files_cloud_sign_out),
+                style = MaterialTheme.typography.labelSmall,
+                color = zuneColors.textMuted,
+                modifier = Modifier.clickable { onSignOut() }.padding(start = 12.dp)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CloudItemRow(item: CloudItem, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    val folderLabel = stringResource(R.string.files_folder)
+    val subtitle = remember(item, folderLabel) {
+        val size = if (item.isFolder) folderLabel else formatFileSize(item.size)
+        if (item.lastModified > 0L) {
+            val date = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(item.lastModified))
+            "$size • $date"
+        } else {
+            size
+        }
+    }
+    val icon = remember(item.mimeType, item.isFolder) { cloudIcon(item) }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        color = if (zuneColors.isDark) Color(0xFF1A1A1A) else Color(0xFFF5F5F5),
+        shape = RoundedCornerShape(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (item.isFolder) zuneColors.accentColor
+                        else if (zuneColors.isDark) Color(0xFF2A2A2A) else Color(0xFFE0E0E0),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (item.isFolder) Color.White else zuneColors.accentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.name,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (zuneColors.isDark) Color.White else Color.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = zuneColors.textMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CloudOptionsSheet(
+    item: CloudItem,
+    onDismiss: () -> Unit,
+    onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onSaveToDevice: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
+    ZuneFlipDialog(onDismissRequest = onDismiss, title = item.name) {
+        Column {
+            ListItemOption(
+                icon = if (item.isFolder) Icons.Default.FolderOpen else Icons.Default.OpenInNew,
+                label = stringResource(R.string.common_open),
+                onClick = { dismissWithAnim { onOpen() } }
+            )
+            if (!item.isFolder) {
+                ListItemOption(
+                    icon = Icons.Default.Share,
+                    label = stringResource(R.string.common_share),
+                    onClick = { dismissWithAnim { onShare() } }
+                )
+                ListItemOption(
+                    icon = Icons.Default.Download,
+                    label = stringResource(R.string.files_cloud_save_to_device),
+                    onClick = { dismissWithAnim { onSaveToDevice() } }
+                )
+            }
+            ListItemOption(
+                icon = Icons.Default.DriveFileRenameOutline,
+                label = stringResource(R.string.common_rename),
+                onClick = { dismissWithAnim { onRename() } }
+            )
+            ListItemOption(
+                icon = Icons.Default.Delete,
+                label = stringResource(R.string.common_delete),
+                textColor = Color.Red,
+                onClick = { dismissWithAnim { onDelete() } }
+            )
+        }
+    }
+}
+
+private fun cloudIcon(item: CloudItem): ImageVector {
+    if (item.isFolder) return Icons.Default.Folder
+    val mime = item.mimeType.lowercase()
+    return when {
+        mime.startsWith("image/") -> Icons.Default.Image
+        mime.startsWith("audio/") -> Icons.Default.MusicNote
+        mime.startsWith("video/") -> Icons.Default.Movie
+        mime.startsWith("text/") || mime.contains("pdf") || mime.contains("document") ||
+            mime.contains("presentation") || mime.contains("sheet") -> Icons.Default.Description
+        mime.contains("zip") || mime.contains("compressed") || mime.contains("tar") -> Icons.Default.FolderZip
+        mime.contains("android.package-archive") -> Icons.Default.Android
+        else -> Icons.Default.InsertDriveFile
     }
 }
 

@@ -41,6 +41,9 @@ class MainActivity : FragmentActivity() {
         const val EXTRA_OPEN_EMAIL_ACCOUNT = "open_email_account"
         const val EXTRA_OPEN_EMAIL_FOLDER = "open_email_folder"
         const val EXTRA_OPEN_EMAIL_UID = "open_email_uid"
+
+        /** Set by the keyboard's quick settings; carries the name of a SettingsTab entry. */
+        const val EXTRA_OPEN_SETTINGS_TAB = "open_settings_tab"
     }
 
     private var currentVolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
@@ -93,12 +96,14 @@ class MainActivity : FragmentActivity() {
         }
 
         handleEmailIntent(intent)
+        handleSettingsIntent(intent)
         setLauncherContent()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleEmailIntent(intent)
+        handleSettingsIntent(intent)
     }
 
     /** A new-mail notification tap carries the message address; hand it to the Email hub. */
@@ -108,6 +113,13 @@ class MainActivity : FragmentActivity() {
         val uid = intent.getLongExtra(EXTRA_OPEN_EMAIL_UID, -1L)
         if (uid >= 0) EmailBridge.open(accountId, folder, uid)
         intent.removeExtra(EXTRA_OPEN_EMAIL_ACCOUNT)
+    }
+
+    /** The keyboard's "all settings" link asks for the settings hub on a specific tab. */
+    private fun handleSettingsIntent(intent: Intent?) {
+        val tab = intent?.getStringExtra(EXTRA_OPEN_SETTINGS_TAB) ?: return
+        com.serkantkn.zunelauncher.data.repository.SettingsBridge.open(tab)
+        intent.removeExtra(EXTRA_OPEN_SETTINGS_TAB)
     }
 
     override fun onResume() {

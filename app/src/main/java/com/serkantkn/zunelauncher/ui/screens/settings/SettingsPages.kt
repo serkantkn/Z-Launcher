@@ -40,7 +40,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.graphics.SolidColor
+import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
+import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
+import com.serkantkn.zunelauncher.data.datastore.KeyboardDataStore
 import com.serkantkn.zunelauncher.data.model.*
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 
 @Composable
@@ -392,9 +401,11 @@ internal fun LookSettingsPage(
                         }
                     )
 
+                    // Tablets run the Windows 8 full-screen Start instead of the phone tile grid.
+                    val isTablet = LocalIsWideScreen.current
                     SettingChoiceRow(
-                        title = stringResource(R.string.settings_layout_wp),
-                        subtitle = stringResource(R.string.settings_layout_wp_sub),
+                        title = stringResource(if (isTablet) R.string.settings_layout_win8 else R.string.settings_layout_wp),
+                        subtitle = stringResource(if (isTablet) R.string.settings_layout_win8_sub else R.string.settings_layout_wp_sub),
                         selected = homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE,
                         onClick = {
                             viewModel.setHomeScreenLayout(HomeScreenLayout.WINDOWS_PHONE)
@@ -872,6 +883,350 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun KeyboardSettingsPage(viewModel: SettingsViewModel) {
+    // The two setup rows reflect system state, so they are re-read every time settings come back.
+    var setupTrigger by remember { mutableIntStateOf(0) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { setupTrigger++ }
+
+    val isEnabled = remember(setupTrigger) { viewModel.isKeyboardEnabled() }
+    val isDefault = remember(setupTrigger) { viewModel.isKeyboardDefault() }
+
+    val soundEnabled by viewModel.keyboardSoundEnabled.collectAsState()
+    val vibrationEnabled by viewModel.keyboardVibrationEnabled.collectAsState()
+    val previewEnabled by viewModel.keyboardPreviewEnabled.collectAsState()
+    val heightScale by viewModel.keyboardHeightScale.collectAsState()
+    val numberRow by viewModel.keyboardNumberRow.collectAsState()
+    val suggestions by viewModel.keyboardSuggestions.collectAsState()
+    val autoCorrect by viewModel.keyboardAutoCorrect.collectAsState()
+    val split by viewModel.keyboardSplit.collectAsState()
+    val oneHanded by viewModel.keyboardOneHanded.collectAsState()
+    val bottomPadding by viewModel.keyboardBottomPadding.collectAsState()
+    val languages by viewModel.keyboardLanguages.collectAsState()
+    val shortcuts by viewModel.keyboardShortcuts.collectAsState()
+    val learnedCount by viewModel.keyboardLearnedCount.collectAsState()
+    val clipboardCount by viewModel.keyboardClipboardCount.collectAsState()
+
+    var showShortcutDialog by remember { mutableStateOf(false) }
+
+    SettingsLazyColumn {
+        item(key = "keyboard_setup") {
+            SettingGroup(title = stringResource(R.string.keyboard_setup_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SystemSettingRow(
+                        title = stringResource(R.string.keyboard_enable_title),
+                        subtitle = stringResource(R.string.keyboard_enable_sub),
+                        isActive = isEnabled,
+                        onClick = viewModel::openKeyboardSettings
+                    )
+                    SystemSettingRow(
+                        title = stringResource(R.string.keyboard_select_title),
+                        subtitle = if (isDefault) {
+                            stringResource(R.string.keyboard_ready)
+                        } else {
+                            stringResource(R.string.keyboard_select_sub)
+                        },
+                        isActive = isDefault,
+                        onClick = viewModel::showKeyboardPicker
+                    )
+                }
+            }
+        }
+
+        item(key = "keyboard_typing") {
+            SettingGroup(title = stringResource(R.string.keyboard_typing_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingSwitchRow(
+                        title = stringResource(R.string.keyboard_number_row_title),
+                        subtitle = stringResource(R.string.keyboard_number_row_sub),
+                        checked = numberRow,
+                        onCheckedChange = viewModel::setKeyboardNumberRow
+                    )
+                    SettingSwitchRow(
+                        title = stringResource(R.string.keyboard_suggestions_title),
+                        subtitle = stringResource(R.string.keyboard_suggestions_sub),
+                        checked = suggestions,
+                        onCheckedChange = viewModel::setKeyboardSuggestions
+                    )
+                    SettingSwitchRow(
+                        title = stringResource(R.string.keyboard_autocorrect_title),
+                        subtitle = stringResource(R.string.keyboard_autocorrect_sub),
+                        checked = autoCorrect,
+                        onCheckedChange = viewModel::setKeyboardAutoCorrect
+                    )
+                    SettingSwitchRow(
+                        title = stringResource(R.string.keyboard_sound_title),
+                        subtitle = stringResource(R.string.keyboard_sound_sub),
+                        checked = soundEnabled,
+                        onCheckedChange = viewModel::setKeyboardSoundEnabled
+                    )
+                    SettingSwitchRow(
+                        title = stringResource(R.string.keyboard_vibration_title),
+                        subtitle = stringResource(R.string.keyboard_vibration_sub),
+                        checked = vibrationEnabled,
+                        onCheckedChange = viewModel::setKeyboardVibrationEnabled
+                    )
+                    SettingSwitchRow(
+                        title = stringResource(R.string.keyboard_preview_title),
+                        subtitle = stringResource(R.string.keyboard_preview_sub),
+                        checked = previewEnabled,
+                        onCheckedChange = viewModel::setKeyboardPreviewEnabled
+                    )
+                }
+            }
+        }
+
+        item(key = "keyboard_languages") {
+            SettingGroup(title = stringResource(R.string.keyboard_languages_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KeyboardLanguage.entries.forEach { language ->
+                        SettingSwitchRow(
+                            title = language.displayLabel,
+                            subtitle = "",
+                            checked = languages.contains(language),
+                            onCheckedChange = { enabled ->
+                                viewModel.setKeyboardLanguageEnabled(language, enabled)
+                            }
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.keyboard_languages_note),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                        color = LocalZuneColors.current.textMuted,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.keyboard_language_note),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                        color = LocalZuneColors.current.textMuted,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+            }
+        }
+
+        item(key = "keyboard_height") {
+            SettingGroup(title = stringResource(R.string.keyboard_height_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val labels = listOf(
+                        R.string.keyboard_height_small,
+                        R.string.keyboard_height_medium,
+                        R.string.keyboard_height_large
+                    )
+                    KeyboardDataStore.HEIGHT_CHOICES.forEachIndexed { index, scale ->
+                        SettingChoiceRow(
+                            title = stringResource(labels[index]),
+                            subtitle = "",
+                            selected = kotlin.math.abs(heightScale - scale) < 0.01f,
+                            onClick = { viewModel.setKeyboardHeightScale(scale) }
+                        )
+                    }
+                }
+            }
+        }
+
+        item(key = "keyboard_bottom_padding") {
+            SettingGroup(title = stringResource(R.string.keyboard_bottom_padding_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = stringResource(R.string.keyboard_bottom_padding_sub),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                        color = LocalZuneColors.current.textMuted,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                    )
+                    val labels = listOf(
+                        R.string.keyboard_bottom_padding_none,
+                        R.string.keyboard_bottom_padding_small,
+                        R.string.keyboard_bottom_padding_medium,
+                        R.string.keyboard_bottom_padding_large
+                    )
+                    KeyboardDataStore.BOTTOM_PADDING_CHOICES.forEachIndexed { index, dp ->
+                        SettingChoiceRow(
+                            title = stringResource(labels[index]),
+                            subtitle = "",
+                            selected = bottomPadding == dp,
+                            onClick = { viewModel.setKeyboardBottomPadding(dp) }
+                        )
+                    }
+                }
+            }
+        }
+
+        item(key = "keyboard_one_handed") {
+            SettingGroup(title = stringResource(R.string.keyboard_one_handed_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val labels = mapOf(
+                        OneHandedMode.OFF to R.string.keyboard_one_handed_off,
+                        OneHandedMode.LEFT to R.string.keyboard_one_handed_left,
+                        OneHandedMode.RIGHT to R.string.keyboard_one_handed_right
+                    )
+                    OneHandedMode.entries.forEach { mode ->
+                        SettingChoiceRow(
+                            title = stringResource(labels.getValue(mode)),
+                            subtitle = "",
+                            selected = oneHanded == mode,
+                            onClick = { viewModel.setKeyboardOneHanded(mode) }
+                        )
+                    }
+                    SettingSwitchRow(
+                        title = stringResource(R.string.keyboard_split_title),
+                        subtitle = stringResource(R.string.keyboard_split_sub),
+                        checked = split,
+                        onCheckedChange = viewModel::setKeyboardSplit
+                    )
+                }
+            }
+        }
+
+        item(key = "keyboard_shortcuts") {
+            SettingGroup(title = stringResource(R.string.keyboard_shortcuts_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.keyboard_shortcuts_sub),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                        color = LocalZuneColors.current.textMuted,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                    if (shortcuts.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.keyboard_shortcuts_empty),
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                            color = LocalZuneColors.current.textDim,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+                    shortcuts.forEach { shortcut ->
+                        SettingRowContent(
+                            title = shortcut.trigger,
+                            subtitle = shortcut.expansion,
+                            trailing = {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = null,
+                                    tint = LocalZuneColors.current.textMuted,
+                                    modifier = Modifier.clickable {
+                                        viewModel.removeKeyboardShortcut(shortcut.id)
+                                    }
+                                )
+                            }
+                        )
+                    }
+                    SystemSettingRow(
+                        title = stringResource(R.string.keyboard_shortcuts_add),
+                        subtitle = "",
+                        onClick = { showShortcutDialog = true }
+                    )
+                }
+            }
+        }
+
+        item(key = "keyboard_data") {
+            SettingGroup(title = stringResource(R.string.keyboard_data_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SystemSettingRow(
+                        title = stringResource(R.string.keyboard_learned_title),
+                        subtitle = stringResource(R.string.keyboard_learned_sub, learnedCount),
+                        onClick = viewModel::clearKeyboardLearnedWords
+                    )
+                    SystemSettingRow(
+                        title = stringResource(R.string.keyboard_clipboard_history_title),
+                        subtitle = stringResource(R.string.keyboard_clipboard_history_sub, clipboardCount),
+                        onClick = viewModel::clearKeyboardClipboard
+                    )
+                }
+            }
+        }
+    }
+
+    if (showShortcutDialog) {
+        TextShortcutDialog(
+            onAdd = { trigger, expansion -> viewModel.addKeyboardShortcut(trigger, expansion) },
+            onDismiss = { showShortcutDialog = false }
+        )
+    }
+}
+
+/** "kib" -> "kolay gelsin, iyi bayramlar": trigger and full text for a new text shortcut. */
+@Composable
+private fun TextShortcutDialog(
+    onAdd: (String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    var trigger by remember { mutableStateOf("") }
+    var expansion by remember { mutableStateOf("") }
+
+    ZuneFlipDialog(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.keyboard_shortcuts_add),
+        confirmButton = {
+            ZuneDialogButton(
+                text = stringResource(R.string.common_save_cap),
+                onClick = {
+                    dismissWithAnim {
+                        onAdd(trigger, expansion)
+                        onDismiss()
+                    }
+                },
+                borderColor = zuneColors.accentColor
+            )
+        },
+        dismissButton = {
+            ZuneDialogButton(
+                text = stringResource(R.string.common_cancel_cap),
+                onClick = { dismissWithAnim { onDismiss() } },
+                borderColor = zuneColors.textMuted
+            )
+        }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            WpDialogTextField(
+                value = trigger,
+                onValueChange = { trigger = it },
+                placeholder = stringResource(R.string.keyboard_shortcut_trigger)
+            )
+            WpDialogTextField(
+                value = expansion,
+                onValueChange = { expansion = it },
+                placeholder = stringResource(R.string.keyboard_shortcut_expansion)
+            )
+        }
+    }
+}
+
+/** White, square Windows Phone text box. */
+@Composable
+private fun WpDialogTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String
+) {
+    val zuneColors = LocalZuneColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .border(BorderStroke(2.dp, zuneColors.accentColor))
+            .padding(horizontal = 10.dp, vertical = 10.dp)
+    ) {
+        if (value.isEmpty()) {
+            Text(
+                text = placeholder,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF8A8A8A)
+            )
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.Black),
+            cursorBrush = SolidColor(zuneColors.accentColor),
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

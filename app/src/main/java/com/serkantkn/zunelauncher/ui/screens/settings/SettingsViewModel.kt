@@ -12,6 +12,7 @@ import android.os.Build
 import android.provider.Settings
 import android.provider.Telephony
 import android.telecom.TelecomManager
+import android.view.inputmethod.InputMethodManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
@@ -22,6 +23,9 @@ import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.HubType
+import com.serkantkn.zunelauncher.data.model.KeyboardLanguage
+import com.serkantkn.zunelauncher.data.model.OneHandedMode
+import com.serkantkn.zunelauncher.data.model.TextShortcut
 import com.serkantkn.zunelauncher.util.SystemSettingsManager
 import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +33,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -141,6 +146,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 HubType.CALENDAR,
                 HubType.NOTES,
                 HubType.EMAIL,
+                HubType.CALCULATOR,
                 HubType.SETTINGS
             )
         )
@@ -359,6 +365,140 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private fun openSystemSettings(action: String) {
         val intent = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         getApplication<Application>().startActivity(intent)
+    }
+
+    // --- Keyboard (system-wide IME, see ZuneKeyboardService) ---
+
+    private val keyboardDataStore = application.appContainer.keyboardDataStore
+
+    val keyboardSoundEnabled: StateFlow<Boolean> = keyboardDataStore.soundEnabled.asState(false)
+    val keyboardVibrationEnabled: StateFlow<Boolean> = keyboardDataStore.vibrationEnabled.asState(true)
+    val keyboardPreviewEnabled: StateFlow<Boolean> = keyboardDataStore.keyPreviewEnabled.asState(true)
+    val keyboardHeightScale: StateFlow<Float> = keyboardDataStore.heightScale.asState(1.0f)
+
+    fun setKeyboardSoundEnabled(enabled: Boolean) {
+        viewModelScope.launch { keyboardDataStore.setSoundEnabled(enabled) }
+    }
+
+    fun setKeyboardVibrationEnabled(enabled: Boolean) {
+        viewModelScope.launch { keyboardDataStore.setVibrationEnabled(enabled) }
+    }
+
+    fun setKeyboardPreviewEnabled(enabled: Boolean) {
+        viewModelScope.launch { keyboardDataStore.setKeyPreviewEnabled(enabled) }
+    }
+
+    fun setKeyboardHeightScale(scale: Float) {
+        viewModelScope.launch { keyboardDataStore.setHeightScale(scale) }
+    }
+
+    /** True once the keyboard is switched on in the system's keyboard list. */
+    fun isKeyboardEnabled(): Boolean = try {
+        val app = getApplication<Application>()
+        app.getSystemService(InputMethodManager::class.java)
+            ?.enabledInputMethodList
+            ?.any { it.packageName == app.packageName } == true
+    } catch (e: Exception) {
+        ZuneLog.w("SettingsViewModel", "isKeyboardEnabled failed", e)
+        false
+    }
+
+    /** True while the keyboard is the input method Android actually uses. */
+    fun isKeyboardDefault(): Boolean = try {
+        val app = getApplication<Application>()
+        Settings.Secure.getString(app.contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
+            ?.startsWith("${app.packageName}/") == true
+    } catch (e: Exception) {
+        ZuneLog.w("SettingsViewModel", "isKeyboardDefault failed", e)
+        false
+    }
+
+    val keyboardNumberRow: StateFlow<Boolean> = keyboardDataStore.numberRowEnabled.asState(false)
+    val keyboardSuggestions: StateFlow<Boolean> = keyboardDataStore.suggestionsEnabled.asState(true)
+    val keyboardAutoCorrect: StateFlow<Boolean> = keyboardDataStore.autoCorrectEnabled.asState(true)
+    val keyboardSplit: StateFlow<Boolean> = keyboardDataStore.splitEnabled.asState(false)
+    val keyboardBottomPadding: StateFlow<Int> = keyboardDataStore.bottomPaddingDp.asState(0)
+    val keyboardOneHanded: StateFlow<OneHandedMode> = keyboardDataStore.oneHandedMode.asState(OneHandedMode.OFF)
+    val keyboardLanguages: StateFlow<List<KeyboardLanguage>> = keyboardDataStore.languages.asState(emptyList())
+    val keyboardShortcuts: StateFlow<List<TextShortcut>> = keyboardDataStore.textShortcuts.asState(emptyList())
+    val keyboardLearnedCount: StateFlow<Int> = keyboardDataStore.learnedWords.map { it.size }.asState(0)
+    val keyboardClipboardCount: StateFlow<Int> = keyboardDataStore.clipboardHistory.map { it.size }.asState(0)
+
+    fun setKeyboardNumberRow(enabled: Boolean) {
+        viewModelScope.launch { keyboardDataStore.setNumberRowEnabled(enabled) }
+    }
+
+    fun setKeyboardSuggestions(enabled: Boolean) {
+        viewModelScope.launch { keyboardDataStore.setSuggestionsEnabled(enabled) }
+    }
+
+    fun setKeyboardAutoCorrect(enabled: Boolean) {
+        viewModelScope.launch { keyboardDataStore.setAutoCorrectEnabled(enabled) }
+    }
+
+    fun setKeyboardSplit(enabled: Boolean) {
+        viewModelScope.launch { keyboardDataStore.setSplitEnabled(enabled) }
+    }
+
+    fun setKeyboardBottomPadding(dp: Int) {
+        viewModelScope.launch { keyboardDataStore.setBottomPaddingDp(dp) }
+    }
+
+    fun setKeyboardOneHanded(mode: OneHandedMode) {
+        viewModelScope.launch { keyboardDataStore.setOneHandedMode(mode) }
+    }
+
+    /** Switching a second language on is what puts the language key next to the space bar. */
+    fun setKeyboardLanguageEnabled(language: KeyboardLanguage, enabled: Boolean) {
+        viewModelScope.launch {
+            val current = keyboardDataStore.languages.firstOrNull().orEmpty()
+            val updated = if (enabled) {
+                if (current.contains(language)) current else current + language
+            } else {
+                current - language
+            }
+            keyboardDataStore.setLanguages(updated)
+        }
+    }
+
+    fun clearKeyboardLearnedWords() {
+        viewModelScope.launch { keyboardDataStore.clearLearnedWords() }
+    }
+
+    fun clearKeyboardClipboard() {
+        viewModelScope.launch { keyboardDataStore.clearClipboard() }
+    }
+
+    fun addKeyboardShortcut(trigger: String, expansion: String) {
+        val cleanTrigger = trigger.trim()
+        val cleanExpansion = expansion.trim()
+        if (cleanTrigger.isEmpty() || cleanExpansion.isEmpty()) return
+        viewModelScope.launch {
+            keyboardDataStore.addShortcut(
+                TextShortcut(
+                    id = cleanTrigger.lowercase(),
+                    trigger = cleanTrigger,
+                    expansion = cleanExpansion
+                )
+            )
+        }
+    }
+
+    fun removeKeyboardShortcut(id: String) {
+        viewModelScope.launch { keyboardDataStore.removeShortcut(id) }
+    }
+
+    fun openKeyboardSettings() = openSystemSettings(Settings.ACTION_INPUT_METHOD_SETTINGS)
+
+    /** Opens the system's "change keyboard" picker. */
+    fun showKeyboardPicker() {
+        try {
+            getApplication<Application>()
+                .getSystemService(InputMethodManager::class.java)
+                ?.showInputMethodPicker()
+        } catch (e: Exception) {
+            ZuneLog.w("SettingsViewModel", "showInputMethodPicker failed", e)
+        }
     }
 
     val customWallpaperPath: StateFlow<String?> = settingsDataStore.customWallpaperPath.asState(null)

@@ -40,6 +40,7 @@ import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.ui.components.BackgroundMode
 import com.serkantkn.zunelauncher.ui.components.ZuneBackground
 import com.serkantkn.zunelauncher.ui.components.ZuneWallpaperOverlay
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.toColor
 
 @Composable
@@ -114,7 +115,11 @@ fun LookPreviewCard(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE) "Windows Phone" else "Zune",
+                text = when {
+                    homeScreenLayout != HomeScreenLayout.WINDOWS_PHONE -> "Zune"
+                    LocalIsWideScreen.current -> "Windows 8"
+                    else -> "Windows Phone"
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = animatedAccentColor
             )

@@ -122,6 +122,11 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** "12 × 3 = 36": the last calculation, flipped onto the hesap makinesi tile. */
+    val calculatorTileSubtitle: StateFlow<String?> = application.appContainer.calculatorDataStore.historyFlow
+        .map { history -> history.firstOrNull()?.let { entry -> entry.expression + " = " + (entry.result.toBigDecimalOrNull()?.let { com.serkantkn.zunelauncher.util.CalcEngine.format(it) } ?: entry.result) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     /** Unread mail across every inbox: badge of the e-posta tile. */
     val emailUnreadCount: StateFlow<Int> = application.appContainer.emailCache.inboxUnread
 
@@ -236,7 +241,8 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             HubType.CLOCK to 2,
             HubType.CALENDAR to 2,
             HubType.NOTES to 2,
-            HubType.EMAIL to 2
+            HubType.EMAIL to 2,
+            HubType.CALCULATOR to 2
         )
     )
     val hubCustomSpans: StateFlow<Map<HubType, Int>> = _hubCustomSpans
@@ -294,31 +300,6 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun toggleTileSize(id: String) {
-        viewModelScope.launch {
-            val currentList = if (startTiles.value.isNotEmpty()) startTiles.value else unifiedStartTiles.value.map { StartTileItem(it.id, it.span) }
-            val index = currentList.indexOfFirst { it.id == id }
-            if (index != -1) {
-                val currentSpan = currentList[index].span
-                val newSpan = when (currentSpan) {
-                    1 -> 2
-                    2 -> 4
-                    else -> 1
-                }
-                val updatedList = currentList.toMutableList()
-                updatedList[index] = updatedList[index].copy(span = newSpan)
-                settingsDataStore.setStartTiles(updatedList)
-                if (id.startsWith("app:")) {
-                    val pkg = id.removePrefix("app:")
-                    appRepository.updateSpan(pkg, newSpan)
-                }
-            } else {
-                val updatedList = currentList.toMutableList()
-                updatedList.add(StartTileItem(id, 4))
-                settingsDataStore.setStartTiles(updatedList)
-            }
-        }
-    }
 
     fun removeTile(id: String) {
         viewModelScope.launch {
@@ -332,15 +313,9 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun toggleAppSize(packageName: String) {
-        toggleTileSize("app:$packageName")
-    }
 
     fun removeFavorite(packageName: String) {
         removeTile("app:$packageName")
     }
 
-    fun toggleHubSize(hubType: HubType) {
-        toggleTileSize("hub:${hubType.name}")
-    }
 }

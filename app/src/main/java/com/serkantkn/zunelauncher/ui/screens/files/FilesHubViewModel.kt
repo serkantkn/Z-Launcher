@@ -14,11 +14,20 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.auth.api.identity.AuthorizationResult
+import com.serkantkn.zunelauncher.data.model.CloudAccount
+import com.serkantkn.zunelauncher.data.model.CloudCrumb
+import com.serkantkn.zunelauncher.data.model.CloudException
+import com.serkantkn.zunelauncher.data.model.CloudItem
 import com.serkantkn.zunelauncher.data.model.FileItemModel
+import com.serkantkn.zunelauncher.di.appContainer
+import com.serkantkn.zunelauncher.util.toUserMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -197,5 +206,210 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     private fun getMimeType(file: File): String? {
         val extension = file.extension.lowercase()
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+    }
+
+    // --- Cloud storage (services over their own web APIs) ----------------------------------------
+
+    private val cloudRepository = application.appContainer.cloudStorageRepository
+
+    /** Accounts the user signed in to; the drive of each one opens without its app installed. */
+    val cloudAccounts: StateFlow<List<CloudAccount>> = cloudRepository.accounts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _activeCloudAccount = MutableStateFlow<CloudAccount?>(null)
+    val activeCloudAccount: StateFlow<CloudAccount?> = _activeCloudAccount.asStateFlow()
+
+    private val _cloudPath = MutableStateFlow<List<CloudCrumb>>(emptyList())
+    /** Folders entered inside the open account; the last one is what is on screen. */
+    val cloudPath: StateFlow<List<CloudCrumb>> = _cloudPath.asStateFlow()
+
+    private val _cloudItems = MutableStateFlow<List<CloudItem>>(emptyList())
+    val cloudItems: StateFlow<List<CloudItem>> = _cloudItems.asStateFlow()
+
+    private val _cloudBusy = MutableStateFlow(false)
+    /** True while a drive is being read or an account is signing in. */
+    val cloudBusy: StateFlow<Boolean> = _cloudBusy.asStateFlow()
+
+    private val _cloudMessage = MutableStateFlow<String?>(null)
+    /** Last failure or confirmation, shown under the header. */
+    val cloudMessage: StateFlow<String?> = _cloudMessage.asStateFlow()
+
+    val isMicrosoftConfigured: Boolean get() = cloudRepository.isMicrosoftConfigured()
+
+    fun googleAuthorizeTask() = cloudRepository.googleAuthorizeTask()
+
+    fun googleResultFromIntent(data: Intent) = cloudRepository.googleResultFromIntent(data)
+
+    fun reportCloudError(throwable: Throwable) {
+        _cloudBusy.value = false
+        _cloudMessage.value = cloudMessageOf(throwable)
+    }
+
+    fun clearCloudMessage() {
+        _cloudMessage.value = null
+    }
+
+    /** Stores the Google account that just granted the Drive scope and opens its drive. */
+    fun completeGoogleSignIn(result: AuthorizationResult) {
+        viewModelScope.launch {
+            _cloudBusy.value = true
+            try {
+                openCloudAccount(cloudRepository.completeGoogleSignIn(result))
+                _cloudMessage.value = null
+            } catch (e: Exception) {
+                _cloudMessage.value = cloudMessageOf(e)
+            } finally {
+                _cloudBusy.value = false
+            }
+        }
+    }
+
+    /** The Microsoft sign-in page to open in the browser, or null when it is not configured. */
+    fun microsoftAuthorizationUrl(): String? = try {
+        cloudRepository.microsoftAuthorizationUrl()
+    } catch (e: Exception) {
+        _cloudMessage.value = cloudMessageOf(e)
+        null
+    }
+
+    /** Finishes the Microsoft sign-in with the code the browser handed back. */
+    fun completeMicrosoftSignIn(code: String) {
+        viewModelScope.launch {
+            _cloudBusy.value = true
+            try {
+                openCloudAccount(cloudRepository.completeMicrosoftSignIn(code))
+                _cloudMessage.value = null
+            } catch (e: Exception) {
+                _cloudMessage.value = cloudMessageOf(e)
+            } finally {
+                _cloudBusy.value = false
+            }
+        }
+    }
+
+    fun signOutCloudAccount(account: CloudAccount) {
+        viewModelScope.launch {
+            if (_activeCloudAccount.value?.id == account.id) closeCloudAccount()
+            cloudRepository.signOut(account)
+        }
+    }
+
+    fun openCloudAccount(account: CloudAccount) {
+        _activeCloudAccount.value = account
+        _cloudPath.value = listOf(CloudCrumb(cloudRepository.rootFolderId(account), account.displayName))
+        loadCloudFolder()
+    }
+
+    fun openCloudFolder(item: CloudItem) {
+        if (!item.isFolder) return
+        _cloudPath.value = _cloudPath.value + CloudCrumb(item.id, item.name)
+        loadCloudFolder()
+    }
+
+    /** Goes one folder up; returns false when the drive's top folder is on screen. */
+    fun cloudNavigateUp(): Boolean {
+        val path = _cloudPath.value
+        if (path.size <= 1) return false
+        _cloudPath.value = path.dropLast(1)
+        loadCloudFolder()
+        return true
+    }
+
+    /** Leaves the drive and goes back to the list of accounts. */
+    fun closeCloudAccount() {
+        _activeCloudAccount.value = null
+        _cloudPath.value = emptyList()
+        _cloudItems.value = emptyList()
+        _cloudMessage.value = null
+    }
+
+    fun reloadCloudFolder() = loadCloudFolder()
+
+    fun createCloudFolder(name: String) = runCloudAction { account, parent ->
+        cloudRepository.createFolder(account, parent, name.trim())
+    }
+
+    fun renameCloudItem(item: CloudItem, newName: String) = runCloudAction { account, _ ->
+        cloudRepository.rename(account, item, newName.trim())
+    }
+
+    fun deleteCloudItem(item: CloudItem) = runCloudAction { account, _ ->
+        cloudRepository.delete(account, item)
+    }
+
+    fun openCloudItem(item: CloudItem) {
+        if (item.isFolder) {
+            openCloudFolder(item)
+            return
+        }
+        withCloudAccount { account -> cloudRepository.open(account, item) }
+    }
+
+    fun shareCloudItem(item: CloudItem) =
+        withCloudAccount { account -> cloudRepository.share(account, item) }
+
+    /** Downloads the document into the device's Downloads folder. */
+    fun saveCloudItemToDevice(item: CloudItem) = withCloudAccount { account ->
+        val name = cloudRepository.saveToDevice(account, item)
+        _cloudMessage.value = getApplication<Application>().localizedString(R.string.files_cloud_saved, name)
+    }
+
+    private fun loadCloudFolder() {
+        val account = _activeCloudAccount.value ?: return
+        val current = _cloudPath.value.lastOrNull() ?: return
+        viewModelScope.launch {
+            _cloudBusy.value = true
+            _cloudMessage.value = null
+            try {
+                _cloudItems.value = cloudRepository.list(account, current.id)
+            } catch (e: Exception) {
+                ZuneLog.w("FilesHubViewModel", "cloud folder could not be read", e)
+                _cloudItems.value = emptyList()
+                _cloudMessage.value = cloudMessageOf(e)
+            } finally {
+                _cloudBusy.value = false
+            }
+        }
+    }
+
+    /** Runs a change on the open folder and reloads it, reporting whatever the service says. */
+    private fun runCloudAction(block: suspend (CloudAccount, String) -> Unit) {
+        val account = _activeCloudAccount.value ?: return
+        val parent = _cloudPath.value.lastOrNull()?.id ?: return
+        viewModelScope.launch {
+            _cloudBusy.value = true
+            try {
+                block(account, parent)
+                _cloudMessage.value = null
+                loadCloudFolder()
+            } catch (e: Exception) {
+                _cloudMessage.value = cloudMessageOf(e)
+            } finally {
+                _cloudBusy.value = false
+            }
+        }
+    }
+
+    private fun withCloudAccount(block: suspend (CloudAccount) -> Unit) {
+        val account = _activeCloudAccount.value ?: return
+        viewModelScope.launch {
+            _cloudBusy.value = true
+            try {
+                block(account)
+            } catch (e: Exception) {
+                _cloudMessage.value = cloudMessageOf(e)
+            } finally {
+                _cloudBusy.value = false
+            }
+        }
+    }
+
+    private fun cloudMessageOf(throwable: Throwable): String {
+        val application = getApplication<Application>()
+        return if (throwable is CloudException) {
+            application.localizedString(throwable.messageRes)
+        } else {
+            throwable.toUserMessage(application)
+        }
     }
 }

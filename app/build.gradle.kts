@@ -1,3 +1,21 @@
+import java.util.Properties
+
+/**
+ * Cloud sign-in configuration. The Microsoft client id is read from local.properties (which is not
+ * in version control) so no credential ends up in the repository:
+ *
+ *     microsoft.clientId=00000000-0000-0000-0000-000000000000
+ *
+ * Google needs no id in the code: Play services matches this package name and signing certificate
+ * against the OAuth client registered in Google Cloud Console.
+ */
+val cloudProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val microsoftClientId: String = (cloudProperties.getProperty("microsoft.clientId") ?: "").trim()
+val cloudRedirectScheme = "zunelauncher"
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -15,6 +33,14 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "MICROSOFT_CLIENT_ID", "\"$microsoftClientId\"")
+        buildConfigField(
+            "String",
+            "MICROSOFT_REDIRECT_URI",
+            "\"$cloudRedirectScheme://oauth/microsoft\""
+        )
+        manifestPlaceholders["cloudRedirectScheme"] = cloudRedirectScheme
     }
 
     buildFeatures {
@@ -99,6 +125,8 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    // android.jar stubs org.json, so the real implementation is put on the unit test classpath
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

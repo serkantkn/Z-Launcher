@@ -164,6 +164,46 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!-- Catches the Microsoft sign-in redirect (OAuth 2.0 + PKCE) and hands the code back -->
+        <activity
+            android:name=".ui.screens.files.CloudAuthActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="${cloudRedirectScheme}"
+                    android:host="oauth" />
+            </intent-filter>
+        </activity>
+
+        <!-- Invisible helper: the keyboard's dictation panel asks for the microphone through it -->
+        <activity
+            android:name=".ui.keyboard.KeyboardMicPermissionActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:enabled="@bool/zune_keyboard_enabled"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- System-wide Windows Phone keyboard (premium only: disabled via @bool in the free flavour) -->
+        <service
+            android:name=".data.service.ZuneKeyboardService"
+            android:label="@string/keyboard_name"
+            android:enabled="@bool/zune_keyboard_enabled"
+            android:permission="android.permission.BIND_INPUT_METHOD"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/method" />
+        </service>
+
         <receiver android:name=".data.service.AlarmReceiver" android:exported="false" />
 
         <receiver

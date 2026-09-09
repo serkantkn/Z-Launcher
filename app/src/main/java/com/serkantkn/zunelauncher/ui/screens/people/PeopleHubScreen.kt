@@ -67,6 +67,7 @@ import com.serkantkn.zunelauncher.ui.components.rememberZuneHubEntranceState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
+import com.serkantkn.zunelauncher.ui.components.ZunePivotHeader
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
 
@@ -638,13 +639,8 @@ private fun NewContactScreen(
                     .statusBarsPadding()
                     .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 12.dp)
             ) {
-                Text(
+                ZunePivotHeader(
                     text = stringResource(R.string.people_new_contact),
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 72.sp,
-                        lineHeight = 72.sp
-                    ),
                     color = if (zuneColors.isDark) Color.White else Color.Black,
                     modifier = Modifier.padding(bottom = 24.dp)
                 )

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Declaration of the Z keyboard input method. The subtypes are what the system's language
+     switcher offers; the service picks its letter layout from the active subtype. -->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:supportsSwitchingToNextInputMethod="true">
+    <subtype
+        android:label="@string/keyboard_subtype_tr"
+        android:imeSubtypeLocale="tr_TR"
+        android:languageTag="tr-TR"
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="false" />
+    <subtype
+        android:label="@string/keyboard_subtype_en"
+        android:imeSubtypeLocale="en_US"
+        android:languageTag="en-US"
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true" />
+</input-method>

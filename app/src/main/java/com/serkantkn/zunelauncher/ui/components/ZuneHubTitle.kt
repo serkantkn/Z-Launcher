@@ -17,11 +17,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.delay
@@ -102,3 +104,46 @@ fun ZuneHubTitle(
             .padding(vertical = verticalPadding)
     )
 }
+
+/**
+ * The big Metro header a hub puts above its content ("conversations", "history", ...).
+ *
+ * Windows Phone never wraps this line, so when a translation is too long for the screen — English
+ * "conversations" at 72sp on a phone — the text shrinks a step at a time until it fits instead of
+ * dropping onto a second line and breaking the layout.
+ */
+@Composable
+fun ZunePivotHeader(
+    text: String,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = ZuneDimens.ClockFontSize,
+    minFontSize: TextUnit = 40.sp,
+    color: Color = MaterialTheme.colorScheme.onBackground
+) {
+    var currentSize by remember(text, fontSize) { mutableStateOf(fontSize) }
+    var measured by remember(text, fontSize) { mutableStateOf(false) }
+
+    Text(
+        text = text,
+        style = MaterialTheme.typography.displayLarge.copy(
+            fontWeight = FontWeight.Light,
+            fontSize = currentSize,
+            lineHeight = currentSize,
+            letterSpacing = if (currentSize > 40.sp) (-3).sp else (-1).sp
+        ),
+        color = color,
+        maxLines = 1,
+        softWrap = false,
+        onTextLayout = { layout ->
+            if (layout.didOverflowWidth && currentSize > minFontSize) {
+                currentSize = (currentSize.value - SHRINK_STEP_SP).sp
+            } else {
+                measured = true
+            }
+        },
+        // Drawing starts once the size is settled, so the title never flashes at the wrong size.
+        modifier = modifier.drawWithContent { if (measured) drawContent() }
+    )
+}
+
+private const val SHRINK_STEP_SP = 4f

@@ -119,6 +119,15 @@ fun LauncherScreen(
             navState.openHub(HubType.EMAIL)
         }
     }
+    // The keyboard's quick panel asks for the settings hub on its keyboard tab
+    val pendingSettingsTab by com.serkantkn.zunelauncher.data.repository.SettingsBridge.pendingTab.collectAsState()
+    LaunchedEffect(pendingSettingsTab) {
+        val tab = pendingSettingsTab ?: return@LaunchedEffect
+        settingsViewModel.setTargetTab(tab)
+        if (navState.currentHub != HubType.SETTINGS) navState.openHub(HubType.SETTINGS)
+        com.serkantkn.zunelauncher.data.repository.SettingsBridge.consume()
+    }
+
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val isWideScreen = LocalIsWideScreen.current
@@ -597,6 +606,9 @@ private fun RenderHubScreen(
             onBack = { if (!navState.popHub()) navState.closeHub() }
         )
         HubType.EMAIL -> com.serkantkn.zunelauncher.ui.screens.email.EmailHubScreen(
+            onBack = { if (!navState.popHub()) navState.closeHub() }
+        )
+        HubType.CALCULATOR -> com.serkantkn.zunelauncher.ui.screens.calculator.CalculatorHubScreen(
             onBack = { if (!navState.popHub()) navState.closeHub() }
         )
         else -> {}
