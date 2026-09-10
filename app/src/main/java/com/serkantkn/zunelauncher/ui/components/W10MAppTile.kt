@@ -1,21 +1,8 @@
 package com.serkantkn.zunelauncher.ui.components
 
-import com.serkantkn.zunelauncher.R
-import androidx.compose.ui.res.stringResource
 import android.graphics.drawable.Drawable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,38 +14,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.util.toImageBitmap
-import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * A pinned app on Start: its icon, its name in the corner and the number of notifications waiting.
+ * When a notification carries text the tile turns over to show who it was from and what it said.
+ */
 @Composable
 fun W10MAppTile(
     label: String,
@@ -71,282 +46,108 @@ fun W10MAppTile(
     onRemoveClick: () -> Unit,
     onResizeClick: () -> Unit,
     modifier: Modifier = Modifier,
+    tileKey: String = label,
     notificationCount: Int = 0,
     notificationTitle: String? = null,
     notificationText: String? = null,
     cornerStyle: TileCornerStyle = TileCornerStyle.ROUNDED,
     gridColumns: Int = 4,
-    spacing: androidx.compose.ui.unit.Dp = 8.dp
+    spacing: Dp = 8.dp
 ) {
     val zuneColors = LocalZuneColors.current
-    val density = LocalDensity.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val hasNotifications = notificationCount > 0 &&
+        (!notificationTitle.isNullOrBlank() || !notificationText.isNullOrBlank())
+    val bitmap = icon?.let { drawable -> remember(drawable) { drawable.toImageBitmap() } }
 
-    val scaleTarget = when {
-        isDragging -> 1.05f
-        isPressed -> 0.93f
-        isEditing -> 0.97f
-        else -> 1f
-    }
-    
-    val pressScale by animateFloatAsState(
-        targetValue = scaleTarget,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "w10m_tile_scale"
-    )
+    W10MTileSurface(
+        liveKey = "app:$tileKey",
+        span = span,
+        gridColumns = gridColumns,
+        spacing = spacing,
+        isEditing = isEditing,
+        isDragging = isDragging,
+        cornerStyle = cornerStyle,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        onRemoveClick = onRemoveClick,
+        onResizeClick = onResizeClick,
+        modifier = modifier,
+        back = if (hasNotifications) {
+            {
+                val fg = tileForegroundColor()
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        bitmap?.let {
+                            Image(bitmap = it, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                            color = fg.copy(alpha = 0.65f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (notificationCount > 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "+$notificationCount",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                color = if (zuneColors.isDark) Color.White else fg
+                            )
+                        }
+                    }
 
-    val strokeColor = if (zuneColors.isDark) {
-        Color.White.copy(alpha = 0.20f)
-    } else {
-        Color.White.copy(alpha = 0.55f)
-    }
+                    Spacer(modifier = Modifier.height(2.dp))
 
-    val hasNotifications = notificationCount > 0 && (!notificationTitle.isNullOrBlank() || !notificationText.isNullOrBlank())
-    var showBack by remember { mutableStateOf(false) }
-
-    LaunchedEffect(hasNotifications, isEditing) {
-        if (isEditing) {
-            showBack = false
-            return@LaunchedEffect
-        }
-        if (hasNotifications) {
-            while (true) {
-                delay((4000..7000).random().toLong())
-                showBack = !showBack
+                    if (!notificationTitle.isNullOrBlank()) {
+                        Text(
+                            text = notificationTitle,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
+                            color = fg,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (!notificationText.isNullOrBlank()) {
+                        Text(
+                            text = notificationText,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = fg.copy(alpha = 0.85f),
+                            maxLines = when (span) {
+                                1 -> 1
+                                2 -> 2
+                                else -> 3
+                            },
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
-        } else {
-            showBack = false
-        }
-    }
-
-    val rotation by animateFloatAsState(
-        targetValue = if (showBack && !isEditing) -180f else 0f,
-        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-        label = "w10m_tile_flip"
-    )
-
-    val tileShape = remember(cornerStyle) {
-        when (cornerStyle) {
-            TileCornerStyle.SHARP -> RoundedCornerShape(0.dp)
-            TileCornerStyle.ROUNDED -> RoundedCornerShape(8.dp)
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .w10mTileSize(span = span, gridColumns = gridColumns, spacing = spacing)
-            .scale(pressScale)
-            .alpha(if (isDragging) 0.8f else 1f)
-            .graphicsLayer {
-                rotationX = rotation
-                cameraDistance = 8f * density.density
-            }
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = { if (!isEditing) onClick() },
-                onLongClick = if (isEditing) null else onLongClick
-            )
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(tileShape)
-                .background(zuneColors.accentColor.copy(alpha = 0.4f))
-                .border(0.5.dp, if (isEditing) zuneColors.accentColor else strokeColor, tileShape)
-        ) {
-            // Dim overlay in edit mode
+        } else null,
+        front = {
+            val fg = tileForegroundColor()
             if (isEditing) {
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
             }
-
-            if (kotlin.math.abs(rotation) <= 90f) {
-                // Front Side Content
-                Box(modifier = Modifier.fillMaxSize()) {
-                    icon?.let { drawable ->
-                        val bitmap = remember(drawable) { drawable.toImageBitmap() }
-                        val iconSize = when (span) {
-                            1 -> 26.dp
-                            2 -> if (gridColumns >= 8) 36.dp else 48.dp
-                            4 -> if (gridColumns >= 8) 46.dp else 58.dp
-                            else -> 64.dp
-                        }
-                        Image(
-                            bitmap = bitmap,
-                            contentDescription = label,
-                            modifier = Modifier
-                                .size(iconSize)
-                                .align(Alignment.Center)
-                        )
-                    }
-
-                    // Notification Count Badge (Bottom-Right corner, authentic WP Live Tile style)
-                    if (notificationCount > 0) {
-                        Text(
-                            text = notificationCount.toString(),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = if (span == 1 || (span == 2 && gridColumns >= 8)) 12.sp else 20.sp
-                            ),
-                            color = if (zuneColors.isDark) Color.White else Color.Black,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(end = 4.dp, bottom = 2.dp)
-                        )
-                    }
-
-                    // App label at bottom-left
-                    if (span > 1) {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = if (span == 2 && gridColumns >= 8) 9.sp else 12.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            color = if (zuneColors.isDark) {
-                                Color.White.copy(alpha = 0.85f)
-                            } else {
-                                Color.Black.copy(alpha = 0.75f)
-                            },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(start = 6.dp, bottom = 4.dp, end = 24.dp)
-                        )
-                    }
+            bitmap?.let {
+                val iconSize = when {
+                    span == 1 -> 26.dp
+                    span == 2 -> if (gridColumns >= 8) 36.dp else 46.dp
+                    span == 4 -> if (gridColumns >= 8) 46.dp else 56.dp
+                    else -> 62.dp
                 }
-            } else {
-                // Back Side Content
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .graphicsLayer {
-                            rotationX = -180f
-                        }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            icon?.let { drawable ->
-                                val bitmap = remember(drawable) { drawable.toImageBitmap() }
-                                Image(
-                                    bitmap = bitmap,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = if (zuneColors.isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (notificationCount > 1) {
-                                Spacer(modifier = Modifier.weight(1f))
-                                Text(
-                                    text = "+$notificationCount",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = zuneColors.accentColor
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        if (!notificationTitle.isNullOrBlank()) {
-                            Text(
-                                text = notificationTitle,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp
-                                ),
-                                color = if (zuneColors.isDark) Color.White else Color.Black,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        if (!notificationText.isNullOrBlank()) {
-                            Text(
-                                text = notificationText,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = FontWeight.Normal,
-                                    fontSize = 12.sp
-                                ),
-                                color = if (zuneColors.isDark) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f),
-                                maxLines = when (span) {
-                                    1 -> 1
-                                    2 -> 2
-                                    else -> 3
-                                },
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Edit Mode Overlay Buttons
-        if (isEditing) {
-            // Remove Button (Top Right)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .clickable(onClick = onRemoveClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.notes_remove_cap),
-                    tint = Color.Black,
-                    modifier = Modifier.size(16.dp)
+                Image(
+                    bitmap = it,
+                    contentDescription = label,
+                    modifier = Modifier.size(iconSize).align(Alignment.Center)
                 )
             }
-
-            // Resize Button (Bottom Right)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, Color.White, CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable(onClick = onResizeClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = stringResource(R.string.notes_resize_cap),
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+            TileBadge(notificationCount, span, gridColumns, fg)
+            TileLabel(label, span, gridColumns, fg)
         }
-    }
+    )
 }

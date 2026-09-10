@@ -44,7 +44,6 @@ import com.serkantkn.zunelauncher.data.model.CloudAccount
 import com.serkantkn.zunelauncher.data.model.CloudCrumb
 import com.serkantkn.zunelauncher.data.model.CloudItem
 import com.serkantkn.zunelauncher.data.model.FileItemModel
-import com.serkantkn.zunelauncher.data.repository.CloudAuthBridge
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
@@ -137,34 +136,6 @@ fun FilesHubScreen(
                 }
             }
             .addOnFailureListener { viewModel.reportCloudError(it) }
-    }
-
-    // "Microsoft ile oturum aç": the sign-in page opens in the browser and comes back through the
-    // launcher's redirect scheme (OAuth 2.0 with PKCE, no client secret).
-    fun startMicrosoftSignIn() {
-        val url = viewModel.microsoftAuthorizationUrl() ?: return
-        try {
-            context.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        } catch (e: Exception) {
-            viewModel.reportCloudError(
-                com.serkantkn.zunelauncher.data.model.CloudException(R.string.cloud_error_no_browser, e.message, e)
-            )
-        }
-    }
-
-    val pendingAuthCode by CloudAuthBridge.pendingCode.collectAsState()
-    LaunchedEffect(pendingAuthCode) {
-        val code = CloudAuthBridge.consumeCode() ?: return@LaunchedEffect
-        viewModel.completeMicrosoftSignIn(code)
-    }
-    val pendingAuthError by CloudAuthBridge.pendingError.collectAsState()
-    LaunchedEffect(pendingAuthError) {
-        val error = CloudAuthBridge.consumeError() ?: return@LaunchedEffect
-        viewModel.reportCloudError(
-            com.serkantkn.zunelauncher.data.model.CloudException(R.string.cloud_error_cancelled, error)
-        )
     }
 
     var isSearchActive by remember { mutableStateOf(false) }
@@ -330,9 +301,7 @@ fun FilesHubScreen(
                         items = cloudItems,
                         isBusy = cloudBusy,
                         message = cloudMessage,
-                        microsoftConfigured = viewModel.isMicrosoftConfigured,
                         onSignInGoogle = { startGoogleSignIn() },
-                        onSignInMicrosoft = { startMicrosoftSignIn() },
                         onOpenAccount = { account -> viewModel.openCloudAccount(account) },
                         onSignOut = { account -> viewModel.signOutCloudAccount(account) },
                         onItemClick = { item -> viewModel.openCloudItem(item) },
@@ -374,9 +343,7 @@ fun FilesHubScreen(
                             items = cloudItems,
                             isBusy = cloudBusy,
                             message = cloudMessage,
-                            microsoftConfigured = viewModel.isMicrosoftConfigured,
                             onSignInGoogle = { startGoogleSignIn() },
-                            onSignInMicrosoft = { startMicrosoftSignIn() },
                             onOpenAccount = { account -> viewModel.openCloudAccount(account) },
                             onSignOut = { account -> viewModel.signOutCloudAccount(account) },
                             onItemClick = { item -> viewModel.openCloudItem(item) },
@@ -1037,10 +1004,10 @@ private const val CLOUD_TAB_INDEX = 3
 
 /**
  * Cloud storage of the Files hub. Without an account open it lists the drives that are signed in
- * and offers the two sign-in buttons; with one open it browses that drive like a local folder.
+ * and offers the sign-in button; with one open it browses that drive like a local folder.
  *
- * The services are reached over their own web APIs, so nothing here depends on Drive's or
- * OneDrive's Android app being installed.
+ * Drive is reached over its own web API, so nothing here depends on its Android app being
+ * installed.
  */
 @Composable
 private fun CloudView(
@@ -1050,9 +1017,7 @@ private fun CloudView(
     items: List<CloudItem>,
     isBusy: Boolean,
     message: String?,
-    microsoftConfigured: Boolean,
     onSignInGoogle: () -> Unit,
-    onSignInMicrosoft: () -> Unit,
     onOpenAccount: (CloudAccount) -> Unit,
     onSignOut: (CloudAccount) -> Unit,
     onItemClick: (CloudItem) -> Unit,
@@ -1184,23 +1149,6 @@ private fun CloudView(
                 filled = true,
                 onClick = onSignInGoogle
             )
-        }
-
-        item(key = "cloud_sign_in_microsoft") {
-            CloudActionButton(
-                icon = Icons.Default.CloudQueue,
-                label = stringResource(R.string.files_cloud_sign_in_microsoft),
-                filled = false,
-                onClick = onSignInMicrosoft
-            )
-            if (!microsoftConfigured) {
-                Text(
-                    text = stringResource(R.string.cloud_error_microsoft_config),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = zuneColors.textDim,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
         }
     }
 }

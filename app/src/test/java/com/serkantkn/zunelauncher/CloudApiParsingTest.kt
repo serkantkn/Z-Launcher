@@ -3,7 +3,6 @@ package com.serkantkn.zunelauncher
 import com.serkantkn.zunelauncher.data.model.CloudAccount
 import com.serkantkn.zunelauncher.data.model.CloudService
 import com.serkantkn.zunelauncher.data.repository.GoogleDriveApi
-import com.serkantkn.zunelauncher.data.repository.OneDriveApi
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -51,27 +50,6 @@ class CloudApiParsingTest {
     }
 
     @Test
-    fun oneDriveListsFoldersFirst() {
-        val response = JSONObject(
-            """
-            {"value":[
-              {"id":"a","name":"rapor.docx","size":1024,"lastModifiedDateTime":"2026-09-04T12:00:00Z",
-               "file":{"mimeType":"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}},
-              {"id":"b","name":"Belgeler","lastModifiedDateTime":"2026-09-01T12:00:00Z","folder":{"childCount":3}}
-            ]}
-            """.trimIndent()
-        )
-        val items = OneDriveApi.parse(response)
-
-        assertEquals(2, items.size)
-        assertTrue(items[0].isFolder)
-        assertEquals("Belgeler", items[0].name)
-        assertFalse(items[1].isFolder)
-        assertEquals(1024L, items[1].size)
-        assertTrue(items[1].mimeType.contains("wordprocessingml"))
-    }
-
-    @Test
     fun anAccountSurvivesBeingStoredAndReadBack() {
         val account = CloudAccount(
             id = "google_drive:serkan@example.com",
@@ -85,8 +63,8 @@ class CloudApiParsingTest {
     @Test
     fun anAccountOfAnUnknownServiceIsDropped() {
         assertNull(CloudAccount.fromJson(JSONObject("""{"id":"x","service":"dropbox"}""")))
-        assertNull(CloudAccount.fromJson(JSONObject("""{"service":"onedrive"}""")))
-        assertEquals(CloudService.ONEDRIVE, CloudService.fromId("onedrive"))
+        assertNull(CloudAccount.fromJson(JSONObject("""{"service":"dropbox"}""")))
+        assertEquals(CloudService.GOOGLE_DRIVE, CloudService.fromId("google_drive"))
         assertNull(CloudService.fromId("nope"))
     }
 }

@@ -53,6 +53,8 @@ fun LookPreviewCard(
     customWallpaperPath: String?,
     tileCornerStyle: TileCornerStyle,
     tileSpacing: Int,
+    /** 0-100, the same scale the transparency slider works on. */
+    tileOpacity: Int = 45,
     tileColumns: Int = 4,
     hubBackgroundOpacity: Float,
     hubBackgroundMode: HubBackgroundMode,
@@ -90,6 +92,7 @@ fun LookPreviewCard(
 
     val tileShape = RoundedCornerShape(animatedCornerRadius)
     val tileStrokeColor = if (isDark) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.55f)
+    val tileFillAlpha = (tileOpacity / 100f).coerceIn(0f, 1f)
 
     val effectiveBgMode = when {
         solidBackgroundEnabled -> BackgroundMode.SOLID
@@ -172,6 +175,7 @@ fun LookPreviewCard(
                                         label = null,
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -182,6 +186,7 @@ fun LookPreviewCard(
                                         label = null,
                                         badge = "2",
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -192,6 +197,7 @@ fun LookPreviewCard(
                                         label = null,
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -202,6 +208,7 @@ fun LookPreviewCard(
                                         label = null,
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -219,6 +226,7 @@ fun LookPreviewCard(
                                         label = stringResource(R.string.pictures_hub),
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -229,6 +237,7 @@ fun LookPreviewCard(
                                         label = null,
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -239,6 +248,7 @@ fun LookPreviewCard(
                                         label = null,
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -252,6 +262,7 @@ fun LookPreviewCard(
                                     label = stringResource(R.string.music_hub),
                                     badge = null,
                                     accentColor = animatedAccentColor,
+                                    tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
                                     textColor = textColor,
@@ -274,6 +285,7 @@ fun LookPreviewCard(
                                         label = stringResource(R.string.hub_phone),
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -287,6 +299,7 @@ fun LookPreviewCard(
                                         label = stringResource(R.string.hub_messaging),
                                         badge = "2",
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -302,6 +315,7 @@ fun LookPreviewCard(
                                     label = stringResource(R.string.pictures_hub),
                                     badge = null,
                                     accentColor = animatedAccentColor,
+                                    tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
                                     textColor = textColor,
@@ -320,6 +334,7 @@ fun LookPreviewCard(
                                         label = stringResource(R.string.music_hub),
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -333,6 +348,7 @@ fun LookPreviewCard(
                                         label = null,
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -346,6 +362,7 @@ fun LookPreviewCard(
                                         label = null,
                                         badge = null,
                                         accentColor = animatedAccentColor,
+                                        tileOpacity = tileFillAlpha,
                                         tileShape = tileShape,
                                         strokeColor = tileStrokeColor,
                                         textColor = textColor,
@@ -409,6 +426,7 @@ fun LookPreviewCard(
                                 label = null,
                                 badge = null,
                                 accentColor = animatedAccentColor,
+                                tileOpacity = tileFillAlpha,
                                 tileShape = tileShape,
                                 strokeColor = tileStrokeColor,
                                 textColor = textColor,
@@ -421,6 +439,7 @@ fun LookPreviewCard(
                                 label = null,
                                 badge = "2",
                                 accentColor = animatedAccentColor,
+                                tileOpacity = tileFillAlpha,
                                 tileShape = tileShape,
                                 strokeColor = tileStrokeColor,
                                 textColor = textColor,
@@ -433,6 +452,7 @@ fun LookPreviewCard(
                                 label = null,
                                 badge = null,
                                 accentColor = animatedAccentColor,
+                                tileOpacity = tileFillAlpha,
                                 tileShape = tileShape,
                                 strokeColor = tileStrokeColor,
                                 textColor = textColor,
@@ -445,6 +465,7 @@ fun LookPreviewCard(
                                 label = null,
                                 badge = null,
                                 accentColor = animatedAccentColor,
+                                tileOpacity = tileFillAlpha,
                                 tileShape = tileShape,
                                 strokeColor = tileStrokeColor,
                                 textColor = textColor,
@@ -469,12 +490,13 @@ private fun MiniTile(
     tileShape: RoundedCornerShape,
     strokeColor: Color,
     textColor: Color,
+    tileOpacity: Float,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .clip(tileShape)
-            .background(accentColor.copy(alpha = 0.45f))
+            .background(accentColor.copy(alpha = tileOpacity))
             .border(0.5.dp, strokeColor, tileShape)
             .padding(horizontal = 6.dp, vertical = 4.dp)
     ) {

@@ -5,9 +5,9 @@ import com.serkantkn.zunelauncher.R
 import org.json.JSONObject
 
 /**
- * Cloud storage in the Files hub talks to the services directly over their own web APIs, so a
- * service works whether or not its Android app is installed: the user signs in once with Google
- * or Microsoft, the launcher keeps the OAuth tokens and browses the drive itself.
+ * Cloud storage in the Files hub talks to the service directly over its own web API, so a drive
+ * works whether or not its Android app is installed: the user signs in once with Google, the
+ * launcher keeps the OAuth tokens and browses the drive itself.
  */
 
 /** A service the hub can sign in to. */
@@ -15,8 +15,7 @@ enum class CloudService(
     val id: String,
     @StringRes val titleRes: Int
 ) {
-    GOOGLE_DRIVE("google_drive", R.string.cloud_service_google),
-    ONEDRIVE("onedrive", R.string.cloud_service_microsoft);
+    GOOGLE_DRIVE("google_drive", R.string.cloud_service_google);
 
     companion object {
         fun fromId(id: String?): CloudService? = entries.firstOrNull { it.id == id }

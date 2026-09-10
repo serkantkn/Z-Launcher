@@ -234,7 +234,6 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     /** Last failure or confirmation, shown under the header. */
     val cloudMessage: StateFlow<String?> = _cloudMessage.asStateFlow()
 
-    val isMicrosoftConfigured: Boolean get() = cloudRepository.isMicrosoftConfigured()
 
     fun googleAuthorizeTask() = cloudRepository.googleAuthorizeTask()
 
@@ -255,29 +254,6 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
             _cloudBusy.value = true
             try {
                 openCloudAccount(cloudRepository.completeGoogleSignIn(result))
-                _cloudMessage.value = null
-            } catch (e: Exception) {
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _cloudBusy.value = false
-            }
-        }
-    }
-
-    /** The Microsoft sign-in page to open in the browser, or null when it is not configured. */
-    fun microsoftAuthorizationUrl(): String? = try {
-        cloudRepository.microsoftAuthorizationUrl()
-    } catch (e: Exception) {
-        _cloudMessage.value = cloudMessageOf(e)
-        null
-    }
-
-    /** Finishes the Microsoft sign-in with the code the browser handed back. */
-    fun completeMicrosoftSignIn(code: String) {
-        viewModelScope.launch {
-            _cloudBusy.value = true
-            try {
-                openCloudAccount(cloudRepository.completeMicrosoftSignIn(code))
                 _cloudMessage.value = null
             } catch (e: Exception) {
                 _cloudMessage.value = cloudMessageOf(e)

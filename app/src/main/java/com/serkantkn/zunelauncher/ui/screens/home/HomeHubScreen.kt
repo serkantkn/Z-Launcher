@@ -46,6 +46,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,6 +66,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,7 +81,13 @@ import com.serkantkn.zunelauncher.ui.animation.w10mEditWiggle
 import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.components.W10MAppTile
+import com.serkantkn.zunelauncher.ui.components.LocalTileStyle
+import com.serkantkn.zunelauncher.ui.components.TileStyle
 import com.serkantkn.zunelauncher.ui.components.W10MHubTile
+import com.serkantkn.zunelauncher.ui.components.W10MMusicTile
+import com.serkantkn.zunelauncher.ui.components.W10MPeopleTile
+import com.serkantkn.zunelauncher.ui.components.W10MWeatherTile
+import com.serkantkn.zunelauncher.ui.screens.weather.conditionIcon
 import com.serkantkn.zunelauncher.ui.components.W10MCalendarTile
 import com.serkantkn.zunelauncher.ui.components.W10MClockTile
 import com.serkantkn.zunelauncher.ui.components.W10MNoteTile
@@ -96,7 +104,10 @@ import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * Start. Everything below it draws tiles, so the tile look the user picked — how see-through the
+ * tiles are and how their live faces move — is handed down from here.
+ */
 @Composable
 fun HomeHubScreen(
     isHubOpen: Boolean = false,
@@ -109,6 +120,40 @@ fun HomeHubScreen(
     dateFormat: String = "EEEE, MMMM d",
     modifier: Modifier = Modifier,
     viewModel: HomeHubViewModel = viewModel()
+) {
+    val tileOpacity by viewModel.tileOpacity.collectAsState()
+    val tileAnimation by viewModel.tileAnimation.collectAsState()
+    CompositionLocalProvider(
+        LocalTileStyle provides TileStyle(opacity = tileOpacity / 100f, animation = tileAnimation)
+    ) {
+        HomeHubScreenContent(
+            isHubOpen = isHubOpen,
+            isCurrentPage = isCurrentPage,
+            onHubSelected = onHubSelected,
+            onNavigateToSocialHub = onNavigateToSocialHub,
+            onNavigateToAppsHub = onNavigateToAppsHub,
+            onExpandProgressChange = onExpandProgressChange,
+            timeFormat = timeFormat,
+            dateFormat = dateFormat,
+            modifier = modifier,
+            viewModel = viewModel
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun HomeHubScreenContent(
+    isHubOpen: Boolean,
+    isCurrentPage: Boolean,
+    onHubSelected: (HubType) -> Unit,
+    onNavigateToSocialHub: () -> Unit,
+    onNavigateToAppsHub: () -> Unit,
+    onExpandProgressChange: (Float) -> Unit,
+    timeFormat: String,
+    dateFormat: String,
+    modifier: Modifier,
+    viewModel: HomeHubViewModel
 ) {
     val unifiedStartTilesFlow by viewModel.unifiedStartTiles.collectAsState()
     val favoriteAppsFlow by viewModel.favoriteApps.collectAsState()
@@ -123,6 +168,14 @@ fun HomeHubScreen(
     val enabledAlarms by viewModel.enabledAlarms.collectAsState()
     val upcomingEvents by viewModel.upcomingEvents.collectAsState()
     val latestMessages by viewModel.latestMessages.collectAsState()
+    val peopleFaces by viewModel.peopleFaces.collectAsState()
+    val missedCalls by viewModel.missedCalls.collectAsState()
+    val lastMissedCaller by viewModel.lastMissedCaller.collectAsState()
+    val unreadMessages by viewModel.unreadMessages.collectAsState()
+    val nowPlaying by viewModel.nowPlaying.collectAsState()
+    val emailTilePreview by viewModel.emailTilePreview.collectAsState()
+    val weatherSnapshot by viewModel.weatherSnapshot.collectAsState()
+    val weatherUnit by viewModel.weatherUnit.collectAsState()
     val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
     val tileSpacing by viewModel.tileSpacing.collectAsState()
     val tileColumns by viewModel.tileColumns.collectAsState()
@@ -191,6 +244,7 @@ fun HomeHubScreen(
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) viewModel.refreshLiveTiles()
             if (event == Lifecycle.Event.ON_START && hasRunInitialAnimation) {
                 coroutineScope.launch {
                     animationProgress.snapTo(0f)
@@ -407,6 +461,51 @@ fun HomeHubScreen(
                         onResizeClick = onResize,
                         modifier = animated
                     )
+                    HubType.PEOPLE -> W10MPeopleTile(
+                        span = model.span,
+                        gridColumns = gridColumns,
+                        spacing = tileSpacing.dp,
+                        isEditing = isEditMode,
+                        isDragging = isDragging,
+                        cornerStyle = tileCornerStyle,
+                        contacts = peopleFaces,
+                        onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
+                        onLongClick = { isEditMode = true },
+                        onRemoveClick = { onRemoveTile(model.id) },
+                        onResizeClick = onResize,
+                        modifier = animated
+                    )
+                    HubType.WEATHER -> W10MWeatherTile(
+                        snapshot = weatherSnapshot,
+                        temperatureUnit = weatherUnit,
+                        span = model.span,
+                        gridColumns = gridColumns,
+                        spacing = tileSpacing.dp,
+                        isEditing = isEditMode,
+                        isDragging = isDragging,
+                        cornerStyle = tileCornerStyle,
+                        onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
+                        onLongClick = { isEditMode = true },
+                        onRemoveClick = { onRemoveTile(model.id) },
+                        onResizeClick = onResize,
+                        modifier = animated
+                    )
+                    HubType.MUSIC -> W10MMusicTile(
+                        span = model.span,
+                        gridColumns = gridColumns,
+                        spacing = tileSpacing.dp,
+                        isEditing = isEditMode,
+                        isDragging = isDragging,
+                        cornerStyle = tileCornerStyle,
+                        albumArt = nowPlaying.albumArt,
+                        trackTitle = nowPlaying.title,
+                        trackArtist = nowPlaying.artist,
+                        onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
+                        onLongClick = { isEditMode = true },
+                        onRemoveClick = { onRemoveTile(model.id) },
+                        onResizeClick = onResize,
+                        modifier = animated
+                    )
                     else -> W10MHubTile(
                         hubType = hubType,
                         span = model.span,
@@ -417,15 +516,25 @@ fun HomeHubScreen(
                         isDragging = isDragging,
                         cornerStyle = tileCornerStyle,
                         badgeCount = when (hubType) {
-                            HubType.MESSAGING -> notificationCounts["com.google.android.apps.messaging"] ?: 0
-                            HubType.PHONE -> notificationCounts["com.google.android.dialer"] ?: 0
+                            HubType.MESSAGING -> maxOf(unreadMessages.size, notificationCounts["com.google.android.apps.messaging"] ?: 0)
+                            HubType.PHONE -> maxOf(missedCalls, notificationCounts["com.google.android.dialer"] ?: 0)
                             HubType.NOTES -> pinnedNotesCount
                             HubType.EMAIL -> emailUnreadCount
                             else -> 0
                         },
+                        liveTitle = when (hubType) {
+                            HubType.MESSAGING -> unreadMessages.firstOrNull()?.let { it.contactName.ifBlank { it.address } }
+                            HubType.PHONE -> lastMissedCaller
+                            HubType.EMAIL -> emailTilePreview?.first
+                            else -> null
+                        },
                         liveSubtitle = when (hubType) {
                             HubType.NOTES -> notesTileSubtitle
                             HubType.CALCULATOR -> calculatorTileSubtitle
+                            HubType.MESSAGING -> unreadMessages.firstOrNull()?.snippet
+                            HubType.PHONE -> missedCalls.takeIf { it > 0 }
+                                ?.let { pluralStringResource(R.plurals.tile_missed_calls, it, it) }
+                            HubType.EMAIL -> emailTilePreview?.second
                             else -> null
                         },
                         onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
@@ -438,6 +547,7 @@ fun HomeHubScreen(
             }
             is StartTileUIModel.App -> W10MAppTile(
                 label = model.appInfo.label,
+                tileKey = model.appInfo.packageName,
                 icon = viewModel.getAppIcon(model.appInfo.packageName),
                 span = model.span,
                 gridColumns = gridColumns,
@@ -646,6 +756,10 @@ fun HomeHubScreen(
                     )
                 )
                 ZuneWeather(
+                    temperature = weatherSnapshot?.let { "${weatherUnit.of(it.now.temperature)}°" },
+                    conditionLabel = weatherSnapshot?.let { stringResource(it.now.condition.labelRes) },
+                    icon = weatherSnapshot?.let { conditionIcon(it.now.condition, it.now.isDay) },
+                    onClick = { handleLaunch("hub_WEATHER") { onHubSelected(HubType.WEATHER) } },
                     modifier = Modifier
                         .padding(top = ZuneDimens.SpacingSm)
                         .w10mStaggeredAnimation(animationProgress.value, 3)

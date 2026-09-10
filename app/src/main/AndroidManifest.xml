@@ -25,6 +25,7 @@
     
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
@@ -164,22 +165,6 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- Catches the Microsoft sign-in redirect (OAuth 2.0 + PKCE) and hands the code back -->
-        <activity
-            android:name=".ui.screens.files.CloudAuthActivity"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="${cloudRedirectScheme}"
-                    android:host="oauth" />
-            </intent-filter>
-        </activity>
 
         <!-- Invisible helper: the keyboard's dictation panel asks for the microphone through it -->
         <activity

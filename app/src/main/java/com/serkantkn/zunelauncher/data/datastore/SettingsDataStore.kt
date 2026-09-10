@@ -13,6 +13,7 @@ import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.StartTileItem
 import com.serkantkn.zunelauncher.data.model.ThemeMode
+import com.serkantkn.zunelauncher.data.model.TileAnimation
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.looksLikeJsonArray
 import com.serkantkn.zunelauncher.data.model.parseJsonObjectList
@@ -38,6 +39,9 @@ class SettingsDataStore(private val context: Context) {
 
     companion object {
         private const val TAG = "SettingsDataStore"
+
+        /** Windows Phone 8.1's own translucency, and what a fresh install starts with. */
+        const val DEFAULT_TILE_OPACITY = 45
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val FONT_SCALE = floatPreferencesKey("font_scale")
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
@@ -62,6 +66,8 @@ class SettingsDataStore(private val context: Context) {
         val CUSTOM_HUB_WALLPAPER_PATH = stringPreferencesKey("custom_hub_wallpaper_path")
         val HUB_BACKGROUND_OPACITY = floatPreferencesKey("hub_background_opacity")
         val TILE_CORNER_STYLE = stringPreferencesKey("tile_corner_style")
+        val TILE_OPACITY = intPreferencesKey("tile_opacity")
+        val TILE_ANIMATION = stringPreferencesKey("tile_animation")
         val TILE_SPACING = intPreferencesKey("tile_spacing")
         val HOME_SCREEN_LAYOUT = stringPreferencesKey("home_screen_layout")
         val TILE_COLUMNS = intPreferencesKey("tile_columns")
@@ -131,6 +137,7 @@ class SettingsDataStore(private val context: Context) {
             com.serkantkn.zunelauncher.data.model.HubType.NOTES,
             com.serkantkn.zunelauncher.data.model.HubType.EMAIL,
             com.serkantkn.zunelauncher.data.model.HubType.CALCULATOR,
+            com.serkantkn.zunelauncher.data.model.HubType.WEATHER,
             com.serkantkn.zunelauncher.data.model.HubType.SETTINGS
         )
         if (saved.isNullOrEmpty()) return defaultOrder
@@ -160,6 +167,7 @@ class SettingsDataStore(private val context: Context) {
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.NOTES, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.EMAIL, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CALCULATOR, 2),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.WEATHER, 4),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.SETTINGS, 2)
     )
 
@@ -211,6 +219,24 @@ class SettingsDataStore(private val context: Context) {
 
     val tileSpacing: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         prefs[TILE_SPACING] ?: 2
+    }
+
+    /**
+     * How solid the Start tiles are, 0-100. The wallpaper shows through everything below 100;
+     * the default matches the translucent look Windows Phone 8.1 tiles had.
+     */
+    val tileOpacity: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        (prefs[TILE_OPACITY] ?: DEFAULT_TILE_OPACITY).coerceIn(0, 100)
+    }
+
+    /** Motion the live tiles use when they turn to their back face. */
+    val tileAnimation: Flow<TileAnimation> = context.settingsDataStore.data.map { prefs ->
+        try {
+            TileAnimation.valueOf(prefs[TILE_ANIMATION] ?: TileAnimation.SLIDE.name)
+        } catch (e: IllegalArgumentException) {
+            ZuneLog.w(TAG, "unknown tile animation, falling back to slide", e)
+            TileAnimation.SLIDE
+        }
     }
 
     val tileColumns: Flow<Int> = context.settingsDataStore.data.map { prefs ->
@@ -406,6 +432,18 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setTileSpacing(spacing: Int) {
         context.settingsDataStore.edit { prefs ->
             prefs[TILE_SPACING] = spacing
+        }
+    }
+
+    suspend fun setTileOpacity(opacity: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_OPACITY] = opacity.coerceIn(0, 100)
+        }
+    }
+
+    suspend fun setTileAnimation(animation: TileAnimation) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_ANIMATION] = animation.name
         }
     }
 

@@ -18,5 +18,6 @@ enum class HubType(@StringRes val titleRes: Int) {
     FILES(R.string.hub_files),
     NOTES(R.string.hub_notes),
     EMAIL(R.string.hub_email),
-    CALCULATOR(R.string.hub_calculator)
+    CALCULATOR(R.string.hub_calculator),
+    WEATHER(R.string.hub_weather)
 }

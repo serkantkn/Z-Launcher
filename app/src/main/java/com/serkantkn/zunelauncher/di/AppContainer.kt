@@ -11,6 +11,7 @@ import com.serkantkn.zunelauncher.data.datastore.FavoritePhotosDataStore
 import com.serkantkn.zunelauncher.data.datastore.KeyboardDataStore
 import com.serkantkn.zunelauncher.data.datastore.NotesDataStore
 import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
+import com.serkantkn.zunelauncher.data.datastore.WeatherDataStore
 import com.serkantkn.zunelauncher.data.repository.AppRepository
 import com.serkantkn.zunelauncher.data.repository.CallLogRepository
 import com.serkantkn.zunelauncher.data.repository.CloudAuthRepository
@@ -20,6 +21,7 @@ import com.serkantkn.zunelauncher.data.repository.EmailCache
 import com.serkantkn.zunelauncher.data.repository.EmailRepository
 import com.serkantkn.zunelauncher.data.repository.MediaRepository
 import com.serkantkn.zunelauncher.data.repository.MusicRepository
+import com.serkantkn.zunelauncher.data.repository.WeatherRepository
 import com.serkantkn.zunelauncher.data.service.AlarmScheduler
 import com.serkantkn.zunelauncher.data.service.EmailSyncScheduler
 import com.serkantkn.zunelauncher.util.SecretStore
@@ -45,6 +47,7 @@ class AppContainer(private val appContext: Context) {
     val calculatorDataStore: CalculatorDataStore by lazy { CalculatorDataStore(appContext) }
     val cloudDataStore: CloudDataStore by lazy { CloudDataStore(appContext) }
     val keyboardDataStore: KeyboardDataStore by lazy { KeyboardDataStore(appContext) }
+    val weatherDataStore: WeatherDataStore by lazy { WeatherDataStore(appContext) }
 
     // --- Repositories ---
     val appRepository: AppRepository by lazy { AppRepository(appContext) }
@@ -55,6 +58,7 @@ class AppContainer(private val appContext: Context) {
         CloudStorageRepository(appContext, cloudDataStore, cloudAuthRepository)
     }
     val callLogRepository: CallLogRepository by lazy { CallLogRepository(appContext) }
+    val weatherRepository: WeatherRepository by lazy { WeatherRepository(appContext, weatherDataStore) }
     val musicRepository: MusicRepository by lazy { MusicRepository(appContext) }
     val emailCache: EmailCache by lazy { EmailCache(appContext) }
     val emailRepository: EmailRepository by lazy { EmailRepository(appContext, secretStore, emailCache) }

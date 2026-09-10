@@ -3,8 +3,6 @@ package com.serkantkn.zunelauncher.data.repository
 import android.accounts.Account
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.util.Base64
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
@@ -13,7 +11,6 @@ import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
-import com.serkantkn.zunelauncher.BuildConfig
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.CloudAccount
 import com.serkantkn.zunelauncher.data.model.CloudException
@@ -22,8 +19,6 @@ import com.serkantkn.zunelauncher.util.SecretStore
 import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.security.MessageDigest
-import java.security.SecureRandom
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
@@ -34,9 +29,7 @@ import java.util.concurrent.TimeUnit
  * uses — so the user picks a Google account, grants the Drive scope once and the launcher gets a
  * fresh access token whenever it needs one. Google Drive's own app does not have to be installed.
  *
- * Microsoft is a plain OAuth 2.0 authorization-code flow with PKCE: the sign-in page opens in the
- * browser, comes back to the launcher through the redirect scheme, and the refresh token is kept
- * in the encrypted [SecretStore]. No client secret is used or needed for either service.
+ * No client secret is used or needed.
  */
 class CloudAuthRepository(
     private val context: Context,
@@ -128,138 +121,21 @@ class CloudAuthRepository(
         }
     }
 
-    // --- Microsoft ------------------------------------------------------------------------------
-
-    /** True once a client id has been configured for the Microsoft sign-in. */
-    fun isMicrosoftConfigured(): Boolean = BuildConfig.MICROSOFT_CLIENT_ID.isNotBlank()
-
     /**
-     * The sign-in page to open in the browser. A fresh PKCE verifier is stored alongside it, so
-     * the code that comes back through the redirect can be exchanged without a client secret.
+     * Drops everything stored for an account that is being signed out. Play services holds the
+     * Google token itself, so this only clears entries an older build may have left behind.
      */
-    fun microsoftAuthorizationUrl(): String {
-        if (!isMicrosoftConfigured()) throw CloudException(R.string.cloud_error_microsoft_config)
-        val verifier = randomVerifier()
-        secretStore.put(PKCE_KEY, verifier)
-        return Uri.parse("$MICROSOFT_AUTHORITY/authorize").buildUpon()
-            .appendQueryParameter("client_id", BuildConfig.MICROSOFT_CLIENT_ID)
-            .appendQueryParameter("response_type", "code")
-            .appendQueryParameter("redirect_uri", BuildConfig.MICROSOFT_REDIRECT_URI)
-            .appendQueryParameter("response_mode", "query")
-            .appendQueryParameter("scope", MICROSOFT_SCOPES)
-            .appendQueryParameter("code_challenge", challengeOf(verifier))
-            .appendQueryParameter("code_challenge_method", "S256")
-            .appendQueryParameter("prompt", "select_account")
-            .build()
-            .toString()
-    }
-
-    /** Exchanges the authorization code for tokens and returns the account that signed in. */
-    suspend fun completeMicrosoftSignIn(code: String): CloudAccount = withContext(Dispatchers.IO) {
-        val verifier = secretStore.get(PKCE_KEY)
-            ?: throw CloudException(R.string.cloud_error_signin_again)
-        val response = CloudHttp.postForm(
-            "$MICROSOFT_AUTHORITY/token",
-            mapOf(
-                "client_id" to BuildConfig.MICROSOFT_CLIENT_ID,
-                "grant_type" to "authorization_code",
-                "code" to code,
-                "redirect_uri" to BuildConfig.MICROSOFT_REDIRECT_URI,
-                "code_verifier" to verifier,
-                "scope" to MICROSOFT_SCOPES
-            )
-        )
-        secretStore.remove(PKCE_KEY)
-
-        val accessToken = response.optString("access_token").ifBlank {
-            throw CloudException(R.string.cloud_error_service)
-        }
-        val profile = CloudHttp.getJson("$GRAPH/me", accessToken)
-        val email = profile.optString("mail").ifBlank { profile.optString("userPrincipalName") }
-        val account = CloudAccount(
-            id = "${CloudService.ONEDRIVE.id}:${email.ifBlank { "me" }}",
-            service = CloudService.ONEDRIVE,
-            displayName = profile.optString("displayName").ifBlank { email },
-            email = email
-        )
-        storeTokens(account.id, response.optString("refresh_token"), accessToken, response.optLong("expires_in", 0L))
-        account
-    }
-
-    /** A valid access token for [account], refreshed through the stored refresh token if needed. */
-    suspend fun microsoftAccessToken(account: CloudAccount): String = withContext(Dispatchers.IO) {
-        cachedToken(account.id)?.let { return@withContext it }
-        val refreshToken = secretStore.get(refreshKey(account.id))
-            ?: throw CloudException(R.string.cloud_error_signin_again)
-        val response = CloudHttp.postForm(
-            "$MICROSOFT_AUTHORITY/token",
-            mapOf(
-                "client_id" to BuildConfig.MICROSOFT_CLIENT_ID,
-                "grant_type" to "refresh_token",
-                "refresh_token" to refreshToken,
-                "scope" to MICROSOFT_SCOPES
-            )
-        )
-        val accessToken = response.optString("access_token").ifBlank {
-            throw CloudException(R.string.cloud_error_signin_again)
-        }
-        storeTokens(
-            account.id,
-            response.optString("refresh_token").ifBlank { refreshToken },
-            accessToken,
-            response.optLong("expires_in", 0L)
-        )
-        accessToken
-    }
-
-    /** Drops everything stored for an account that is being signed out. */
     fun forget(accountId: String) {
-        secretStore.remove(refreshKey(accountId))
-        secretStore.remove(accessKey(accountId))
-        accessTokens.remove(accountId)
+        secretStore.remove("cloud_refresh_$accountId")
+        secretStore.remove("cloud_access_$accountId")
     }
-
-    private fun storeTokens(accountId: String, refreshToken: String?, accessToken: String, expiresIn: Long) {
-        if (!refreshToken.isNullOrBlank()) secretStore.put(refreshKey(accountId), refreshToken)
-        val validUntil = System.currentTimeMillis() + (expiresIn.coerceAtLeast(60L) - TOKEN_MARGIN_SECONDS) * 1000L
-        accessTokens[accountId] = CachedToken(accessToken, validUntil)
-    }
-
-    private fun cachedToken(accountId: String): String? =
-        accessTokens[accountId]?.takeIf { it.validUntil > System.currentTimeMillis() }?.token
-
-    private fun refreshKey(accountId: String) = "cloud_refresh_$accountId"
-
-    private fun accessKey(accountId: String) = "cloud_access_$accountId"
-
-    /** RFC 7636 code verifier: 64 random bytes, base64url without padding. */
-    private fun randomVerifier(): String {
-        val bytes = ByteArray(64)
-        SecureRandom().nextBytes(bytes)
-        return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
-    }
-
-    private fun challengeOf(verifier: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII))
-        return Base64.encodeToString(digest, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
-    }
-
-    private data class CachedToken(val token: String, val validUntil: Long)
 
     companion object {
         private const val TAG = "CloudAuth"
         private const val AUTH_TIMEOUT_SECONDS = 40L
-        private const val TOKEN_MARGIN_SECONDS = 60L
-        private const val PKCE_KEY = "cloud_ms_pkce_verifier"
-
-        const val MICROSOFT_AUTHORITY = "https://login.microsoftonline.com/common/oauth2/v2.0"
-        const val MICROSOFT_SCOPES = "Files.ReadWrite offline_access User.Read"
-        const val GRAPH = "https://graph.microsoft.com/v1.0"
         private const val DRIVE_ABOUT = "https://www.googleapis.com/drive/v3/about"
 
         /** Full Drive access: the hub browses and manages files the user already has. */
         val DRIVE_SCOPE: Scope = Scope("https://www.googleapis.com/auth/drive")
-
-        private val accessTokens = HashMap<String, CachedToken>()
     }
 }

@@ -36,14 +36,6 @@ internal object CloudHttp {
     }
 
     /** Form-encoded POST without a bearer token, for the OAuth token endpoints. */
-    fun postForm(url: String, fields: Map<String, String>): JSONObject {
-        val body = fields.entries.joinToString("&") { (key, value) ->
-            "${encode(key)}=${encode(value)}"
-        }
-        return request("POST", url, token = null, body = body, contentType = "application/x-www-form-urlencoded")
-    }
-
-    /** Streams a document into [output]; [token] is optional because some links are pre-signed. */
     fun download(url: String, token: String?, output: OutputStream) {
         val connection = open(url, "GET", token)
         try {

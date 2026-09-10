@@ -20,7 +20,6 @@
     <string name="about">hakkında</string>
     <string name="version">sürüm</string>
     <string name="weather_placeholder">18°</string>
-    <string name="weather_condition">parçalı bulutlu</string>
     <string name="usage_permission_title">Kullanım Erişimi Gerekli</string>
     <string name="usage_permission_message">Z Launcher son kullandığın uygulamaları gösterebilmek için kullanım erişimi iznine ihtiyaç duyar.</string>
     <string name="grant_permission">izin ver</string>
@@ -148,6 +147,15 @@
     <string name="settings_corners_square_sub">düz keskin köşeler (0 dp)</string>
     <string name="settings_corners_rounded">yuvarlatılmış</string>
     <string name="settings_corners_rounded_sub">kavisli köşeler (8 dp)</string>
+    <string name="settings_tile_look">karo görünümü</string>
+    <string name="settings_tile_transparency">şeffaflık</string>
+    <string name="settings_tile_transparency_sub">duvar kağıdının karolardan ne kadar görüneceği</string>
+    <string name="settings_tile_anim_slide">kaydır</string>
+    <string name="settings_tile_anim_slide_sub">canlı karolar içeriği yukarı kaydırır, Windows Phone\'daki gibi</string>
+    <string name="settings_tile_anim_flip">çevir</string>
+    <string name="settings_tile_anim_flip_sub">canlı karolar arkasına döner</string>
+    <string name="settings_tile_anim_off">kapalı</string>
+    <string name="settings_tile_anim_off_sub">karolar hareket etmez, yalnızca ön yüzünü gösterir</string>
     <string name="settings_tile_spacing">karolar arası mesafe</string>
     <string name="settings_browser_history_cleared">Tarayıcı geçmişi temizlendi</string>
     <string name="settings_group_social">social hub</string>
@@ -635,6 +643,11 @@
     <string name="toast_tap_to_open">uygulamayı açmak için dokunun</string>
     <string name="volume_ring_mode">Zil Modu</string>
     <string name="volume_expand">Genişlet</string>
+    <string name="tile_now_playing">şimdi çalıyor</string>
+    <plurals name="tile_missed_calls">
+        <item quantity="one">%1$d cevapsız arama</item>
+        <item quantity="other">%1$d cevapsız arama</item>
+    </plurals>
     <string name="tile_favorite_photo">Favori Fotoğraf</string>
     <string name="tile_new_notifications">%1$d yeni bildirim</string>
     <string name="editor_ratio_9_16">9:16</string>
@@ -988,13 +1001,11 @@
     <string name="files_cloud_copied">İndirilenler klasörüne kaydedildi: %1$s</string>
     <!-- Dosyalar hubı: bulut servisleri kendi web API uçlarıyla -->
     <string name="cloud_service_google">Google Drive</string>
-    <string name="cloud_service_microsoft">OneDrive</string>
     <string name="files_cloud_accounts">hesaplar</string>
     <string name="files_cloud_add_account">hesap ekle</string>
     <string name="files_cloud_none_connected">henüz bağlı hesap yok</string>
     <string name="files_cloud_hint">bir kez oturum aç, sürücü burada açılsın; servisin uygulaması bu telefonda yüklü olmasa da çalışır</string>
     <string name="files_cloud_sign_in_google">Google ile oturum aç</string>
-    <string name="files_cloud_sign_in_microsoft">Microsoft ile oturum aç</string>
     <string name="files_cloud_sign_out">çıkış yap</string>
     <string name="files_cloud_signing_in">oturum açılıyor…</string>
     <string name="files_cloud_save_to_device">cihaza kaydet</string>
@@ -1004,10 +1015,113 @@
     <string name="cloud_error_signin_again">oturum süresi doldu, yeniden oturum aç</string>
     <string name="cloud_error_cancelled">oturum açma iptal edildi</string>
     <string name="cloud_error_google_config">bu sürüm için Google oturum açma ayarlı değil (OAuth istemcisi / Drive API)</string>
-    <string name="cloud_error_microsoft_config">Microsoft oturum açma ayarlı değil: local.properties içinde istemci kimliği yok</string>
     <string name="cloud_error_save_failed">dosya kaydedilemedi</string>
     <string name="cloud_error_no_app">bu dosyayı açabilecek uygulama yok</string>
     <string name="cloud_error_no_browser">oturum açmak için tarayıcı bulunamadı</string>
     <string name="cloud_error_google_identity">Google hesabı okunamadı; bu OAuth projesinde Drive API açık mı kontrol et</string>
     <string name="cloud_error_google_api_off">bu proje için Drive API henüz açık değil</string>
+
+    <!-- ══════════ HAVA DURUMU HUBI ══════════ -->
+    <string name="hub_weather">hava durumu</string>
+
+    <string name="weather_cond_clear">açık</string>
+    <string name="weather_cond_mainly_clear">çoğunlukla açık</string>
+    <string name="weather_cond_partly_cloudy">parçalı bulutlu</string>
+    <string name="weather_cond_overcast">kapalı</string>
+    <string name="weather_cond_fog">sisli</string>
+    <string name="weather_cond_drizzle">çisenti</string>
+    <string name="weather_cond_freezing_drizzle">dondurucu çisenti</string>
+    <string name="weather_cond_rain">yağmurlu</string>
+    <string name="weather_cond_heavy_rain">kuvvetli yağmur</string>
+    <string name="weather_cond_freezing_rain">dondurucu yağmur</string>
+    <string name="weather_cond_snow">karlı</string>
+    <string name="weather_cond_heavy_snow">yoğun kar</string>
+    <string name="weather_cond_snow_grains">kar taneli</string>
+    <string name="weather_cond_rain_showers">sağanak yağmur</string>
+    <string name="weather_cond_snow_showers">sağanak kar</string>
+    <string name="weather_cond_thunderstorm">gök gürültülü fırtına</string>
+    <string name="weather_cond_thunderstorm_hail">dolulu fırtına</string>
+    <string name="weather_cond_unknown">bilinmiyor</string>
+
+    <string name="weather_tab_today">bugün</string>
+    <string name="weather_tab_days">10 gün</string>
+    <string name="weather_tab_details">detaylar</string>
+    <string name="weather_tab_air">hava kalitesi</string>
+    <string name="weather_tab_places">yerler</string>
+
+    <string name="weather_here">konumum</string>
+    <string name="weather_feels_like">hissedilen %1$s</string>
+    <string name="weather_high_low">%1$s / %2$s</string>
+    <string name="weather_humidity">nem</string>
+    <string name="weather_wind">rüzgar</string>
+    <string name="weather_pressure">basınç</string>
+    <string name="weather_cloud">bulutluluk</string>
+    <string name="weather_dew">çiy noktası</string>
+    <string name="weather_visibility">görüş</string>
+    <string name="weather_uv">uv indeksi</string>
+    <string name="weather_sunrise">gün doğumu</string>
+    <string name="weather_sunset">gün batımı</string>
+    <string name="weather_precip_chance">yağış olasılığı</string>
+    <string name="weather_precip_sum">yağış</string>
+    <string name="weather_percent">%%%1$d</string>
+    <string name="weather_now">şimdi</string>
+    <string name="weather_daylight">gün ışığı</string>
+
+    <string name="weather_unit_celsius">°C</string>
+    <string name="weather_unit_fahrenheit">°F</string>
+    <string name="weather_unit_kmh">km/sa</string>
+    <string name="weather_unit_ms">m/s</string>
+    <string name="weather_unit_mph">mil/sa</string>
+    <string name="weather_suffix_kmh">km/sa</string>
+    <string name="weather_suffix_ms">m/s</string>
+    <string name="weather_suffix_mph">mil/sa</string>
+
+    <string name="weather_updated_at">%1$s güncellendi</string>
+    <string name="weather_refreshing">yenileniyor…</string>
+    <string name="weather_quota_left">bugün %2$d güncellemenin %1$d tanesi kaldı</string>
+    <string name="weather_loading">tahmin yükleniyor…</string>
+    <string name="weather_empty_title">henüz yer yok</string>
+    <string name="weather_empty_hint">bir şehir ekle ya da bulunduğun yeri kullan</string>
+
+    <string name="weather_add_place">yer ekle</string>
+    <string name="weather_search_hint">şehir ara</string>
+    <string name="weather_search_empty">bu adda bir şehir bulunamadı</string>
+    <string name="weather_remove_place">kaldır</string>
+    <string name="weather_use_my_location">konumumu kullan</string>
+    <string name="weather_place_limit">ücretsiz sürüm tek yer tutar, ücretli sürümde sınır yok</string>
+
+    <string name="weather_premium_locked">yalnızca ücretli sürümde</string>
+    <string name="weather_premium_locked_air">hava kalitesi, polen ve kirletici ayrıntıları ücretli sürümde</string>
+
+    <string name="weather_aqi">hava kalitesi indeksi</string>
+    <string name="weather_aqi_good">iyi</string>
+    <string name="weather_aqi_fair">makul</string>
+    <string name="weather_aqi_moderate">orta</string>
+    <string name="weather_aqi_poor">kötü</string>
+    <string name="weather_aqi_very_poor">çok kötü</string>
+    <string name="weather_aqi_extremely_poor">aşırı kötü</string>
+    <string name="weather_pm25">PM2,5</string>
+    <string name="weather_pm10">PM10</string>
+    <string name="weather_ozone">ozon</string>
+    <string name="weather_no2">azot dioksit</string>
+    <string name="weather_so2">kükürt dioksit</string>
+    <string name="weather_co">karbon monoksit</string>
+    <string name="weather_pollen">polen</string>
+    <string name="weather_pollen_birch">huş</string>
+    <string name="weather_pollen_grass">çayır</string>
+    <string name="weather_pollen_ragweed">kanarya otu</string>
+    <string name="weather_air_unavailable">bu yer için hava kalitesi ölçümü yok</string>
+
+    <string name="weather_animated_sky_turn_off">hareketli gökyüzünü kapat</string>
+    <string name="weather_animated_sky_turn_on">hareketli gökyüzünü aç</string>
+    <string name="weather_animated_sky">hareketli gökyüzü</string>
+    <string name="weather_animated_sky_sub">arka plan hava durumuyla birlikte hareket eder</string>
+    <string name="weather_units">birimler</string>
+    <string name="weather_source">hava durumu verileri Open-Meteo.com</string>
+
+    <string name="weather_error_service">hava durumu servisine ulaşılamadı</string>
+    <string name="weather_error_network">bağlantı yok</string>
+    <string name="weather_error_busy">servis şu an yoğun, bir dakika sonra dene</string>
+    <string name="weather_error_no_location">bulunduğun yer henüz bilinmiyor; bir harita uygulamasını bir kez aç ya da şehri elle ekle</string>
+    <string name="weather_error_no_location_permission">konum izni kapalı</string>
 </resources>

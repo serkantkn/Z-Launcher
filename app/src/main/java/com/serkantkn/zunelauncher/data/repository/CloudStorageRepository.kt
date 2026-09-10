@@ -24,8 +24,8 @@ import java.io.File
 /**
  * The Files hub's cloud storage: signed-in accounts and everything done with them.
  *
- * The services are talked to over their own web APIs ([GoogleDriveApi], [OneDriveApi]), so a drive
- * is reachable whether or not the service's Android app is installed. Sign-in and tokens are
+ * The service is talked to over its own web API ([GoogleDriveApi]), so a drive is reachable
+ * whether or not the service's Android app is installed. Sign-in and tokens are
  * [CloudAuthRepository]'s job; this class turns them into folders, files and downloads.
  */
 class CloudStorageRepository(
@@ -36,10 +36,6 @@ class CloudStorageRepository(
 
     val accounts: Flow<List<CloudAccount>> = dataStore.accounts
 
-    fun isMicrosoftConfigured(): Boolean = auth.isMicrosoftConfigured()
-
-    fun microsoftAuthorizationUrl(): String = auth.microsoftAuthorizationUrl()
-
     fun googleAuthorizeTask(email: String? = null) = auth.googleAuthorizeTask(email)
 
     fun googleResultFromIntent(data: Intent): AuthorizationResult = auth.googleResultFromIntent(data)
@@ -49,13 +45,6 @@ class CloudStorageRepository(
         val account = auth.googleAccountOf(result)
         dataStore.putAccount(account)
         ZuneLog.d(TAG, "stored cloud account ${account.id}")
-        return account
-    }
-
-    /** Exchanges the code the browser handed back and stores the Microsoft account. */
-    suspend fun completeMicrosoftSignIn(code: String): CloudAccount {
-        val account = auth.completeMicrosoftSignIn(code)
-        dataStore.putAccount(account)
         return account
     }
 
@@ -161,12 +150,10 @@ class CloudStorageRepository(
 
     private suspend fun tokenOf(account: CloudAccount): String = when (account.service) {
         CloudService.GOOGLE_DRIVE -> auth.googleAccessToken(account.email)
-        CloudService.ONEDRIVE -> auth.microsoftAccessToken(account)
     }
 
     private fun apiOf(account: CloudAccount): CloudApi = when (account.service) {
         CloudService.GOOGLE_DRIVE -> GoogleDriveApi
-        CloudService.ONEDRIVE -> OneDriveApi
     }
 
     private fun uniqueFile(directory: File, name: String): File {

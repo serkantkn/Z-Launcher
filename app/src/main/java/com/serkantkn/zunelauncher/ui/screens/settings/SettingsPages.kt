@@ -373,6 +373,7 @@ internal fun LookSettingsPage(
 
         item(key = "preview") {
             val tileColumns by viewModel.tileColumns.collectAsState()
+            val tileOpacity by viewModel.tileOpacity.collectAsState()
             LookPreviewCard(
                 themeMode = themeMode,
                 accentColor = accentColor,
@@ -382,6 +383,7 @@ internal fun LookSettingsPage(
                 customWallpaperPath = customWallpaperPath,
                 tileCornerStyle = tileCornerStyle,
                 tileSpacing = tileSpacing,
+                tileOpacity = tileOpacity,
                 tileColumns = tileColumns,
                 hubBackgroundOpacity = hubBackgroundOpacity,
                 hubBackgroundMode = hubBackgroundMode,
@@ -437,6 +439,89 @@ internal fun LookSettingsPage(
                         }
                     )
                 }
+            }
+        }
+
+        item(key = "tile_transparency") {
+            val tileOpacity by viewModel.tileOpacity.collectAsState()
+            val tileAnimation by viewModel.tileAnimation.collectAsState()
+
+            SettingGroup(title = stringResource(R.string.settings_tile_look)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_tile_transparency),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "%${100 - tileOpacity}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = LocalZuneColors.current.accentColor
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.settings_tile_transparency_sub),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalZuneColors.current.textMuted
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        // The slider runs the way the label reads: to the right is more see-through.
+                        Slider(
+                            value = (100 - tileOpacity).toFloat(),
+                            onValueChange = { viewModel.setTileOpacity(100 - it.toInt()) },
+                            valueRange = 0f..100f,
+                            steps = 19,
+                            colors = SliderDefaults.colors(
+                                thumbColor = LocalZuneColors.current.accentColor,
+                                activeTrackColor = LocalZuneColors.current.accentColor,
+                                inactiveTrackColor = (if (LocalZuneColors.current.isDark) Color.White else Color.Black).copy(alpha = 0.2f)
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    SettingChoiceRow(
+                        title = stringResource(R.string.settings_tile_anim_slide),
+                        subtitle = stringResource(R.string.settings_tile_anim_slide_sub),
+                        selected = tileAnimation == TileAnimation.SLIDE,
+                        onClick = { viewModel.setTileAnimation(TileAnimation.SLIDE) }
+                    )
+                    SettingChoiceRow(
+                        title = stringResource(R.string.settings_tile_anim_flip),
+                        subtitle = stringResource(R.string.settings_tile_anim_flip_sub),
+                        selected = tileAnimation == TileAnimation.FLIP,
+                        onClick = { viewModel.setTileAnimation(TileAnimation.FLIP) }
+                    )
+                    SettingChoiceRow(
+                        title = stringResource(R.string.settings_tile_anim_off),
+                        subtitle = stringResource(R.string.settings_tile_anim_off_sub),
+                        selected = tileAnimation == TileAnimation.NONE,
+                        onClick = { viewModel.setTileAnimation(TileAnimation.NONE) }
+                    )
+                }
+            }
+        }
+
+        item(key = "weather_sky") {
+            val animatedSky by viewModel.weatherAnimatedSky.collectAsState()
+            SettingGroup(title = stringResource(R.string.hub_weather)) {
+                SettingSwitchRow(
+                    title = stringResource(R.string.weather_animated_sky),
+                    subtitle = stringResource(R.string.weather_animated_sky_sub),
+                    checked = animatedSky,
+                    onCheckedChange = viewModel::setWeatherAnimatedSky
+                )
             }
         }
 

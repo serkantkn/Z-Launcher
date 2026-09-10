@@ -70,13 +70,12 @@ import java.util.Locale
 // ════════════════════════════════════════════════════════════
 
 /**
- * Chrome shared by the custom live tiles: accent background, press scale, the Windows Phone
- * flip between [front] and [back] (every 5–8 s while [flipEnabled]) and the edit-mode remove /
- * resize buttons. Same numbers as W10MHubTile so the Start grid stays uniform.
+ * Chrome shared by the custom live tiles: it is [W10MTileSurface] with the live face wired to
+ * [flipEnabled], so a tile with nothing to report simply stands still.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun W10MLiveTileFrame(
+    liveKey: String,
     span: Int,
     gridColumns: Int,
     spacing: Dp,
@@ -92,122 +91,21 @@ fun W10MLiveTileFrame(
     front: @Composable BoxScope.() -> Unit,
     back: @Composable BoxScope.() -> Unit
 ) {
-    val zuneColors = LocalZuneColors.current
-    val density = LocalDensity.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val pressScale by animateFloatAsState(
-        targetValue = when {
-            isDragging -> 1.05f
-            isPressed -> 0.93f
-            isEditing -> 0.97f
-            else -> 1f
-        },
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "w10m_live_tile_scale"
-    )
-    val strokeColor = if (zuneColors.isDark) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.55f)
-
-    var showBack by remember { mutableStateOf(false) }
-    LaunchedEffect(flipEnabled, isEditing) {
-        if (isEditing || !flipEnabled) {
-            showBack = false
-            return@LaunchedEffect
-        }
-        while (true) {
-            delay((5000..8000).random().toLong())
-            showBack = !showBack
-        }
-    }
-    val rotation by animateFloatAsState(
-        targetValue = if (showBack && !isEditing) -180f else 0f,
-        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-        label = "w10m_live_tile_flip"
-    )
-    val tileShape = remember(cornerStyle) {
-        when (cornerStyle) {
-            TileCornerStyle.SHARP -> RoundedCornerShape(0.dp)
-            TileCornerStyle.ROUNDED -> RoundedCornerShape(8.dp)
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .w10mTileSize(span = span, gridColumns = gridColumns, spacing = spacing)
-            .scale(pressScale)
-            .alpha(if (isDragging) 0.8f else 1f)
-            .graphicsLayer {
-                rotationX = rotation
-                cameraDistance = 8f * density.density
-            }
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = { if (!isEditing) onClick() },
-                onLongClick = if (isEditing) null else onLongClick
-            )
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(tileShape)
-                .background(zuneColors.accentColor.copy(alpha = 0.45f))
-                .border(0.5.dp, if (isEditing) zuneColors.accentColor else strokeColor, tileShape)
-        ) {
-            if (kotlin.math.abs(rotation) <= 90f) {
-                Box(modifier = Modifier.fillMaxSize()) { front() }
-            } else {
-                Box(modifier = Modifier.matchParentSize().graphicsLayer { rotationX = -180f }) { back() }
-            }
-        }
-
-        if (isEditing) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .clickable(onClick = onRemoveClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.notes_remove_cap), tint = Color.Black, modifier = Modifier.size(16.dp))
-            }
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, Color.White, CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable(onClick = onResizeClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.KeyboardArrowRight, contentDescription = stringResource(R.string.notes_resize_cap), tint = Color.White, modifier = Modifier.size(16.dp))
-            }
-        }
-    }
-}
-
-/** Tile-local label at the bottom-left, as on every other Start tile. */
-@Composable
-private fun BoxScope.TileLabel(text: String, span: Int, gridColumns: Int, color: Color) {
-    if (span <= 1) return
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall.copy(
-            fontSize = if (span == 2 && gridColumns >= 8) 9.sp else 12.sp,
-            fontWeight = FontWeight.Normal
-        ),
-        color = color.copy(alpha = 0.85f),
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .align(Alignment.BottomStart)
-            .padding(start = 6.dp, bottom = 4.dp, end = 24.dp)
+    W10MTileSurface(
+        liveKey = liveKey,
+        span = span,
+        gridColumns = gridColumns,
+        spacing = spacing,
+        isEditing = isEditing,
+        isDragging = isDragging,
+        cornerStyle = cornerStyle,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        onRemoveClick = onRemoveClick,
+        onResizeClick = onResizeClick,
+        modifier = modifier,
+        back = if (flipEnabled) back else null,
+        front = front
     )
 }
 
@@ -266,18 +164,18 @@ fun W10MClockTile(
     onResizeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val zuneColors = LocalZuneColors.current
-    val fg = if (zuneColors.isDark) Color.White else Color.Black
+    val fg = tileForegroundColor()
     val now = rememberMinuteTicker()
     val nextAlarm = remember(alarms, now) {
         alarms.map { it to it.nextTriggerMillis(now) }.filter { it.second > now }.minByOrNull { it.second }
     }
     val timeText = format(timeFormat, now)
-    val compact = span == 1 || (span == 2 && gridColumns >= 8)
+    val compact = isCompactTile(span, gridColumns)
     val timePattern24 = timeFormat.contains("HH") || timeFormat.contains("H:")
     val alarmTimeOf: (Long) -> String = { format(if (timePattern24) "HH:mm" else "h:mm a", it) }
 
     W10MLiveTileFrame(
+        liveKey = "hub:${HubType.CLOCK.name}",
         span = span, gridColumns = gridColumns, spacing = spacing,
         isEditing = isEditing, isDragging = isDragging, cornerStyle = cornerStyle,
         flipEnabled = nextAlarm != null,
@@ -413,10 +311,9 @@ fun W10MCalendarTile(
     onResizeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val zuneColors = LocalZuneColors.current
-    val fg = if (zuneColors.isDark) Color.White else Color.Black
+    val fg = tileForegroundColor()
     val now = rememberMinuteTicker()
-    val compact = span == 1 || (span == 2 && gridColumns >= 8)
+    val compact = isCompactTile(span, gridColumns)
 
     fun eventMillis(e: CalendarEvent): Long = Calendar.getInstance().apply {
         timeInMillis = e.timestamp
@@ -432,6 +329,7 @@ fun W10MCalendarTile(
     val next = upcoming.firstOrNull()
 
     W10MLiveTileFrame(
+        liveKey = "hub:${HubType.CALENDAR.name}",
         span = span, gridColumns = gridColumns, spacing = spacing,
         isEditing = isEditing, isDragging = isDragging, cornerStyle = cornerStyle,
         flipEnabled = upcoming.size > 1,

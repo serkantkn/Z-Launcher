@@ -611,6 +611,9 @@ private fun RenderHubScreen(
         HubType.CALCULATOR -> com.serkantkn.zunelauncher.ui.screens.calculator.CalculatorHubScreen(
             onBack = { if (!navState.popHub()) navState.closeHub() }
         )
+        HubType.WEATHER -> com.serkantkn.zunelauncher.ui.screens.weather.WeatherHubScreen(
+            onBack = { if (!navState.popHub()) navState.closeHub() }
+        )
         else -> {}
     }
 }

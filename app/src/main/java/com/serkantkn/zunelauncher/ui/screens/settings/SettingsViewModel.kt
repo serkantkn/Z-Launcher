@@ -21,6 +21,8 @@ import com.serkantkn.zunelauncher.data.model.AccentColor
 import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
+import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
+import com.serkantkn.zunelauncher.data.model.TileAnimation
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.KeyboardLanguage
@@ -147,6 +149,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 HubType.NOTES,
                 HubType.EMAIL,
                 HubType.CALCULATOR,
+                HubType.WEATHER,
                 HubType.SETTINGS
             )
         )
@@ -513,6 +516,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val tileSpacing: StateFlow<Int> = settingsDataStore.tileSpacing.asState(2)
 
+    val tileOpacity: StateFlow<Int> = settingsDataStore.tileOpacity.asState(SettingsDataStore.DEFAULT_TILE_OPACITY)
+
+    val tileAnimation: StateFlow<TileAnimation> = settingsDataStore.tileAnimation.asState(TileAnimation.SLIDE)
+
+    /** The weather hub's moving sky. On unless it is switched off here. */
+    val weatherAnimatedSky: StateFlow<Boolean> =
+        application.appContainer.weatherDataStore.animatedSky.asState(true)
+
     val tileColumns: StateFlow<Int> = settingsDataStore.tileColumns.asState(4)
 
     val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsDataStore.homeScreenLayout.asState(HomeScreenLayout.ZUNE)
@@ -538,6 +549,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setTileCornerStyle(style: TileCornerStyle) {
         viewModelScope.launch {
             settingsDataStore.setTileCornerStyle(style)
+        }
+    }
+
+    fun setWeatherAnimatedSky(enabled: Boolean) {
+        viewModelScope.launch {
+            getApplication<Application>().appContainer.weatherDataStore.setAnimatedSky(enabled)
+        }
+    }
+
+    fun setTileOpacity(opacity: Int) {
+        viewModelScope.launch {
+            settingsDataStore.setTileOpacity(opacity)
+        }
+    }
+
+    fun setTileAnimation(animation: TileAnimation) {
+        viewModelScope.launch {
+            settingsDataStore.setTileAnimation(animation)
         }
     }
 

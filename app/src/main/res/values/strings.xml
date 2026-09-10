@@ -20,7 +20,6 @@
     <string name="about">about</string>
     <string name="version">version</string>
     <string name="weather_placeholder">18°</string>
-    <string name="weather_condition">partly cloudy</string>
     <string name="usage_permission_title">Usage Access Required</string>
     <string name="usage_permission_message">Z Launcher needs usage access permission to show your recent apps.</string>
     <string name="grant_permission">grant permission</string>
@@ -148,6 +147,15 @@
     <string name="settings_corners_square_sub">flat sharp corners (0 dp)</string>
     <string name="settings_corners_rounded">rounded</string>
     <string name="settings_corners_rounded_sub">curved corners (8 dp)</string>
+    <string name="settings_tile_look">tile look</string>
+    <string name="settings_tile_transparency">transparency</string>
+    <string name="settings_tile_transparency_sub">how much of the wallpaper shows through the tiles</string>
+    <string name="settings_tile_anim_slide">slide</string>
+    <string name="settings_tile_anim_slide_sub">live tiles push their content up, as on Windows Phone</string>
+    <string name="settings_tile_anim_flip">flip</string>
+    <string name="settings_tile_anim_flip_sub">live tiles turn over</string>
+    <string name="settings_tile_anim_off">off</string>
+    <string name="settings_tile_anim_off_sub">tiles stand still and only show their front</string>
     <string name="settings_tile_spacing">tile spacing</string>
     <string name="settings_browser_history_cleared">Browser history cleared</string>
     <string name="settings_group_social">social hub</string>
@@ -635,6 +643,11 @@
     <string name="toast_tap_to_open">tap to open the app</string>
     <string name="volume_ring_mode">Ring Mode</string>
     <string name="volume_expand">Expand</string>
+    <string name="tile_now_playing">now playing</string>
+    <plurals name="tile_missed_calls">
+        <item quantity="one">%1$d missed call</item>
+        <item quantity="other">%1$d missed calls</item>
+    </plurals>
     <string name="tile_favorite_photo">Favorite Photo</string>
     <string name="tile_new_notifications">%1$d new notifications</string>
     <string name="editor_ratio_9_16">9:16</string>
@@ -988,13 +1001,11 @@
     <string name="files_cloud_copied">saved to Downloads: %1$s</string>
     <!-- Files hub: cloud services over their own web APIs -->
     <string name="cloud_service_google">Google Drive</string>
-    <string name="cloud_service_microsoft">OneDrive</string>
     <string name="files_cloud_accounts">accounts</string>
     <string name="files_cloud_add_account">add an account</string>
     <string name="files_cloud_none_connected">no account connected yet</string>
     <string name="files_cloud_hint">sign in once and the drive opens here, whether or not the service\'s app is installed on this phone</string>
     <string name="files_cloud_sign_in_google">sign in with Google</string>
-    <string name="files_cloud_sign_in_microsoft">sign in with Microsoft</string>
     <string name="files_cloud_sign_out">sign out</string>
     <string name="files_cloud_signing_in">signing in…</string>
     <string name="files_cloud_save_to_device">save to the device</string>
@@ -1004,10 +1015,113 @@
     <string name="cloud_error_signin_again">the session expired, sign in again</string>
     <string name="cloud_error_cancelled">sign-in was cancelled</string>
     <string name="cloud_error_google_config">the Google sign-in is not set up for this build (OAuth client / Drive API)</string>
-    <string name="cloud_error_microsoft_config">the Microsoft sign-in is not set up: no client id in local.properties</string>
     <string name="cloud_error_save_failed">the file could not be saved</string>
     <string name="cloud_error_no_app">no app can open this file</string>
     <string name="cloud_error_no_browser">no browser to sign in with</string>
     <string name="cloud_error_google_identity">the Google account could not be read; make sure the Drive API is enabled for this OAuth project</string>
     <string name="cloud_error_google_api_off">the Drive API is not enabled for this project yet</string>
+
+    <!-- ══════════ WEATHER HUB ══════════ -->
+    <string name="hub_weather">weather</string>
+
+    <string name="weather_cond_clear">clear</string>
+    <string name="weather_cond_mainly_clear">mainly clear</string>
+    <string name="weather_cond_partly_cloudy">partly cloudy</string>
+    <string name="weather_cond_overcast">overcast</string>
+    <string name="weather_cond_fog">fog</string>
+    <string name="weather_cond_drizzle">drizzle</string>
+    <string name="weather_cond_freezing_drizzle">freezing drizzle</string>
+    <string name="weather_cond_rain">rain</string>
+    <string name="weather_cond_heavy_rain">heavy rain</string>
+    <string name="weather_cond_freezing_rain">freezing rain</string>
+    <string name="weather_cond_snow">snow</string>
+    <string name="weather_cond_heavy_snow">heavy snow</string>
+    <string name="weather_cond_snow_grains">snow grains</string>
+    <string name="weather_cond_rain_showers">rain showers</string>
+    <string name="weather_cond_snow_showers">snow showers</string>
+    <string name="weather_cond_thunderstorm">thunderstorm</string>
+    <string name="weather_cond_thunderstorm_hail">thunderstorm with hail</string>
+    <string name="weather_cond_unknown">unknown</string>
+
+    <string name="weather_tab_today">today</string>
+    <string name="weather_tab_days">10 days</string>
+    <string name="weather_tab_details">details</string>
+    <string name="weather_tab_air">air quality</string>
+    <string name="weather_tab_places">places</string>
+
+    <string name="weather_here">my location</string>
+    <string name="weather_feels_like">feels like %1$s</string>
+    <string name="weather_high_low">%1$s / %2$s</string>
+    <string name="weather_humidity">humidity</string>
+    <string name="weather_wind">wind</string>
+    <string name="weather_pressure">pressure</string>
+    <string name="weather_cloud">cloud cover</string>
+    <string name="weather_dew">dew point</string>
+    <string name="weather_visibility">visibility</string>
+    <string name="weather_uv">uv index</string>
+    <string name="weather_sunrise">sunrise</string>
+    <string name="weather_sunset">sunset</string>
+    <string name="weather_precip_chance">chance of rain</string>
+    <string name="weather_precip_sum">precipitation</string>
+    <string name="weather_percent">%1$d%%</string>
+    <string name="weather_now">now</string>
+    <string name="weather_daylight">daylight</string>
+
+    <string name="weather_unit_celsius">°C</string>
+    <string name="weather_unit_fahrenheit">°F</string>
+    <string name="weather_unit_kmh">km/h</string>
+    <string name="weather_unit_ms">m/s</string>
+    <string name="weather_unit_mph">mph</string>
+    <string name="weather_suffix_kmh">km/h</string>
+    <string name="weather_suffix_ms">m/s</string>
+    <string name="weather_suffix_mph">mph</string>
+
+    <string name="weather_updated_at">updated %1$s</string>
+    <string name="weather_refreshing">refreshing…</string>
+    <string name="weather_quota_left">%1$d of %2$d updates left today</string>
+    <string name="weather_loading">loading the forecast…</string>
+    <string name="weather_empty_title">no place yet</string>
+    <string name="weather_empty_hint">add a city, or let the launcher use where you are</string>
+
+    <string name="weather_add_place">add a place</string>
+    <string name="weather_search_hint">search for a city</string>
+    <string name="weather_search_empty">no city by that name</string>
+    <string name="weather_remove_place">remove</string>
+    <string name="weather_use_my_location">use my location</string>
+    <string name="weather_place_limit">the free version keeps one place; the paid one keeps as many as you like</string>
+
+    <string name="weather_premium_locked">only in the paid version</string>
+    <string name="weather_premium_locked_air">air quality, pollen and the pollutant breakdown come with the paid version</string>
+
+    <string name="weather_aqi">air quality index</string>
+    <string name="weather_aqi_good">good</string>
+    <string name="weather_aqi_fair">fair</string>
+    <string name="weather_aqi_moderate">moderate</string>
+    <string name="weather_aqi_poor">poor</string>
+    <string name="weather_aqi_very_poor">very poor</string>
+    <string name="weather_aqi_extremely_poor">extremely poor</string>
+    <string name="weather_pm25">PM2.5</string>
+    <string name="weather_pm10">PM10</string>
+    <string name="weather_ozone">ozone</string>
+    <string name="weather_no2">nitrogen dioxide</string>
+    <string name="weather_so2">sulphur dioxide</string>
+    <string name="weather_co">carbon monoxide</string>
+    <string name="weather_pollen">pollen</string>
+    <string name="weather_pollen_birch">birch</string>
+    <string name="weather_pollen_grass">grass</string>
+    <string name="weather_pollen_ragweed">ragweed</string>
+    <string name="weather_air_unavailable">no air quality readings for this place</string>
+
+    <string name="weather_animated_sky_turn_off">turn the moving sky off</string>
+    <string name="weather_animated_sky_turn_on">turn the moving sky on</string>
+    <string name="weather_animated_sky">animated sky</string>
+    <string name="weather_animated_sky_sub">the background moves with the weather</string>
+    <string name="weather_units">units</string>
+    <string name="weather_source">weather data by Open-Meteo.com</string>
+
+    <string name="weather_error_service">the weather service could not be reached</string>
+    <string name="weather_error_network">no connection</string>
+    <string name="weather_error_busy">the weather service is busy, try again in a minute</string>
+    <string name="weather_error_no_location">where you are is not known yet; open a maps app once, or add a city by hand</string>
+    <string name="weather_error_no_location_permission">location permission is off</string>
 </resources>
