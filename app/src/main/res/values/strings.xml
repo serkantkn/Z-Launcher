@@ -1708,4 +1708,7 @@
     <string name="onboarding_perm_location_why">so the weather tile knows where you are</string>
     <string name="onboarding_perm_contacts">contacts</string>
     <string name="onboarding_perm_contacts_why">so the people tile has faces on it</string>
+    <string name="onboarding_language_title">language</string>
+    <string name="onboarding_language_line">the launcher can speak the phone\'s language, or one you pick.</string>
+    <string name="onboarding_accent_line">and a colour to go with it</string>
 </resources>

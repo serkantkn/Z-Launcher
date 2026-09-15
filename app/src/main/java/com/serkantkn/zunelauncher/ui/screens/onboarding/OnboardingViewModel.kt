@@ -7,8 +7,12 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.data.model.AccentColor
 import com.serkantkn.zunelauncher.data.model.ReleaseNotes
+import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.di.appContainer
+import com.serkantkn.zunelauncher.util.AppLanguage
+import com.serkantkn.zunelauncher.util.AppLocale
 import com.serkantkn.zunelauncher.util.FirstRunAction
 import com.serkantkn.zunelauncher.util.OnboardingConditions
 import com.serkantkn.zunelauncher.util.OnboardingStep
@@ -18,9 +22,11 @@ import com.serkantkn.zunelauncher.util.firstRunAction
 import com.serkantkn.zunelauncher.util.onboardingSteps
 import com.serkantkn.zunelauncher.util.unseenReleaseNotes
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** What the launcher is showing over itself, if anything. */
@@ -45,6 +51,36 @@ sealed interface FirstRunScreen {
 class OnboardingViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settings = application.appContainer.settingsDataStore
+
+    /** Which language the launcher is speaking, read from wherever the choice is kept. */
+    private val _language = MutableStateFlow(AppLocale.current(application))
+    val language: StateFlow<AppLanguage> = _language.asStateFlow()
+
+    val themeMode: StateFlow<ThemeMode> = settings.themeMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
+
+    val accentColor: StateFlow<AccentColor> = settings.accentColor
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AccentColor.MAGENTA)
+
+    /**
+     * Sets the language, and says whether the caller must restart itself to show it.
+     *
+     * Android 13 and later keeps the per-app language itself and restarts the launcher on its own;
+     * older versions need the activity recreated by hand. Either way the tour comes back at its
+     * first page, which is why the language question is asked there.
+     */
+    fun setLanguage(language: AppLanguage): Boolean {
+        _language.value = language
+        return AppLocale.apply(getApplication(), language)
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { settings.setThemeMode(mode) }
+    }
+
+    fun setAccentColor(colour: AccentColor) {
+        viewModelScope.launch { settings.setAccentColor(colour) }
+    }
 
     private val _screen = MutableStateFlow<FirstRunScreen>(FirstRunScreen.None)
     val screen: StateFlow<FirstRunScreen> = _screen.asStateFlow()
@@ -73,7 +109,13 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
             // tell afterwards why they were or were not shown anything.
             ZuneLog.d(TAG, "first run: completed=$completed existing=$hasExistingData lastSeen=$lastSeen action=$action")
             when (action) {
-                FirstRunAction.SHOW_ONBOARDING -> startTour()
+                FirstRunAction.SHOW_ONBOARDING -> {
+                    // A launcher opened for the first time should look like the phone it is on:
+                    // the theme page then shows what is already true rather than a default nobody
+                    // chose. The language already follows the phone by itself.
+                    runCatching { settings.setThemeMode(ThemeMode.SYSTEM) }
+                    startTour()
+                }
                 FirstRunAction.SHOW_WHATS_NEW -> _screen.value = FirstRunScreen.WhatsNew(unseen)
                 FirstRunAction.NOTHING -> {
                     _screen.value = FirstRunScreen.None

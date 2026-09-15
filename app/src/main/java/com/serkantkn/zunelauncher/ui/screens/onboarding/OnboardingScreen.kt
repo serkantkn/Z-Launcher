@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,6 +48,7 @@ import com.serkantkn.zunelauncher.util.OnboardingStep
 @Composable
 fun OnboardingScreen(
     tour: FirstRunScreen.Tour,
+    viewModel: OnboardingViewModel,
     onNext: () -> Unit,
     onBack: () -> Unit,
     onSkip: () -> Unit
@@ -101,7 +104,7 @@ fun OnboardingScreen(
                         .fillMaxSize()
                         .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
                 ) {
-                    OnboardingStepContent(step)
+                    OnboardingStepContent(step, viewModel)
                 }
             }
 
@@ -148,17 +151,33 @@ fun OnboardingScreen(
  * doing parts arrive with their own rounds; for now each page says what it is for.
  */
 @Composable
-private fun OnboardingStepContent(step: OnboardingStep) {
-    when (step) {
-        OnboardingStep.WELCOME -> OnboardingPage(
-            title = stringResource(R.string.onboarding_welcome_title),
-            line = stringResource(R.string.onboarding_welcome_line)
-        )
+private fun OnboardingStepContent(step: OnboardingStep, viewModel: OnboardingViewModel) {
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
 
-        OnboardingStep.THEME -> OnboardingPage(
-            title = stringResource(R.string.onboarding_theme_title),
-            line = stringResource(R.string.onboarding_theme_line)
-        )
+    when (step) {
+        OnboardingStep.LANGUAGE -> {
+            val language by viewModel.language.collectAsState()
+            LanguageStepPage(
+                current = language,
+                onSelect = { chosen ->
+                    // Pre-Android 13 the activity has to be rebuilt by hand for the new strings.
+                    if (viewModel.setLanguage(chosen)) activity?.recreate()
+                }
+            )
+        }
+
+        OnboardingStep.THEME -> {
+            val mode by viewModel.themeMode.collectAsState()
+            val accent by viewModel.accentColor.collectAsState()
+            ThemeStepPage(
+                themeMode = mode,
+                accent = accent,
+                onThemeMode = viewModel::setThemeMode,
+                onAccent = viewModel::setAccentColor
+            )
+        }
+
+        OnboardingStep.WELCOME -> WelcomeStepPage()
 
         OnboardingStep.DEFAULT_LAUNCHER -> OnboardingPage(
             title = stringResource(R.string.onboarding_default_title),

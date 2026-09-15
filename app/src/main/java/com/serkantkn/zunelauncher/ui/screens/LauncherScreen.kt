@@ -608,6 +608,7 @@ fun LauncherScreen(
                 when (val screen = firstRun) {
                     is FirstRunScreen.Tour -> OnboardingScreen(
                         tour = screen,
+                        viewModel = onboardingViewModel,
                         onNext = onboardingViewModel::next,
                         onBack = onboardingViewModel::back,
                         onSkip = onboardingViewModel::finish

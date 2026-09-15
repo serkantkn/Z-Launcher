@@ -29,8 +29,9 @@ class OnboardingTest {
         val steps = onboardingSteps(OnboardingConditions(isDefaultLauncher = false, hasPermissionsToAsk = true))
         assertEquals(
             listOf(
-                OnboardingStep.WELCOME,
+                OnboardingStep.LANGUAGE,
                 OnboardingStep.THEME,
+                OnboardingStep.WELCOME,
                 OnboardingStep.DEFAULT_LAUNCHER,
                 OnboardingStep.PERMISSIONS,
                 OnboardingStep.GESTURES,
@@ -51,8 +52,9 @@ class OnboardingTest {
         val steps = onboardingSteps(OnboardingConditions(isDefaultLauncher = true, hasPermissionsToAsk = false))
         assertEquals(
             listOf(
-                OnboardingStep.WELCOME,
+                OnboardingStep.LANGUAGE,
                 OnboardingStep.THEME,
+                OnboardingStep.WELCOME,
                 OnboardingStep.GESTURES,
                 OnboardingStep.DONE
             ),
@@ -61,11 +63,13 @@ class OnboardingTest {
     }
 
     @Test
-    fun `the welcome and the end are always there`() {
+    fun `language comes first and the end is always last`() {
         listOf(true, false).forEach { default ->
             listOf(true, false).forEach { asking ->
                 val steps = onboardingSteps(OnboardingConditions(default, asking))
-                assertEquals(OnboardingStep.WELCOME, steps.first())
+                // Nothing can be read until the language is right, so it is the first thing asked.
+                assertEquals(OnboardingStep.LANGUAGE, steps.first())
+                assertEquals(OnboardingStep.THEME, steps[1])
                 assertEquals(OnboardingStep.DONE, steps.last())
             }
         }

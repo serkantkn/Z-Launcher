@@ -1707,4 +1707,7 @@
     <string name="onboarding_perm_location_why">hava durumu karosu nerede olduğunu bilsin diye</string>
     <string name="onboarding_perm_contacts">rehber</string>
     <string name="onboarding_perm_contacts_why">kişiler karosunda yüzler olsun diye</string>
+    <string name="onboarding_language_title">dil</string>
+    <string name="onboarding_language_line">başlatıcı telefonun dilini konuşabilir ya da senin seçtiğini.</string>
+    <string name="onboarding_accent_line">bir de yanına bir renk</string>
 </resources>

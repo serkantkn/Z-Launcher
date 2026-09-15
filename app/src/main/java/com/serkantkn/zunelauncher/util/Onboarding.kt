@@ -10,10 +10,17 @@ package com.serkantkn.zunelauncher.util
  * used. Both are one boolean away, and both can be tested.
  */
 
-/** The pages of the tour, in the order they are shown. */
+/**
+ * The pages of the tour, in the order they are shown.
+ *
+ * Language and the look come before the greeting on purpose: everything after them is then in the
+ * language and the colour somebody chose, so the tour itself is the first thing to show that the
+ * choice took.
+ */
 enum class OnboardingStep {
-    WELCOME,
+    LANGUAGE,
     THEME,
+    WELCOME,
     DEFAULT_LAUNCHER,
     PERMISSIONS,
     GESTURES,
@@ -34,8 +41,9 @@ data class OnboardingConditions(
  * "this is already set up, press next" is a page that should not have been there.
  */
 fun onboardingSteps(conditions: OnboardingConditions): List<OnboardingStep> = buildList {
-    add(OnboardingStep.WELCOME)
+    add(OnboardingStep.LANGUAGE)
     add(OnboardingStep.THEME)
+    add(OnboardingStep.WELCOME)
     if (!conditions.isDefaultLauncher) add(OnboardingStep.DEFAULT_LAUNCHER)
     if (conditions.hasPermissionsToAsk) add(OnboardingStep.PERMISSIONS)
     add(OnboardingStep.GESTURES)
