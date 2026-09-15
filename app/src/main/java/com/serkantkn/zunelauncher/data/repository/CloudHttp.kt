@@ -181,7 +181,7 @@ internal object CloudHttp {
      */
     private fun failure(status: Int, detail: String?): CloudException {
         val body = detail.orEmpty()
-        ZuneLog.w(TAG, "http $status: ${body.take(300)}")
+        ZuneLog.w(TAG, "http $status")   // the body can carry a token or an address; the status is enough
         return when {
             status == HttpURLConnection.HTTP_UNAUTHORIZED ->
                 CloudException(R.string.cloud_error_signin_again, detail)

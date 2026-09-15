@@ -1,13 +1,38 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What may leave the phone in a backup (Android 11 and older).
+
+  A launcher is worth restoring: the Start board, the theme, the tile sizes. What is not worth
+  restoring — and should not be sitting in anybody's cloud — is everything the launcher was
+  trusted with along the way: mail, notes, what was typed, what was copied.
+
+  The vault is excluded for a second reason as well. Its key lives in the Android Keystore and
+  never leaves the device, so restoring the encrypted file onto another phone produces accounts
+  that cannot be decrypted and fail silently; better to ask for the password again.
+
+  Keep this in step with data_extraction_rules.xml, which does the same job on Android 12+.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Account passwords and cloud tokens. -->
+    <exclude domain="sharedpref" path="zune_secrets.xml" />
+
+    <!-- Mail: the accounts, and the cached messages themselves. -->
+    <exclude domain="file" path="datastore/email.preferences_pb" />
+    <exclude domain="file" path="email/" />
+
+    <!-- Cloud storage accounts. -->
+    <exclude domain="file" path="datastore/cloud_accounts.preferences_pb" />
+
+    <!-- The keyboard: every word it has learned, and the clipboard it remembers. -->
+    <exclude domain="file" path="datastore/keyboard.preferences_pb" />
+
+    <!-- Notes, including the ones behind the lock, and anything recorded or attached to them. -->
+    <exclude domain="file" path="datastore/notes.preferences_pb" />
+    <exclude domain="file" path="notes_audio/" />
+    <exclude domain="file" path="notes_images/" />
+
+    <!-- Diary entries, call and message settings, and where the weather is being watched. -->
+    <exclude domain="file" path="datastore/calendar_events.preferences_pb" />
+    <exclude domain="file" path="datastore/phone.preferences_pb" />
+    <exclude domain="file" path="datastore/weather.preferences_pb" />
 </full-backup-content>

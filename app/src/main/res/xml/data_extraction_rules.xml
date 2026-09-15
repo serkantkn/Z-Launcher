@@ -1,19 +1,36 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What may leave the phone (Android 12+): the same list as backup_rules.xml, applied to both a
+  cloud backup and a transfer to a new phone. See that file for why each one is here.
+
+  Device transfer is treated exactly like a cloud backup. It is a shorter journey, but the same
+  data, and a launcher has no business moving somebody's mail and notes around on its own.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="sharedpref" path="zune_secrets.xml" />
+        <exclude domain="file" path="datastore/email.preferences_pb" />
+        <exclude domain="file" path="email/" />
+        <exclude domain="file" path="datastore/cloud_accounts.preferences_pb" />
+        <exclude domain="file" path="datastore/keyboard.preferences_pb" />
+        <exclude domain="file" path="datastore/notes.preferences_pb" />
+        <exclude domain="file" path="notes_audio/" />
+        <exclude domain="file" path="notes_images/" />
+        <exclude domain="file" path="datastore/calendar_events.preferences_pb" />
+        <exclude domain="file" path="datastore/phone.preferences_pb" />
+        <exclude domain="file" path="datastore/weather.preferences_pb" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="zune_secrets.xml" />
+        <exclude domain="file" path="datastore/email.preferences_pb" />
+        <exclude domain="file" path="email/" />
+        <exclude domain="file" path="datastore/cloud_accounts.preferences_pb" />
+        <exclude domain="file" path="datastore/keyboard.preferences_pb" />
+        <exclude domain="file" path="datastore/notes.preferences_pb" />
+        <exclude domain="file" path="notes_audio/" />
+        <exclude domain="file" path="notes_images/" />
+        <exclude domain="file" path="datastore/calendar_events.preferences_pb" />
+        <exclude domain="file" path="datastore/phone.preferences_pb" />
+        <exclude domain="file" path="datastore/weather.preferences_pb" />
     </device-transfer>
-    -->
 </data-extraction-rules>

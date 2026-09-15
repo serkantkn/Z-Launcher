@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the launcher is able to hand to another app.
+
+  "root-path ." used to be here, which covers the whole filesystem — the app's own private
+  directory included, where the secrets file, the mail cache and the notes live. Nothing needed
+  it: what actually gets shared is a file the person picked in the Files hub, a download from
+  their cloud, a mail attachment, or a photo on its way to a contact. Those are all under
+  /storage or in this app's cache, so that is all that is listed.
+-->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The shared storage the Files hub browses. -->
     <external-path name="external_files" path="." />
-    <root-path name="root" path="." />
+    <!-- Memory cards and other volumes, which sit outside the primary shared storage. -->
+    <root-path name="storage" path="storage/" />
     <!-- Cloud downloads the hub opens or shares from the app's own cache -->
     <cache-path name="cloud_cache" path="cloud/" />
     <!-- A picture taken with the camera on its way to becoming somebody's contact photo -->
     <cache-path name="contact_photos" path="contact_photos/" />
+    <!-- A mail attachment, saved to the cache before it is opened -->
+    <cache-path name="email_attachments" path="email_attachments/" />
 </paths>

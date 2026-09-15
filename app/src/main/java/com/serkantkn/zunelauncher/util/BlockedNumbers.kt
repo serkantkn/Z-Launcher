@@ -38,7 +38,7 @@ object BlockedNumbers {
         return try {
             BlockedNumberContract.isBlocked(context, number)
         } catch (e: Exception) {
-            ZuneLog.w(TAG, "could not ask whether $number is blocked", e)
+            ZuneLog.w(TAG, "could not ask whether a number is blocked", e)
             false
         }
     }
@@ -57,7 +57,7 @@ object BlockedNumbers {
                 values
             ) != null
         } catch (e: Exception) {
-            ZuneLog.w(TAG, "could not block $number", e)
+            ZuneLog.w(TAG, "could not block the number", e)
             false
         }
     }
@@ -67,7 +67,7 @@ object BlockedNumbers {
         return try {
             BlockedNumberContract.unblock(context, number) > 0
         } catch (e: Exception) {
-            ZuneLog.w(TAG, "could not unblock $number", e)
+            ZuneLog.w(TAG, "could not unblock the number", e)
             false
         }
     }

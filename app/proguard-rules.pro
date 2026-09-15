@@ -37,3 +37,11 @@
 -dontwarn coil.**
 -dontwarn okhttp3.**
 -dontwarn okio.**
+
+# ── Logging ─────────────────────────────────────────────────
+# ZuneLog.d already compiles itself out of a release; this catches anything that calls
+# android.util.Log directly. Warnings and errors are kept: a crash report has to say something.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}

@@ -2,6 +2,7 @@ package com.serkantkn.zunelauncher.util
 
 import android.content.Context
 import android.util.Log
+import com.serkantkn.zunelauncher.BuildConfig
 import com.serkantkn.zunelauncher.R
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -15,7 +16,16 @@ import kotlin.coroutines.cancellation.CancellationException
 object ZuneLog {
     private const val PREFIX = "Zune."
 
+    /**
+     * Notes for whoever is debugging, and only for them.
+     *
+     * Everything this launcher touches is somebody's private business — who rang, what the
+     * message said, which folder is open — and logcat is not a private place: a phone plugged
+     * into a computer, a bug report, or a manufacturer's log collector can all read it. Debug
+     * lines are compiled out of a release build.
+     */
     fun d(tag: String, message: String) {
+        if (!BuildConfig.DEBUG) return
         Log.d(PREFIX + tag, message)
     }
 

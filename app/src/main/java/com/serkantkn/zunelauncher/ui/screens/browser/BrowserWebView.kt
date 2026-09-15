@@ -76,9 +76,15 @@ internal fun createBrowserWebView(context: Context, callbacks: BrowserWebCallbac
 
             // Video should not start on its own, and should be allowed to go full screen.
             mediaPlaybackRequiresUserGesture = true
-            allowContentAccess = true
+
+            // A page gets to be a page, and nothing more. No file:// — that is the launcher's
+            // own storage. No content:// either: every provider this app can read, a page would
+            // be able to read through it, including the one that hands files to other apps.
             allowFileAccess = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            allowContentAccess = false
+            // What browsers themselves now do: a secure page does not get to pull anything over
+            // an insecure one, because a single injected script is the whole page.
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         }
 
         webViewClient = object : WebViewClient() {

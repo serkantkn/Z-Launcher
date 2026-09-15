@@ -1,0 +1,1458 @@
+kotlin version: 2.4.10
+error message: java.lang.RuntimeException: Exception while generating code for:
+FUN LOCAL_FUNCTION_FOR_LAMBDA name:W10MWeatherTile_b7y7nX4$lambda$0 visibility:private modality:FINAL returnType:kotlin.Unit?
+  VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$snapshot index:0 type:com.serkantkn.zunelauncher.data.model.WeatherSnapshot?
+  VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$temperatureUnit index:1 type:com.serkantkn.zunelauncher.data.model.TemperatureUnit
+  VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$today index:2 type:com.serkantkn.zunelauncher.data.model.DailyPoint?
+  VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$span index:3 type:kotlin.Int
+  VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$gridColumns index:4 type:kotlin.Int
+  VALUE_PARAMETER kind:Regular name:$this$W10MTileSurface index:5 type:androidx.compose.foundation.layout.BoxScope
+  VALUE_PARAMETER kind:Regular name:$composer index:6 type:androidx.compose.runtime.Composer? [assignable]
+  VALUE_PARAMETER kind:Regular name:$changed index:7 type:kotlin.Int
+  annotations:
+    Composable
+    ComposableTarget(applier = "androidx.compose.ui.UiComposable")
+    FunctionKeyMeta(key = 1469986281, startOffset = 2882, endOffset = 4798)
+  BLOCK_BODY
+    CALL 'public final fun sourceInformation (composer: androidx.compose.runtime.Composer, sourceInformation: kotlin.String): kotlin.Unit declared in androidx.compose.runtime.ComposerKt' type=kotlin.Unit origin=null
+      ARG composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.runtime.Composer? origin=null
+      ARG sourceInformation: CONST String type=kotlin.String value="C75@2909L21,76@2947L1837:W10MWeatherTile.kt#bxoekw"
+    WHEN type=kotlin.Unit origin=IF
+      BRANCH
+        if: CALL 'public abstract fun shouldExecute (parametersChanged: kotlin.Boolean, flags: kotlin.Int): kotlin.Boolean declared in androidx.compose.runtime.Composer' type=kotlin.Boolean origin=null
+          ARG <this>: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.runtime.Composer? origin=null
+          ARG parametersChanged: CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=null
+            ARG <this>: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+              ARG arg0: CALL 'public final fun and (other: kotlin.Int): kotlin.Int [infix] declared in kotlin.Int' type=kotlin.Int origin=null
+                ARG <this>: GET_VAR '$changed: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=kotlin.Int origin=null
+                ARG other: CONST Int type=kotlin.Int value=17
+              ARG arg1: CONST Int type=kotlin.Int value=16
+          ARG flags: CALL 'public final fun and (other: kotlin.Int): kotlin.Int [infix] declared in kotlin.Int' type=kotlin.Int origin=null
+            ARG <this>: GET_VAR '$changed: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=kotlin.Int origin=null
+            ARG other: CONST Int type=kotlin.Int value=1
+        then: BLOCK type=kotlin.Unit origin=null
+          WHEN type=kotlin.Unit origin=IF
+            BRANCH
+              if: CALL 'public final fun isTraceInProgress (): kotlin.Boolean declared in androidx.compose.runtime.ComposerKt' type=kotlin.Boolean origin=null
+              then: CALL 'public final fun traceEventStart (key: kotlin.Int, dirty1: kotlin.Int, dirty2: kotlin.Int, info: kotlin.String): kotlin.Unit declared in androidx.compose.runtime.ComposerKt' type=kotlin.Unit origin=null
+                ARG key: CONST Int type=kotlin.Int value=1469986281
+                ARG dirty1: GET_VAR '$changed: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=kotlin.Int origin=null
+                ARG dirty2: CONST Int type=kotlin.Int value=-1
+                ARG info: CONST String type=kotlin.String value="com.serkantkn.zunelauncher.ui.components.W10MWeatherTile.<anonymous> (W10MWeatherTile.kt:75)"
+          VAR name:fg type:androidx.compose.ui.graphics.Color [val]
+            CALL 'public final fun tileForegroundColor-dhasg_w (tileColor: androidx.compose.ui.graphics.Color?, $composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int, $default: kotlin.Int): androidx.compose.ui.graphics.Color declared in com.serkantkn.zunelauncher.ui.components.W10MTileChromeKt' type=androidx.compose.ui.graphics.Color origin=null
+              ARG tileColor: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                CONST Null type=kotlin.Nothing? value=null
+              ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.runtime.Composer? origin=null
+              ARG $changed: CONST Int type=kotlin.Int value=0
+              ARG $default: CONST Int type=kotlin.Int value=1
+          CALL 'public final fun Column (modifier: androidx.compose.ui.Modifier?, verticalArrangement: androidx.compose.foundation.layout.Arrangement.Vertical?, horizontalAlignment: androidx.compose.ui.Alignment.Horizontal?, content: @[ExtensionFunctionType] kotlin.Function3<androidx.compose.foundation.layout.ColumnScope, androidx.compose.runtime.Composer, kotlin.Int, kotlin.Unit>, $composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int, $default: kotlin.Int): kotlin.Unit [inline] declared in androidx.compose.foundation.layout.ColumnKt' type=kotlin.Unit origin=null
+            ARG modifier: BLOCK type=androidx.compose.ui.Modifier origin=ARGUMENTS_REORDERING_FOR_CALL
+              VAR IR_TEMPORARY_VARIABLE name:tmp0_$receiver type:androidx.compose.ui.Modifier [val]
+                CALL 'public final fun fillMaxSize$default (<this>: androidx.compose.ui.Modifier, fraction: kotlin.Float, $mask0: kotlin.Int, $handler: kotlin.Any?): androidx.compose.ui.Modifier declared in androidx.compose.foundation.layout.SizeKt' type=androidx.compose.ui.Modifier origin=DEFAULT_DISPATCH_CALL
+                  ARG <this>: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:Companion type:androidx.compose.ui.Modifier.Companion visibility:public [final,static] declared in androidx.compose.ui.Modifier' type=androidx.compose.ui.Modifier.Companion origin=null
+                  ARG fraction: COMPOSITE type=kotlin.Float origin=DEFAULT_VALUE
+                    CONST Float type=kotlin.Float value=0.0
+                  ARG $mask0: CONST Int type=kotlin.Int value=1
+                  ARG $handler: CONST Null type=kotlin.Any? value=null
+              VAR IR_TEMPORARY_VARIABLE name:tmp1_start type:androidx.compose.ui.unit.Dp [val]
+                CALL 'public final fun <get-dp> (<this>: kotlin.Int): androidx.compose.ui.unit.Dp [inline] declared in androidx.compose.ui.unit.DpKt' type=androidx.compose.ui.unit.Dp origin=GET_PROPERTY
+                  ARG <this>: CONST Int type=kotlin.Int value=8
+              VAR IR_TEMPORARY_VARIABLE name:tmp2_end type:androidx.compose.ui.unit.Dp [val]
+                CALL 'public final fun <get-dp> (<this>: kotlin.Int): androidx.compose.ui.unit.Dp [inline] declared in androidx.compose.ui.unit.DpKt' type=androidx.compose.ui.unit.Dp origin=GET_PROPERTY
+                  ARG <this>: CONST Int type=kotlin.Int value=8
+              VAR IR_TEMPORARY_VARIABLE name:tmp3_top type:androidx.compose.ui.unit.Dp [val]
+                CALL 'public final fun <get-dp> (<this>: kotlin.Int): androidx.compose.ui.unit.Dp [inline] declared in androidx.compose.ui.unit.DpKt' type=androidx.compose.ui.unit.Dp origin=GET_PROPERTY
+                  ARG <this>: CONST Int type=kotlin.Int value=7
+              VAR IR_TEMPORARY_VARIABLE name:tmp4_bottom type:androidx.compose.ui.unit.Dp [val]
+                CALL 'public final fun <get-dp> (<this>: kotlin.Int): androidx.compose.ui.unit.Dp [inline] declared in androidx.compose.ui.unit.DpKt' type=androidx.compose.ui.unit.Dp origin=GET_PROPERTY
+                  ARG <this>: CONST Int type=kotlin.Int value=6
+              CALL 'public final fun padding-qDBjuR0 ($this$padding: androidx.compose.ui.Modifier, start: androidx.compose.ui.unit.Dp, top: androidx.compose.ui.unit.Dp, end: androidx.compose.ui.unit.Dp, bottom: androidx.compose.ui.unit.Dp): androidx.compose.ui.Modifier declared in androidx.compose.foundation.layout.PaddingKt' type=androidx.compose.ui.Modifier origin=null
+                ARG $this$padding: GET_VAR 'val tmp0_$receiver: androidx.compose.ui.Modifier [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.ui.Modifier origin=null
+                ARG start: GET_VAR 'val tmp1_start: androidx.compose.ui.unit.Dp [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.ui.unit.Dp origin=null
+                ARG top: GET_VAR 'val tmp3_top: androidx.compose.ui.unit.Dp [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.ui.unit.Dp origin=null
+                ARG end: GET_VAR 'val tmp2_end: androidx.compose.ui.unit.Dp [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.ui.unit.Dp origin=null
+                ARG bottom: GET_VAR 'val tmp4_bottom: androidx.compose.ui.unit.Dp [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.ui.unit.Dp origin=null
+            ARG verticalArrangement: CALL 'public final fun <get-SpaceBetween> (): androidx.compose.foundation.layout.Arrangement.HorizontalOrVertical declared in androidx.compose.foundation.layout.Arrangement' type=androidx.compose.foundation.layout.Arrangement.HorizontalOrVertical origin=GET_PROPERTY
+              ARG <this>: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:androidx.compose.foundation.layout.Arrangement visibility:public [final,static] declared in androidx.compose.foundation.layout.Arrangement' type=androidx.compose.foundation.layout.Arrangement origin=null
+            ARG horizontalAlignment: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+              CONST Null type=kotlin.Nothing? value=null
+            ARG content: RICH_FUNCTION_REFERENCE type=@[ExtensionFunctionType] kotlin.Function3<androidx.compose.foundation.layout.ColumnScope, androidx.compose.runtime.Composer, kotlin.Int, kotlin.Unit> origin=INLINE_LAMBDA reflectionTarget='null'
+              overriddenFunctionSymbol: public abstract fun invoke (p1: P1 of kotlin.Function3, p2: P2 of kotlin.Function3, p3: P3 of kotlin.Function3): R of kotlin.Function3 [operator] declared in kotlin.Function3
+              bound $snapshot: GET_VAR '$snapshot: com.serkantkn.zunelauncher.data.model.WeatherSnapshot? declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=com.serkantkn.zunelauncher.data.model.WeatherSnapshot? origin=null
+              bound $fg: GET_VAR 'val fg: androidx.compose.ui.graphics.Color [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.ui.graphics.Color origin=null
+              bound $temperatureUnit: GET_VAR '$temperatureUnit: com.serkantkn.zunelauncher.data.model.TemperatureUnit declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=com.serkantkn.zunelauncher.data.model.TemperatureUnit origin=null
+              bound $today: GET_VAR '$today: com.serkantkn.zunelauncher.data.model.DailyPoint? declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=com.serkantkn.zunelauncher.data.model.DailyPoint? origin=null
+              bound $span: GET_VAR '$span: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=kotlin.Int origin=null
+              bound $gridColumns: GET_VAR '$gridColumns: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=kotlin.Int origin=null
+              invoke: FUN INLINE_LAMBDA name:W10MWeatherTile_b7y7nX4$lambda$0$0 visibility:private modality:FINAL returnType:kotlin.Unit
+                VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$snapshot index:0 type:com.serkantkn.zunelauncher.data.model.WeatherSnapshot?
+                VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$fg index:1 type:androidx.compose.ui.graphics.Color
+                VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$temperatureUnit index:2 type:com.serkantkn.zunelauncher.data.model.TemperatureUnit
+                VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$today index:3 type:com.serkantkn.zunelauncher.data.model.DailyPoint?
+                VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$span index:4 type:kotlin.Int
+                VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$gridColumns index:5 type:kotlin.Int
+                VALUE_PARAMETER LAMBDA_EXTENSION_RECEIVER kind:Regular name:$this$Column index:6 type:androidx.compose.foundation.layout.ColumnScope
+                VALUE_PARAMETER kind:Regular name:$composer index:7 type:androidx.compose.runtime.Composer? [assignable]
+                VALUE_PARAMETER kind:Regular name:$changed index:8 type:kotlin.Int
+                annotations:
+                  Composable
+                  ComposableTarget(applier = "androidx.compose.ui.UiComposable")
+                  FunctionKeyMeta(key = 378844595, startOffset = 3156, endOffset = 4784)
+                BLOCK_BODY
+                  VAR name:$i$a$-Column-W10MWeatherTileKt$W10MWeatherTile$1$1 type:kotlin.Int [val]
+                    CONST Int type=kotlin.Int value=0
+                  BLOCK type=kotlin.Unit origin=null
+                    CALL 'public final fun sourceInformationMarkerStart (composer: androidx.compose.runtime.Composer, key: kotlin.Int, sourceInformation: kotlin.String): kotlin.Unit declared in androidx.compose.runtime.ComposerKt' type=kotlin.Unit origin=null
+                      ARG composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.runtime.Composer? origin=null
+                      ARG key: CONST Int type=kotlin.Int value=-1014653188
+                      ARG sourceInformation: CONST String type=kotlin.String value="C82@3282L10,80@3178L322,87@3521L1245:W10MWeatherTile.kt#bxoekw"
+                    COMPOSITE type=kotlin.Unit origin=null
+                      BLOCK type=kotlin.Unit origin=ARGUMENTS_REORDERING_FOR_CALL
+                        VAR IR_TEMPORARY_VARIABLE name:tmp0_text type:kotlin.String [val]
+                          CALL 'public final fun <get-name> (): kotlin.String declared in com.serkantkn.zunelauncher.data.model.WeatherPlace' type=kotlin.String origin=GET_PROPERTY
+                            ARG <this>: CALL 'public final fun <get-place> (): com.serkantkn.zunelauncher.data.model.WeatherPlace declared in com.serkantkn.zunelauncher.data.model.WeatherSnapshot' type=com.serkantkn.zunelauncher.data.model.WeatherPlace origin=GET_PROPERTY
+                              ARG <this>: TYPE_OP type=com.serkantkn.zunelauncher.data.model.WeatherSnapshot origin=IMPLICIT_CAST typeOperand=com.serkantkn.zunelauncher.data.model.WeatherSnapshot
+                                GET_VAR '$snapshot: com.serkantkn.zunelauncher.data.model.WeatherSnapshot? declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=com.serkantkn.zunelauncher.data.model.WeatherSnapshot? origin=null
+                        VAR IR_TEMPORARY_VARIABLE name:tmp1_style type:androidx.compose.ui.text.TextStyle [val]
+                          CALL 'public final fun copy-p1EtxEg$default ($this: androidx.compose.ui.text.TextStyle, color: androidx.compose.ui.graphics.Color, fontSize: androidx.compose.ui.unit.TextUnit, fontWeight: androidx.compose.ui.text.font.FontWeight?, fontStyle: androidx.compose.ui.text.font.FontStyle?, fontSynthesis: androidx.compose.ui.text.font.FontSynthesis?, fontFamily: androidx.compose.ui.text.font.FontFamily?, fontFeatureSettings: kotlin.String?, letterSpacing: androidx.compose.ui.unit.TextUnit, baselineShift: androidx.compose.ui.text.style.BaselineShift?, textGeometricTransform: androidx.compose.ui.text.style.TextGeometricTransform?, localeList: androidx.compose.ui.text.intl.LocaleList?, background: androidx.compose.ui.graphics.Color, textDecoration: androidx.compose.ui.text.style.TextDecoration?, shadow: androidx.compose.ui.graphics.Shadow?, drawStyle: androidx.compose.ui.graphics.drawscope.DrawStyle?, textAlign: androidx.compose.ui.text.style.TextAlign, textDirection: androidx.compose.ui.text.style.TextDirection, lineHeight: androidx.compose.ui.unit.TextUnit, textIndent: androidx.compose.ui.text.style.TextIndent?, platformStyle: androidx.compose.ui.text.PlatformTextStyle?, lineHeightStyle: androidx.compose.ui.text.style.LineHeightStyle?, lineBreak: androidx.compose.ui.text.style.LineBreak, hyphens: androidx.compose.ui.text.style.Hyphens, textMotion: androidx.compose.ui.text.style.TextMotion?, $mask0: kotlin.Int, $handler: kotlin.Any?): androidx.compose.ui.text.TextStyle declared in androidx.compose.ui.text.TextStyle' type=androidx.compose.ui.text.TextStyle origin=DEFAULT_DISPATCH_CALL
+                            ARG $this: CALL 'public final fun <get-labelSmall> (): androidx.compose.ui.text.TextStyle declared in androidx.compose.material3.Typography' type=androidx.compose.ui.text.TextStyle origin=GET_PROPERTY
+                              ARG <this>: CALL 'public final fun <get-typography> ($composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int): androidx.compose.material3.Typography declared in androidx.compose.material3.MaterialTheme' type=androidx.compose.material3.Typography origin=GET_PROPERTY
+                                ARG <this>: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:androidx.compose.material3.MaterialTheme visibility:public [final,static] declared in androidx.compose.material3.MaterialTheme' type=androidx.compose.material3.MaterialTheme origin=null
+                                ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.runtime.Composer? origin=null
+                                ARG $changed: CONST Int type=kotlin.Int value=6
+                            ARG color: COMPOSITE type=androidx.compose.ui.graphics.Color origin=DEFAULT_VALUE
+                              CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.graphics.Color origin=null
+                                TYPE_ARG T: kotlin.Long
+                                TYPE_ARG R: androidx.compose.ui.graphics.Color
+                                ARG v: CONST Long type=kotlin.Long value=0
+                            ARG fontSize: CALL 'public final fun <get-sp> (<this>: kotlin.Int): androidx.compose.ui.unit.TextUnit declared in androidx.compose.ui.unit.TextUnitKt' type=androidx.compose.ui.unit.TextUnit origin=GET_PROPERTY
+                              ARG <this>: CONST Int type=kotlin.Int value=11
+                            ARG fontWeight: COMPOSITE type=androidx.compose.ui.text.font.FontWeight? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.font.FontWeight? value=null
+                            ARG fontStyle: COMPOSITE type=androidx.compose.ui.text.font.FontStyle? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.font.FontStyle? value=null
+                            ARG fontSynthesis: COMPOSITE type=androidx.compose.ui.text.font.FontSynthesis? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.font.FontSynthesis? value=null
+                            ARG fontFamily: COMPOSITE type=androidx.compose.ui.text.font.FontFamily? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.font.FontFamily? value=null
+                            ARG fontFeatureSettings: COMPOSITE type=kotlin.String? origin=DEFAULT_VALUE
+                              CONST Null type=kotlin.String? value=null
+                            ARG letterSpacing: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                              CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                TYPE_ARG T: kotlin.Long
+                                TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                ARG v: CONST Long type=kotlin.Long value=0
+                            ARG baselineShift: COMPOSITE type=androidx.compose.ui.text.style.BaselineShift? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.style.BaselineShift? value=null
+                            ARG textGeometricTransform: COMPOSITE type=androidx.compose.ui.text.style.TextGeometricTransform? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.style.TextGeometricTransform? value=null
+                            ARG localeList: COMPOSITE type=androidx.compose.ui.text.intl.LocaleList? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.intl.LocaleList? value=null
+                            ARG background: COMPOSITE type=androidx.compose.ui.graphics.Color origin=DEFAULT_VALUE
+                              CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.graphics.Color origin=null
+                                TYPE_ARG T: kotlin.Long
+                                TYPE_ARG R: androidx.compose.ui.graphics.Color
+                                ARG v: CONST Long type=kotlin.Long value=0
+                            ARG textDecoration: COMPOSITE type=androidx.compose.ui.text.style.TextDecoration? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.style.TextDecoration? value=null
+                            ARG shadow: COMPOSITE type=androidx.compose.ui.graphics.Shadow? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.graphics.Shadow? value=null
+                            ARG drawStyle: COMPOSITE type=androidx.compose.ui.graphics.drawscope.DrawStyle? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.graphics.drawscope.DrawStyle? value=null
+                            ARG textAlign: COMPOSITE type=androidx.compose.ui.text.style.TextAlign origin=DEFAULT_VALUE
+                              CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.TextAlign origin=null
+                                TYPE_ARG T: kotlin.Int
+                                TYPE_ARG R: androidx.compose.ui.text.style.TextAlign
+                                ARG v: CONST Int type=kotlin.Int value=0
+                            ARG textDirection: COMPOSITE type=androidx.compose.ui.text.style.TextDirection origin=DEFAULT_VALUE
+                              CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.TextDirection origin=null
+                                TYPE_ARG T: kotlin.Int
+                                TYPE_ARG R: androidx.compose.ui.text.style.TextDirection
+                                ARG v: CONST Int type=kotlin.Int value=0
+                            ARG lineHeight: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                              CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                TYPE_ARG T: kotlin.Long
+                                TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                ARG v: CONST Long type=kotlin.Long value=0
+                            ARG textIndent: COMPOSITE type=androidx.compose.ui.text.style.TextIndent? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.style.TextIndent? value=null
+                            ARG platformStyle: COMPOSITE type=androidx.compose.ui.text.PlatformTextStyle? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.PlatformTextStyle? value=null
+                            ARG lineHeightStyle: COMPOSITE type=androidx.compose.ui.text.style.LineHeightStyle? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.style.LineHeightStyle? value=null
+                            ARG lineBreak: COMPOSITE type=androidx.compose.ui.text.style.LineBreak origin=DEFAULT_VALUE
+                              CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.LineBreak origin=null
+                                TYPE_ARG T: kotlin.Int
+                                TYPE_ARG R: androidx.compose.ui.text.style.LineBreak
+                                ARG v: CONST Int type=kotlin.Int value=0
+                            ARG hyphens: COMPOSITE type=androidx.compose.ui.text.style.Hyphens origin=DEFAULT_VALUE
+                              CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.Hyphens origin=null
+                                TYPE_ARG T: kotlin.Int
+                                TYPE_ARG R: androidx.compose.ui.text.style.Hyphens
+                                ARG v: CONST Int type=kotlin.Int value=0
+                            ARG textMotion: COMPOSITE type=androidx.compose.ui.text.style.TextMotion? origin=DEFAULT_VALUE
+                              CONST Null type=androidx.compose.ui.text.style.TextMotion? value=null
+                            ARG $mask0: CONST Int type=kotlin.Int value=16777213
+                            ARG $handler: CONST Null type=kotlin.Any? value=null
+                        VAR IR_TEMPORARY_VARIABLE name:tmp2_color type:androidx.compose.ui.graphics.Color [val]
+                          CALL 'public final fun copy-wmQWz5c$default (arg0: androidx.compose.ui.graphics.Color, alpha: kotlin.Float, red: kotlin.Float, green: kotlin.Float, blue: kotlin.Float, $mask0: kotlin.Int, $handler: kotlin.Any?): androidx.compose.ui.graphics.Color declared in androidx.compose.ui.graphics.Color' type=androidx.compose.ui.graphics.Color origin=DEFAULT_DISPATCH_CALL
+                            ARG arg0: GET_VAR '$fg: androidx.compose.ui.graphics.Color declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.ui.graphics.Color origin=null
+                            ARG alpha: CONST Float type=kotlin.Float value=0.75
+                            ARG red: COMPOSITE type=kotlin.Float origin=DEFAULT_VALUE
+                              CONST Float type=kotlin.Float value=0.0
+                            ARG green: COMPOSITE type=kotlin.Float origin=DEFAULT_VALUE
+                              CONST Float type=kotlin.Float value=0.0
+                            ARG blue: COMPOSITE type=kotlin.Float origin=DEFAULT_VALUE
+                              CONST Float type=kotlin.Float value=0.0
+                            ARG $mask0: CONST Int type=kotlin.Int value=14
+                            ARG $handler: CONST Null type=kotlin.Any? value=null
+                        VAR IR_TEMPORARY_VARIABLE name:tmp3_overflow type:androidx.compose.ui.text.style.TextOverflow [val]
+                          CALL 'public final fun getEllipsis-gIe3tQ8 (): androidx.compose.ui.text.style.TextOverflow declared in androidx.compose.ui.text.style.TextOverflow.Companion' type=androidx.compose.ui.text.style.TextOverflow origin=GET_PROPERTY
+                            ARG <this>: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:Companion type:androidx.compose.ui.text.style.TextOverflow.Companion visibility:public [final,static] declared in androidx.compose.ui.text.style.TextOverflow' type=androidx.compose.ui.text.style.TextOverflow.Companion origin=null
+                        CALL 'public final fun Text-Nvy7gAk (text: kotlin.String, modifier: androidx.compose.ui.Modifier?, color: androidx.compose.ui.graphics.Color, autoSize: androidx.compose.foundation.text.TextAutoSize?, fontSize: androidx.compose.ui.unit.TextUnit, fontStyle: androidx.compose.ui.text.font.FontStyle?, fontWeight: androidx.compose.ui.text.font.FontWeight?, fontFamily: androidx.compose.ui.text.font.FontFamily?, letterSpacing: androidx.compose.ui.unit.TextUnit, textDecoration: androidx.compose.ui.text.style.TextDecoration?, textAlign: androidx.compose.ui.text.style.TextAlign?, lineHeight: androidx.compose.ui.unit.TextUnit, overflow: androidx.compose.ui.text.style.TextOverflow, softWrap: kotlin.Boolean, maxLines: kotlin.Int, minLines: kotlin.Int, onTextLayout: kotlin.Function1<androidx.compose.ui.text.TextLayoutResult, kotlin.Unit>?, style: androidx.compose.ui.text.TextStyle?, $composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int, $changed1: kotlin.Int, $default: kotlin.Int): kotlin.Unit declared in androidx.compose.material3.TextKt' type=kotlin.Unit origin=null
+                          ARG text: GET_VAR 'val tmp0_text: kotlin.String [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=kotlin.String origin=null
+                          ARG modifier: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                            CONST Null type=kotlin.Nothing? value=null
+                          ARG color: GET_VAR 'val tmp2_color: androidx.compose.ui.graphics.Color [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.ui.graphics.Color origin=null
+                          ARG autoSize: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                            CONST Null type=kotlin.Nothing? value=null
+                          ARG fontSize: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                            CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                              TYPE_ARG T: kotlin.Long
+                              TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                              ARG v: CONST Long type=kotlin.Long value=0
+                          ARG fontStyle: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                            CONST Null type=kotlin.Nothing? value=null
+                          ARG fontWeight: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                            CONST Null type=kotlin.Nothing? value=null
+                          ARG fontFamily: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                            CONST Null type=kotlin.Nothing? value=null
+                          ARG letterSpacing: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                            CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                              TYPE_ARG T: kotlin.Long
+                              TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                              ARG v: CONST Long type=kotlin.Long value=0
+                          ARG textDecoration: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                            CONST Null type=kotlin.Nothing? value=null
+                          ARG textAlign: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                            CONST Null type=kotlin.Nothing? value=null
+                          ARG lineHeight: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                            CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                              TYPE_ARG T: kotlin.Long
+                              TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                              ARG v: CONST Long type=kotlin.Long value=0
+                          ARG overflow: GET_VAR 'val tmp3_overflow: androidx.compose.ui.text.style.TextOverflow [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.ui.text.style.TextOverflow origin=null
+                          ARG softWrap: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+                            CONST Boolean type=kotlin.Boolean value=false
+                          ARG maxLines: CONST Int type=kotlin.Int value=1
+                          ARG minLines: COMPOSITE type=kotlin.Int origin=DEFAULT_VALUE
+                            CONST Int type=kotlin.Int value=0
+                          ARG onTextLayout: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                            CONST Null type=kotlin.Nothing? value=null
+                          ARG style: GET_VAR 'val tmp1_style: androidx.compose.ui.text.TextStyle [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.ui.text.TextStyle origin=null
+                          ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.runtime.Composer? origin=null
+                          ARG $changed: CONST Int type=kotlin.Int value=0
+                          ARG $changed1: CONST Int type=kotlin.Int value=24960
+                          ARG $default: CONST Int type=kotlin.Int value=110586
+                      CALL 'public final fun Column (modifier: androidx.compose.ui.Modifier?, verticalArrangement: androidx.compose.foundation.layout.Arrangement.Vertical?, horizontalAlignment: androidx.compose.ui.Alignment.Horizontal?, content: @[ExtensionFunctionType] kotlin.Function3<androidx.compose.foundation.layout.ColumnScope, androidx.compose.runtime.Composer, kotlin.Int, kotlin.Unit>, $composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int, $default: kotlin.Int): kotlin.Unit [inline] declared in androidx.compose.foundation.layout.ColumnKt' type=kotlin.Unit origin=null
+                        ARG modifier: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                          CONST Null type=kotlin.Nothing? value=null
+                        ARG verticalArrangement: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                          CONST Null type=kotlin.Nothing? value=null
+                        ARG horizontalAlignment: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                          CONST Null type=kotlin.Nothing? value=null
+                        ARG content: RICH_FUNCTION_REFERENCE type=@[ExtensionFunctionType] kotlin.Function3<androidx.compose.foundation.layout.ColumnScope, androidx.compose.runtime.Composer, kotlin.Int, kotlin.Unit> origin=INLINE_LAMBDA reflectionTarget='null'
+                          overriddenFunctionSymbol: public abstract fun invoke (p1: P1 of kotlin.Function3, p2: P2 of kotlin.Function3, p3: P3 of kotlin.Function3): R of kotlin.Function3 [operator] declared in kotlin.Function3
+                          bound $temperatureUnit: GET_VAR '$temperatureUnit: com.serkantkn.zunelauncher.data.model.TemperatureUnit declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=com.serkantkn.zunelauncher.data.model.TemperatureUnit origin=null
+                          bound $today: GET_VAR '$today: com.serkantkn.zunelauncher.data.model.DailyPoint? declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=com.serkantkn.zunelauncher.data.model.DailyPoint? origin=null
+                          bound $span: GET_VAR '$span: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=kotlin.Int origin=null
+                          bound $gridColumns: GET_VAR '$gridColumns: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=kotlin.Int origin=null
+                          bound $fg: GET_VAR '$fg: androidx.compose.ui.graphics.Color declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.ui.graphics.Color origin=null
+                          bound $snapshot: GET_VAR '$snapshot: com.serkantkn.zunelauncher.data.model.WeatherSnapshot? declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=com.serkantkn.zunelauncher.data.model.WeatherSnapshot? origin=null
+                          invoke: FUN INLINE_LAMBDA name:W10MWeatherTile_b7y7nX4$lambda$0$0$0 visibility:private modality:FINAL returnType:kotlin.Unit
+                            VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$temperatureUnit index:0 type:com.serkantkn.zunelauncher.data.model.TemperatureUnit
+                            VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$today index:1 type:com.serkantkn.zunelauncher.data.model.DailyPoint?
+                            VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$span index:2 type:kotlin.Int
+                            VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$gridColumns index:3 type:kotlin.Int
+                            VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$fg index:4 type:androidx.compose.ui.graphics.Color
+                            VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$snapshot index:5 type:com.serkantkn.zunelauncher.data.model.WeatherSnapshot?
+                            VALUE_PARAMETER LAMBDA_EXTENSION_RECEIVER kind:Regular name:$this$Column index:6 type:androidx.compose.foundation.layout.ColumnScope
+                            VALUE_PARAMETER kind:Regular name:$composer index:7 type:androidx.compose.runtime.Composer? [assignable]
+                            VALUE_PARAMETER kind:Regular name:$changed index:8 type:kotlin.Int
+                            annotations:
+                              Composable
+                              ComposableTarget(applier = "androidx.compose.ui.UiComposable")
+                              FunctionKeyMeta(key = -186006403, startOffset = 3528, endOffset = 4766)
+                            BLOCK_BODY
+                              VAR name:$i$a$-Column-W10MWeatherTileKt$W10MWeatherTile$1$1$1 type:kotlin.Int [val]
+                                CONST Int type=kotlin.Int value=0
+                              BLOCK type=kotlin.Unit origin=null
+                                CALL 'public final fun sourceInformationMarkerStart (composer: androidx.compose.runtime.Composer, key: kotlin.Int, sourceInformation: kotlin.String): kotlin.Unit declared in androidx.compose.runtime.ComposerKt' type=kotlin.Unit origin=null
+                                  ARG composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.runtime.Composer? origin=null
+                                  ARG key: CONST Int type=kotlin.Int value=-808877248
+                                  ARG sourceInformation: CONST String type=kotlin.String value="C89@3595L263,94@3910L10,88@3554L683,102@4303L47,103@4402L10,101@4262L482:W10MWeatherTile.kt#bxoekw"
+                                COMPOSITE type=kotlin.Unit origin=null
+                                  BLOCK type=kotlin.Unit origin=ARGUMENTS_REORDERING_FOR_CALL
+                                    VAR IR_TEMPORARY_VARIABLE name:tmp0_text type:kotlin.String [val]
+                                      CALL 'public final fun stringResource (id: kotlin.Int, vararg formatArgs: kotlin.Any, $composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int): kotlin.String declared in androidx.compose.ui.res.StringResources_androidKt' type=kotlin.String origin=null
+                                        ARG id: GET_FIELD 'FIELD IR_EXTERNAL_JAVA_DECLARATION_STUB name:weather_high_low type:kotlin.Int visibility:public [static] declared in com.serkantkn.zunelauncher.R.string' type=kotlin.Int superQualifierSymbol=com.serkantkn.zunelauncher.R.string origin=null
+                                        ARG formatArgs: BLOCK type=kotlin.Array<out kotlin.Any> origin=null
+                                          VAR IR_TEMPORARY_VARIABLE name:tmp0 type:kotlin.Array<out kotlin.Any> [val]
+                                            CALL 'public final fun arrayOfNulls <T> (size: kotlin.Int): kotlin.Array<T of kotlin.arrayOfNulls?> declared in kotlin' type=kotlin.Array<out kotlin.Any> origin=null
+                                              TYPE_ARG T: kotlin.Any
+                                              ARG size: CONST Int type=kotlin.Int value=2
+                                          CALL 'public final fun set (index: kotlin.Int, value: T of kotlin.Array): kotlin.Unit [operator] declared in kotlin.Array' type=kotlin.Unit origin=null
+                                            ARG <this>: GET_VAR 'val tmp0: kotlin.Array<out kotlin.Any> [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=kotlin.Array<out kotlin.Any> origin=null
+                                            ARG index: CONST Int type=kotlin.Int value=0
+                                            ARG value: STRING_CONCATENATION type=kotlin.String
+                                              CALL 'public final fun of (celsius: kotlin.Double): kotlin.Int declared in com.serkantkn.zunelauncher.data.model.TemperatureUnit' type=kotlin.Int origin=null
+                                                ARG <this>: GET_VAR '$temperatureUnit: com.serkantkn.zunelauncher.data.model.TemperatureUnit declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=com.serkantkn.zunelauncher.data.model.TemperatureUnit origin=null
+                                                ARG celsius: CALL 'public final fun <get-maxTemperature> (): kotlin.Double declared in com.serkantkn.zunelauncher.data.model.DailyPoint' type=kotlin.Double origin=GET_PROPERTY
+                                                  ARG <this>: TYPE_OP type=com.serkantkn.zunelauncher.data.model.DailyPoint origin=IMPLICIT_CAST typeOperand=com.serkantkn.zunelauncher.data.model.DailyPoint
+                                                    GET_VAR '$today: com.serkantkn.zunelauncher.data.model.DailyPoint? declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=com.serkantkn.zunelauncher.data.model.DailyPoint? origin=null
+                                              CONST String type=kotlin.String value="°"
+                                          CALL 'public final fun set (index: kotlin.Int, value: T of kotlin.Array): kotlin.Unit [operator] declared in kotlin.Array' type=kotlin.Unit origin=null
+                                            ARG <this>: GET_VAR 'val tmp0: kotlin.Array<out kotlin.Any> [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=kotlin.Array<out kotlin.Any> origin=null
+                                            ARG index: CONST Int type=kotlin.Int value=1
+                                            ARG value: STRING_CONCATENATION type=kotlin.String
+                                              CALL 'public final fun of (celsius: kotlin.Double): kotlin.Int declared in com.serkantkn.zunelauncher.data.model.TemperatureUnit' type=kotlin.Int origin=null
+                                                ARG <this>: GET_VAR '$temperatureUnit: com.serkantkn.zunelauncher.data.model.TemperatureUnit declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=com.serkantkn.zunelauncher.data.model.TemperatureUnit origin=null
+                                                ARG celsius: CALL 'public final fun <get-minTemperature> (): kotlin.Double declared in com.serkantkn.zunelauncher.data.model.DailyPoint' type=kotlin.Double origin=GET_PROPERTY
+                                                  ARG <this>: TYPE_OP type=com.serkantkn.zunelauncher.data.model.DailyPoint origin=IMPLICIT_CAST typeOperand=com.serkantkn.zunelauncher.data.model.DailyPoint
+                                                    GET_VAR '$today: com.serkantkn.zunelauncher.data.model.DailyPoint? declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=com.serkantkn.zunelauncher.data.model.DailyPoint? origin=null
+                                              CONST String type=kotlin.String value="°"
+                                          GET_VAR 'val tmp0: kotlin.Array<out kotlin.Any> [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=kotlin.Array<out kotlin.Any> origin=null
+                                        ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.runtime.Composer? origin=null
+                                        ARG $changed: CONST Int type=kotlin.Int value=0
+                                    VAR IR_TEMPORARY_VARIABLE name:tmp1_style type:androidx.compose.ui.text.TextStyle [val]
+                                      CALL 'public final fun copy-p1EtxEg$default ($this: androidx.compose.ui.text.TextStyle, color: androidx.compose.ui.graphics.Color, fontSize: androidx.compose.ui.unit.TextUnit, fontWeight: androidx.compose.ui.text.font.FontWeight?, fontStyle: androidx.compose.ui.text.font.FontStyle?, fontSynthesis: androidx.compose.ui.text.font.FontSynthesis?, fontFamily: androidx.compose.ui.text.font.FontFamily?, fontFeatureSettings: kotlin.String?, letterSpacing: androidx.compose.ui.unit.TextUnit, baselineShift: androidx.compose.ui.text.style.BaselineShift?, textGeometricTransform: androidx.compose.ui.text.style.TextGeometricTransform?, localeList: androidx.compose.ui.text.intl.LocaleList?, background: androidx.compose.ui.graphics.Color, textDecoration: androidx.compose.ui.text.style.TextDecoration?, shadow: androidx.compose.ui.graphics.Shadow?, drawStyle: androidx.compose.ui.graphics.drawscope.DrawStyle?, textAlign: androidx.compose.ui.text.style.TextAlign, textDirection: androidx.compose.ui.text.style.TextDirection, lineHeight: androidx.compose.ui.unit.TextUnit, textIndent: androidx.compose.ui.text.style.TextIndent?, platformStyle: androidx.compose.ui.text.PlatformTextStyle?, lineHeightStyle: androidx.compose.ui.text.style.LineHeightStyle?, lineBreak: androidx.compose.ui.text.style.LineBreak, hyphens: androidx.compose.ui.text.style.Hyphens, textMotion: androidx.compose.ui.text.style.TextMotion?, $mask0: kotlin.Int, $handler: kotlin.Any?): androidx.compose.ui.text.TextStyle declared in androidx.compose.ui.text.TextStyle' type=androidx.compose.ui.text.TextStyle origin=DEFAULT_DISPATCH_CALL
+                                        ARG $this: CALL 'public final fun <get-titleMedium> (): androidx.compose.ui.text.TextStyle declared in androidx.compose.material3.Typography' type=androidx.compose.ui.text.TextStyle origin=GET_PROPERTY
+                                          ARG <this>: CALL 'public final fun <get-typography> ($composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int): androidx.compose.material3.Typography declared in androidx.compose.material3.MaterialTheme' type=androidx.compose.material3.Typography origin=GET_PROPERTY
+                                            ARG <this>: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:androidx.compose.material3.MaterialTheme visibility:public [final,static] declared in androidx.compose.material3.MaterialTheme' type=androidx.compose.material3.MaterialTheme origin=null
+                                            ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.runtime.Composer? origin=null
+                                            ARG $changed: CONST Int type=kotlin.Int value=6
+                                        ARG color: COMPOSITE type=androidx.compose.ui.graphics.Color origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.graphics.Color origin=null
+                                            TYPE_ARG T: kotlin.Long
+                                            TYPE_ARG R: androidx.compose.ui.graphics.Color
+                                            ARG v: CONST Long type=kotlin.Long value=0
+                                        ARG fontSize: WHEN type=androidx.compose.ui.unit.TextUnit origin=IF
+                                          BRANCH
+                                            if: CALL 'internal final fun isCompactTile (span: kotlin.Int, gridColumns: kotlin.Int): kotlin.Boolean declared in com.serkantkn.zunelauncher.ui.components.W10MHubTileKt' type=kotlin.Boolean origin=null
+                                              ARG span: GET_VAR '$span: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=kotlin.Int origin=null
+                                              ARG gridColumns: GET_VAR '$gridColumns: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=kotlin.Int origin=null
+                                            then: CALL 'public final fun <get-sp> (<this>: kotlin.Int): androidx.compose.ui.unit.TextUnit declared in androidx.compose.ui.unit.TextUnitKt' type=androidx.compose.ui.unit.TextUnit origin=GET_PROPERTY
+                                              ARG <this>: CONST Int type=kotlin.Int value=16
+                                          BRANCH
+                                            if: CONST Boolean type=kotlin.Boolean value=true
+                                            then: CALL 'public final fun <get-sp> (<this>: kotlin.Int): androidx.compose.ui.unit.TextUnit declared in androidx.compose.ui.unit.TextUnitKt' type=androidx.compose.ui.unit.TextUnit origin=GET_PROPERTY
+                                              ARG <this>: CONST Int type=kotlin.Int value=22
+                                        ARG fontWeight: CALL 'public final fun <get-Light> (): androidx.compose.ui.text.font.FontWeight declared in androidx.compose.ui.text.font.FontWeight.Companion' type=androidx.compose.ui.text.font.FontWeight origin=GET_PROPERTY
+                                          ARG <this>: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:Companion type:androidx.compose.ui.text.font.FontWeight.Companion visibility:public [final,static] declared in androidx.compose.ui.text.font.FontWeight' type=androidx.compose.ui.text.font.FontWeight.Companion origin=null
+                                        ARG fontStyle: COMPOSITE type=androidx.compose.ui.text.font.FontStyle? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.font.FontStyle? value=null
+                                        ARG fontSynthesis: COMPOSITE type=androidx.compose.ui.text.font.FontSynthesis? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.font.FontSynthesis? value=null
+                                        ARG fontFamily: COMPOSITE type=androidx.compose.ui.text.font.FontFamily? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.font.FontFamily? value=null
+                                        ARG fontFeatureSettings: COMPOSITE type=kotlin.String? origin=DEFAULT_VALUE
+                                          CONST Null type=kotlin.String? value=null
+                                        ARG letterSpacing: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                            TYPE_ARG T: kotlin.Long
+                                            TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                            ARG v: CONST Long type=kotlin.Long value=0
+                                        ARG baselineShift: COMPOSITE type=androidx.compose.ui.text.style.BaselineShift? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.BaselineShift? value=null
+                                        ARG textGeometricTransform: COMPOSITE type=androidx.compose.ui.text.style.TextGeometricTransform? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.TextGeometricTransform? value=null
+                                        ARG localeList: COMPOSITE type=androidx.compose.ui.text.intl.LocaleList? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.intl.LocaleList? value=null
+                                        ARG background: COMPOSITE type=androidx.compose.ui.graphics.Color origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.graphics.Color origin=null
+                                            TYPE_ARG T: kotlin.Long
+                                            TYPE_ARG R: androidx.compose.ui.graphics.Color
+                                            ARG v: CONST Long type=kotlin.Long value=0
+                                        ARG textDecoration: COMPOSITE type=androidx.compose.ui.text.style.TextDecoration? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.TextDecoration? value=null
+                                        ARG shadow: COMPOSITE type=androidx.compose.ui.graphics.Shadow? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.graphics.Shadow? value=null
+                                        ARG drawStyle: COMPOSITE type=androidx.compose.ui.graphics.drawscope.DrawStyle? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.graphics.drawscope.DrawStyle? value=null
+                                        ARG textAlign: COMPOSITE type=androidx.compose.ui.text.style.TextAlign origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.TextAlign origin=null
+                                            TYPE_ARG T: kotlin.Int
+                                            TYPE_ARG R: androidx.compose.ui.text.style.TextAlign
+                                            ARG v: CONST Int type=kotlin.Int value=0
+                                        ARG textDirection: COMPOSITE type=androidx.compose.ui.text.style.TextDirection origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.TextDirection origin=null
+                                            TYPE_ARG T: kotlin.Int
+                                            TYPE_ARG R: androidx.compose.ui.text.style.TextDirection
+                                            ARG v: CONST Int type=kotlin.Int value=0
+                                        ARG lineHeight: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                            TYPE_ARG T: kotlin.Long
+                                            TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                            ARG v: CONST Long type=kotlin.Long value=0
+                                        ARG textIndent: COMPOSITE type=androidx.compose.ui.text.style.TextIndent? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.TextIndent? value=null
+                                        ARG platformStyle: COMPOSITE type=androidx.compose.ui.text.PlatformTextStyle? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.PlatformTextStyle? value=null
+                                        ARG lineHeightStyle: COMPOSITE type=androidx.compose.ui.text.style.LineHeightStyle? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.LineHeightStyle? value=null
+                                        ARG lineBreak: COMPOSITE type=androidx.compose.ui.text.style.LineBreak origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.LineBreak origin=null
+                                            TYPE_ARG T: kotlin.Int
+                                            TYPE_ARG R: androidx.compose.ui.text.style.LineBreak
+                                            ARG v: CONST Int type=kotlin.Int value=0
+                                        ARG hyphens: COMPOSITE type=androidx.compose.ui.text.style.Hyphens origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.Hyphens origin=null
+                                            TYPE_ARG T: kotlin.Int
+                                            TYPE_ARG R: androidx.compose.ui.text.style.Hyphens
+                                            ARG v: CONST Int type=kotlin.Int value=0
+                                        ARG textMotion: COMPOSITE type=androidx.compose.ui.text.style.TextMotion? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.TextMotion? value=null
+                                        ARG $mask0: CONST Int type=kotlin.Int value=16777209
+                                        ARG $handler: CONST Null type=kotlin.Any? value=null
+                                    CALL 'public final fun Text-Nvy7gAk (text: kotlin.String, modifier: androidx.compose.ui.Modifier?, color: androidx.compose.ui.graphics.Color, autoSize: androidx.compose.foundation.text.TextAutoSize?, fontSize: androidx.compose.ui.unit.TextUnit, fontStyle: androidx.compose.ui.text.font.FontStyle?, fontWeight: androidx.compose.ui.text.font.FontWeight?, fontFamily: androidx.compose.ui.text.font.FontFamily?, letterSpacing: androidx.compose.ui.unit.TextUnit, textDecoration: androidx.compose.ui.text.style.TextDecoration?, textAlign: androidx.compose.ui.text.style.TextAlign?, lineHeight: androidx.compose.ui.unit.TextUnit, overflow: androidx.compose.ui.text.style.TextOverflow, softWrap: kotlin.Boolean, maxLines: kotlin.Int, minLines: kotlin.Int, onTextLayout: kotlin.Function1<androidx.compose.ui.text.TextLayoutResult, kotlin.Unit>?, style: androidx.compose.ui.text.TextStyle?, $composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int, $changed1: kotlin.Int, $default: kotlin.Int): kotlin.Unit declared in androidx.compose.material3.TextKt' type=kotlin.Unit origin=null
+                                      ARG text: GET_VAR 'val tmp0_text: kotlin.String [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=kotlin.String origin=null
+                                      ARG modifier: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG color: GET_VAR '$fg: androidx.compose.ui.graphics.Color declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.ui.graphics.Color origin=null
+                                      ARG autoSize: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG fontSize: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                        CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                          TYPE_ARG T: kotlin.Long
+                                          TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                          ARG v: CONST Long type=kotlin.Long value=0
+                                      ARG fontStyle: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG fontWeight: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG fontFamily: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG letterSpacing: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                        CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                          TYPE_ARG T: kotlin.Long
+                                          TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                          ARG v: CONST Long type=kotlin.Long value=0
+                                      ARG textDecoration: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG textAlign: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG lineHeight: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                        CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                          TYPE_ARG T: kotlin.Long
+                                          TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                          ARG v: CONST Long type=kotlin.Long value=0
+                                      ARG overflow: COMPOSITE type=androidx.compose.ui.text.style.TextOverflow origin=DEFAULT_VALUE
+                                        CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.TextOverflow origin=null
+                                          TYPE_ARG T: kotlin.Int
+                                          TYPE_ARG R: androidx.compose.ui.text.style.TextOverflow
+                                          ARG v: CONST Int type=kotlin.Int value=0
+                                      ARG softWrap: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+                                        CONST Boolean type=kotlin.Boolean value=false
+                                      ARG maxLines: CONST Int type=kotlin.Int value=1
+                                      ARG minLines: COMPOSITE type=kotlin.Int origin=DEFAULT_VALUE
+                                        CONST Int type=kotlin.Int value=0
+                                      ARG onTextLayout: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG style: GET_VAR 'val tmp1_style: androidx.compose.ui.text.TextStyle [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.ui.text.TextStyle origin=null
+                                      ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.runtime.Composer? origin=null
+                                      ARG $changed: CONST Int type=kotlin.Int value=0
+                                      ARG $changed1: CONST Int type=kotlin.Int value=24576
+                                      ARG $default: CONST Int type=kotlin.Int value=114682
+                                  BLOCK type=kotlin.Unit origin=ARGUMENTS_REORDERING_FOR_CALL
+                                    VAR IR_TEMPORARY_VARIABLE name:tmp2_text type:kotlin.String [val]
+                                      CALL 'public final fun stringResource (id: kotlin.Int, $composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int): kotlin.String declared in androidx.compose.ui.res.StringResources_androidKt' type=kotlin.String origin=null
+                                        ARG id: CALL 'public final fun <get-labelRes> (): kotlin.Int declared in com.serkantkn.zunelauncher.data.model.WeatherCondition' type=kotlin.Int origin=GET_PROPERTY
+                                          ARG <this>: CALL 'public final fun <get-condition> (): com.serkantkn.zunelauncher.data.model.WeatherCondition declared in com.serkantkn.zunelauncher.data.model.WeatherNow' type=com.serkantkn.zunelauncher.data.model.WeatherCondition origin=GET_PROPERTY
+                                            ARG <this>: CALL 'public final fun <get-now> (): com.serkantkn.zunelauncher.data.model.WeatherNow declared in com.serkantkn.zunelauncher.data.model.WeatherSnapshot' type=com.serkantkn.zunelauncher.data.model.WeatherNow origin=GET_PROPERTY
+                                              ARG <this>: TYPE_OP type=com.serkantkn.zunelauncher.data.model.WeatherSnapshot origin=IMPLICIT_CAST typeOperand=com.serkantkn.zunelauncher.data.model.WeatherSnapshot
+                                                GET_VAR '$snapshot: com.serkantkn.zunelauncher.data.model.WeatherSnapshot? declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=com.serkantkn.zunelauncher.data.model.WeatherSnapshot? origin=null
+                                        ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.runtime.Composer? origin=null
+                                        ARG $changed: CONST Int type=kotlin.Int value=0
+                                    VAR IR_TEMPORARY_VARIABLE name:tmp3_style type:androidx.compose.ui.text.TextStyle [val]
+                                      CALL 'public final fun copy-p1EtxEg$default ($this: androidx.compose.ui.text.TextStyle, color: androidx.compose.ui.graphics.Color, fontSize: androidx.compose.ui.unit.TextUnit, fontWeight: androidx.compose.ui.text.font.FontWeight?, fontStyle: androidx.compose.ui.text.font.FontStyle?, fontSynthesis: androidx.compose.ui.text.font.FontSynthesis?, fontFamily: androidx.compose.ui.text.font.FontFamily?, fontFeatureSettings: kotlin.String?, letterSpacing: androidx.compose.ui.unit.TextUnit, baselineShift: androidx.compose.ui.text.style.BaselineShift?, textGeometricTransform: androidx.compose.ui.text.style.TextGeometricTransform?, localeList: androidx.compose.ui.text.intl.LocaleList?, background: androidx.compose.ui.graphics.Color, textDecoration: androidx.compose.ui.text.style.TextDecoration?, shadow: androidx.compose.ui.graphics.Shadow?, drawStyle: androidx.compose.ui.graphics.drawscope.DrawStyle?, textAlign: androidx.compose.ui.text.style.TextAlign, textDirection: androidx.compose.ui.text.style.TextDirection, lineHeight: androidx.compose.ui.unit.TextUnit, textIndent: androidx.compose.ui.text.style.TextIndent?, platformStyle: androidx.compose.ui.text.PlatformTextStyle?, lineHeightStyle: androidx.compose.ui.text.style.LineHeightStyle?, lineBreak: androidx.compose.ui.text.style.LineBreak, hyphens: androidx.compose.ui.text.style.Hyphens, textMotion: androidx.compose.ui.text.style.TextMotion?, $mask0: kotlin.Int, $handler: kotlin.Any?): androidx.compose.ui.text.TextStyle declared in androidx.compose.ui.text.TextStyle' type=androidx.compose.ui.text.TextStyle origin=DEFAULT_DISPATCH_CALL
+                                        ARG $this: CALL 'public final fun <get-bodySmall> (): androidx.compose.ui.text.TextStyle declared in androidx.compose.material3.Typography' type=androidx.compose.ui.text.TextStyle origin=GET_PROPERTY
+                                          ARG <this>: CALL 'public final fun <get-typography> ($composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int): androidx.compose.material3.Typography declared in androidx.compose.material3.MaterialTheme' type=androidx.compose.material3.Typography origin=GET_PROPERTY
+                                            ARG <this>: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:androidx.compose.material3.MaterialTheme visibility:public [final,static] declared in androidx.compose.material3.MaterialTheme' type=androidx.compose.material3.MaterialTheme origin=null
+                                            ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.runtime.Composer? origin=null
+                                            ARG $changed: CONST Int type=kotlin.Int value=6
+                                        ARG color: COMPOSITE type=androidx.compose.ui.graphics.Color origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.graphics.Color origin=null
+                                            TYPE_ARG T: kotlin.Long
+                                            TYPE_ARG R: androidx.compose.ui.graphics.Color
+                                            ARG v: CONST Long type=kotlin.Long value=0
+                                        ARG fontSize: WHEN type=androidx.compose.ui.unit.TextUnit origin=IF
+                                          BRANCH
+                                            if: CALL 'internal final fun isCompactTile (span: kotlin.Int, gridColumns: kotlin.Int): kotlin.Boolean declared in com.serkantkn.zunelauncher.ui.components.W10MHubTileKt' type=kotlin.Boolean origin=null
+                                              ARG span: GET_VAR '$span: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=kotlin.Int origin=null
+                                              ARG gridColumns: GET_VAR '$gridColumns: kotlin.Int declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=kotlin.Int origin=null
+                                            then: CALL 'public final fun <get-sp> (<this>: kotlin.Int): androidx.compose.ui.unit.TextUnit declared in androidx.compose.ui.unit.TextUnitKt' type=androidx.compose.ui.unit.TextUnit origin=GET_PROPERTY
+                                              ARG <this>: CONST Int type=kotlin.Int value=9
+                                          BRANCH
+                                            if: CONST Boolean type=kotlin.Boolean value=true
+                                            then: CALL 'public final fun <get-sp> (<this>: kotlin.Int): androidx.compose.ui.unit.TextUnit declared in androidx.compose.ui.unit.TextUnitKt' type=androidx.compose.ui.unit.TextUnit origin=GET_PROPERTY
+                                              ARG <this>: CONST Int type=kotlin.Int value=11
+                                        ARG fontWeight: COMPOSITE type=androidx.compose.ui.text.font.FontWeight? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.font.FontWeight? value=null
+                                        ARG fontStyle: COMPOSITE type=androidx.compose.ui.text.font.FontStyle? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.font.FontStyle? value=null
+                                        ARG fontSynthesis: COMPOSITE type=androidx.compose.ui.text.font.FontSynthesis? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.font.FontSynthesis? value=null
+                                        ARG fontFamily: COMPOSITE type=androidx.compose.ui.text.font.FontFamily? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.font.FontFamily? value=null
+                                        ARG fontFeatureSettings: COMPOSITE type=kotlin.String? origin=DEFAULT_VALUE
+                                          CONST Null type=kotlin.String? value=null
+                                        ARG letterSpacing: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                            TYPE_ARG T: kotlin.Long
+                                            TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                            ARG v: CONST Long type=kotlin.Long value=0
+                                        ARG baselineShift: COMPOSITE type=androidx.compose.ui.text.style.BaselineShift? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.BaselineShift? value=null
+                                        ARG textGeometricTransform: COMPOSITE type=androidx.compose.ui.text.style.TextGeometricTransform? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.TextGeometricTransform? value=null
+                                        ARG localeList: COMPOSITE type=androidx.compose.ui.text.intl.LocaleList? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.intl.LocaleList? value=null
+                                        ARG background: COMPOSITE type=androidx.compose.ui.graphics.Color origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.graphics.Color origin=null
+                                            TYPE_ARG T: kotlin.Long
+                                            TYPE_ARG R: androidx.compose.ui.graphics.Color
+                                            ARG v: CONST Long type=kotlin.Long value=0
+                                        ARG textDecoration: COMPOSITE type=androidx.compose.ui.text.style.TextDecoration? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.TextDecoration? value=null
+                                        ARG shadow: COMPOSITE type=androidx.compose.ui.graphics.Shadow? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.graphics.Shadow? value=null
+                                        ARG drawStyle: COMPOSITE type=androidx.compose.ui.graphics.drawscope.DrawStyle? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.graphics.drawscope.DrawStyle? value=null
+                                        ARG textAlign: COMPOSITE type=androidx.compose.ui.text.style.TextAlign origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.TextAlign origin=null
+                                            TYPE_ARG T: kotlin.Int
+                                            TYPE_ARG R: androidx.compose.ui.text.style.TextAlign
+                                            ARG v: CONST Int type=kotlin.Int value=0
+                                        ARG textDirection: COMPOSITE type=androidx.compose.ui.text.style.TextDirection origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.TextDirection origin=null
+                                            TYPE_ARG T: kotlin.Int
+                                            TYPE_ARG R: androidx.compose.ui.text.style.TextDirection
+                                            ARG v: CONST Int type=kotlin.Int value=0
+                                        ARG lineHeight: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                            TYPE_ARG T: kotlin.Long
+                                            TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                            ARG v: CONST Long type=kotlin.Long value=0
+                                        ARG textIndent: COMPOSITE type=androidx.compose.ui.text.style.TextIndent? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.TextIndent? value=null
+                                        ARG platformStyle: COMPOSITE type=androidx.compose.ui.text.PlatformTextStyle? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.PlatformTextStyle? value=null
+                                        ARG lineHeightStyle: COMPOSITE type=androidx.compose.ui.text.style.LineHeightStyle? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.LineHeightStyle? value=null
+                                        ARG lineBreak: COMPOSITE type=androidx.compose.ui.text.style.LineBreak origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.LineBreak origin=null
+                                            TYPE_ARG T: kotlin.Int
+                                            TYPE_ARG R: androidx.compose.ui.text.style.LineBreak
+                                            ARG v: CONST Int type=kotlin.Int value=0
+                                        ARG hyphens: COMPOSITE type=androidx.compose.ui.text.style.Hyphens origin=DEFAULT_VALUE
+                                          CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.text.style.Hyphens origin=null
+                                            TYPE_ARG T: kotlin.Int
+                                            TYPE_ARG R: androidx.compose.ui.text.style.Hyphens
+                                            ARG v: CONST Int type=kotlin.Int value=0
+                                        ARG textMotion: COMPOSITE type=androidx.compose.ui.text.style.TextMotion? origin=DEFAULT_VALUE
+                                          CONST Null type=androidx.compose.ui.text.style.TextMotion? value=null
+                                        ARG $mask0: CONST Int type=kotlin.Int value=16777213
+                                        ARG $handler: CONST Null type=kotlin.Any? value=null
+                                    VAR IR_TEMPORARY_VARIABLE name:tmp4_color type:androidx.compose.ui.graphics.Color [val]
+                                      CALL 'public final fun copy-wmQWz5c$default (arg0: androidx.compose.ui.graphics.Color, alpha: kotlin.Float, red: kotlin.Float, green: kotlin.Float, blue: kotlin.Float, $mask0: kotlin.Int, $handler: kotlin.Any?): androidx.compose.ui.graphics.Color declared in androidx.compose.ui.graphics.Color' type=androidx.compose.ui.graphics.Color origin=DEFAULT_DISPATCH_CALL
+                                        ARG arg0: GET_VAR '$fg: androidx.compose.ui.graphics.Color declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.ui.graphics.Color origin=null
+                                        ARG alpha: CONST Float type=kotlin.Float value=0.9
+                                        ARG red: COMPOSITE type=kotlin.Float origin=DEFAULT_VALUE
+                                          CONST Float type=kotlin.Float value=0.0
+                                        ARG green: COMPOSITE type=kotlin.Float origin=DEFAULT_VALUE
+                                          CONST Float type=kotlin.Float value=0.0
+                                        ARG blue: COMPOSITE type=kotlin.Float origin=DEFAULT_VALUE
+                                          CONST Float type=kotlin.Float value=0.0
+                                        ARG $mask0: CONST Int type=kotlin.Int value=14
+                                        ARG $handler: CONST Null type=kotlin.Any? value=null
+                                    VAR IR_TEMPORARY_VARIABLE name:tmp5_overflow type:androidx.compose.ui.text.style.TextOverflow [val]
+                                      CALL 'public final fun getEllipsis-gIe3tQ8 (): androidx.compose.ui.text.style.TextOverflow declared in androidx.compose.ui.text.style.TextOverflow.Companion' type=androidx.compose.ui.text.style.TextOverflow origin=GET_PROPERTY
+                                        ARG <this>: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:Companion type:androidx.compose.ui.text.style.TextOverflow.Companion visibility:public [final,static] declared in androidx.compose.ui.text.style.TextOverflow' type=androidx.compose.ui.text.style.TextOverflow.Companion origin=null
+                                    CALL 'public final fun Text-Nvy7gAk (text: kotlin.String, modifier: androidx.compose.ui.Modifier?, color: androidx.compose.ui.graphics.Color, autoSize: androidx.compose.foundation.text.TextAutoSize?, fontSize: androidx.compose.ui.unit.TextUnit, fontStyle: androidx.compose.ui.text.font.FontStyle?, fontWeight: androidx.compose.ui.text.font.FontWeight?, fontFamily: androidx.compose.ui.text.font.FontFamily?, letterSpacing: androidx.compose.ui.unit.TextUnit, textDecoration: androidx.compose.ui.text.style.TextDecoration?, textAlign: androidx.compose.ui.text.style.TextAlign?, lineHeight: androidx.compose.ui.unit.TextUnit, overflow: androidx.compose.ui.text.style.TextOverflow, softWrap: kotlin.Boolean, maxLines: kotlin.Int, minLines: kotlin.Int, onTextLayout: kotlin.Function1<androidx.compose.ui.text.TextLayoutResult, kotlin.Unit>?, style: androidx.compose.ui.text.TextStyle?, $composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int, $changed1: kotlin.Int, $default: kotlin.Int): kotlin.Unit declared in androidx.compose.material3.TextKt' type=kotlin.Unit origin=null
+                                      ARG text: GET_VAR 'val tmp2_text: kotlin.String [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=kotlin.String origin=null
+                                      ARG modifier: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG color: GET_VAR 'val tmp4_color: androidx.compose.ui.graphics.Color [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.ui.graphics.Color origin=null
+                                      ARG autoSize: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG fontSize: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                        CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                          TYPE_ARG T: kotlin.Long
+                                          TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                          ARG v: CONST Long type=kotlin.Long value=0
+                                      ARG fontStyle: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG fontWeight: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG fontFamily: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG letterSpacing: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                        CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                          TYPE_ARG T: kotlin.Long
+                                          TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                          ARG v: CONST Long type=kotlin.Long value=0
+                                      ARG textDecoration: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG textAlign: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG lineHeight: COMPOSITE type=androidx.compose.ui.unit.TextUnit origin=DEFAULT_VALUE
+                                        CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=androidx.compose.ui.unit.TextUnit origin=null
+                                          TYPE_ARG T: kotlin.Long
+                                          TYPE_ARG R: androidx.compose.ui.unit.TextUnit
+                                          ARG v: CONST Long type=kotlin.Long value=0
+                                      ARG overflow: GET_VAR 'val tmp5_overflow: androidx.compose.ui.text.style.TextOverflow [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.ui.text.style.TextOverflow origin=null
+                                      ARG softWrap: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+                                        CONST Boolean type=kotlin.Boolean value=false
+                                      ARG maxLines: CONST Int type=kotlin.Int value=1
+                                      ARG minLines: COMPOSITE type=kotlin.Int origin=DEFAULT_VALUE
+                                        CONST Int type=kotlin.Int value=0
+                                      ARG onTextLayout: COMPOSITE type=kotlin.Nothing? origin=DEFAULT_VALUE
+                                        CONST Null type=kotlin.Nothing? value=null
+                                      ARG style: GET_VAR 'val tmp3_style: androidx.compose.ui.text.TextStyle [val] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.ui.text.TextStyle origin=null
+                                      ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.runtime.Composer? origin=null
+                                      ARG $changed: CONST Int type=kotlin.Int value=0
+                                      ARG $changed1: CONST Int type=kotlin.Int value=24960
+                                      ARG $default: CONST Int type=kotlin.Int value=110586
+                                CALL 'public final fun sourceInformationMarkerEnd (composer: androidx.compose.runtime.Composer): kotlin.Unit declared in androidx.compose.runtime.ComposerKt' type=kotlin.Unit origin=null
+                                  ARG composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0.W10MWeatherTile_b7y7nX4$lambda$0$0$0' type=androidx.compose.runtime.Composer? origin=null
+                        ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.runtime.Composer? origin=null
+                        ARG $changed: CONST Int type=kotlin.Int value=0
+                        ARG $default: CONST Int type=kotlin.Int value=7
+                    CALL 'public final fun sourceInformationMarkerEnd (composer: androidx.compose.runtime.Composer): kotlin.Unit declared in androidx.compose.runtime.ComposerKt' type=kotlin.Unit origin=null
+                      ARG composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0.W10MWeatherTile_b7y7nX4$lambda$0$0' type=androidx.compose.runtime.Composer? origin=null
+            ARG $composer: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.runtime.Composer? origin=null
+            ARG $changed: CONST Int type=kotlin.Int value=48
+            ARG $default: CONST Int type=kotlin.Int value=4
+          WHEN type=kotlin.Unit origin=IF
+            BRANCH
+              if: CALL 'public final fun isTraceInProgress (): kotlin.Boolean declared in androidx.compose.runtime.ComposerKt' type=kotlin.Boolean origin=null
+              then: CALL 'public final fun traceEventEnd (): kotlin.Unit declared in androidx.compose.runtime.ComposerKt' type=kotlin.Unit origin=null
+      BRANCH
+        if: CONST Boolean type=kotlin.Boolean value=true
+        then: CALL 'public abstract fun skipToGroupEnd (): kotlin.Unit declared in androidx.compose.runtime.Composer' type=kotlin.Unit origin=null
+          ARG <this>: GET_VAR '$composer: androidx.compose.runtime.Composer? [assignable] declared in com.serkantkn.zunelauncher.ui.components.W10MWeatherTileKt.W10MWeatherTile_b7y7nX4$lambda$0' type=androidx.compose.runtime.Composer? origin=null
+
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate(FunctionCodegen.kt:61)
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate$default(FunctionCodegen.kt:54)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethodNode(ClassCodegen.kt:422)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethod(ClassCodegen.kt:439)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generate(ClassCodegen.kt:168)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.generateFile(JvmIrCodegenFactory.kt:465)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.invokeCodegen(JvmIrCodegenFactory.kt:431)
+	at org.jetbrains.kotlin.cli.jvm.compiler.KotlinToJVMBytecodeCompiler.runCodegen$org_jetbrains_kotlin_cli_jvm(KotlinToJVMBytecodeCompiler.kt:387)
+	at org.jetbrains.kotlin.cli.pipeline.jvm.JvmBackendPipelinePhase.executePhase(JvmBackendPipelinePhase.kt:91)
+	at org.jetbrains.kotlin.cli.pipeline.jvm.JvmBackendPipelinePhase.executePhase(JvmBackendPipelinePhase.kt:28)
+	at org.jetbrains.kotlin.cli.pipeline.PipelinePhase.phaseBody(PipelinePhase.kt:63)
+	at org.jetbrains.kotlin.cli.pipeline.PipelinePhase.phaseBody(PipelinePhase.kt:53)
+	at org.jetbrains.kotlin.config.phaser.NamedCompilerPhase.invoke(CompilerPhase.kt:102)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:22)
+	at org.jetbrains.kotlin.config.phaser.CompilerPhaseKt.invokeToplevel(CompilerPhase.kt:53)
+	at org.jetbrains.kotlin.cli.pipeline.AbstractCliPipeline.runPhasedPipeline(AbstractCliPipeline.kt:135)
+	at org.jetbrains.kotlin.cli.pipeline.AbstractCliPipeline.executeAndReturnPipeLineArtifact(AbstractCliPipeline.kt:89)
+	at org.jetbrains.kotlin.cli.pipeline.AbstractCliPipeline.executeAndReturnPipeLineArtifact$default(AbstractCliPipeline.kt:49)
+	at org.jetbrains.kotlin.cli.pipeline.AbstractCliPipeline.execute(AbstractCliPipeline.kt:40)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecutePhased(K2JVMCompiler.kt:54)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecutePhased(K2JVMCompiler.kt:45)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.execImpl(CLICompiler.kt:94)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.exec(CLICompiler.kt:366)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunnerBase.runCompiler(IncrementalJvmCompilerRunnerBase.kt:211)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunnerBase.runCompiler(IncrementalJvmCompilerRunnerBase.kt:53)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.doCompile(IncrementalCompilerRunner.kt:539)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileImpl(IncrementalCompilerRunner.kt:451)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:327)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:139)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:782)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:108)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:2046)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(UnicastServerRef.java:360)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:200)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:197)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:714)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Transport.java:196)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(TCPTransport.java:598)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(TCPTransport.java:844)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(TCPTransport.java:721)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:400)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(TCPTransport.java:720)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: org.jetbrains.kotlin.codegen.CompilationException: Back-end (JVM) Internal error: Couldn't inline method call: CALL 'public final fun Column (modifier: androidx.compose.ui.Modifier?, verticalArrangement: androidx.compose.foundation.layout.Arrangement.Vertical?, horizontalAlignment: androidx.compose.ui.Alignment.Horizontal?, content: @[ExtensionFunctionType] kotlin.Function3<androidx.compose.foundation.layout.ColumnScope, androidx.compose.runtime.Composer, kotlin.Int, kotlin.Unit>, $composer: androidx.compose.runtime.Composer?, $changed: kotlin.Int, $default: kotlin.Int): kotlin.Unit [inline] declared in androidx.compose.foundation.layout.ColumnKt' type=kotlin.Unit origin=null
+File is unknown
+The root cause org.jetbrains.kotlin.codegen.inline.InlineException was thrown at: org.jetbrains.kotlin.codegen.inline.MethodInliner.wrapException(MethodInliner.kt:1005)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrInlineCodegen.genInlineCall(IrInlineCodegen.kt:79)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrInlineCallGenerator.genCall(IrInlineCallGenerator.kt:36)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:579)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:141)
+	at org.jetbrains.kotlin.ir.expressions.IrCall.accept(IrCall.kt:24)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitStatementContainer(ExpressionCodegen.kt:492)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:506)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:141)
+	at org.jetbrains.kotlin.ir.visitors.IrVisitor.visitBlock(IrVisitor.kt:125)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlock(ExpressionCodegen.kt:430)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlock(ExpressionCodegen.kt:141)
+	at org.jetbrains.kotlin.ir.expressions.IrBlock.accept(IrBlock.kt:18)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitWhen(ExpressionCodegen.kt:1050)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitWhen(ExpressionCodegen.kt:141)
+	at org.jetbrains.kotlin.ir.expressions.IrWhen.accept(IrWhen.kt:24)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitStatementContainer(ExpressionCodegen.kt:492)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlockBody(ExpressionCodegen.kt:497)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlockBody(ExpressionCodegen.kt:141)
+	at org.jetbrains.kotlin.ir.expressions.IrBlockBody.accept(IrBlockBody.kt:20)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.generate(ExpressionCodegen.kt:234)
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.doGenerate(FunctionCodegen.kt:134)
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate(FunctionCodegen.kt:58)
+	... 46 more
+Caused by: org.jetbrains.kotlin.codegen.inline.InlineException: Lambda inlining com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1: couldn't inline method call
+Cause: W10MWeatherTile_b7y7nX4$lambda$0$0 (Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;ILcom/serkantkn/zunelauncher/data/model/WeatherSnapshot;JLcom/serkantkn/zunelauncher/data/model/TemperatureUnit;Lcom/serkantkn/zunelauncher/data/model/DailyPoint;II)V:
+  @Landroidx/compose/runtime/Composable;() // invisible
+  @Landroidx/compose/runtime/ComposableTarget;(applier="androidx.compose.ui.UiComposable") // invisible
+  @Landroidx/compose/runtime/internal/FunctionKeyMeta;(key=378844595, startOffset=3156, endOffset=4784) // invisible
+   L0
+    ICONST_0
+    ISTORE 10
+   L1
+    ALOAD 1
+    LDC -1014653188
+    LDC "C82@3282L10,80@3178L322,87@3521L1245:W10MWeatherTile.kt#bxoekw"
+   L2
+    LINENUMBER 81 L2
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerStart (Landroidx/compose/runtime/Composer;ILjava/lang/String;)V
+   L3
+    LINENUMBER 82 L3
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$snapshot : Lcom/serkantkn/zunelauncher/data/model/WeatherSnapshot;
+    INVOKEVIRTUAL com/serkantkn/zunelauncher/data/model/WeatherSnapshot.getPlace ()Lcom/serkantkn/zunelauncher/data/model/WeatherPlace;
+    INVOKEVIRTUAL com/serkantkn/zunelauncher/data/model/WeatherPlace.getName ()Ljava/lang/String;
+    ASTORE 11
+   L4
+    LINENUMBER 83 L4
+    GETSTATIC androidx/compose/material3/MaterialTheme.INSTANCE : Landroidx/compose/material3/MaterialTheme;
+    ALOAD 1
+    BIPUSH 6
+    INVOKEVIRTUAL androidx/compose/material3/MaterialTheme.getTypography (Landroidx/compose/runtime/Composer;I)Landroidx/compose/material3/Typography;
+    INVOKEVIRTUAL androidx/compose/material3/Typography.getLabelSmall ()Landroidx/compose/ui/text/TextStyle;
+    LCONST_0
+    BIPUSH 11
+    INVOKESTATIC androidx/compose/ui/unit/TextUnitKt.getSp (I)J
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ICONST_0
+    ICONST_0
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ICONST_0
+    ICONST_0
+    ACONST_NULL
+    LDC 16777213
+    ACONST_NULL
+    INVOKESTATIC androidx/compose/ui/text/TextStyle.copy-p1EtxEg$default (Landroidx/compose/ui/text/TextStyle;JJLandroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontSynthesis;Landroidx/compose/ui/text/font/FontFamily;Ljava/lang/String;JLandroidx/compose/ui/text/style/BaselineShift;Landroidx/compose/ui/text/style/TextGeometricTransform;Landroidx/compose/ui/text/intl/LocaleList;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/graphics/Shadow;Landroidx/compose/ui/graphics/drawscope/DrawStyle;IIJLandroidx/compose/ui/text/style/TextIndent;Landroidx/compose/ui/text/PlatformTextStyle;Landroidx/compose/ui/text/style/LineHeightStyle;IILandroidx/compose/ui/text/style/TextMotion;ILjava/lang/Object;)Landroidx/compose/ui/text/TextStyle;
+    ASTORE 12
+   L5
+    LINENUMBER 84 L5
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$fg : J
+    LDC 0.75
+    FCONST_0
+    FCONST_0
+    FCONST_0
+    BIPUSH 14
+    ACONST_NULL
+    INVOKESTATIC androidx/compose/ui/graphics/Color.copy-wmQWz5c$default (JFFFFILjava/lang/Object;)J
+    LSTORE 13
+   L6
+    LINENUMBER 86 L6
+    GETSTATIC androidx/compose/ui/text/style/TextOverflow.Companion : Landroidx/compose/ui/text/style/TextOverflow$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/text/style/TextOverflow$Companion.getEllipsis-gIe3tQ8 ()I
+    ISTORE 15
+   L7
+    LINENUMBER 82 L7
+    ALOAD 11
+    ACONST_NULL
+   L8
+    LINENUMBER 84 L8
+    LLOAD 13
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+   L9
+    LINENUMBER 86 L9
+    ILOAD 15
+    ICONST_0
+   L10
+    LINENUMBER 85 L10
+    ICONST_1
+    ICONST_0
+    ACONST_NULL
+   L11
+    LINENUMBER 83 L11
+    ALOAD 12
+    ALOAD 1
+    ICONST_0
+    SIPUSH 24960
+    LDC 110586
+   L12
+    LINENUMBER 81 L12
+    INVOKESTATIC androidx/compose/material3/TextKt.Text-Nvy7gAk (Ljava/lang/String;Landroidx/compose/ui/Modifier;JLandroidx/compose/foundation/text/TextAutoSize;JLandroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontFamily;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/text/style/TextAlign;JIZIILkotlin/jvm/functions/Function1;Landroidx/compose/ui/text/TextStyle;Landroidx/compose/runtime/Composer;III)V
+    ALOAD 1
+    ASTORE 14
+    ICONST_0
+    ISTORE 15
+   L13
+    LINENUMBER 88 L13
+    NOP
+   L14
+    ICONST_0
+    ISTORE 16
+   L15
+    ALOAD 14
+    LDC 1341605231
+    LDC "CC(Column)N(modifier,verticalArrangement,horizontalAlignment,content)87@4443L61,88@4509L134:Column.kt#2w3rfo"
+   L16
+    LINENUMBER 225 L16
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerStart (Landroidx/compose/runtime/Composer;ILjava/lang/String;)V
+   L17
+    LINENUMBER 226 L17
+    GETSTATIC androidx/compose/ui/Modifier.Companion : Landroidx/compose/ui/Modifier$Companion;
+    CHECKCAST androidx/compose/ui/Modifier
+    ASTORE 11
+   L18
+    LINENUMBER 227 L18
+    GETSTATIC androidx/compose/foundation/layout/Arrangement.INSTANCE : Landroidx/compose/foundation/layout/Arrangement;
+    INVOKEVIRTUAL androidx/compose/foundation/layout/Arrangement.getTop ()Landroidx/compose/foundation/layout/Arrangement$Vertical;
+    ASTORE 12
+   L19
+    LINENUMBER 228 L19
+    GETSTATIC androidx/compose/ui/Alignment.Companion : Landroidx/compose/ui/Alignment$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/Alignment$Companion.getStart ()Landroidx/compose/ui/Alignment$Horizontal;
+    ASTORE 13
+   L20
+    LINENUMBER 231 L20
+    ALOAD 12
+    ALOAD 13
+    ALOAD 14
+    BIPUSH 14
+    ILOAD 15
+    ICONST_3
+    ISHR
+    IAND
+    BIPUSH 112
+    ILOAD 15
+    ICONST_3
+    ISHR
+    IAND
+    IOR
+    INVOKESTATIC androidx/compose/foundation/layout/ColumnKt.columnMeasurePolicy (Landroidx/compose/foundation/layout/Arrangement$Vertical;Landroidx/compose/ui/Alignment$Horizontal;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/layout/MeasurePolicy;
+    ASTORE 17
+   L21
+    LINENUMBER 235 L21
+    ALOAD 11
+    ASTORE 18
+   L22
+    LINENUMBER 234 L22
+    ALOAD 17
+    ASTORE 19
+    ALOAD 14
+    ASTORE 20
+    BIPUSH 112
+    ILOAD 15
+    ICONST_3
+    ISHL
+    IAND
+    ISTORE 21
+   L23
+    LINENUMBER 232 L23
+    NOP
+   L24
+    ICONST_0
+    ISTORE 22
+   L25
+    ALOAD 20
+    LDC -1159599143
+    LDC "CC(Layout)N(content,modifier,measurePolicy)81@3355L27,84@3521L415:Layout.kt#80mrfh"
+   L26
+    LINENUMBER 236 L26
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerStart (Landroidx/compose/runtime/Composer;ILjava/lang/String;)V
+   L27
+    LINENUMBER 237 L27
+    ALOAD 20
+    ICONST_0
+    INVOKESTATIC androidx/compose/runtime/ComposablesKt.getCurrentCompositeKeyHashCode (Landroidx/compose/runtime/Composer;I)J
+    INVOKESTATIC java/lang/Long.hashCode (J)I
+    ISTORE 23
+   L28
+    ALOAD 20
+   L29
+    LINENUMBER 238 L29
+    INVOKEINTERFACE androidx/compose/runtime/Composer.getCurrentCompositionLocalMap ()Landroidx/compose/runtime/CompositionLocalMap; (itf)
+    ASTORE 24
+   L30
+    ALOAD 20
+   L31
+    LINENUMBER 239 L31
+    ALOAD 18
+    INVOKESTATIC androidx/compose/ui/ComposedModifierKt.materializeModifier (Landroidx/compose/runtime/Composer;Landroidx/compose/ui/Modifier;)Landroidx/compose/ui/Modifier;
+    ASTORE 25
+   L32
+    LINENUMBER 241 L32
+    GETSTATIC androidx/compose/ui/node/ComposeUiNode.Companion : Landroidx/compose/ui/node/ComposeUiNode$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/node/ComposeUiNode$Companion.getConstructor ()Lkotlin/jvm/functions/Function0;
+    ASTORE 26
+    ALOAD 20
+    ASTORE 27
+    BIPUSH 6
+    SIPUSH 896
+    ILOAD 21
+    BIPUSH 6
+    ISHL
+    IAND
+    IOR
+    ISTORE 28
+   L33
+    LINENUMBER 240 L33
+    NOP
+   L34
+    ICONST_0
+    ISTORE 29
+   L35
+    ALOAD 27
+    LDC -553112988
+    LDC "CC(ReusableComposeNode)N(factory,update,content)410@16187L9:Composables.kt#9igjgp"
+   L36
+    LINENUMBER 242 L36
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerStart (Landroidx/compose/runtime/Composer;ILjava/lang/String;)V
+   L37
+    LINENUMBER 243 L37
+    ALOAD 27
+    INVOKEINTERFACE androidx/compose/runtime/Composer.getApplier ()Landroidx/compose/runtime/Applier; (itf)
+    INSTANCEOF androidx/compose/runtime/Applier
+    IFNE L38
+    INVOKESTATIC androidx/compose/runtime/ComposablesKt.invalidApplier ()V
+   L38
+    ALOAD 27
+   L39
+    LINENUMBER 244 L39
+    INVOKEINTERFACE androidx/compose/runtime/Composer.startReusableNode ()V (itf)
+   L40
+    LINENUMBER 245 L40
+    ALOAD 27
+    INVOKEINTERFACE androidx/compose/runtime/Composer.getInserting ()Z (itf)
+    IFEQ L41
+    ALOAD 27
+   L42
+    LINENUMBER 246 L42
+    ALOAD 26
+    INVOKEINTERFACE androidx/compose/runtime/Composer.createNode (Lkotlin/jvm/functions/Function0;)V (itf)
+    GOTO L43
+   L41
+    ALOAD 27
+   L44
+    LINENUMBER 248 L44
+    INVOKEINTERFACE androidx/compose/runtime/Composer.useNode ()V (itf)
+   L43
+    LINENUMBER 250 L43
+    ALOAD 27
+    INVOKESTATIC androidx/compose/runtime/Updater.constructor-impl (Landroidx/compose/runtime/Composer;)Landroidx/compose/runtime/Composer;
+    ASTORE 30
+   L45
+    ICONST_0
+    ISTORE 31
+   L46
+    LINENUMBER 251 L46
+    ALOAD 30
+    ALOAD 19
+    GETSTATIC androidx/compose/ui/node/ComposeUiNode.Companion : Landroidx/compose/ui/node/ComposeUiNode$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/node/ComposeUiNode$Companion.getSetMeasurePolicy ()Lkotlin/jvm/functions/Function2;
+    INVOKESTATIC androidx/compose/runtime/Updater.set-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+   L47
+    LINENUMBER 252 L47
+    ALOAD 30
+    ALOAD 24
+    GETSTATIC androidx/compose/ui/node/ComposeUiNode.Companion : Landroidx/compose/ui/node/ComposeUiNode$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/node/ComposeUiNode$Companion.getSetResolvedCompositionLocals ()Lkotlin/jvm/functions/Function2;
+    INVOKESTATIC androidx/compose/runtime/Updater.set-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+   L48
+    LINENUMBER 253 L48
+    ALOAD 30
+    ILOAD 23
+    INVOKESTATIC java/lang/Integer.valueOf (I)Ljava/lang/Integer;
+    GETSTATIC androidx/compose/ui/node/ComposeUiNode.Companion : Landroidx/compose/ui/node/ComposeUiNode$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/node/ComposeUiNode$Companion.getSetCompositeKeyHash ()Lkotlin/jvm/functions/Function2;
+    INVOKESTATIC androidx/compose/runtime/Updater.set-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+   L49
+    LINENUMBER 254 L49
+    ALOAD 30
+    GETSTATIC androidx/compose/ui/node/ComposeUiNode.Companion : Landroidx/compose/ui/node/ComposeUiNode$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/node/ComposeUiNode$Companion.getApplyOnDeactivatedNodeAssertion ()Lkotlin/jvm/functions/Function1;
+    INVOKESTATIC androidx/compose/runtime/Updater.reconcile-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
+   L50
+    LINENUMBER 255 L50
+    ALOAD 30
+    ALOAD 25
+    GETSTATIC androidx/compose/ui/node/ComposeUiNode.Companion : Landroidx/compose/ui/node/ComposeUiNode$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/node/ComposeUiNode$Companion.getSetModifier ()Lkotlin/jvm/functions/Function2;
+    INVOKESTATIC androidx/compose/runtime/Updater.set-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+   L51
+    LINENUMBER 256 L51
+    NOP
+   L52
+    LINENUMBER 250 L52
+    NOP
+   L53
+    LINENUMBER 257 L53
+    ALOAD 27
+    BIPUSH 14
+    ILOAD 28
+    BIPUSH 6
+    ISHR
+    IAND
+    ISTORE 32
+    ASTORE 33
+   L54
+    ICONST_0
+    ISTORE 34
+   L55
+    ALOAD 33
+    LDC 2093002350
+    LDC "C89@4557L9:Column.kt#2w3rfo"
+   L56
+    LINENUMBER 233 L56
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerStart (Landroidx/compose/runtime/Composer;ILjava/lang/String;)V
+    GETSTATIC androidx/compose/foundation/layout/ColumnScopeInstance.INSTANCE : Landroidx/compose/foundation/layout/ColumnScopeInstance;
+    ALOAD 33
+    BIPUSH 6
+    BIPUSH 112
+    ILOAD 15
+    BIPUSH 6
+    ISHR
+    IAND
+    IOR
+    INVOKESTATIC java/lang/Integer.valueOf (I)Ljava/lang/Integer;
+    CHECKCAST java/lang/Number
+    INVOKEVIRTUAL java/lang/Number.intValue ()I
+    ISTORE 35
+    CHECKCAST androidx/compose/runtime/Composer
+    ASTORE 36
+    CHECKCAST androidx/compose/foundation/layout/ColumnScope
+    ASTORE 37
+   L57
+    ICONST_0
+    ISTORE 38
+   L58
+    ALOAD 36
+    LDC -808877248
+    LDC "C89@3595L263,94@3910L10,88@3554L683,102@4303L47,103@4402L10,101@4262L482:W10MWeatherTile.kt#bxoekw"
+   L59
+    LINENUMBER 89 L59
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerStart (Landroidx/compose/runtime/Composer;ILjava/lang/String;)V
+   L60
+    LINENUMBER 91 L60
+    GETSTATIC com/serkantkn/zunelauncher/R$string.weather_high_low : I
+   L61
+    LINENUMBER 92 L61
+    ICONST_2
+    ANEWARRAY java/lang/Object
+    ASTORE 39
+    ALOAD 39
+    ICONST_0
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$temperatureUnit : Lcom/serkantkn/zunelauncher/data/model/TemperatureUnit;
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$today : Lcom/serkantkn/zunelauncher/data/model/DailyPoint;
+    INVOKEVIRTUAL com/serkantkn/zunelauncher/data/model/DailyPoint.getMaxTemperature ()D
+    INVOKEVIRTUAL com/serkantkn/zunelauncher/data/model/TemperatureUnit.of (D)I
+    INVOKEDYNAMIC makeConcatWithConstants(I)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "\u0001\u00b0"
+    ]
+    AASTORE
+    ALOAD 39
+    ICONST_1
+   L62
+    LINENUMBER 93 L62
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$temperatureUnit : Lcom/serkantkn/zunelauncher/data/model/TemperatureUnit;
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$today : Lcom/serkantkn/zunelauncher/data/model/DailyPoint;
+    INVOKEVIRTUAL com/serkantkn/zunelauncher/data/model/DailyPoint.getMinTemperature ()D
+    INVOKEVIRTUAL com/serkantkn/zunelauncher/data/model/TemperatureUnit.of (D)I
+    INVOKEDYNAMIC makeConcatWithConstants(I)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "\u0001\u00b0"
+    ]
+    AASTORE
+   L63
+    LINENUMBER 92 L63
+    ALOAD 39
+    ALOAD 36
+    ICONST_0
+   L64
+    LINENUMBER 90 L64
+    INVOKESTATIC androidx/compose/ui/res/StringResources_androidKt.stringResource (I[Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Ljava/lang/String;
+    ASTORE 40
+   L65
+    LINENUMBER 95 L65
+    GETSTATIC androidx/compose/material3/MaterialTheme.INSTANCE : Landroidx/compose/material3/MaterialTheme;
+    ALOAD 36
+    BIPUSH 6
+    INVOKEVIRTUAL androidx/compose/material3/MaterialTheme.getTypography (Landroidx/compose/runtime/Composer;I)Landroidx/compose/material3/Typography;
+    INVOKEVIRTUAL androidx/compose/material3/Typography.getTitleMedium ()Landroidx/compose/ui/text/TextStyle;
+    LCONST_0
+   L66
+    LINENUMBER 96 L66
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$span : I
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$gridColumns : I
+    INVOKESTATIC com/serkantkn/zunelauncher/ui/components/W10MHubTileKt.isCompactTile (II)Z
+    IFEQ L67
+    BIPUSH 16
+    INVOKESTATIC androidx/compose/ui/unit/TextUnitKt.getSp (I)J
+    GOTO L68
+   L67
+    BIPUSH 22
+    INVOKESTATIC androidx/compose/ui/unit/TextUnitKt.getSp (I)J
+   L68
+    LINENUMBER 97 L68
+    GETSTATIC androidx/compose/ui/text/font/FontWeight.Companion : Landroidx/compose/ui/text/font/FontWeight$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/text/font/FontWeight$Companion.getLight ()Landroidx/compose/ui/text/font/FontWeight;
+   L69
+    LINENUMBER 95 L69
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ICONST_0
+    ICONST_0
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ICONST_0
+    ICONST_0
+    ACONST_NULL
+    LDC 16777209
+    ACONST_NULL
+    INVOKESTATIC androidx/compose/ui/text/TextStyle.copy-p1EtxEg$default (Landroidx/compose/ui/text/TextStyle;JJLandroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontSynthesis;Landroidx/compose/ui/text/font/FontFamily;Ljava/lang/String;JLandroidx/compose/ui/text/style/BaselineShift;Landroidx/compose/ui/text/style/TextGeometricTransform;Landroidx/compose/ui/text/intl/LocaleList;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/graphics/Shadow;Landroidx/compose/ui/graphics/drawscope/DrawStyle;IIJLandroidx/compose/ui/text/style/TextIndent;Landroidx/compose/ui/text/PlatformTextStyle;Landroidx/compose/ui/text/style/LineHeightStyle;IILandroidx/compose/ui/text/style/TextMotion;ILjava/lang/Object;)Landroidx/compose/ui/text/TextStyle;
+    ASTORE 39
+   L70
+    LINENUMBER 90 L70
+    ALOAD 40
+    ACONST_NULL
+   L71
+    LINENUMBER 99 L71
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$fg : J
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ICONST_0
+    ICONST_0
+   L72
+    LINENUMBER 100 L72
+    ICONST_1
+    ICONST_0
+    ACONST_NULL
+   L73
+    LINENUMBER 95 L73
+    ALOAD 39
+    ALOAD 36
+    ICONST_0
+    SIPUSH 24576
+    LDC 114682
+   L74
+    LINENUMBER 89 L74
+    INVOKESTATIC androidx/compose/material3/TextKt.Text-Nvy7gAk (Ljava/lang/String;Landroidx/compose/ui/Modifier;JLandroidx/compose/foundation/text/TextAutoSize;JLandroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontFamily;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/text/style/TextAlign;JIZIILkotlin/jvm/functions/Function1;Landroidx/compose/ui/text/TextStyle;Landroidx/compose/runtime/Composer;III)V
+   L75
+    LINENUMBER 103 L75
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$snapshot : Lcom/serkantkn/zunelauncher/data/model/WeatherSnapshot;
+    INVOKEVIRTUAL com/serkantkn/zunelauncher/data/model/WeatherSnapshot.getNow ()Lcom/serkantkn/zunelauncher/data/model/WeatherNow;
+    INVOKEVIRTUAL com/serkantkn/zunelauncher/data/model/WeatherNow.getCondition ()Lcom/serkantkn/zunelauncher/data/model/WeatherCondition;
+    INVOKEVIRTUAL com/serkantkn/zunelauncher/data/model/WeatherCondition.getLabelRes ()I
+    ALOAD 36
+    ICONST_0
+    INVOKESTATIC androidx/compose/ui/res/StringResources_androidKt.stringResource (ILandroidx/compose/runtime/Composer;I)Ljava/lang/String;
+    ASTORE 40
+   L76
+    LINENUMBER 104 L76
+    GETSTATIC androidx/compose/material3/MaterialTheme.INSTANCE : Landroidx/compose/material3/MaterialTheme;
+    ALOAD 36
+    BIPUSH 6
+    INVOKEVIRTUAL androidx/compose/material3/MaterialTheme.getTypography (Landroidx/compose/runtime/Composer;I)Landroidx/compose/material3/Typography;
+    INVOKEVIRTUAL androidx/compose/material3/Typography.getBodySmall ()Landroidx/compose/ui/text/TextStyle;
+    LCONST_0
+   L77
+    LINENUMBER 105 L77
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$span : I
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$gridColumns : I
+    INVOKESTATIC com/serkantkn/zunelauncher/ui/components/W10MHubTileKt.isCompactTile (II)Z
+    IFEQ L78
+    BIPUSH 9
+    INVOKESTATIC androidx/compose/ui/unit/TextUnitKt.getSp (I)J
+    GOTO L79
+   L78
+    BIPUSH 11
+    INVOKESTATIC androidx/compose/ui/unit/TextUnitKt.getSp (I)J
+   L79
+    LINENUMBER 104 L79
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ICONST_0
+    ICONST_0
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    ICONST_0
+    ICONST_0
+    ACONST_NULL
+    LDC 16777213
+    ACONST_NULL
+    INVOKESTATIC androidx/compose/ui/text/TextStyle.copy-p1EtxEg$default (Landroidx/compose/ui/text/TextStyle;JJLandroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontSynthesis;Landroidx/compose/ui/text/font/FontFamily;Ljava/lang/String;JLandroidx/compose/ui/text/style/BaselineShift;Landroidx/compose/ui/text/style/TextGeometricTransform;Landroidx/compose/ui/text/intl/LocaleList;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/graphics/Shadow;Landroidx/compose/ui/graphics/drawscope/DrawStyle;IIJLandroidx/compose/ui/text/style/TextIndent;Landroidx/compose/ui/text/PlatformTextStyle;Landroidx/compose/ui/text/style/LineHeightStyle;IILandroidx/compose/ui/text/style/TextMotion;ILjava/lang/Object;)Landroidx/compose/ui/text/TextStyle;
+    ASTORE 39
+   L80
+    LINENUMBER 107 L80
+    GETSTATIC com/serkantkn/zunelauncher/ui/components/W10MWeatherTileKt$W10MWeatherTile$1$1.$$$$fg : J
+    LDC 0.9
+    FCONST_0
+    FCONST_0
+    FCONST_0
+    BIPUSH 14
+    ACONST_NULL
+    INVOKESTATIC androidx/compose/ui/graphics/Color.copy-wmQWz5c$default (JFFFFILjava/lang/Object;)J
+    LSTORE 41
+   L81
+    LINENUMBER 109 L81
+    GETSTATIC androidx/compose/ui/text/style/TextOverflow.Companion : Landroidx/compose/ui/text/style/TextOverflow$Companion;
+    INVOKEVIRTUAL androidx/compose/ui/text/style/TextOverflow$Companion.getEllipsis-gIe3tQ8 ()I
+    ISTORE 43
+   L82
+    LINENUMBER 103 L82
+    ALOAD 40
+    ACONST_NULL
+   L83
+    LINENUMBER 107 L83
+    LLOAD 41
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+    ACONST_NULL
+    ACONST_NULL
+    LCONST_0
+   L84
+    LINENUMBER 109 L84
+    ILOAD 43
+    ICONST_0
+   L85
+    LINENUMBER 108 L85
+    ICONST_1
+    ICONST_0
+    ACONST_NULL
+   L86
+    LINENUMBER 104 L86
+    ALOAD 39
+    ALOAD 36
+    ICONST_0
+    SIPUSH 24960
+    LDC 110586
+   L87
+    LINENUMBER 102 L87
+    INVOKESTATIC androidx/compose/material3/TextKt.Text-Nvy7gAk (Ljava/lang/String;Landroidx/compose/ui/Modifier;JLandroidx/compose/foundation/text/TextAutoSize;JLandroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontFamily;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/text/style/TextAlign;JIZIILkotlin/jvm/functions/Function1;Landroidx/compose/ui/text/TextStyle;Landroidx/compose/runtime/Composer;III)V
+    ALOAD 36
+   L88
+    LINENUMBER 89 L88
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerEnd (Landroidx/compose/runtime/Composer;)V
+   L89
+    LINENUMBER 111 L89
+    GOTO L90
+   L90
+    GETSTATIC kotlin/Unit.INSTANCE : Lkotlin/Unit;
+   L91
+    LINENUMBER 233 L91
+    POP
+    ALOAD 33
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerEnd (Landroidx/compose/runtime/Composer;)V
+   L92
+    LINENUMBER 257 L92
+    ALOAD 27
+   L93
+    LINENUMBER 258 L93
+    INVOKEINTERFACE androidx/compose/runtime/Composer.endNode ()V (itf)
+    ALOAD 27
+   L94
+    LINENUMBER 242 L94
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerEnd (Landroidx/compose/runtime/Composer;)V
+   L95
+    LINENUMBER 259 L95
+    NOP
+   L96
+    ALOAD 20
+   L97
+    LINENUMBER 236 L97
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerEnd (Landroidx/compose/runtime/Composer;)V
+   L98
+    LINENUMBER 260 L98
+    NOP
+   L99
+    ALOAD 14
+   L100
+    LINENUMBER 225 L100
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerEnd (Landroidx/compose/runtime/Composer;)V
+   L101
+    LINENUMBER 261 L101
+    GOTO L102
+   L102
+    ALOAD 1
+   L103
+    LINENUMBER 81 L103
+    INVOKESTATIC androidx/compose/runtime/ComposerKt.sourceInformationMarkerEnd (Landroidx/compose/runtime/Composer;)V
+   L104
+    LINENUMBER 112 L104
+    RETURN
+   L105
+    LOCALVARIABLE $i$a$-Column-W10MWeatherTileKt$W10MWeatherTile$1$1$1\16\233\10 I L58 L90 38
+    LOCALVARIABLE $this$W10MWeatherTile_b7y7nX4_u24lambda_u240_u240_u240\16 Landroidx/compose/foundation/layout/ColumnScope; L57 L90 37
+    LOCALVARIABLE $composer\16 Landroidx/compose/runtime/Composer; L57 L90 36
+    LOCALVARIABLE $changed\16 I L57 L90 35
+    LOCALVARIABLE $i$a$-Layout-ColumnKt$Column$1\15\257\11 I L55 L92 34
+    LOCALVARIABLE $composer\15 Landroidx/compose/runtime/Composer; L54 L92 33
+    LOCALVARIABLE $changed\15 I L54 L92 32
+    LOCALVARIABLE $i$a$-ReusableComposeNode-LayoutKt$Layout$1\14\250\12 I L46 L52 31
+    LOCALVARIABLE $this$Layout_u24lambda_u240\14 Landroidx/compose/runtime/Composer; L45 L52 30
+    LOCALVARIABLE $i$f$ReusableComposeNode\13\240 I L35 L96 29
+    LOCALVARIABLE factory\13 Lkotlin/jvm/functions/Function0; L34 L96 26
+    LOCALVARIABLE $composer\13 Landroidx/compose/runtime/Composer; L34 L96 27
+    LOCALVARIABLE $changed\13 I L34 L96 28
+    LOCALVARIABLE $i$f$Layout\12\232 I L25 L99 22
+    LOCALVARIABLE compositeKeyHash\12 I L28 L99 23
+    LOCALVARIABLE localMap\12 Landroidx/compose/runtime/CompositionLocalMap; L30 L99 24
+    LOCALVARIABLE materialized\12 Landroidx/compose/ui/Modifier; L32 L99 25
+    LOCALVARIABLE modifier\12 Landroidx/compose/ui/Modifier; L24 L99 18
+    LOCALVARIABLE measurePolicy\12 Landroidx/compose/ui/layout/MeasurePolicy; L24 L99 19
+    LOCALVARIABLE $composer\12 Landroidx/compose/runtime/Composer; L24 L99 20
+    LOCALVARIABLE $changed\12 I L24 L99 21
+    LOCALVARIABLE $i$f$Column\11\88 I L15 L102 16
+    LOCALVARIABLE measurePolicy\11 Landroidx/compose/ui/layout/MeasurePolicy; L21 L102 17
+    LOCALVARIABLE modifier\11 Landroidx/compose/ui/Modifier; L18 L102 11
+    LOCALVARIABLE verticalArrangement\11 Landroidx/compose/foundation/layout/Arrangement$Vertical; L19 L102 12
+    LOCALVARIABLE horizontalAlignment\11 Landroidx/compose/ui/Alignment$Horizontal; L20 L102 13
+    LOCALVARIABLE $composer\11 Landroidx/compose/runtime/Composer; L14 L102 14
+    LOCALVARIABLE $changed\11 I L14 L102 15
+    LOCALVARIABLE $i$a$-Column-W10MWeatherTileKt$W10MWeatherTile$1$1\10\232\0 I L1 L105 10
+    LOCALVARIABLE $snapshot\10 Lcom/serkantkn/zunelauncher/data/model/WeatherSnapshot; L0 L105 3
+    LOCALVARIABLE $fg\10 J L0 L105 4
+    LOCALVARIABLE $temperatureUnit\10 Lcom/serkantkn/zunelauncher/data/model/TemperatureUnit; L0 L105 6
+    LOCALVARIABLE $today\10 Lcom/serkantkn/zunelauncher/data/model/DailyPoint; L0 L105 7
+    LOCALVARIABLE $span\10 I L0 L105 8
+    LOCALVARIABLE $gridColumns\10 I L0 L105 9
+    LOCALVARIABLE $this$W10MWeatherTile_b7y7nX4_u24lambda_u240_u240\10 Landroidx/compose/foundation/layout/ColumnScope; L0 L105 0
+    LOCALVARIABLE $composer\10 Landroidx/compose/runtime/Composer; L0 L105 1
+    LOCALVARIABLE $changed\10 I L0 L105 2
+    MAXSTACK = 32
+    MAXLOCALS = 51
+
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.wrapException(MethodInliner.kt:1005)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.preprocessNodeBeforeInline(MethodInliner.kt:788)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.markPlacesForInlineAndRemoveInlinable(MethodInliner.kt:610)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:93)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.access$doInline(MethodInliner.kt:41)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner$doInline$lambdaInliner$1.visitMethodInsn(MethodInliner.kt:348)
+	at org.jetbrains.org.objectweb.asm.tree.MethodInsnNode.accept(MethodInsnNode.java:115)
+	at org.jetbrains.org.objectweb.asm.tree.InsnList.accept(InsnList.java:144)
+	at org.jetbrains.org.objectweb.asm.tree.MethodNode.accept(MethodNode.java:749)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:431)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:98)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:72)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrInlineCodegen.inlineCall(IrInlineCodegen.kt:347)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrInlineCodegen.genInlineCall(IrInlineCodegen.kt:71)
+	... 67 more
+Caused by: java.lang.OutOfMemoryError: Java heap space
+	at org.jetbrains.org.objectweb.asm.tree.analysis.Frame.<init>(Frame.java:96)
+	at org.jetbrains.kotlin.codegen.optimization.temporaryVals.StoreLoadFrame.<init>(FastStoreLoadAnalyzer.kt:46)
+	at org.jetbrains.kotlin.codegen.optimization.temporaryVals.FastStoreLoadAnalyzer._init_$lambda$0(FastStoreLoadAnalyzer.kt:69)
+	at org.jetbrains.kotlin.codegen.optimization.temporaryVals.FastStoreLoadAnalyzer$$Lambda/0x000000c001ad0728.invoke(Unknown Source)
+	at org.jetbrains.kotlin.codegen.optimization.common.FastAnalyzer.fullMergeControlFlowEdge(FastAnalyzer.kt:233)
+	at org.jetbrains.kotlin.codegen.optimization.common.FastAnalyzer.mergeControlFlowEdge(FastAnalyzer.kt:216)
+	at org.jetbrains.kotlin.codegen.optimization.common.FastAnalyzer.processControlFlowEdge(FastAnalyzer.kt:208)
+	at org.jetbrains.kotlin.codegen.optimization.common.FastAnalyzer.processControlFlowEdge$default(FastAnalyzer.kt:206)
+	at org.jetbrains.kotlin.codegen.optimization.common.FastAnalyzer.visitOpInsn(FastAnalyzer.kt:292)
+	at org.jetbrains.kotlin.codegen.optimization.common.FastAnalyzer.visitMeaningfulInstruction(FastAnalyzer.kt:281)
+	at org.jetbrains.kotlin.codegen.optimization.common.FastAnalyzer.analyzeInstruction(FastAnalyzer.kt:113)
+	at org.jetbrains.kotlin.codegen.optimization.common.FastAnalyzer.analyzeMainLoop(FastAnalyzer.kt:74)
+	at org.jetbrains.kotlin.codegen.optimization.common.FastAnalyzer.analyze(FastAnalyzer.kt:53)
+	at org.jetbrains.kotlin.codegen.optimization.temporaryVals.TemporaryValsAnalyzer.analyze(TemporaryVals.kt:111)
+	at org.jetbrains.kotlin.codegen.optimization.temporaryVals.TemporaryVariablesEliminationTransformer.transform(TemporaryVariablesEliminationTransformer.kt:36)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.preprocessNodeBeforeInline(MethodInliner.kt:786)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.markPlacesForInlineAndRemoveInlinable(MethodInliner.kt:610)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:93)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.access$doInline(MethodInliner.kt:41)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner$doInline$lambdaInliner$1.visitMethodInsn(MethodInliner.kt:348)
+	at org.jetbrains.org.objectweb.asm.tree.MethodInsnNode.accept(MethodInsnNode.java:115)
+	at org.jetbrains.org.objectweb.asm.tree.InsnList.accept(InsnList.java:144)
+	at org.jetbrains.org.objectweb.asm.tree.MethodNode.accept(MethodNode.java:749)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:431)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:98)
+	at org.jetbrains.kotlin.codegen.inline.MethodInliner.doInline(MethodInliner.kt:72)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrInlineCodegen.inlineCall(IrInlineCodegen.kt:347)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrInlineCodegen.genInlineCall(IrInlineCodegen.kt:71)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrInlineCallGenerator.genCall(IrInlineCallGenerator.kt:36)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:579)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:141)
+	at org.jetbrains.kotlin.ir.expressions.IrCall.accept(IrCall.kt:24)
+
+

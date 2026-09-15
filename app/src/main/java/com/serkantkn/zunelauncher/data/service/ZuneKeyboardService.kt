@@ -149,6 +149,9 @@ class ZuneKeyboardService : InputMethodService() {
     private var enabledLanguages by mutableStateOf<List<KeyboardLanguage>>(emptyList())
     private var storedActiveLanguage: KeyboardLanguage? = null
     private var learnedWords: Map<String, Int> = emptyMap()
+
+    /** False when the editor set IME_FLAG_NO_PERSONALIZED_LEARNING: type, but remember nothing. */
+    private var personalisedLearningAllowed = true
     private var shortcuts: List<TextShortcut> = emptyList()
 
     // --- Editing state -------------------------------------------------------------------------
@@ -200,6 +203,11 @@ class ZuneKeyboardService : InputMethodService() {
         panel = KeyboardPanel.KEYS
         variant = KeyboardLayouts.variantFor(info.inputType)
         isPasswordField = KeyboardLayouts.isPasswordField(info.inputType)
+        // An app can say "do not learn from what is typed here" — private browsing, a one-time
+        // code, anything it considers nobody's business but the moment's. A keyboard that
+        // remembers anyway is a keyboard that cannot be trusted with the rest.
+        personalisedLearningAllowed =
+            info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING == 0
         fieldAllowsSuggestions = !KeyboardLayouts.suppressesSuggestions(info.inputType)
         enterLabelOverride = info.actionLabel?.toString()?.takeIf { it.isNotBlank() }
         enterLabelRes = enterLabelRes(info)
@@ -765,7 +773,7 @@ class ZuneKeyboardService : InputMethodService() {
     }
 
     private fun learn(word: String, weight: Int = 1) {
-        if (isPasswordField || !fieldAllowsSuggestions) return
+        if (isPasswordField || !fieldAllowsSuggestions || !personalisedLearningAllowed) return
         val normalized = word.lowercase(localeOf(language))
         if (normalized.length < 3 || !normalized.all { isWordCharacter(it) }) return
         scope.launch { repeat(weight) { preferences.learnWord(normalized) } }
@@ -831,20 +839,32 @@ class ZuneKeyboardService : InputMethodService() {
         return KeyboardLanguage.fromTag(tag)
     }
 
-    /** An input method may read the clipboard while it is on screen; that is when history grows. */
+    /**
+     * An input method may read the clipboard while it is on screen; that is when history grows.
+     *
+     * Two things are never written down. A clip a password manager has marked as sensitive —
+     * that mark exists precisely so keyboards do not keep it — and anything copied while a
+     * password field is in front, because a keyboard's clipboard list is not the place for
+     * somebody's password to end up for the next twenty-five copies.
+     */
     private fun captureClipboard() {
+        if (isPasswordField || !personalisedLearningAllowed) return
         val text = try {
             val manager = getSystemService(ClipboardManager::class.java) ?: return
-            manager.primaryClip
-                ?.takeIf { it.itemCount > 0 }
-                ?.getItemAt(0)
-                ?.coerceToText(this)
-                ?.toString()
+            val clip = manager.primaryClip?.takeIf { it.itemCount > 0 } ?: return
+            if (isSensitive(clip.description)) return
+            clip.getItemAt(0).coerceToText(this)?.toString()
         } catch (e: Exception) {
             ZuneLog.w(TAG, "clipboard read failed", e)
             null
         }
         if (!text.isNullOrBlank()) scope.launch { preferences.rememberClip(text) }
+    }
+
+    /** Whether whoever put this on the clipboard asked for it not to be kept. */
+    private fun isSensitive(description: android.content.ClipDescription?): Boolean {
+        val extras = description?.extras ?: return false
+        return extras.getBoolean("android.content.extra.IS_SENSITIVE", false)
     }
 
     private fun commitEmoji(emoji: String) {

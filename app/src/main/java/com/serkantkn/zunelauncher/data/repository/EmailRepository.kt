@@ -123,6 +123,10 @@ class EmailRepository(
         put("mail.mime.decodefilename", "true")
         put("mail.mime.decodetext.strict", "false")
         if (account.isGoogleOAuth) put("mail.imap.auth.mechanisms", "XOAUTH2")
+        // Said out loud rather than left to the library's default: without it a certificate is
+        // checked for being valid but not for belonging to the server being talked to, and
+        // anybody able to present some other valid certificate can read the password.
+        put("mail.imap.ssl.checkserveridentity", "true")
         when (account.imapSecurity) {
             EmailSecurity.SSL -> put("mail.imap.ssl.enable", "true")
             EmailSecurity.STARTTLS -> { put("mail.imap.starttls.enable", "true"); put("mail.imap.starttls.required", "true") }
@@ -138,6 +142,8 @@ class EmailRepository(
         put("mail.smtp.timeout", "40000")
         put("mail.smtp.writetimeout", "60000")
         if (account.isGoogleOAuth) put("mail.smtp.auth.mechanisms", "XOAUTH2")
+        // See imapProps: the certificate has to belong to this server, not just be a valid one.
+        put("mail.smtp.ssl.checkserveridentity", "true")
         when (account.smtpSecurity) {
             EmailSecurity.SSL -> put("mail.smtp.ssl.enable", "true")
             EmailSecurity.STARTTLS -> { put("mail.smtp.starttls.enable", "true"); put("mail.smtp.starttls.required", "true") }
