@@ -59,6 +59,10 @@ import com.serkantkn.zunelauncher.ui.screens.settings.SettingsScreen
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 import com.serkantkn.zunelauncher.ui.screens.social.SocialHubScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import com.serkantkn.zunelauncher.ui.screens.onboarding.FirstRunScreen
+import com.serkantkn.zunelauncher.ui.screens.onboarding.OnboardingScreen
+import com.serkantkn.zunelauncher.ui.screens.onboarding.OnboardingViewModel
+import com.serkantkn.zunelauncher.ui.screens.onboarding.WhatsNewScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import com.serkantkn.zunelauncher.ui.animation.rememberHingeSpec
@@ -596,6 +600,26 @@ fun LauncherScreen(
 
                 // Windows Phone Style Volume Control Banner
                 WpVolumeControl()
+
+                // The tour, and the note about what changed. Over everything, because a first run
+                // that can be swiped away behind the launcher is not a first run.
+                val onboardingViewModel: OnboardingViewModel = viewModel()
+                val firstRun by onboardingViewModel.screen.collectAsState()
+                when (val screen = firstRun) {
+                    is FirstRunScreen.Tour -> OnboardingScreen(
+                        tour = screen,
+                        onNext = onboardingViewModel::next,
+                        onBack = onboardingViewModel::back,
+                        onSkip = onboardingViewModel::finish
+                    )
+
+                    is FirstRunScreen.WhatsNew -> WhatsNewScreen(
+                        notes = screen.notes,
+                        onDismiss = onboardingViewModel::dismissWhatsNew
+                    )
+
+                    FirstRunScreen.None -> Unit
+                }
             }
         }
     }

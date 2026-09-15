@@ -1674,4 +1674,38 @@
     <string name="music_show_cover">cover</string>
     <string name="settings_music_online">Music from the internet</string>
     <string name="settings_music_online_note">Covers come from the Cover Art Archive, lyrics from LRCLIB. What is playing is sent to those services to look it up; nothing else is.</string>
+    <!-- Onboarding -->
+    <string name="onboarding_skip">skip</string>
+    <string name="onboarding_next">next</string>
+    <string name="onboarding_back">back</string>
+    <string name="onboarding_finish">start</string>
+    <string name="onboarding_welcome_title">hello</string>
+    <string name="onboarding_welcome_line">this is your phone, the way Windows Phone did it. a minute to show you around.</string>
+    <string name="onboarding_theme_title">your colour</string>
+    <string name="onboarding_theme_line">everything takes the colour you pick. change it whenever you like.</string>
+    <string name="onboarding_default_title">home button</string>
+    <string name="onboarding_default_line">make this the launcher the home button opens.</string>
+    <string name="onboarding_default_action">set as default</string>
+    <string name="onboarding_default_done">already the default</string>
+    <string name="onboarding_permissions_title">a few things</string>
+    <string name="onboarding_permissions_line">only what the start screen needs. each hub asks for its own when you open it.</string>
+    <string name="onboarding_gestures_title">how it works</string>
+    <string name="onboarding_done_title">that is all</string>
+    <string name="onboarding_done_line">everything here can be changed in settings, and this tour is there too if you want it again.</string>
+    <string name="settings_replay_onboarding">show the tour again</string>
+    <string name="settings_replay_onboarding_sub">the pages you saw when the launcher was new</string>
+    <!-- What is new -->
+    <string name="whats_new_title">what is new</string>
+    <string name="whats_new_close">got it</string>
+    <string name="whats_new_v1_title">first release</string>
+    <string name="whats_new_v1_line1">Clock, Calendar, Files, Pictures and Music hubs</string>
+    <string name="whats_new_v1_line2">videos in the camera roll, and an editor with filters</string>
+    <string name="whats_new_v1_line3">the launcher plays music itself, with a queue that survives a restart</string>
+    <string name="whats_new_v1_line4">covers and lyrics read from your files, or looked up online</string>
+    <string name="onboarding_perm_notifications">notifications</string>
+    <string name="onboarding_perm_notifications_why">so alarms, timers and reminders can reach you</string>
+    <string name="onboarding_perm_location">location</string>
+    <string name="onboarding_perm_location_why">so the weather tile knows where you are</string>
+    <string name="onboarding_perm_contacts">contacts</string>
+    <string name="onboarding_perm_contacts_why">so the people tile has faces on it</string>
 </resources>

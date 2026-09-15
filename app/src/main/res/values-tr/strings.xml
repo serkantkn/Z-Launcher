@@ -1673,4 +1673,38 @@
     <string name="music_show_cover">kapak</string>
     <string name="settings_music_online">İnternetten müzik bilgileri</string>
     <string name="settings_music_online_note">Kapaklar Cover Art Archive\'den, sözler LRCLIB\'den geliyor. Aramak için yalnızca çalan parçanın adı bu servislere gönderilir, başka bir şey gönderilmez.</string>
+    <!-- Tanıtım -->
+    <string name="onboarding_skip">geç</string>
+    <string name="onboarding_next">ileri</string>
+    <string name="onboarding_back">geri</string>
+    <string name="onboarding_finish">başla</string>
+    <string name="onboarding_welcome_title">merhaba</string>
+    <string name="onboarding_welcome_line">telefonun, Windows Phone\'un yaptığı gibi. bir dakikada gezdireyim.</string>
+    <string name="onboarding_theme_title">rengin</string>
+    <string name="onboarding_theme_line">her şey seçtiğin rengi alır. istediğin zaman değiştirebilirsin.</string>
+    <string name="onboarding_default_title">ana ekran tuşu</string>
+    <string name="onboarding_default_line">ana ekran tuşunun bunu açması için varsayılan başlatıcı yap.</string>
+    <string name="onboarding_default_action">varsayılan yap</string>
+    <string name="onboarding_default_done">zaten varsayılan</string>
+    <string name="onboarding_permissions_title">birkaç şey</string>
+    <string name="onboarding_permissions_line">yalnızca başlangıç ekranının gerektirdikleri. her hub kendi iznini açıldığında ister.</string>
+    <string name="onboarding_gestures_title">nasıl kullanılır</string>
+    <string name="onboarding_done_title">hepsi bu</string>
+    <string name="onboarding_done_line">buradaki her şey ayarlardan değiştirilebilir, bu tanıtım da orada duruyor.</string>
+    <string name="settings_replay_onboarding">tanıtımı yeniden göster</string>
+    <string name="settings_replay_onboarding_sub">başlatıcı yeniyken gördüğün sayfalar</string>
+    <!-- Neler değişti -->
+    <string name="whats_new_title">neler değişti</string>
+    <string name="whats_new_close">anladım</string>
+    <string name="whats_new_v1_title">ilk sürüm</string>
+    <string name="whats_new_v1_line1">Saat, Takvim, Dosyalar, Fotoğraflar ve Müzik hubları</string>
+    <string name="whats_new_v1_line2">film rulosunda videolar ve filtreli bir düzenleyici</string>
+    <string name="whats_new_v1_line3">başlatıcı müziği kendi çalıyor, sıra yeniden başlatmadan sonra da duruyor</string>
+    <string name="whats_new_v1_line4">kapak ve sözler dosyalarından okunuyor ya da internetten bulunuyor</string>
+    <string name="onboarding_perm_notifications">bildirimler</string>
+    <string name="onboarding_perm_notifications_why">alarmlar, sayaçlar ve hatırlatmalar sana ulaşsın diye</string>
+    <string name="onboarding_perm_location">konum</string>
+    <string name="onboarding_perm_location_why">hava durumu karosu nerede olduğunu bilsin diye</string>
+    <string name="onboarding_perm_contacts">rehber</string>
+    <string name="onboarding_perm_contacts_why">kişiler karosunda yüzler olsun diye</string>
 </resources>

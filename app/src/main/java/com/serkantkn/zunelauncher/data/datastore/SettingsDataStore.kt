@@ -90,6 +90,8 @@ class SettingsDataStore(private val context: Context) {
         val GALLERY_COLUMNS = intPreferencesKey("gallery_columns")
         val MUSIC_ONLINE_EXTRAS = booleanPreferencesKey("music_online_extras")
         val MUSIC_ONLINE_WIFI_ONLY = booleanPreferencesKey("music_online_wifi_only")
+        val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val LAST_SEEN_VERSION = intPreferencesKey("last_seen_version")
     }
 
     /** Windows Phone tiles carried a white glyph and nothing else, so that is the default. */
@@ -402,6 +404,37 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setMusicOnlineWifiOnly(enabled: Boolean) {
         context.settingsDataStore.edit { prefs -> prefs[MUSIC_ONLINE_WIFI_ONLY] = enabled }
     }
+
+    // ── First run ───────────────────────────────────────────────────────────
+
+    /** Whether the tour has been taken. */
+    val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[ONBOARDING_COMPLETED] ?: false
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[ONBOARDING_COMPLETED] = completed }
+    }
+
+    /** The newest version whose changes have been read. */
+    val lastSeenVersion: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[LAST_SEEN_VERSION] ?: 0
+    }
+
+    suspend fun setLastSeenVersion(version: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[LAST_SEEN_VERSION] = version }
+    }
+
+    /**
+     * Whether this installation has ever been used.
+     *
+     * An empty settings store means a launcher opened for the very first time. Anything at all in
+     * it - a moved tile, a chosen colour - means somebody has been here, which is how an
+     * installation that predates the tour is told apart from a new one. It is read once, before
+     * anything else has had a chance to write a default.
+     */
+    suspend fun hasExistingData(): Boolean =
+        context.settingsDataStore.data.first().asMap().isNotEmpty()
 
     // ── Clock ───────────────────────────────────────────────────────────────
 

@@ -1194,6 +1194,21 @@ internal fun SystemSettingsPage(
                 }
             }
         }
+
+        item(key = "replay_onboarding") {
+            // The tour is not only for the first run: it is where the gestures are written down,
+            // and somebody who forgot how to move a tile should be able to go back and look.
+            val onboardingViewModel: com.serkantkn.zunelauncher.ui.screens.onboarding.OnboardingViewModel =
+                androidx.lifecycle.viewmodel.compose.viewModel()
+            SettingGroup(title = stringResource(R.string.settings_replay_onboarding)) {
+                SystemSettingRow(
+                    title = stringResource(R.string.settings_replay_onboarding),
+                    subtitle = stringResource(R.string.settings_replay_onboarding_sub),
+                    isActive = false,
+                    onClick = onboardingViewModel::startTour
+                )
+            }
+        }
     }
 }
 
