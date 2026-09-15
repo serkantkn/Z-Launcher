@@ -56,6 +56,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -257,8 +258,10 @@ private fun HomeHubScreenContent(
         )
     }
 
-    LaunchedEffect(expandProgress.value) {
-        onExpandProgressChange(expandProgress.value)
+    // Keyed on Unit, not on the value: keying on the animation cancelled and restarted a
+    // coroutine on every frame of the expansion, which is a lot of rubbish for a callback.
+    LaunchedEffect(Unit) {
+        snapshotFlow { expandProgress.value }.collect { onExpandProgressChange(it) }
     }
 
     // Exit edit mode when favorites collapse
@@ -544,7 +547,7 @@ private fun HomeHubScreenContent(
             is StartTileUIModel.Folder -> "folder_${model.id}"
         }
         val animated = tileModifier.w10mStaggeredAnimation(
-            progress = animationProgress.value,
+            progress = { animationProgress.value },
             index = index,
             isClicked = clickedItemKey == launchKey
         )
@@ -1030,7 +1033,7 @@ private fun HomeHubScreenContent(
                         }
                     },
                     modifier = Modifier.w10mStaggeredAnimation(
-                        progress = animationProgress.value,
+                        progress = { animationProgress.value },
                         index = 1,
                         isClicked = clickedItemKey == "hub_CLOCK"
                     )
@@ -1045,7 +1048,7 @@ private fun HomeHubScreenContent(
                         }
                     },
                     modifier = Modifier.w10mStaggeredAnimation(
-                        progress = animationProgress.value,
+                        progress = { animationProgress.value },
                         index = 2,
                         isClicked = clickedItemKey == "hub_CALENDAR"
                     )
@@ -1057,7 +1060,7 @@ private fun HomeHubScreenContent(
                     onClick = { handleLaunch("hub_WEATHER") { onHubSelected(HubType.WEATHER) } },
                     modifier = Modifier
                         .padding(top = ZuneDimens.SpacingSm)
-                        .w10mStaggeredAnimation(animationProgress.value, 3)
+                        .w10mStaggeredAnimation({ animationProgress.value }, 3)
                 )
 
                 Spacer(modifier = Modifier
@@ -1083,7 +1086,7 @@ private fun HomeHubScreenContent(
                             }
                         },
                         modifier = Modifier.w10mStaggeredAnimation(
-                            progress = animationProgress.value,
+                            progress = { animationProgress.value },
                             index = 4 + index,
                             isClicked = clickedItemKey == key
                         )
@@ -1141,7 +1144,7 @@ private fun HomeHubScreenContent(
                                 label = favApp.appInfo.label,
                                 onClick = { isFavoritesExpanded = true },
                                 modifier = Modifier
-                                    .w10mStaggeredAnimation(animationProgress.value, 2 + index)
+                                    .w10mStaggeredAnimation({ animationProgress.value }, 2 + index)
                             )
                         }
                     }
@@ -1189,7 +1192,7 @@ private fun HomeHubScreenContent(
                                     maxLines = 1,
                                     softWrap = false,
                                     modifier = Modifier
-                                        .w10mStaggeredAnimation(animationProgress.value, 8)
+                                        .w10mStaggeredAnimation({ animationProgress.value }, 8)
                                         .graphicsLayer {
                                             translationY = with(localDensity) { (-24).dp.toPx() }
                                         }
@@ -1288,7 +1291,7 @@ private fun HomeHubScreenContent(
                                                 index = absoluteIndex
                                             )
                                             .w10mStaggeredAnimation(
-                                                animationProgress.value,
+                                                { animationProgress.value },
                                                 9 + favIndex,
                                                 clickedItemKey == key
                                             )

@@ -59,6 +59,8 @@ import com.serkantkn.zunelauncher.ui.screens.settings.SettingsScreen
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 import com.serkantkn.zunelauncher.ui.screens.social.SocialHubScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import com.serkantkn.zunelauncher.ui.theme.LocalScreenAwake
+import androidx.compose.ui.draw.drawWithContent
 import com.serkantkn.zunelauncher.ui.screens.onboarding.FirstRunScreen
 import com.serkantkn.zunelauncher.ui.screens.onboarding.OnboardingScreen
 import com.serkantkn.zunelauncher.ui.screens.onboarding.OnboardingViewModel
@@ -496,6 +498,14 @@ fun LauncherScreen(
                     // NORMAL SINGLE HUB LAUNCHER MODE
                     // ════════════════════════════════════════════════════════
                     // LAYER 1 — Main pager (Home + Apps)
+                    //
+                    // Once the hub in front of it has turned far enough to be opaque, this layer
+                    // is finished being looked at: it keeps its composition — the board's scroll
+                    // position and the tiles' places in the turning ripple have to survive — but
+                    // it stops being drawn, and LocalScreenAwake tells the tiles to stop turning
+                    // over behind a hub nobody can see through. The progress is read in the draw
+                    // phase, so the hinge still costs no recomposition.
+                    CompositionLocalProvider(LocalScreenAwake provides !isHubOpen) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -505,6 +515,9 @@ fun LauncherScreen(
                                 transformOrigin = TransformOrigin(0f, 0.5f)
                                 cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
                                 alpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
+                            }
+                            .drawWithContent {
+                                if ((1f - hingeProgress.value * 1.5f) > 0f) drawContent()
                             }
                     ) {
                         HorizontalPager(
@@ -542,6 +555,7 @@ fun LauncherScreen(
                                 )
                             }
                         }
+                    }
                     }
 
                     // LAYER 2 — Hub overlay

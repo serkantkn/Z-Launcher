@@ -103,6 +103,17 @@ val LocalIsWideScreen = staticCompositionLocalOf { false }
 val LocalAnimationsEnabled = staticCompositionLocalOf { true }
 
 /**
+ * Whether the content below is actually being looked at.
+ *
+ * A hub covers the Start screen completely, but the board underneath it stays composed — its
+ * scroll position and its place in the turning ripple have to survive being covered. False here
+ * says "you are behind something opaque": nothing needs to be drawn, and the tiles stop turning
+ * over until the hub is closed. On a cheap phone that is the difference between one screen's
+ * worth of work and two.
+ */
+val LocalScreenAwake = staticCompositionLocalOf { true }
+
+/**
  * App theme. [fontScale] is the user's font-size preference (SettingsDataStore.fontScale). It is
  * multiplied into [LocalDensity].fontScale, so every sp-based size (ZuneTypography and raw `.sp`
  * values) scales on top of the system font size. 1.0f leaves the platform density untouched.

@@ -383,7 +383,7 @@ fun FilesHubScreen(
                         }
                     },
                     onLongClick = { sheetTarget = item },
-                    modifier = Modifier.w10mStaggeredAnimation(listEntry.value, index)
+                    modifier = Modifier.w10mStaggeredAnimation({ listEntry.value }, index)
                 )
             }
 

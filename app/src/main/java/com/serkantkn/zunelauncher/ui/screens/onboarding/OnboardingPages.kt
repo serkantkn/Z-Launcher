@@ -188,7 +188,7 @@ fun WelcomeStepPage() {
                 letterSpacing = (-3).sp
             ),
             color = LocalZuneColors.current.accentColor,
-            modifier = Modifier.w10mStaggeredAnimation(progress = entrance.value, index = 0)
+            modifier = Modifier.w10mStaggeredAnimation(progress = { entrance.value }, index = 0)
         )
         Text(
             text = stringResource(R.string.onboarding_welcome_line),
@@ -196,7 +196,7 @@ fun WelcomeStepPage() {
             color = LocalZuneColors.current.textMuted,
             modifier = Modifier
                 .padding(top = 18.dp)
-                .w10mStaggeredAnimation(progress = entrance.value, index = 1)
+                .w10mStaggeredAnimation(progress = { entrance.value }, index = 1)
         )
     }
 }

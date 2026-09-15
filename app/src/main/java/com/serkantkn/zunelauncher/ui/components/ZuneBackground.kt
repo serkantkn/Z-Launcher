@@ -2,10 +2,7 @@ package com.serkantkn.zunelauncher.ui.components
 
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
-import android.app.WallpaperManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -30,9 +27,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
-import com.serkantkn.zunelauncher.util.SimpleBlur
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.serkantkn.zunelauncher.util.WallpaperImages
 import kotlinx.coroutines.launch
 
 enum class BackgroundMode {
@@ -98,46 +93,14 @@ fun ZuneBackground(
 
     val effectiveCustomPath = customWallpaperPathOverride ?: customWallpaperPath
 
-    // Reload wallpaper whenever version or custom path changes
+    // The picture itself is read by WallpaperImages, which keeps one copy for the whole launcher:
+    // several of these backgrounds are alive at once — the Start screen, the hub in front of it,
+    // the settings preview — and they were each decoding the same wallpaper for themselves.
     LaunchedEffect(wallpaperVersion, effectiveCustomPath) {
-        val wallpapers = withContext(Dispatchers.IO) {
-            try {
-                val bitmap = if (effectiveCustomPath != null) {
-                    val file = java.io.File(effectiveCustomPath)
-                    if (file.exists()) {
-                        android.graphics.BitmapFactory.decodeFile(file.absolutePath)
-                    } else {
-                        val wallpaperManager = WallpaperManager.getInstance(context)
-                        loadWallpaperBitmap(wallpaperManager, context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels)
-                    }
-                } else {
-                    val wallpaperManager = WallpaperManager.getInstance(context)
-                    loadWallpaperBitmap(wallpaperManager, context.resources.displayMetrics.widthPixels, context.resources.displayMetrics.heightPixels)
-                }
-
-                bitmap?.let { b ->
-                    val blurred = try {
-                        val scaleDown = Bitmap.createScaledBitmap(
-                            b,
-                            (b.width / 6).coerceAtLeast(1),
-                            (b.height / 6).coerceAtLeast(1),
-                            true
-                        )
-                        SimpleBlur.blur(scaleDown, radius = 3, iterations = 2)
-                    } catch (e: Exception) {
-                        ZuneLog.e("ZuneBackground", "onReceive failed", e)
-                        b
-                    }
-                    b to blurred
-                }
-            } catch (e: Exception) {
-                null
-            }
-        }
-
-        wallpapers?.let { (wallpaper, blurredWallpaper) ->
-            wallpaperBitmap = wallpaper
-            blurredWallpaperBitmap = blurredWallpaper
+        val wallpapers = WallpaperImages.load(context, effectiveCustomPath, wallpaperVersion)
+        if (wallpapers.full != null) {
+            wallpaperBitmap = wallpapers.full
+            blurredWallpaperBitmap = wallpapers.blurred
         }
     }
 
@@ -167,43 +130,6 @@ fun ZuneBackground(
 
 object ZuneWallpaperManager {
     var lastInternalWallpaperChangeTime: Long = 0L
-}
-
-private fun loadWallpaperBitmap(
-    wallpaperManager: WallpaperManager,
-    fallbackWidth: Int,
-    fallbackHeight: Int
-): Bitmap? {
-    try {
-        wallpaperManager.getWallpaperFile(WallpaperManager.FLAG_SYSTEM)?.use { descriptor ->
-            BitmapFactory.decodeFileDescriptor(descriptor.fileDescriptor)?.let { bitmap ->
-                return bitmap
-            }
-        }
-    } catch (e: Exception) {
-        ZuneLog.w(TAG, "getWallpaperFile failed; trying drawable fallback", e)
-    }
-
-    val drawable = runCatching { wallpaperManager.drawable }.getOrNull()
-        ?: runCatching { wallpaperManager.peekDrawable() }.getOrNull()
-        ?: return null
-
-    val width = drawable.intrinsicWidth.takeIf { it > 1 }
-        ?: wallpaperManager.desiredMinimumWidth.takeIf { it > 1 }
-        ?: fallbackWidth
-    val height = drawable.intrinsicHeight.takeIf { it > 1 }
-        ?: wallpaperManager.desiredMinimumHeight.takeIf { it > 1 }
-        ?: fallbackHeight
-
-    return Bitmap.createBitmap(
-        width.coerceAtLeast(1),
-        height.coerceAtLeast(1),
-        Bitmap.Config.ARGB_8888
-    ).also { bitmap ->
-        val canvas = Canvas(bitmap)
-        drawable.setBounds(0, 0, canvas.width, canvas.height)
-        drawable.draw(canvas)
-    }
 }
 
 @Composable

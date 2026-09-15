@@ -52,6 +52,7 @@ import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.ui.components.rememberPressPoint
 import com.serkantkn.zunelauncher.ui.components.rememberWpTiltAngles
 import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
+import com.serkantkn.zunelauncher.ui.theme.LocalScreenAwake
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -103,12 +104,17 @@ private fun rememberShowBack(
     // A Start screen that keeps turning over is the most conspicuous motion the launcher has, so
     // it is the first thing that should stop when motion is switched off.
     val animationsEnabled = LocalAnimationsEnabled.current
+    // A board behind an opaque hub is still composed, and turning tiles nobody can see is the
+    // most expensive nothing the launcher could do. It keeps the face it was showing and simply
+    // stops scheduling turns, so coming back does not snap every tile round at once.
+    val awake = LocalScreenAwake.current
 
-    LaunchedEffect(liveKey, hasBack, isEditing, animation, animationsEnabled) {
+    LaunchedEffect(liveKey, hasBack, isEditing, animation, animationsEnabled, awake) {
         if (!hasBack || isEditing || animation == TileAnimation.NONE || !animationsEnabled) {
             showBack = false
             return@LaunchedEffect
         }
+        if (!awake) return@LaunchedEffect
         delay(slot * FACE_STAGGER_MILLIS)
         while (true) {
             showBack = true

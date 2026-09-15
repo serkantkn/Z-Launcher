@@ -234,7 +234,7 @@ fun AppsHubScreen(
         // Keyed on the pack as well, so changing icon packs redraws the list.
         val icon = remember(app.packageName, iconPackKey) { viewModel.iconFor(app) }
         val modifier = Modifier.w10mStaggeredAnimation(
-            animationProgress.value,
+            { animationProgress.value },
             index,
             clickedItemKey == key
         )
@@ -286,7 +286,7 @@ fun AppsHubScreen(
                                 letter = item.letter,
                                 onClick = { jumpListOpen = true },
                                 inline = true,
-                                modifier = Modifier.w10mStaggeredAnimation(animationProgress.value, index)
+                                modifier = Modifier.w10mStaggeredAnimation({ animationProgress.value }, index)
                             )
 
                             is AppsListItem.App -> AppEntry(item.appInfo, index, inGrid = true)
@@ -304,7 +304,7 @@ fun AppsHubScreen(
                             is AppsListItem.Header -> AppLetterHeader(
                                 letter = item.letter,
                                 onClick = { jumpListOpen = true },
-                                modifier = Modifier.w10mStaggeredAnimation(animationProgress.value, index)
+                                modifier = Modifier.w10mStaggeredAnimation({ animationProgress.value }, index)
                             )
 
                             is AppsListItem.App -> AppEntry(item.appInfo, index, inGrid = false)
