@@ -23,7 +23,9 @@ enum class OnboardingStep {
     WELCOME,
     DEFAULT_LAUNCHER,
     PERMISSIONS,
-    GESTURES,
+    GESTURE_SWIPE,
+    GESTURE_TILE,
+    GESTURE_PIVOT,
     DONE
 }
 
@@ -46,7 +48,11 @@ fun onboardingSteps(conditions: OnboardingConditions): List<OnboardingStep> = bu
     add(OnboardingStep.WELCOME)
     if (!conditions.isDefaultLauncher) add(OnboardingStep.DEFAULT_LAUNCHER)
     if (conditions.hasPermissionsToAsk) add(OnboardingStep.PERMISSIONS)
-    add(OnboardingStep.GESTURES)
+    // Three lessons rather than one page of instructions: the only way anybody learns a gesture
+    // is by making it.
+    add(OnboardingStep.GESTURE_SWIPE)
+    add(OnboardingStep.GESTURE_TILE)
+    add(OnboardingStep.GESTURE_PIVOT)
     add(OnboardingStep.DONE)
 }
 

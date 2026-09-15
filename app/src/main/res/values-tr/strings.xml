@@ -1712,4 +1712,20 @@
     <string name="onboarding_accent_line">bir de yanına bir renk</string>
     <string name="onboarding_perm_allow">izin ver</string>
     <string name="onboarding_perm_granted">verildi</string>
+    <string name="onboarding_swipe_title">üç ekran</string>
+    <string name="onboarding_swipe_line">başlangıç ortada. yana kaydırınca diğer ikisi çıkar. aşağıda dene.</string>
+    <string name="onboarding_swipe_start">başlangıç</string>
+    <string name="onboarding_swipe_left">sağa kaydır</string>
+    <string name="onboarding_swipe_right">sola kaydır</string>
+    <string name="onboarding_tile_title">karo taşımak</string>
+    <string name="onboarding_tile_line">bir karoyu basılı tut; taşıyabilir, boyutunu değiştirebilir ya da kaldırabilirsin.</string>
+    <string name="onboarding_tile_try">karoyu basılı tut</string>
+    <string name="onboarding_tile_done">işte bu</string>
+    <string name="onboarding_pivot_title">hub içinde</string>
+    <string name="onboarding_pivot_line">büyük yazılar birer sayfa. yana kaydır ya da istediğine dokun.</string>
+    <string name="onboarding_pivot_one">bugün</string>
+    <string name="onboarding_pivot_two">sonra</string>
+    <string name="onboarding_pivot_body_one">şu an olanlar</string>
+    <string name="onboarding_pivot_body_two">ve sonrasında gelenler</string>
+    <string name="onboarding_pivot_try">sonraki sayfaya geç</string>
 </resources>

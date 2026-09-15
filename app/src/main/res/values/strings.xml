@@ -1713,4 +1713,20 @@
     <string name="onboarding_accent_line">and a colour to go with it</string>
     <string name="onboarding_perm_allow">allow</string>
     <string name="onboarding_perm_granted">given</string>
+    <string name="onboarding_swipe_title">three screens</string>
+    <string name="onboarding_swipe_line">start is in the middle. swipe it sideways and the other two are there. try it below.</string>
+    <string name="onboarding_swipe_start">start</string>
+    <string name="onboarding_swipe_left">swipe right</string>
+    <string name="onboarding_swipe_right">swipe left</string>
+    <string name="onboarding_tile_title">moving a tile</string>
+    <string name="onboarding_tile_line">hold a tile and it lets you move it, change its size, or take it off the board.</string>
+    <string name="onboarding_tile_try">hold the tile</string>
+    <string name="onboarding_tile_done">that is it</string>
+    <string name="onboarding_pivot_title">inside a hub</string>
+    <string name="onboarding_pivot_line">the big words are pages. swipe them sideways, or tap the one you want.</string>
+    <string name="onboarding_pivot_one">today</string>
+    <string name="onboarding_pivot_two">later</string>
+    <string name="onboarding_pivot_body_one">what is happening now</string>
+    <string name="onboarding_pivot_body_two">and what comes after it</string>
+    <string name="onboarding_pivot_try">move to the next page</string>
 </resources>

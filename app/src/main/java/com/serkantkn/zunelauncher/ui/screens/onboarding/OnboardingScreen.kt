@@ -220,10 +220,11 @@ private fun OnboardingStepContent(step: OnboardingStep, viewModel: OnboardingVie
             )
         }
 
-        OnboardingStep.GESTURES -> OnboardingPage(
-            title = stringResource(R.string.onboarding_gestures_title),
-            line = ""
-        )
+        OnboardingStep.GESTURE_SWIPE -> SwipeLessonPage()
+
+        OnboardingStep.GESTURE_TILE -> TileLessonPage()
+
+        OnboardingStep.GESTURE_PIVOT -> PivotLessonPage()
 
         OnboardingStep.DONE -> OnboardingPage(
             title = stringResource(R.string.onboarding_done_title),

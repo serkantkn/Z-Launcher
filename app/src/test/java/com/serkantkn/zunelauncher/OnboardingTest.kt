@@ -34,7 +34,9 @@ class OnboardingTest {
                 OnboardingStep.WELCOME,
                 OnboardingStep.DEFAULT_LAUNCHER,
                 OnboardingStep.PERMISSIONS,
-                OnboardingStep.GESTURES,
+                OnboardingStep.GESTURE_SWIPE,
+                OnboardingStep.GESTURE_TILE,
+                OnboardingStep.GESTURE_PIVOT,
                 OnboardingStep.DONE
             ),
             steps
@@ -55,7 +57,9 @@ class OnboardingTest {
                 OnboardingStep.LANGUAGE,
                 OnboardingStep.THEME,
                 OnboardingStep.WELCOME,
-                OnboardingStep.GESTURES,
+                OnboardingStep.GESTURE_SWIPE,
+                OnboardingStep.GESTURE_TILE,
+                OnboardingStep.GESTURE_PIVOT,
                 OnboardingStep.DONE
             ),
             steps
