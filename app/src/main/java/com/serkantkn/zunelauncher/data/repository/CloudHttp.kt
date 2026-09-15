@@ -4,6 +4,7 @@ import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.CloudException
 import com.serkantkn.zunelauncher.util.ZuneLog
 import org.json.JSONObject
+import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -21,6 +22,8 @@ internal object CloudHttp {
 
     private const val TAG = "CloudHttp"
     private const val TIMEOUT_MS = 30_000
+    private const val BUFFER = 64 * 1024
+    private const val REPORT_EVERY = 256 * 1024L
 
     fun getJson(url: String, token: String): JSONObject = request("GET", url, token)
 
@@ -35,18 +38,98 @@ internal object CloudHttp {
         request("DELETE", url, token, expectsBody = false)
     }
 
-    /** Form-encoded POST without a bearer token, for the OAuth token endpoints. */
-    fun download(url: String, token: String?, output: OutputStream) {
+    /**
+     * Pulls bytes down, telling [onProgress] how far along it is as it goes.
+     *
+     * [knownTotal] is what the caller already knows the size to be; when it is zero the answer's
+     * own content length is used, and when the service will not say either the progress is
+     * reported against a total of zero — a counter rather than a bar, which is honest.
+     *
+     * The copy checks whether its coroutine is still wanted between chunks, so cancelling a
+     * download actually stops it instead of finishing quietly in the background.
+     */
+    fun download(
+        url: String,
+        token: String?,
+        output: OutputStream,
+        knownTotal: Long = 0L,
+        onProgress: (Long, Long) -> Unit = { _, _ -> }
+    ) {
         val connection = open(url, "GET", token)
         try {
             val status = connection.responseCode
             if (status !in 200..299) throw failure(status, readError(connection))
-            connection.inputStream.use { input -> input.copyTo(output) }
+            val total = if (knownTotal > 0L) knownTotal else connection.contentLengthLong.coerceAtLeast(0L)
+            connection.inputStream.use { input -> pump(input, output, total, onProgress) }
         } catch (e: IOException) {
             throw CloudException(R.string.cloud_error_network, e.message, e)
         } finally {
             connection.disconnect()
         }
+    }
+
+    /**
+     * A file and its metadata in one POST, the way Drive's multipart upload wants them: two parts
+     * separated by a boundary, JSON first and bytes second.
+     */
+    fun uploadMultipart(
+        url: String,
+        token: String,
+        metadata: JSONObject,
+        file: File,
+        mimeType: String,
+        onProgress: (Long, Long) -> Unit = { _, _ -> }
+    ): JSONObject {
+        val boundary = "zune${System.nanoTime()}"
+        val head = buildString {
+            append("--$boundary\r\n")
+            append("Content-Type: application/json; charset=UTF-8\r\n\r\n")
+            append(metadata.toString())
+            append("\r\n--$boundary\r\n")
+            append("Content-Type: $mimeType\r\n\r\n")
+        }.toByteArray(Charsets.UTF_8)
+        val tail = "\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8)
+
+        val connection = open(url, "POST", token)
+        try {
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "multipart/related; boundary=$boundary")
+            // Streaming rather than buffering: a large file must not be held in memory twice.
+            connection.setFixedLengthStreamingMode(head.size + file.length() + tail.size)
+            connection.outputStream.use { out ->
+                out.write(head)
+                file.inputStream().use { input -> pump(input, out, file.length(), onProgress) }
+                out.write(tail)
+            }
+            val status = connection.responseCode
+            if (status !in 200..299) throw failure(status, readError(connection))
+            val text = connection.inputStream.readText()
+            return if (text.isBlank()) JSONObject() else JSONObject(text)
+        } catch (e: IOException) {
+            ZuneLog.w(TAG, "upload to $url failed", e)
+            throw CloudException(R.string.cloud_error_network, e.message, e)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /** Copies one stream into another, reporting progress and honouring cancellation. */
+    private fun pump(input: InputStream, output: OutputStream, total: Long, onProgress: (Long, Long) -> Unit) {
+        val buffer = ByteArray(BUFFER)
+        var moved = 0L
+        var lastReport = 0L
+        while (true) {
+            val read = input.read(buffer)
+            if (read <= 0) break
+            output.write(buffer, 0, read)
+            moved += read
+            // Reporting every chunk would repaint the bar hundreds of times a second.
+            if (moved - lastReport >= REPORT_EVERY || moved == total) {
+                lastReport = moved
+                onProgress(moved, total)
+            }
+        }
+        onProgress(moved, if (total > 0L) total else moved)
     }
 
     fun encode(value: String): String = URLEncoder.encode(value, "UTF-8")

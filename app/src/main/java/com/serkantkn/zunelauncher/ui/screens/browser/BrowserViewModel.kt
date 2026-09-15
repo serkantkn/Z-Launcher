@@ -12,6 +12,9 @@ import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.BrowserDownload
 import com.serkantkn.zunelauncher.data.model.BrowserFavorite
 import com.serkantkn.zunelauncher.data.model.BrowserHistory
+import com.serkantkn.zunelauncher.data.model.StartFolders
+import com.serkantkn.zunelauncher.data.model.StartTileItem
+import com.serkantkn.zunelauncher.data.model.SearchEngine
 import com.serkantkn.zunelauncher.data.model.parseJsonObjectList
 import com.serkantkn.zunelauncher.data.model.toJsonArrayString
 import android.app.DownloadManager
@@ -25,6 +28,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,7 +45,13 @@ data class BrowserTab(
     val progress: Float = 0f,
     val showStartScreen: Boolean = true,
     val canGoBack: Boolean = false,
-    val canGoForward: Boolean = false
+    val canGoForward: Boolean = false,
+    /** Kept out of the history, and marked as such in the tab list. */
+    val isPrivate: Boolean = false,
+    /** Asking the site for the version it would send a computer. */
+    val isDesktopSite: Boolean = false,
+    /** The page stripped back to what it says, Windows Phone's reading view. */
+    val isReadingView: Boolean = false
 )
 
 data class BrowserSuggestion(
@@ -59,6 +69,10 @@ data class BrowserState(
     val downloads: List<BrowserDownload> = emptyList(),
     val showDownloadsScreen: Boolean = false,
     val suggestions: List<BrowserSuggestion> = emptyList(),
+    /** Addresses that already have a tile of their own on the start screen. */
+    val pinnedSites: Set<String> = emptySet(),
+    val searchEngine: SearchEngine = SearchEngine.DEFAULT,
+    val suggestionsEnabled: Boolean = true,
     val errorMessage: String? = null
 ) {
     val activeTab: BrowserTab
@@ -95,6 +109,12 @@ val popularSites = listOf(
 class BrowserViewModel(application: Application) : AndroidViewModel(application) {
     private companion object {
         const val TAG = "BrowserViewModel"
+
+        /** More pages than this alive at once is a memory problem, not a browsing style. */
+        const val MAX_TABS = 10
+
+        /** How far back the history goes. */
+        const val HISTORY_LIMIT = 300
     }
 
     private val repository = application.appContainer.settingsDataStore
@@ -121,6 +141,24 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             repository.browserHistory.collect { json ->
                 val list = parseJsonObjectList(json, TAG, BrowserHistory::fromJson)
                 _state.update { it.copy(history = list) }
+            }
+        }
+        viewModelScope.launch {
+            repository.searchEngine.collect { engine ->
+                _state.update { it.copy(searchEngine = engine) }
+            }
+        }
+        viewModelScope.launch {
+            repository.searchSuggestionsEnabled.collect { enabled ->
+                _state.update { it.copy(suggestionsEnabled = enabled) }
+                if (!enabled) clearSuggestions()
+            }
+        }
+        viewModelScope.launch {
+            repository.startTiles.collect { tiles ->
+                _state.update { state ->
+                    state.copy(pinnedSites = tiles.mapNotNull { it.webUrl }.toSet())
+                }
             }
         }
         viewModelScope.launch {
@@ -274,15 +312,50 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Takes a download off the list, and off the phone.
+     *
+     * Taking it only off the list left it running with no way back to it — the notification was
+     * the only thing that still knew about it. A download still going is cancelled; one already
+     * finished keeps its file and only loses its row.
+     */
     fun removeDownload(downloadId: Long) {
+        val download = _state.value.downloads.firstOrNull { it.id == downloadId }
+        if (download != null && download.status != DownloadManager.STATUS_SUCCESSFUL) {
+            cancelInDownloadManager(downloadId)
+        }
         val updatedList = _state.value.downloads.filterNot { it.id == downloadId }
         _state.update { it.copy(downloads = updatedList) }
         saveDownloads(updatedList)
     }
 
     fun clearAllDownloads() {
+        _state.value.downloads
+            .filter { it.status != DownloadManager.STATUS_SUCCESSFUL }
+            .forEach { cancelInDownloadManager(it.id) }
         _state.update { it.copy(downloads = emptyList()) }
         saveDownloads(emptyList())
+    }
+
+    private fun cancelInDownloadManager(downloadId: Long) {
+        try {
+            val dm = getApplication<Application>()
+                .getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+            dm?.remove(downloadId)
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "could not stop download $downloadId", e)
+        }
+    }
+
+    /**
+     * Starts a failed or cancelled download over again.
+     *
+     * Android's DownloadManager has no public way to pause and resume, so the honest offer for a
+     * download that did not finish is to run it again from the beginning.
+     */
+    fun retryDownload(download: BrowserDownload) {
+        removeDownload(download.id)
+        startDownload(download.url, null, null, download.mimeType, download.totalBytes)
     }
 
     fun openDownloadedFile(context: Context, download: BrowserDownload) {
@@ -298,19 +371,88 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // ── The start screen ──────────────────────────────────────────────────────────────────────
+
+    fun isPinnedToStart(url: String): Boolean = url in _state.value.pinnedSites
+
+    /**
+     * Puts the page on the start screen as a tile of its own, or takes it off again.
+     *
+     * Windows Phone let any page become a tile, which on a launcher is the most natural thing the
+     * browser can do: the site sits on the board beside the apps and opens straight into the hub.
+     */
+    fun togglePinToStart(url: String, title: String) {
+        if (url.isBlank()) return
+        viewModelScope.launch {
+            val tiles = repository.startTiles.first()
+            val updated = if (tiles.any { it.webUrl == url }) {
+                StartFolders.removeTile(tiles, "${StartTileItem.WEB_PREFIX}$url")
+            } else {
+                tiles + StartTileItem.fromWeb(url, title)
+            }
+            repository.setStartTiles(updated)
+            _state.update {
+                it.copy(
+                    errorMessage = getApplication<Application>().localizedString(
+                        if (updated.size > tiles.size) R.string.browser_pinned else R.string.browser_unpinned
+                    )
+                )
+            }
+        }
+    }
+
     fun clearError() {
         _state.update { it.copy(errorMessage = null) }
     }
 
     fun openNewTab() {
         _state.update { currentState ->
-            if (currentState.tabs.size >= 10) {
+            if (currentState.tabs.size >= MAX_TABS) {
                 return@update currentState.copy(errorMessage = getApplication<Application>().localizedString(R.string.browser_max_tabs))
             }
             val newTabs = currentState.tabs + BrowserTab()
             currentState.copy(
                 tabs = newTabs,
                 activeTabIndex = newTabs.size - 1
+            )
+        }
+    }
+
+    /**
+     * Opens [url] in a tab of its own — for a link that asked for a new window, and for a site
+     * pinned to the start screen. Returns the tab's id so the caller can load the page into it.
+     */
+    fun openTabWith(url: String): String {
+        val tab = BrowserTab(url = url, showStartScreen = false)
+        var openedId = tab.id
+        _state.update { currentState ->
+            // An empty tab sitting there is the one to use, rather than piling another on top.
+            val blank = currentState.tabs.singleOrNull()?.takeIf { it.url.isBlank() }
+            if (blank != null) {
+                openedId = blank.id
+                return@update currentState.copy(
+                    tabs = listOf(blank.copy(url = url, showStartScreen = false)),
+                    activeTabIndex = 0
+                )
+            }
+            if (currentState.tabs.size >= MAX_TABS) {
+                openedId = currentState.activeTab.id
+                return@update currentState.copy(
+                    errorMessage = getApplication<Application>().localizedString(R.string.browser_max_tabs)
+                )
+            }
+            val newTabs = currentState.tabs + tab
+            currentState.copy(tabs = newTabs, activeTabIndex = newTabs.size - 1)
+        }
+        return openedId
+    }
+
+    /** A page that would not load says why, rather than leaving a blank screen unexplained. */
+    fun reportPageError(detail: String) {
+        _state.update {
+            it.copy(
+                errorMessage = getApplication<Application>()
+                    .localizedString(R.string.browser_page_failed, detail)
             )
         }
     }
@@ -335,6 +477,27 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 currentState.copy(tabs = newTabs, activeTabIndex = newIndex)
             }
         }
+    }
+
+    /** A tab that leaves no trace in the history. */
+    fun openPrivateTab() {
+        _state.update { currentState ->
+            if (currentState.tabs.size >= MAX_TABS) {
+                return@update currentState.copy(
+                    errorMessage = getApplication<Application>().localizedString(R.string.browser_max_tabs)
+                )
+            }
+            val newTabs = currentState.tabs + BrowserTab(isPrivate = true)
+            currentState.copy(tabs = newTabs, activeTabIndex = newTabs.size - 1)
+        }
+    }
+
+    fun setDesktopSite(tabId: String, on: Boolean) {
+        updateTab(tabId) { it.copy(isDesktopSite = on) }
+    }
+
+    fun setReadingView(tabId: String, on: Boolean) {
+        updateTab(tabId) { it.copy(isReadingView = on) }
     }
 
     fun switchTab(index: Int) {
@@ -373,16 +536,20 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun fetchSuggestions(query: String): List<BrowserSuggestion> = withContext(Dispatchers.IO) {
+        val engine = _state.value.searchEngine
         val list = mutableListOf<BrowserSuggestion>()
-        
+
         // 1. Lucky Search (Index 0 - visually bottom with reverseLayout)
-        val luckyUrl = "https://www.google.com/search?q=${URLEncoder.encode(query, "UTF-8")}&btnI=I"
-        list.add(BrowserSuggestion(
-            displayText = query, 
-            subtitle = luckyUrl, 
-            query = query, 
-            isLucky = true
-        ))
+        if (engine.hasLuckySearch) {
+            list.add(
+                BrowserSuggestion(
+                    displayText = query,
+                    subtitle = engine.luckyUrl(query),
+                    query = query,
+                    isLucky = true
+                )
+            )
+        }
 
         // 2. Smart Prediction (Index 1 - just above lucky search)
         val qLower = query.lowercase().replace(" ", "")
@@ -398,10 +565,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
-        // 3. Google Suggestions
+        // 3. What the engine itself suggests — only when the user has left that switched on.
+        if (!_state.value.suggestionsEnabled) return@withContext list
         try {
-            val encodedQuery = URLEncoder.encode(query, "UTF-8")
-            val url = URL("https://suggestqueries.google.com/complete/search?client=firefox&q=$encodedQuery&oe=utf8")
+            val suggestUrl = engine.suggestUrl(query) ?: return@withContext list
+            val url = URL(suggestUrl)
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
             connection.connectTimeout = 3000
@@ -426,23 +594,38 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         return@withContext list
     }
 
+    /**
+     * Puts the suggestion list away.
+     *
+     * Emptying the list is not enough on its own: the last keystroke's request is still in flight
+     * and lands a moment later, which is how a loaded page ended up with a list of suggestions for
+     * something typed in another tab sitting on top of it.
+     */
+    fun clearSuggestions() {
+        searchJob?.cancel()
+        searchJob = null
+        if (_state.value.suggestions.isNotEmpty()) {
+            _state.update { it.copy(suggestions = emptyList()) }
+        }
+    }
+
     fun loadUrl(tabId: String, input: String): String {
         val finalUrl = when {
             input.isBlank() -> return ""
             URLUtil.isValidUrl(input) -> input
             input.contains(".") && !input.contains(" ") -> "https://$input"
-            else -> "https://www.google.com/search?q=${input.replace(" ", "+")}"
+            else -> _state.value.searchEngine.searchUrl(input)
         }
         
         updateTab(tabId) { it.copy(url = finalUrl, showStartScreen = false) }
-        _state.update { it.copy(suggestions = emptyList()) }
+        clearSuggestions()
         return finalUrl
     }
 
     fun loadLuckyUrl(tabId: String, input: String): String {
-        val finalUrl = "https://www.google.com/search?q=${input.replace(" ", "+")}&btnI=I"
+        val finalUrl = _state.value.searchEngine.luckyUrl(input)
         updateTab(tabId) { it.copy(url = finalUrl, showStartScreen = false) }
-        _state.update { it.copy(suggestions = emptyList()) }
+        clearSuggestions()
         return finalUrl
     }
 
@@ -455,10 +638,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val finalTitle = title ?: finalUrl
         
         updateTab(tabId) { it.copy(isLoading = false, progress = 100f, url = finalUrl, title = finalTitle) }
-        
+
+        // A private tab is private precisely here: the page is shown and then forgotten.
+        if (_state.value.tabs.firstOrNull { it.id == tabId }?.isPrivate == true) return
+
         val newHistoryItem = BrowserHistory(finalTitle, finalUrl)
         val updatedHistory = listOf(newHistoryItem) + _state.value.history.filter { it.url != finalUrl }
-        saveHistory(updatedHistory.take(100)) // Keep up to 100 history items
+        saveHistory(updatedHistory.take(HISTORY_LIMIT))
     }
 
     fun onProgressChanged(tabId: String, progress: Int) {
@@ -468,6 +654,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun setNavigationState(tabId: String, canGoBack: Boolean, canGoForward: Boolean) {
         updateTab(tabId) { it.copy(canGoBack = canGoBack, canGoForward = canGoForward) }
     }
+    /** Drops one page from the history, for the rows that should not have been kept. */
+    fun removeHistoryEntry(url: String) {
+        saveHistory(_state.value.history.filterNot { it.url == url })
+    }
+
     fun clearHistory() {
         saveHistory(emptyList())
         _state.update { it.copy(history = emptyList()) }
@@ -481,13 +672,47 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         return _state.value.favorites.any { normalizeUrl(it.url) == normUrl }
     }
 
-    fun addFavorite(title: String, url: String) {
+    fun addFavorite(title: String, url: String, folder: String = "") {
         val currentFavorites = _state.value.favorites
         if (!isFavorite(url)) {
-            val updatedFavorites = currentFavorites + BrowserFavorite(title, url)
+            val updatedFavorites = currentFavorites + BrowserFavorite(title, url, folder)
             saveFavorites(updatedFavorites)
         }
     }
+
+    /** Rewrites one favourite in place — its name, its address or the folder it sits in. */
+    fun updateFavorite(originalUrl: String, title: String, url: String, folder: String) {
+        val normOriginal = normalizeUrl(originalUrl)
+        saveFavorites(
+            _state.value.favorites.map { favorite ->
+                if (normalizeUrl(favorite.url) == normOriginal) {
+                    BrowserFavorite(title, url, folder.trim())
+                } else {
+                    favorite
+                }
+            }
+        )
+    }
+
+    /** Moves a favourite one place earlier or later, within the folder it belongs to. */
+    fun moveFavorite(url: String, forward: Boolean) {
+        val favorites = _state.value.favorites.toMutableList()
+        val index = favorites.indexOfFirst { normalizeUrl(it.url) == normalizeUrl(url) }
+        if (index < 0) return
+        val folder = favorites[index].folder
+        // Neighbours in other folders are not neighbours on screen, so they are stepped over.
+        val target = if (forward) {
+            (index + 1 until favorites.size).firstOrNull { favorites[it].folder == folder }
+        } else {
+            (index - 1 downTo 0).firstOrNull { favorites[it].folder == folder }
+        } ?: return
+        favorites[index] = favorites[target].also { favorites[target] = favorites[index] }
+        saveFavorites(favorites)
+    }
+
+    /** Every folder that has something in it, in the order they first appear. */
+    val favoriteFolders: List<String>
+        get() = _state.value.favorites.map { it.folder }.filter { it.isNotBlank() }.distinct()
 
     fun removeFavorite(url: String) {
         val normUrl = normalizeUrl(url)

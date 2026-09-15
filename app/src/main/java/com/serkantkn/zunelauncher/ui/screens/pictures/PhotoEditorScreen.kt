@@ -3,7 +3,15 @@ package com.serkantkn.zunelauncher.ui.screens.pictures
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import androidx.annotation.StringRes
+import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import com.serkantkn.zunelauncher.util.PhotoAdjust
+import com.serkantkn.zunelauncher.util.PhotoFilter
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.util.autoFixFor
+import com.serkantkn.zunelauncher.util.photoMatrix
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -80,11 +88,32 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import java.util.Locale
 
 private enum class EditorTool(@StringRes val labelRes: Int) {
     CROP(R.string.editor_crop),
     ROTATE(R.string.editor_rotate),
-    MIRROR(R.string.editor_mirror)
+    MIRROR(R.string.editor_mirror),
+    ADJUST(R.string.editor_adjust),
+    FILTER(R.string.editor_filter)
+}
+
+/** Which slider the adjust tool is showing. */
+private enum class AdjustSlider(@StringRes val labelRes: Int) {
+    BRIGHTNESS(R.string.editor_brightness),
+    CONTRAST(R.string.editor_contrast),
+    SATURATION(R.string.editor_saturation),
+    WARMTH(R.string.editor_warmth)
+}
+
+@StringRes
+private fun filterLabel(filter: PhotoFilter): Int = when (filter) {
+    PhotoFilter.NONE -> R.string.editor_filter_none
+    PhotoFilter.MONO -> R.string.editor_filter_mono
+    PhotoFilter.SEPIA -> R.string.editor_filter_sepia
+    PhotoFilter.VIVID -> R.string.editor_filter_vivid
+    PhotoFilter.COOL -> R.string.editor_filter_cool
+    PhotoFilter.FADED -> R.string.editor_filter_faded
 }
 
 private enum class CropAspectRatio(@StringRes val labelRes: Int, val ratio: Float?) {
@@ -127,6 +156,12 @@ fun PhotoEditorScreen(
     // Crop box normalized coordinates (0f..1f relative to displayed image)
     var cropRectNorm by remember { mutableStateOf(Rect(0f, 0f, 1f, 1f)) }
 
+    // Colour work: four sliders and one canned look, both ending up as a single matrix.
+    var adjust by remember { mutableStateOf(PhotoAdjust()) }
+    var filter by remember { mutableStateOf(PhotoFilter.NONE) }
+    var activeSlider by remember { mutableStateOf(AdjustSlider.BRIGHTNESS) }
+    val colourMatrix = remember(adjust, filter) { photoMatrix(adjust, filter) }
+
     // Load original bitmap from URI with proper EXIF orientation handling
     LaunchedEffect(photo.uri) {
         isLoading = true
@@ -165,6 +200,20 @@ fun PhotoEditorScreen(
         flipVertical = false
         selectedAspectRatio = CropAspectRatio.FREE
         cropRectNorm = Rect(0f, 0f, 1f, 1f)
+        adjust = PhotoAdjust()
+        filter = PhotoFilter.NONE
+    }
+
+    /** Reads how the picture's brightness is spread and sets the sliders to even it out. */
+    fun autoFix() {
+        val src = originalBitmap ?: return
+        coroutineScope.launch(Dispatchers.Default) {
+            val next = runCatching { autoFixFor(src) }.getOrNull() ?: return@launch
+            withContext(Dispatchers.Main) {
+                adjust = next
+                activeTool = EditorTool.ADJUST
+            }
+        }
     }
 
     fun applyAndExport() {
@@ -196,13 +245,36 @@ fun PhotoEditorScreen(
                 val cropWidthPx = (cropRectNorm.width * transformedBitmap.width).toInt().coerceIn(1, transformedBitmap.width - cropLeftPx)
                 val cropHeightPx = (cropRectNorm.height * transformedBitmap.height).toInt().coerceIn(1, transformedBitmap.height - cropTopPx)
 
-                val finalBitmap = Bitmap.createBitmap(
+                val croppedBitmap = Bitmap.createBitmap(
                     transformedBitmap,
                     cropLeftPx,
                     cropTopPx,
                     cropWidthPx,
                     cropHeightPx
                 )
+
+                // The colours are applied last, once, on the final pixels — the preview showed
+                // the same matrix, so what is saved is what was on screen.
+                val finalBitmap = if (adjust.isIdentity && filter == PhotoFilter.NONE) {
+                    croppedBitmap
+                } else {
+                    val tinted = Bitmap.createBitmap(
+                        croppedBitmap.width,
+                        croppedBitmap.height,
+                        Bitmap.Config.ARGB_8888
+                    )
+                    android.graphics.Canvas(tinted).drawBitmap(
+                        croppedBitmap,
+                        0f,
+                        0f,
+                        android.graphics.Paint().apply {
+                            colorFilter = android.graphics.ColorMatrixColorFilter(
+                                android.graphics.ColorMatrix(colourMatrix)
+                            )
+                        }
+                    )
+                    tinted
+                }
 
                 withContext(Dispatchers.Main) {
                     isSaving = false
@@ -234,7 +306,7 @@ fun PhotoEditorScreen(
             ) {
                 Column {
                     Text(
-                        text = stringResource(R.string.pictures_hub).uppercase(),
+                        text = stringResource(R.string.pictures_hub).uppercase(Locale.getDefault()),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
@@ -325,14 +397,20 @@ fun PhotoEditorScreen(
                             Image(
                                 bitmap = previewBitmap.asImageBitmap(),
                                 contentDescription = stringResource(R.string.editor_preview),
+                                colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(
+                                    androidx.compose.ui.graphics.ColorMatrix(colourMatrix)
+                                ),
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            // Interactive Crop Overlay with Windows Phone styled 3x3 Grid
-                            CropOverlay(
-                                cropRectNorm = cropRectNorm,
-                                onCropRectChange = { cropRectNorm = it }
-                            )
+                            // The crop frame is only in the way once the crop is settled, so it
+                            // appears with its own tool and stands aside for the others.
+                            if (activeTool == EditorTool.CROP) {
+                                CropOverlay(
+                                    cropRectNorm = cropRectNorm,
+                                    onCropRectChange = { cropRectNorm = it }
+                                )
+                            }
                         }
                     }
                 }
@@ -402,6 +480,78 @@ fun PhotoEditorScreen(
                         }
                     }
 
+                    EditorTool.ADJUST -> {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AdjustSlider.entries.forEach { slider ->
+                                    val isSelected = activeSlider == slider
+                                    Text(
+                                        text = stringResource(slider.labelRes),
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                            fontSize = 15.sp
+                                        ),
+                                        color = if (isSelected) zuneColors.accentColor else Color.White.copy(alpha = 0.65f),
+                                        modifier = Modifier
+                                            .clickable { activeSlider = slider }
+                                            .padding(vertical = 4.dp, horizontal = 4.dp)
+                                    )
+                                }
+                            }
+
+                            val value = when (activeSlider) {
+                                AdjustSlider.BRIGHTNESS -> adjust.brightness
+                                AdjustSlider.CONTRAST -> adjust.contrast
+                                AdjustSlider.SATURATION -> adjust.saturation
+                                AdjustSlider.WARMTH -> adjust.warmth
+                            }
+                            MetroSlider(
+                                value = value,
+                                onValueChange = { next ->
+                                    adjust = when (activeSlider) {
+                                        AdjustSlider.BRIGHTNESS -> adjust.copy(brightness = next)
+                                        AdjustSlider.CONTRAST -> adjust.copy(contrast = next)
+                                        AdjustSlider.SATURATION -> adjust.copy(saturation = next)
+                                        AdjustSlider.WARMTH -> adjust.copy(warmth = next)
+                                    }
+                                },
+                                accent = zuneColors.accentColor,
+                                modifier = Modifier.padding(top = 10.dp)
+                            )
+                        }
+                    }
+
+                    EditorTool.FILTER -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PhotoFilter.entries.forEach { option ->
+                                val isSelected = filter == option
+                                Text(
+                                    text = stringResource(filterLabel(option)),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = if (isSelected) zuneColors.accentColor else Color.White.copy(alpha = 0.65f),
+                                    modifier = Modifier
+                                        .clickable { filter = option }
+                                        .padding(vertical = 4.dp, horizontal = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
                     EditorTool.MIRROR -> {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -444,12 +594,24 @@ fun PhotoEditorScreen(
                         onClick = { activeTool = EditorTool.ROTATE }
                     ),
                     WpBarAction(
-                        icon = Icons.Default.Flip,
-                        label = stringResource(R.string.editor_mirror),
-                        onClick = { activeTool = EditorTool.MIRROR }
+                        icon = Icons.Default.Brightness6,
+                        label = stringResource(R.string.editor_adjust),
+                        onClick = { activeTool = EditorTool.ADJUST }
                     )
                 ),
                 menuItems = listOf(
+                    WpBarMenuItem(
+                        text = stringResource(R.string.editor_filter),
+                        onClick = { activeTool = EditorTool.FILTER }
+                    ),
+                    WpBarMenuItem(
+                        text = stringResource(R.string.editor_mirror),
+                        onClick = { activeTool = EditorTool.MIRROR }
+                    ),
+                    WpBarMenuItem(
+                        text = stringResource(R.string.editor_auto_fix),
+                        onClick = { autoFix() }
+                    ),
                     WpBarMenuItem(
                         text = stringResource(R.string.editor_reset_all),
                         onClick = { resetAll() }
@@ -767,3 +929,116 @@ private fun decodeBitmapWithExif(context: android.content.Context, uri: android.
         null
     }
 }
+
+
+/**
+ * A Metro slider: a line, a filled part, and a square to drag. No Material knob, no ripple.
+ *
+ * It runs from -1 to 1 with a detent at zero, because "back to how it was" is the value people
+ * most often want and the hardest to hit with a finger on a bare line.
+ */
+@Composable
+private fun MetroSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    var widthPx by remember { mutableFloatStateOf(1f) }
+
+    fun valueAt(x: Float): Float {
+        val fraction = (x / widthPx).coerceIn(0f, 1f)
+        val raw = fraction * 2f - 1f
+        // Anything within a few percent of the middle snaps to it.
+        return if (kotlin.math.abs(raw) < 0.05f) 0f else Math.round(raw * 100f) / 100f
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures { change, _ ->
+                    onValueChange(valueAt(change.position.x))
+                }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures { offset -> onValueChange(valueAt(offset.x)) }
+            }
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .align(Alignment.Center)
+                .background(Color.White.copy(alpha = 0.3f))
+        )
+        val fraction = (value + 1f) / 2f
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(fraction)
+                .height(2.dp)
+                .align(Alignment.CenterStart)
+                .background(accent)
+        )
+        Box(
+            modifier = Modifier
+                .offset { IntOffset((fraction * widthPx - 9.dp.toPx()).roundToInt(), 0) }
+                .size(18.dp)
+                .align(Alignment.CenterStart)
+                .background(accent)
+        )
+        Text(
+            text = String.format(Locale.getDefault(), "%+.2f", value),
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White.copy(alpha = 0.6f),
+            modifier = Modifier.align(Alignment.TopEnd)
+        )
+    }
+}
+
+/**
+ * How the picture's brightness is spread, read from a thumbnail of it.
+ *
+ * A full-size photo is tens of millions of pixels and the answer does not change if only a few
+ * thousand of them are looked at, so the picture is scaled right down first — auto-fix then takes
+ * a moment rather than a second.
+ */
+private fun autoFixFor(bitmap: Bitmap): PhotoAdjust {
+    val sample = Bitmap.createScaledBitmap(bitmap, AUTO_FIX_SAMPLE, AUTO_FIX_SAMPLE, true)
+    val pixels = IntArray(AUTO_FIX_SAMPLE * AUTO_FIX_SAMPLE)
+    sample.getPixels(pixels, 0, AUTO_FIX_SAMPLE, 0, 0, AUTO_FIX_SAMPLE, AUTO_FIX_SAMPLE)
+
+    val histogram = IntArray(256)
+    var total = 0L
+    pixels.forEach { pixel ->
+        val red = (pixel shr 16) and 0xFF
+        val green = (pixel shr 8) and 0xFF
+        val blue = pixel and 0xFF
+        val luma = ((red * 54 + green * 183 + blue * 19) shr 8).coerceIn(0, 255)
+        histogram[luma]++
+        total += luma
+    }
+
+    // The very darkest and lightest half a percent are ignored: one blown highlight or one black
+    // speck should not decide how the whole picture is stretched.
+    val cut = (pixels.size * 0.005f).toInt().coerceAtLeast(1)
+    var seen = 0
+    var darkest = 0
+    for (level in 0..255) {
+        seen += histogram[level]
+        if (seen >= cut) { darkest = level; break }
+    }
+    seen = 0
+    var lightest = 255
+    for (level in 255 downTo 0) {
+        seen += histogram[level]
+        if (seen >= cut) { lightest = level; break }
+    }
+
+    return autoFixFor(darkest, lightest, (total / pixels.size).toInt())
+}
+
+/** The side of the thumbnail auto-fix measures. */
+private const val AUTO_FIX_SAMPLE = 64

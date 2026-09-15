@@ -1,6 +1,5 @@
 package com.serkantkn.zunelauncher.ui.components
 
-import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
-import com.serkantkn.zunelauncher.util.toImageBitmap
+import com.serkantkn.zunelauncher.util.TileIconFace
 
 /**
  * A pinned app on Start: its icon, its name in the corner and the number of notifications waiting.
@@ -37,15 +36,17 @@ import com.serkantkn.zunelauncher.util.toImageBitmap
 @Composable
 fun W10MAppTile(
     label: String,
-    icon: Drawable?,
+    face: TileIconFace,
     span: Int,
     isEditing: Boolean,
     isDragging: Boolean,
+    isMergeTarget: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onRemoveClick: () -> Unit,
     onResizeClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onIconClick: (() -> Unit)? = null,
     tileKey: String = label,
     notificationCount: Int = 0,
     notificationTitle: String? = null,
@@ -57,7 +58,6 @@ fun W10MAppTile(
     val zuneColors = LocalZuneColors.current
     val hasNotifications = notificationCount > 0 &&
         (!notificationTitle.isNullOrBlank() || !notificationText.isNullOrBlank())
-    val bitmap = icon?.let { drawable -> remember(drawable) { drawable.toImageBitmap() } }
 
     W10MTileSurface(
         liveKey = "app:$tileKey",
@@ -66,12 +66,14 @@ fun W10MAppTile(
         spacing = spacing,
         isEditing = isEditing,
         isDragging = isDragging,
+        highlighted = isMergeTarget,
         cornerStyle = cornerStyle,
         onClick = onClick,
         onLongClick = onLongClick,
         onRemoveClick = onRemoveClick,
         onResizeClick = onResizeClick,
         modifier = modifier,
+        onIconClick = onIconClick,
         back = if (hasNotifications) {
             {
                 val fg = tileForegroundColor()
@@ -80,8 +82,8 @@ fun W10MAppTile(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        bitmap?.let {
-                            Image(bitmap = it, contentDescription = null, modifier = Modifier.size(16.dp))
+                        if (face != TileIconFace.None) {
+                            TileIconImage(face, size = 16.dp, ink = fg, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
                         }
                         Text(
@@ -133,19 +135,19 @@ fun W10MAppTile(
             if (isEditing) {
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
             }
-            bitmap?.let {
-                val iconSize = when {
-                    span == 1 -> 26.dp
-                    span == 2 -> if (gridColumns >= 8) 36.dp else 46.dp
-                    span == 4 -> if (gridColumns >= 8) 46.dp else 56.dp
-                    else -> 62.dp
-                }
-                Image(
-                    bitmap = it,
-                    contentDescription = label,
-                    modifier = Modifier.size(iconSize).align(Alignment.Center)
-                )
+            val iconSize = when {
+                span == 1 -> 26.dp
+                span == 2 -> if (gridColumns >= 8) 36.dp else 46.dp
+                span == 4 -> if (gridColumns >= 8) 46.dp else 56.dp
+                else -> 62.dp
             }
+            TileIconImage(
+                face = face,
+                size = iconSize,
+                ink = fg,
+                contentDescription = label,
+                modifier = Modifier.align(Alignment.Center)
+            )
             TileBadge(notificationCount, span, gridColumns, fg)
             TileLabel(label, span, gridColumns, fg)
         }

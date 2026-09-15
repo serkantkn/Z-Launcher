@@ -42,6 +42,7 @@ import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
+import com.serkantkn.zunelauncher.ui.animation.rememberHingeSpec
 
 private enum class SettingsTab(@StringRes val titleRes: Int) {
     LOOK(R.string.settings_tab_look),
@@ -63,11 +64,7 @@ fun SettingsScreen(
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val accentColor by viewModel.accentColor.collectAsState()
-    val fontScale by viewModel.fontScale.collectAsState()
-    val animationsEnabled by viewModel.animationsEnabled.collectAsState()
-    val socialHubLayout by viewModel.socialHubLayout.collectAsState()
     val directCallEnabled by viewModel.directCallEnabled.collectAsState()
-    val disabledNotificationApps by viewModel.disabledNotificationApps.collectAsState()
     val installedApps by viewModel.installedApps.collectAsState(initial = emptyList())
 
     val zuneColors = LocalZuneColors.current
@@ -95,27 +92,52 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
 
-    // 3D Door Hinge transition state for AppNotificationFilterScreen
-    val filterHingeAnim = remember { Animatable(0f) }
-    var isFilterOpen by remember { mutableStateOf(false) }
+    // 3D Door Hinge transition state for SocialSourcesSettingsScreen
+    val hingeSpec = rememberHingeSpec()
+    val sourcesHingeAnim = remember { Animatable(0f) }
+    var isSourcesOpen by remember { mutableStateOf(false) }
 
-    fun openAppFilter() {
-        isFilterOpen = true
+    fun openSocialSources() {
+        isSourcesOpen = true
         scope.launch {
-            filterHingeAnim.animateTo(
+            sourcesHingeAnim.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing)
+                animationSpec = hingeSpec
             )
         }
     }
 
-    fun closeAppFilter() {
+    fun closeSocialSources() {
         scope.launch {
-            filterHingeAnim.animateTo(
+            sourcesHingeAnim.animateTo(
                 targetValue = 0f,
-                animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing)
+                animationSpec = hingeSpec
             )
-            isFilterOpen = false
+            isSourcesOpen = false
+        }
+    }
+
+    // 3D Door Hinge transition state for CalendarsSettingsScreen
+    val calendarsHingeAnim = remember { Animatable(0f) }
+    var isCalendarsOpen by remember { mutableStateOf(false) }
+
+    fun openCalendars() {
+        isCalendarsOpen = true
+        scope.launch {
+            calendarsHingeAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = hingeSpec
+            )
+        }
+    }
+
+    fun closeCalendars() {
+        scope.launch {
+            calendarsHingeAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = hingeSpec
+            )
+            isCalendarsOpen = false
         }
     }
 
@@ -128,7 +150,7 @@ fun SettingsScreen(
         scope.launch {
             dateTimeHingeAnim.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing)
+                animationSpec = hingeSpec
             )
         }
     }
@@ -137,13 +159,38 @@ fun SettingsScreen(
         scope.launch {
             dateTimeHingeAnim.animateTo(
                 targetValue = 0f,
-                animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing)
+                animationSpec = hingeSpec
             )
             isDateTimeOpen = false
         }
     }
 
-    val subScreenHingeProgress = maxOf(filterHingeAnim.value, dateTimeHingeAnim.value)
+    // 3D Door Hinge transition state for the look sub-pages
+    val lookHingeAnim = remember { Animatable(0f) }
+    var openLookPage by remember { mutableStateOf<LookPage?>(null) }
+
+    fun openLookSettings(page: LookPage) {
+        openLookPage = page
+        scope.launch {
+            lookHingeAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = hingeSpec
+            )
+        }
+    }
+
+    fun closeLookSettings() {
+        scope.launch {
+            lookHingeAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = hingeSpec
+            )
+            openLookPage = null
+        }
+    }
+
+    val subScreenHingeProgress =
+        maxOf(dateTimeHingeAnim.value, lookHingeAnim.value, sourcesHingeAnim.value, calendarsHingeAnim.value)
 
     Box(modifier = modifier.fillMaxSize()) {
         // 1. Settings Main Screen (Hinges Out to -90° when filter screen opens)
@@ -171,25 +218,16 @@ fun SettingsScreen(
                                     viewModel = viewModel,
                                     themeMode = themeMode,
                                     accentColor = accentColor,
-                                    fontScale = fontScale,
-                                    animationsEnabled = animationsEnabled,
-                                    onThemeModeChanged = viewModel::setThemeMode,
-                                    onAccentColorChanged = viewModel::setAccentColor,
-                                    onFontScaleChanged = viewModel::setFontScale,
-                                    onAnimationsChanged = viewModel::setAnimationsEnabled
+                                    onOpenPage = { openLookSettings(it) }
                                 )
                                 SettingsTab.HUBS -> HubSettingsPage(
                                     viewModel = viewModel,
-                                    socialHubLayout = socialHubLayout,
                                     directCallEnabled = directCallEnabled,
-                                    onSocialHubLayoutChanged = viewModel::setSocialHubLayout,
                                     onDirectCallChanged = viewModel::setDirectCallEnabled,
-                                    onClearBrowserHistory = viewModel::clearBrowserHistory
+                                    onOpenSocialSources = { openSocialSources() },
+                                    onOpenCalendars = { openCalendars() }
                                 )
-                                SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(
-                                    viewModel = viewModel,
-                                    onOpenAppFilter = { openAppFilter() }
-                                )
+                                SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(viewModel = viewModel)
                                 SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
                                 SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
                                 SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
@@ -237,25 +275,16 @@ fun SettingsScreen(
                                     viewModel = viewModel,
                                     themeMode = themeMode,
                                     accentColor = accentColor,
-                                    fontScale = fontScale,
-                                    animationsEnabled = animationsEnabled,
-                                    onThemeModeChanged = viewModel::setThemeMode,
-                                    onAccentColorChanged = viewModel::setAccentColor,
-                                    onFontScaleChanged = viewModel::setFontScale,
-                                    onAnimationsChanged = viewModel::setAnimationsEnabled
+                                    onOpenPage = { openLookSettings(it) }
                                 )
                                 SettingsTab.HUBS -> HubSettingsPage(
                                     viewModel = viewModel,
-                                    socialHubLayout = socialHubLayout,
                                     directCallEnabled = directCallEnabled,
-                                    onSocialHubLayoutChanged = viewModel::setSocialHubLayout,
                                     onDirectCallChanged = viewModel::setDirectCallEnabled,
-                                    onClearBrowserHistory = viewModel::clearBrowserHistory
+                                    onOpenSocialSources = { openSocialSources() },
+                                    onOpenCalendars = { openCalendars() }
                                 )
-                                SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(
-                                    viewModel = viewModel,
-                                    onOpenAppFilter = { openAppFilter() }
-                                )
+                                SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(viewModel = viewModel)
                                 SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
                                 SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
                                 SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
@@ -271,31 +300,80 @@ fun SettingsScreen(
             }
         }
 
-        // 2. Standalone AppNotificationFilterScreen (Hinges In from 90° to 0°)
-        if (isFilterOpen || filterHingeAnim.value > 0f) {
+        // 3. Standalone look sub-page (Hinges In from 90° to 0°)
+        openLookPage?.let { page ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        val p = filterHingeAnim.value
+                        val p = lookHingeAnim.value
                         rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
                         transformOrigin = TransformOrigin(0f, 0.5f)
                         cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
                         alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
                     }
             ) {
-                AppNotificationFilterScreen(
-                    disabledApps = disabledNotificationApps,
-                    installedApps = installedApps,
-                    onClose = { closeAppFilter() },
-                    onSave = { updatedApps ->
-                        viewModel.setDisabledNotificationApps(updatedApps)
-                    }
+                LookSubSettingsScreen(
+                    page = page,
+                    viewModel = viewModel,
+                    onClose = { closeLookSettings() }
                 )
             }
         }
 
-        // 3. Standalone DateTimeSettingsScreen (Hinges In from 90° to 0°)
+        // 4. Standalone SocialSourcesSettingsScreen (Hinges In from 90° to 0°)
+        if (isSourcesOpen || sourcesHingeAnim.value > 0f) {
+            val socialSourceList by viewModel.socialSourceList.collectAsState()
+            val socialOtherApps by viewModel.socialOtherApps.collectAsState()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = sourcesHingeAnim.value
+                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                    }
+            ) {
+                SocialSourcesSettingsScreen(
+                    sources = socialSourceList,
+                    otherApps = socialOtherApps,
+                    onToggle = viewModel::setSocialSource,
+                    onReset = { viewModel.resetSocialSources() },
+                    onClose = { closeSocialSources() }
+                )
+            }
+        }
+
+        // 4b. Standalone CalendarsSettingsScreen (Hinges In from 90° to 0°)
+        if (isCalendarsOpen || calendarsHingeAnim.value > 0f) {
+            val calendars by viewModel.calendars.collectAsState()
+            val visibleCalendars by viewModel.visibleCalendars.collectAsState()
+            val defaultCalendarId by viewModel.defaultCalendarId.collectAsState()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = calendarsHingeAnim.value
+                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                    }
+            ) {
+                CalendarsSettingsScreen(
+                    calendars = calendars,
+                    visibleIds = visibleCalendars,
+                    defaultCalendarId = defaultCalendarId,
+                    onToggle = viewModel::setCalendarVisible,
+                    onSetDefault = viewModel::setDefaultCalendar,
+                    onClose = { closeCalendars() }
+                )
+            }
+        }
+
+        // 5. Standalone DateTimeSettingsScreen (Hinges In from 90° to 0°)
         if (isDateTimeOpen || dateTimeHingeAnim.value > 0f) {
             Box(
                 modifier = Modifier

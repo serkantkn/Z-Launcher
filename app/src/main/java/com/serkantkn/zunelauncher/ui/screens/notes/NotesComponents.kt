@@ -1048,7 +1048,7 @@ internal fun ContactPickerDialog(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = contact.name.take(1).uppercase(),
+                                    text = contact.name.take(1).uppercase(Locale.getDefault()),
                                     color = Color.White,
                                     style = MaterialTheme.typography.labelLarge
                                 )

@@ -2,6 +2,10 @@ package com.serkantkn.zunelauncher.ui.components
 
 import android.net.Uri
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.graphics.graphicsLayer
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Folder
@@ -59,7 +64,7 @@ import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import kotlinx.coroutines.delay
 
-private fun getHubIcon(hubType: HubType): ImageVector {
+internal fun getHubIcon(hubType: HubType): ImageVector {
     return when (hubType) {
         HubType.PHONE -> Icons.Default.Call
         HubType.MESSAGING -> Icons.Default.Email
@@ -70,6 +75,7 @@ private fun getHubIcon(hubType: HubType): ImageVector {
         HubType.FILES -> Icons.Default.Folder
         HubType.NOTES -> Icons.Default.StickyNote2
         HubType.EMAIL -> Icons.Default.Mail
+        HubType.CAMERA -> Icons.Default.PhotoCamera
         HubType.CALCULATOR -> Icons.Default.Calculate
         HubType.WEATHER -> Icons.Default.WbSunny
         HubType.SETTINGS -> Icons.Default.Settings
@@ -93,6 +99,7 @@ fun W10MHubTile(
     span: Int,
     isEditing: Boolean,
     isDragging: Boolean,
+    isMergeTarget: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onRemoveClick: () -> Unit,
@@ -118,6 +125,7 @@ fun W10MHubTile(
         spacing = spacing,
         isEditing = isEditing,
         isDragging = isDragging,
+        highlighted = isMergeTarget,
         cornerStyle = cornerStyle,
         onClick = onClick,
         onLongClick = onLongClick,
@@ -277,9 +285,68 @@ internal fun BoxScope.TileTextBack(
     }
 }
 
+/**
+ * An album pinned to Start: the same living photo face as the pictures tile, with the album's own
+ * name across the bottom instead of the hub's.
+ */
+@Composable
+fun W10MAlbumTile(
+    label: String,
+    photoUris: List<Uri>,
+    span: Int,
+    isEditing: Boolean,
+    isDragging: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onRemoveClick: () -> Unit,
+    onResizeClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isMergeTarget: Boolean = false,
+    cornerStyle: TileCornerStyle = TileCornerStyle.ROUNDED,
+    gridColumns: Int = 4,
+    spacing: Dp = 8.dp
+) {
+    W10MTileSurface(
+        liveKey = "album:$label",
+        span = span,
+        gridColumns = gridColumns,
+        spacing = spacing,
+        isEditing = isEditing,
+        isDragging = isDragging,
+        highlighted = isMergeTarget,
+        cornerStyle = cornerStyle,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        onRemoveClick = onRemoveClick,
+        onResizeClick = onResizeClick,
+        modifier = modifier,
+        opacity = if (photoUris.isNotEmpty()) 1f else null,
+        front = {
+            if (photoUris.isEmpty()) {
+                // An album whose pictures have not been read yet, or that has been emptied.
+                HubGlyphFace(
+                    icon = Icons.Default.Image,
+                    title = label,
+                    badgeCount = 0,
+                    span = span,
+                    gridColumns = gridColumns
+                )
+            } else {
+                PhotoCycleFace(
+                    photoUris = photoUris,
+                    title = label,
+                    span = span,
+                    gridColumns = gridColumns,
+                    isEditing = isEditing
+                )
+            }
+        }
+    )
+}
+
 /** The Photos tile: one favourite after another, cross-fading every few seconds. */
 @Composable
-private fun BoxScope.PhotoCycleFace(
+internal fun BoxScope.PhotoCycleFace(
     photoUris: List<Uri>,
     title: String,
     span: Int,
@@ -294,17 +361,39 @@ private fun BoxScope.PhotoCycleFace(
             index = (index + 1) % photoUris.size
         }
     }
+
+    // Windows Phone's photo tile never sat still: each picture drifted slowly across the tile
+    // while it was up, so the tile looked alive even between changes. The drift alternates
+    // direction so two pictures in a row do not pull the same way.
+    val animate = LocalAnimationsEnabled.current
+    val pan = remember { Animatable(0f) }
+    LaunchedEffect(index, animate, isEditing) {
+        pan.snapTo(0f)
+        if (!animate || isEditing) return@LaunchedEffect
+        pan.animateTo(1f, tween(durationMillis = PHOTO_PAN_MILLIS, easing = LinearEasing))
+    }
+
     Crossfade(
         targetState = photoUris[index.coerceIn(0, photoUris.lastIndex)],
         animationSpec = tween(durationMillis = 900),
         label = "w10m_photo_cycle",
         modifier = Modifier.fillMaxSize()
     ) { uri ->
+        val towardsLeft = index % 2 == 0
         AsyncImage(
             model = uri,
             contentDescription = stringResource(R.string.tile_favorite_photo),
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    // Zoomed a little so the drift never uncovers an edge.
+                    val zoom = PHOTO_PAN_ZOOM + pan.value * 0.04f
+                    scaleX = zoom
+                    scaleY = zoom
+                    val travel = size.width * 0.05f * pan.value
+                    translationX = if (towardsLeft) -travel else travel
+                }
         )
     }
 
@@ -319,6 +408,12 @@ private fun BoxScope.PhotoCycleFace(
 }
 
 private const val PHOTO_CYCLE_MILLIS = 5_000L
+
+/** How long one picture takes to drift from one side of the tile to the other. */
+private const val PHOTO_PAN_MILLIS = 6_000
+
+/** How far in the picture starts, so the drift has room to move without showing an edge. */
+private const val PHOTO_PAN_ZOOM = 1.06f
 
 // ════════════════════════════════════════════════════════════
 // SHARED BITS

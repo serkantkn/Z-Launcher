@@ -4,6 +4,8 @@ import com.serkantkn.zunelauncher.util.AppLanguage
 import com.serkantkn.zunelauncher.util.AppLocale
 import kotlinx.coroutines.flow.Flow
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.data.model.SearchEngine
+import com.serkantkn.zunelauncher.util.BrowsingData
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.app.role.RoleManager
@@ -15,8 +17,11 @@ import android.telecom.TelecomManager
 import android.view.inputmethod.InputMethodManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.serkantkn.zunelauncher.data.model.SocialHubLayout
 import com.serkantkn.zunelauncher.data.model.ThemeMode
+import com.serkantkn.zunelauncher.data.model.SocialApps
+import com.serkantkn.zunelauncher.data.model.SocialHubLayout
+import com.serkantkn.zunelauncher.data.model.SocialSource
+import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import com.serkantkn.zunelauncher.data.model.AccentColor
 import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
@@ -25,19 +30,26 @@ import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.TileAnimation
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.HubType
+import com.serkantkn.zunelauncher.data.model.CalendarEvent
+import com.serkantkn.zunelauncher.data.model.CalendarInfo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import com.serkantkn.zunelauncher.data.model.KeyboardLanguage
 import com.serkantkn.zunelauncher.data.model.OneHandedMode
 import com.serkantkn.zunelauncher.data.model.TextShortcut
 import com.serkantkn.zunelauncher.util.SystemSettingsManager
 import java.io.File
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.serkantkn.zunelauncher.data.model.TileIconStyle
+import com.serkantkn.zunelauncher.data.repository.IconPackInfo
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -46,6 +58,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), default)
 
     private val settingsDataStore = application.appContainer.settingsDataStore
+
+    private val iconPackRepository = application.appContainer.iconPackRepository
+
+    private val tileIconFactory = application.appContainer.tileIconFactory
 
     init {
         viewModelScope.launch {
@@ -105,8 +121,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val animationsEnabled: StateFlow<Boolean> = settingsDataStore.animationsEnabled.asState(true)
 
-    val socialHubLayout: StateFlow<SocialHubLayout> = settingsDataStore.socialHubLayout.asState(SocialHubLayout.TIMELINE)
-
     val accentColor: StateFlow<AccentColor> = settingsDataStore.accentColor.asState(AccentColor.MAGENTA)
 
     val directCallEnabled: StateFlow<Boolean> = settingsDataStore.directCallEnabled.asState(false)
@@ -114,8 +128,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val notificationStyle: StateFlow<NotificationStyle> = settingsDataStore.notificationStyle.asState(NotificationStyle.WINDOWS_PHONE)
 
     val volumeBarStyle: StateFlow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = settingsDataStore.volumeBarStyle.asState(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE)
-
-    val disabledNotificationApps: StateFlow<Set<String>> = settingsDataStore.disabledNotificationApps.asState(emptySet())
 
     val timeFormat: StateFlow<String> = settingsDataStore.timeFormat.asState("HH:mm")
 
@@ -132,6 +144,149 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val installedApps: kotlinx.coroutines.flow.Flow<List<com.serkantkn.zunelauncher.data.model.AppInfo>> =
         application.appContainer.appRepository.getInstalledApps()
 
+    // ── Calendar hub ────────────────────────────────────────────────────────
+
+    private val calendarDataStore = getApplication<Application>().appContainer.calendarDataStore
+    private val calendarRepository = getApplication<Application>().appContainer.calendarRepository
+
+    /** The phone's own calendars, re-read whenever the settings page is opened. */
+    private val _calendars = MutableStateFlow<List<CalendarInfo>>(emptyList())
+    val calendars: StateFlow<List<CalendarInfo>> = _calendars.asStateFlow()
+
+    fun refreshCalendars() {
+        viewModelScope.launch {
+            _calendars.value = withContext(Dispatchers.IO) { calendarRepository.calendars() }
+        }
+    }
+
+    val visibleCalendars: StateFlow<Set<Long>?> = calendarDataStore.visibleCalendars.asState(null)
+
+    fun setCalendarVisible(id: Long, visible: Boolean) {
+        viewModelScope.launch {
+            val current = visibleCalendars.value ?: _calendars.value.map { it.id }.toSet()
+            calendarDataStore.setVisibleCalendars(if (visible) current + id else current - id)
+        }
+    }
+
+    val defaultCalendarId: StateFlow<Long?> = calendarDataStore.defaultCalendarId.asState(null)
+
+    fun setDefaultCalendar(id: Long) {
+        viewModelScope.launch { calendarDataStore.setDefaultCalendarId(id) }
+    }
+
+    val calendarReminderMinutes: StateFlow<Int?> =
+        calendarDataStore.defaultReminderMinutes.asState(CalendarEvent.DEFAULT_REMINDER_MINUTES)
+
+    fun setCalendarReminderMinutes(minutes: Int?) {
+        viewModelScope.launch { calendarDataStore.setDefaultReminderMinutes(minutes) }
+    }
+
+    val calendarWeekStart: StateFlow<Int> = calendarDataStore.weekStart.asState(0)
+
+    fun setCalendarWeekStart(day: Int) {
+        viewModelScope.launch { calendarDataStore.setWeekStart(day) }
+    }
+
+    val calendarShowPast: StateFlow<Boolean> = calendarDataStore.showPastEvents.asState(false)
+
+    fun setCalendarShowPast(enabled: Boolean) {
+        viewModelScope.launch { calendarDataStore.setShowPastEvents(enabled) }
+    }
+
+    // ── Clock hub ───────────────────────────────────────────────────────────
+
+    /** What a newly created alarm starts out with; existing alarms keep their own settings. */
+    val alarmSnoozeMinutes: StateFlow<Int> =
+        settingsDataStore.alarmSnoozeMinutes.asState(com.serkantkn.zunelauncher.data.model.Alarm.DEFAULT_SNOOZE_MINUTES)
+
+    fun setAlarmSnoozeMinutes(minutes: Int) {
+        viewModelScope.launch { settingsDataStore.setAlarmSnoozeMinutes(minutes) }
+    }
+
+    val alarmAutoSilenceMinutes: StateFlow<Int> =
+        settingsDataStore.alarmAutoSilenceMinutes.asState(com.serkantkn.zunelauncher.data.model.Alarm.DEFAULT_AUTO_SILENCE_MINUTES)
+
+    fun setAlarmAutoSilenceMinutes(minutes: Int) {
+        viewModelScope.launch { settingsDataStore.setAlarmAutoSilenceMinutes(minutes) }
+    }
+
+    val clockShowSeconds: StateFlow<Boolean> = settingsDataStore.clockShowSeconds.asState(true)
+
+    fun setClockShowSeconds(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setClockShowSeconds(enabled) }
+    }
+
+    val socialHubLayout: StateFlow<SocialHubLayout> =
+        settingsDataStore.socialHubLayout.asState(SocialHubLayout.TIMELINE)
+
+    fun setSocialHubLayout(layout: SocialHubLayout) {
+        viewModelScope.launch { settingsDataStore.setSocialHubLayout(layout) }
+    }
+
+    /** Which apps feed the Social hub; null until somebody has chosen. */
+    val socialSources: StateFlow<Set<String>?> = settingsDataStore.socialSources.asState(null)
+
+    /**
+     * The sources page's own list: every app that is already a source, every app the launcher
+     * knows to be social, and anything that has been sending things that look like messages.
+     */
+    val socialSourceList: StateFlow<List<SocialSource>> = combine(
+        installedApps,
+        socialSources,
+        SocialRepository.suggestedSources,
+        SocialRepository.messages
+    ) { installed, chosen, suggested, messages ->
+        val on = chosen ?: SocialApps.defaultSources(installed.map { it.packageName })
+        val waiting = messages.groupingBy { it.packageName }.eachCount()
+        installed
+            .filter { app ->
+                app.packageName in on ||
+                    SocialApps.isKnown(app.packageName) ||
+                    app.packageName in suggested
+            }
+            .map { app ->
+                SocialSource(
+                    app = app,
+                    kind = SocialApps.kindOf(app.packageName),
+                    isOn = app.packageName in on,
+                    isSuggested = app.packageName in suggested && app.packageName !in on,
+                    waiting = waiting[app.packageName] ?: 0
+                )
+            }
+            .sortedWith(
+                compareByDescending<SocialSource> { it.isOn }
+                    .thenByDescending { it.isSuggested }
+                    .thenBy { it.app.label.lowercase() }
+            )
+    }.asState(emptyList())
+
+    /** Everything else on the phone, for adding a source the catalogue has never heard of. */
+    val socialOtherApps: StateFlow<List<com.serkantkn.zunelauncher.data.model.AppInfo>> =
+        combine(installedApps, socialSources) { installed, chosen ->
+            val on = chosen ?: SocialApps.defaultSources(installed.map { it.packageName })
+            installed.filterNot { it.packageName in on || SocialApps.isKnown(it.packageName) }
+        }.asState(emptyList())
+
+    fun setSocialSource(packageName: String, on: Boolean) {
+        viewModelScope.launch {
+            val installed = installedApps.firstOrNull().orEmpty().map { it.packageName }
+            val current = socialSources.value ?: SocialApps.defaultSources(installed)
+            val updated = if (on) current + packageName else current - packageName
+            settingsDataStore.setSocialSources(updated)
+            if (!on) SocialRepository.removeMessagesOf(packageName)
+        }
+    }
+
+    /** Puts the launcher's own answer back, for when the list has been pruned too far. */
+    fun resetSocialSources() {
+        viewModelScope.launch {
+            val installed = installedApps.firstOrNull().orEmpty().map { it.packageName }
+            settingsDataStore.setSocialSources(SocialApps.defaultSources(installed))
+            SocialRepository.clearSuggestions()
+        }
+    }
+
+
     val hubOrder: StateFlow<List<HubType>> = settingsDataStore.hubOrder
         .stateIn(
             viewModelScope,
@@ -142,6 +297,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 HubType.PEOPLE,
                 HubType.INTERNET,
                 HubType.PICTURES,
+                HubType.CAMERA,
                 HubType.MUSIC,
                 HubType.FILES,
                 HubType.CLOCK,
@@ -188,10 +344,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsDataStore.setAnimationsEnabled(enabled) }
     }
 
-    fun setSocialHubLayout(layout: SocialHubLayout) {
-        viewModelScope.launch { settingsDataStore.setSocialHubLayout(layout) }
-    }
-
     fun setDirectCallEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setDirectCallEnabled(enabled) }
     }
@@ -205,12 +357,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setVolumeBarStyle(style: com.serkantkn.zunelauncher.data.model.VolumeBarStyle) {
         viewModelScope.launch {
             settingsDataStore.setVolumeBarStyle(style)
-        }
-    }
-
-    fun setDisabledNotificationApps(apps: Set<String>) {
-        viewModelScope.launch {
-            settingsDataStore.setDisabledNotificationApps(apps)
         }
     }
 
@@ -524,9 +670,30 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val weatherAnimatedSky: StateFlow<Boolean> =
         application.appContainer.weatherDataStore.animatedSky.asState(true)
 
-    val tileColumns: StateFlow<Int> = settingsDataStore.tileColumns.asState(4)
-
     val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsDataStore.homeScreenLayout.asState(HomeScreenLayout.ZUNE)
+
+    val tileIconStyle: StateFlow<TileIconStyle> =
+        settingsDataStore.tileIconStyle.asState(TileIconStyle.WINDOWS_PHONE)
+
+    val iconPackPackage: StateFlow<String?> = settingsDataStore.iconPackPackage.asState(null)
+
+    /** Asked afresh each time the page is built, so a pack installed just now is listed. */
+    fun installedIconPacks(): List<IconPackInfo> = iconPackRepository.installedPacks()
+
+    fun setTileIconStyle(style: TileIconStyle) {
+        viewModelScope.launch {
+            settingsDataStore.setTileIconStyle(style)
+            tileIconFactory.invalidate()
+        }
+    }
+
+    fun setIconPack(packageName: String?) {
+        viewModelScope.launch {
+            settingsDataStore.setIconPackPackage(packageName)
+            iconPackRepository.invalidate()
+            tileIconFactory.invalidate()
+        }
+    }
 
     val dynamicThemeColor: StateFlow<Int?> = settingsDataStore.dynamicThemeColor.asState(null)
 
@@ -573,12 +740,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setTileSpacing(spacing: Int) {
         viewModelScope.launch {
             settingsDataStore.setTileSpacing(spacing)
-        }
-    }
-
-    fun setTileColumns(columns: Int) {
-        viewModelScope.launch {
-            settingsDataStore.setTileColumns(columns)
         }
     }
 
@@ -658,9 +819,46 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun clearBrowserHistory() {
+    val searchEngine: StateFlow<SearchEngine> =
+        settingsDataStore.searchEngine.asState(SearchEngine.DEFAULT)
+
+    val searchSuggestionsEnabled: StateFlow<Boolean> =
+        settingsDataStore.searchSuggestionsEnabled.asState(true)
+
+    fun setSearchEngine(engine: SearchEngine) {
+        viewModelScope.launch { settingsDataStore.setSearchEngine(engine) }
+    }
+
+    fun setSearchSuggestionsEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setSearchSuggestionsEnabled(enabled) }
+    }
+
+    /**
+     * Everything browsing left behind: the launcher's own history, and the cookies, cached files
+     * and stored site data that "clear history" used to leave exactly where they were.
+     */
+    fun clearBrowsingData() {
         viewModelScope.launch {
             settingsDataStore.setBrowserHistory("[]")
+            BrowsingData.clearCookies()
+            BrowsingData.clearSiteData()
+            BrowsingData.clearCache(getApplication())
         }
+    }
+
+    // ── Music: what may be fetched from outside the phone ───────────────────
+
+    val musicOnlineExtras: StateFlow<Boolean> = settingsDataStore.musicOnlineExtras
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val musicOnlineWifiOnly: StateFlow<Boolean> = settingsDataStore.musicOnlineWifiOnly
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setMusicOnlineExtras(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setMusicOnlineExtras(enabled) }
+    }
+
+    fun setMusicOnlineWifiOnly(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setMusicOnlineWifiOnly(enabled) }
     }
 }

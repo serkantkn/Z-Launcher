@@ -14,8 +14,17 @@ androidMail = "1.6.7"
 playServicesAuth = "21.3.0"
 palette = "1.0.0"
 media3 = "1.10.1"
+camerax = "1.6.2"
 
 [libraries]
+# CameraX (camera hub)
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+androidx-camera-video = { group = "androidx.camera", name = "camera-video", version.ref = "camerax" }
+androidx-camera-extensions = { group = "androidx.camera", name = "camera-extensions", version.ref = "camerax" }
+
 # AndroidX Core
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 
@@ -52,6 +61,7 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 
 # Coil
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+coil-video = { group = "io.coil-kt", name = "coil-video", version.ref = "coil" }
 
 # JavaMail (IMAP/SMTP) for the Email hub
 android-mail = { group = "com.sun.mail", name = "android-mail", version.ref = "androidMail" }

@@ -81,6 +81,7 @@ fun W10MLiveTileFrame(
     spacing: Dp,
     isEditing: Boolean,
     isDragging: Boolean,
+    isMergeTarget: Boolean = false,
     cornerStyle: TileCornerStyle,
     flipEnabled: Boolean,
     onClick: () -> Unit,
@@ -98,6 +99,7 @@ fun W10MLiveTileFrame(
         spacing = spacing,
         isEditing = isEditing,
         isDragging = isDragging,
+        highlighted = isMergeTarget,
         cornerStyle = cornerStyle,
         onClick = onClick,
         onLongClick = onLongClick,
@@ -155,6 +157,7 @@ fun W10MClockTile(
     spacing: Dp,
     isEditing: Boolean,
     isDragging: Boolean,
+    isMergeTarget: Boolean = false,
     cornerStyle: TileCornerStyle,
     timeFormat: String,
     alarms: List<Alarm>,
@@ -303,6 +306,7 @@ fun W10MCalendarTile(
     spacing: Dp,
     isEditing: Boolean,
     isDragging: Boolean,
+    isMergeTarget: Boolean = false,
     cornerStyle: TileCornerStyle,
     events: List<CalendarEvent>,
     onClick: () -> Unit,
@@ -315,10 +319,8 @@ fun W10MCalendarTile(
     val now = rememberMinuteTicker()
     val compact = isCompactTile(span, gridColumns)
 
-    fun eventMillis(e: CalendarEvent): Long = Calendar.getInstance().apply {
-        timeInMillis = e.timestamp
-        set(Calendar.HOUR_OF_DAY, e.hour); set(Calendar.MINUTE, e.minute); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-    }.timeInMillis
+    // An event knows exactly when it starts now; it used to carry a date and a time separately.
+    fun eventMillis(e: CalendarEvent): Long = e.startMillis
 
     // Upcoming first (soonest on top); today's already-passed events trail behind them.
     val upcoming = remember(events, now) {

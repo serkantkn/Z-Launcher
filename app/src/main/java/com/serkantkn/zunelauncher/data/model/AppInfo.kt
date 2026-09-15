@@ -5,8 +5,14 @@ import org.json.JSONObject
 data class AppInfo(
     val packageName: String,
     val label: String,
-    val activityName: String
+    val activityName: String,
+    /**
+     * When the app first arrived on the phone. Zero when the phone would not say — an app that
+     * cannot be dated simply never appears under "new".
+     */
+    val firstInstallTime: Long = 0L
 )
+
 
 /** A pinned app on the Start screen. Persisted by FavoriteAppsDataStore as a JSON array. */
 data class FavoriteAppItem(

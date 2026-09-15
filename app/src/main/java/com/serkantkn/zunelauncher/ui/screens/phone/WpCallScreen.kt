@@ -79,8 +79,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.serkantkn.zunelauncher.data.service.CallAudioRoute
 import com.serkantkn.zunelauncher.data.service.CallManager
 import com.serkantkn.zunelauncher.data.service.CallStatus
+import com.serkantkn.zunelauncher.util.QuickReply
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -110,6 +112,12 @@ fun WpCallScreen(
     val isSpeakerOn by CallManager.isSpeakerOn.collectAsState()
     val isOnHold by CallManager.isOnHold.collectAsState()
     val isKeypadOpen by CallManager.isKeypadOpen.collectAsState()
+    val canHold by CallManager.canHold.collectAsState()
+    val audioRoute by CallManager.audioRoute.collectAsState()
+    val simLabel by CallManager.simLabel.collectAsState()
+
+    // Without permission to send one, offering to reply with a message would be offering nothing.
+    val canReplyWithMessage = remember { QuickReply.canSend(context) }
 
     var isQuickSmsOpen by remember { mutableStateOf(false) }
     var inCallDialedDigits by remember { mutableStateOf("") }
@@ -176,6 +184,8 @@ fun WpCallScreen(
                 phoneNumber = phoneNumber,
                 photoUri = photoUri,
                 currentTime = currentTime,
+                simLabel = simLabel,
+                canReply = canReplyWithMessage,
                 onOpenQuickSms = { isQuickSmsOpen = true }
             )
         } else {
@@ -291,6 +301,15 @@ fun WpCallScreen(
                                 color = Color.White.copy(alpha = 0.95f)
                             )
                         }
+
+                        // Only ever set on a phone with more than one line, where it matters.
+                        simLabel?.let { line ->
+                            Text(
+                                text = line,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                        }
                     }
                 }
 
@@ -354,7 +373,8 @@ fun WpCallScreen(
                                 title = stringResource(R.string.call_hold),
                                 icon = if (isOnHold) Icons.Default.PlayArrow else Icons.Default.Pause,
                                 isActive = isOnHold,
-                                enabled = callStatus == CallStatus.ACTIVE,
+                                // Not every network lets a call be parked; the button says so.
+                                enabled = callStatus == CallStatus.ACTIVE && canHold,
                                 onClick = { CallManager.toggleHold() },
                                 modifier = Modifier.weight(1f)
                             )
@@ -369,10 +389,18 @@ fun WpCallScreen(
                             WpGridSquareTile(
                                 title = "bluetooth",
                                 icon = Icons.Default.Bluetooth,
-                                isActive = false,
+                                isActive = audioRoute == CallAudioRoute.BLUETOOTH,
                                 enabled = callStatus == CallStatus.ACTIVE,
                                 onClick = {
-                                    Toast.makeText(context, context.getString(R.string.call_bluetooth_toast), Toast.LENGTH_SHORT).show()
+                                    // Telecom decides whether there is a headset to route to; if
+                                    // there is not, the route simply stays where it was.
+                                    CallManager.setAudioRoute(
+                                        if (audioRoute == CallAudioRoute.BLUETOOTH) {
+                                            CallAudioRoute.EARPIECE
+                                        } else {
+                                            CallAudioRoute.BLUETOOTH
+                                        }
+                                    )
                                 },
                                 modifier = Modifier.weight(1f)
                             )
@@ -501,6 +529,8 @@ fun WpCallScreen(
                                             .height(64.dp)
                                             .clickable {
                                                 inCallDialedDigits += digit
+                                                // The tone goes down the line, not just on screen.
+                                                CallManager.playDtmf(digit.first())
                                             }
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
@@ -582,9 +612,22 @@ fun WpCallScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            Toast.makeText(context, context.getString(R.string.call_message_sent, msg), Toast.LENGTH_LONG).show()
                                             isQuickSmsOpen = false
-                                            CallManager.declineCall()
+                                            // The caller is told off the line first; the message
+                                            // itself is sent by CallManager, which outlives this
+                                            // screen, and says afterwards whether it went.
+                                            val who = contactName.ifBlank { phoneNumber }
+                                            CallManager.declineWithMessage(context, msg) { sent ->
+                                                Toast.makeText(
+                                                    context,
+                                                    if (sent) {
+                                                        context.getString(R.string.call_reply_sent, who)
+                                                    } else {
+                                                        context.getString(R.string.call_reply_failed)
+                                                    },
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
                                         }
                                         .padding(vertical = 12.dp)
                                 )
@@ -609,6 +652,8 @@ private fun WpIncomingCallSwipeScreen(
     phoneNumber: String,
     photoUri: String?,
     currentTime: String,
+    simLabel: String?,
+    canReply: Boolean,
     onOpenQuickSms: () -> Unit
 ) {
     val context = LocalContext.current
@@ -822,10 +867,19 @@ private fun WpIncomingCallSwipeScreen(
                         color = Color.White.copy(alpha = 0.95f)
                     )
                 }
+
+                // Which of the phone's two numbers is being rung; null on a phone with one.
+                simLabel?.let { line ->
+                    Text(
+                        text = line,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
             }
 
             // Bottom Reply with SMS Action Bar
-            Surface(
+            if (canReply) Surface(
                 color = Color.White.copy(alpha = 0.18f),
                 shape = RoundedCornerShape(2.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),

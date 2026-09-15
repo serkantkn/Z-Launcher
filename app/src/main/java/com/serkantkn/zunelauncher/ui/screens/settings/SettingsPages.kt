@@ -49,23 +49,28 @@ import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
 import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
 import com.serkantkn.zunelauncher.data.datastore.KeyboardDataStore
 import com.serkantkn.zunelauncher.data.model.*
+import com.serkantkn.zunelauncher.data.model.SearchEngine
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.data.model.TileIconStyle
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.lazy.items
 
+/**
+ * The look tab: a list of the pages it was split into, over a preview of what they add up to.
+ *
+ * It used to be every look setting in one scroll, which meant scrolling past nine headings to
+ * reach the tenth. Each heading is now its own page; what stays here is the preview — so a change
+ * can still be seen — and a line under each entry saying what it is currently set to.
+ */
 @Composable
 internal fun LookSettingsPage(
     viewModel: SettingsViewModel,
     themeMode: ThemeMode,
     accentColor: AccentColor,
-    fontScale: Float,
-    animationsEnabled: Boolean,
-    onThemeModeChanged: (ThemeMode) -> Unit,
-    onAccentColorChanged: (AccentColor) -> Unit,
-    onFontScaleChanged: (Float) -> Unit,
-    onAnimationsChanged: (Boolean) -> Unit
+    onOpenPage: (LookPage) -> Unit
 ) {
     val customWallpaperPath by viewModel.customWallpaperPath.collectAsState()
-    val customHubWallpaperPath by viewModel.customHubWallpaperPath.collectAsState()
     val hubBackgroundMode by viewModel.hubBackgroundMode.collectAsState()
     val hubBackgroundOpacity by viewModel.hubBackgroundOpacity.collectAsState()
     val solidBackgroundEnabled by viewModel.solidBackgroundEnabled.collectAsState()
@@ -75,304 +80,8 @@ internal fun LookSettingsPage(
     val tileSpacing by viewModel.tileSpacing.collectAsState()
     val homeScreenLayout by viewModel.homeScreenLayout.collectAsState()
 
-    var cropUri by remember { mutableStateOf<android.net.Uri?>(null) }
-    var hubCropUri by remember { mutableStateOf<android.net.Uri?>(null) }
-
-    val wallpaperPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
-            if (uri != null) cropUri = uri
-        }
-    )
-
-    val hubWallpaperPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
-            if (uri != null) hubCropUri = uri
-        }
-    )
-
-    cropUri?.let { uri ->
-        Dialog(
-            onDismissRequest = { cropUri = null },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
-            )
-        ) {
-            WallpaperCropScreen(
-                uri = uri,
-                onApply = { bitmap ->
-                    viewModel.saveCroppedWallpaper(bitmap)
-                    cropUri = null
-                },
-                onCancel = { cropUri = null }
-            )
-        }
-    }
-
-    hubCropUri?.let { uri ->
-        Dialog(
-            onDismissRequest = { hubCropUri = null },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
-            )
-        ) {
-            WallpaperCropScreen(
-                uri = uri,
-                onApply = { bitmap ->
-                    viewModel.saveCroppedHubWallpaper(bitmap)
-                    hubCropUri = null
-                },
-                onCancel = { hubCropUri = null }
-            )
-        }
-    }
-
     SettingsLazyColumn {
-        item(key = "theme") {
-            SettingGroup(title = stringResource(R.string.theme_setting)) {
-                ThemeChoiceRow(
-                    selectedMode = themeMode,
-                    onSelected = onThemeModeChanged
-                )
-            }
-        }
-
-        item(key = "wallpaper") {
-            val context = LocalContext.current
-            SettingGroup(title = stringResource(R.string.settings_wallpaper)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingChoiceRow(
-                        title = stringResource(R.string.theme_system),
-                        subtitle = stringResource(R.string.settings_wallpaper_system_sub),
-                        selected = !solidBackgroundEnabled && customWallpaperPath == null,
-                        onClick = {
-                            viewModel.setSolidBackgroundEnabled(false)
-                            viewModel.clearCustomWallpaper()
-                        }
-                    )
-
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_wallpaper_custom),
-                        subtitle = if (customWallpaperPath != null) stringResource(R.string.settings_wallpaper_custom_active) else stringResource(R.string.settings_wallpaper_none),
-                        selected = !solidBackgroundEnabled && customWallpaperPath != null,
-                        onClick = {
-                            viewModel.setSolidBackgroundEnabled(false)
-                            if (customWallpaperPath == null) {
-                                if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
-                                    wallpaperPicker.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                } else {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        context.getString(R.string.settings_wallpaper_pro_only),
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        }
-                    )
-
-                    if (!solidBackgroundEnabled && customWallpaperPath != null) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            Button(
-                                onClick = {
-                                    if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
-                                        wallpaperPicker.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                        )
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = LocalZuneColors.current.accentColor,
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Text(stringResource(R.string.settings_wallpaper_change))
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedButton(
-                                onClick = {
-                                    viewModel.clearCustomWallpaper()
-                                },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = LocalZuneColors.current.textMuted
-                                )
-                            ) {
-                                Text(stringResource(R.string.common_clear))
-                            }
-                        }
-                    }
-
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_solid_background),
-                        subtitle = stringResource(R.string.settings_solid_background_sub),
-                        selected = solidBackgroundEnabled,
-                        onClick = {
-                            viewModel.setSolidBackgroundEnabled(true)
-                        }
-                    )
-                }
-            }
-        }
-
-        item(key = "hub_wallpaper") {
-            val context = LocalContext.current
-            SettingGroup(title = stringResource(R.string.settings_hub_background)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_hub_background_same),
-                        subtitle = stringResource(R.string.settings_hub_background_same_sub),
-                        selected = hubBackgroundMode == HubBackgroundMode.MATCH_LAUNCHER,
-                        onClick = {
-                            viewModel.setHubBackgroundMode(HubBackgroundMode.MATCH_LAUNCHER)
-                        }
-                    )
-
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_wallpaper_custom),
-                        subtitle = if (customHubWallpaperPath != null) stringResource(R.string.settings_hub_wallpaper_active) else stringResource(R.string.settings_wallpaper_none),
-                        selected = hubBackgroundMode == HubBackgroundMode.CUSTOM,
-                        onClick = {
-                            if (customHubWallpaperPath == null) {
-                                if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
-                                    hubWallpaperPicker.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                } else {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        context.getString(R.string.settings_wallpaper_pro_only),
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            } else {
-                                viewModel.setHubBackgroundMode(HubBackgroundMode.CUSTOM)
-                            }
-                        }
-                    )
-
-                    if (hubBackgroundMode == HubBackgroundMode.CUSTOM && customHubWallpaperPath != null) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            Button(
-                                onClick = {
-                                    if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
-                                        hubWallpaperPicker.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                        )
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = LocalZuneColors.current.accentColor,
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Text(stringResource(R.string.settings_wallpaper_change))
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedButton(
-                                onClick = {
-                                    viewModel.clearCustomHubWallpaper()
-                                    viewModel.setHubBackgroundMode(HubBackgroundMode.MATCH_LAUNCHER)
-                                },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = LocalZuneColors.current.textMuted
-                                )
-                            ) {
-                                Text(stringResource(R.string.common_clear))
-                            }
-                        }
-                    }
-
-                    SettingChoiceRow(
-                        title = stringResource(R.string.theme_system),
-                        subtitle = stringResource(R.string.settings_wallpaper_system_sub),
-                        selected = hubBackgroundMode == HubBackgroundMode.SYSTEM,
-                        onClick = {
-                            viewModel.setHubBackgroundMode(HubBackgroundMode.SYSTEM)
-                        }
-                    )
-
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_solid_background),
-                        subtitle = stringResource(R.string.settings_solid_background_sub),
-                        selected = hubBackgroundMode == HubBackgroundMode.SOLID,
-                        onClick = {
-                            viewModel.setHubBackgroundMode(HubBackgroundMode.SOLID)
-                        }
-                    )
-
-                    if (hubBackgroundMode != HubBackgroundMode.SOLID) {
-                        val hubBackgroundOpacity by viewModel.hubBackgroundOpacity.collectAsState()
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_dim_opacity),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "%${(hubBackgroundOpacity * 100).toInt()}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = LocalZuneColors.current.accentColor
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Slider(
-                                value = hubBackgroundOpacity,
-                                onValueChange = { viewModel.setHubBackgroundOpacity(it) },
-                                valueRange = 0.0f..1.0f,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = LocalZuneColors.current.accentColor,
-                                    activeTrackColor = LocalZuneColors.current.accentColor,
-                                    inactiveTrackColor = (if (LocalZuneColors.current.isDark) Color.White else Color.Black).copy(alpha = 0.2f)
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        item(key = "accent") {
-            val customThemeColor by viewModel.customThemeColor.collectAsState()
-            SettingGroup(title = stringResource(R.string.settings_accent_color)) {
-                AccentColorChoiceRow(
-                    selectedColor = accentColor,
-                    customThemeColor = customThemeColor,
-                    onSelected = onAccentColorChanged,
-                    onCustomColorSelected = { colorInt ->
-                        viewModel.setCustomThemeColor(colorInt)
-                        onAccentColorChanged(AccentColor.CUSTOM)
-                    }
-                )
-            }
-        }
-
         item(key = "preview") {
-            val tileColumns by viewModel.tileColumns.collectAsState()
             val tileOpacity by viewModel.tileOpacity.collectAsState()
             LookPreviewCard(
                 themeMode = themeMode,
@@ -384,208 +93,18 @@ internal fun LookSettingsPage(
                 tileCornerStyle = tileCornerStyle,
                 tileSpacing = tileSpacing,
                 tileOpacity = tileOpacity,
-                tileColumns = tileColumns,
                 hubBackgroundOpacity = hubBackgroundOpacity,
                 hubBackgroundMode = hubBackgroundMode,
                 homeScreenLayout = homeScreenLayout
             )
         }
 
-        item(key = "home_screen_layout") {
-            SettingGroup(title = stringResource(R.string.settings_start_layout)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_layout_zune),
-                        subtitle = stringResource(R.string.settings_layout_zune_sub),
-                        selected = homeScreenLayout == HomeScreenLayout.ZUNE,
-                        onClick = {
-                            viewModel.setHomeScreenLayout(HomeScreenLayout.ZUNE)
-                        }
-                    )
-
-                    // Tablets run the Windows 8 full-screen Start instead of the phone tile grid.
-                    val isTablet = LocalIsWideScreen.current
-                    SettingChoiceRow(
-                        title = stringResource(if (isTablet) R.string.settings_layout_win8 else R.string.settings_layout_wp),
-                        subtitle = stringResource(if (isTablet) R.string.settings_layout_win8_sub else R.string.settings_layout_wp_sub),
-                        selected = homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE,
-                        onClick = {
-                            viewModel.setHomeScreenLayout(HomeScreenLayout.WINDOWS_PHONE)
-                        }
-                    )
-                }
-            }
-        }
-
-        item(key = "tile_columns") {
-            val tileColumns by viewModel.tileColumns.collectAsState()
-            SettingGroup(title = stringResource(R.string.settings_tile_columns)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_columns_4),
-                        subtitle = stringResource(R.string.settings_columns_4_sub),
-                        selected = tileColumns == 4,
-                        onClick = {
-                            viewModel.setTileColumns(4)
-                        }
-                    )
-
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_columns_8),
-                        subtitle = stringResource(R.string.settings_columns_8_sub),
-                        selected = tileColumns == 8,
-                        onClick = {
-                            viewModel.setTileColumns(8)
-                        }
-                    )
-                }
-            }
-        }
-
-        item(key = "tile_transparency") {
-            val tileOpacity by viewModel.tileOpacity.collectAsState()
-            val tileAnimation by viewModel.tileAnimation.collectAsState()
-
-            SettingGroup(title = stringResource(R.string.settings_tile_look)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_tile_transparency),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Text(
-                                text = "%${100 - tileOpacity}",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = LocalZuneColors.current.accentColor
-                            )
-                        }
-                        Text(
-                            text = stringResource(R.string.settings_tile_transparency_sub),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LocalZuneColors.current.textMuted
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        // The slider runs the way the label reads: to the right is more see-through.
-                        Slider(
-                            value = (100 - tileOpacity).toFloat(),
-                            onValueChange = { viewModel.setTileOpacity(100 - it.toInt()) },
-                            valueRange = 0f..100f,
-                            steps = 19,
-                            colors = SliderDefaults.colors(
-                                thumbColor = LocalZuneColors.current.accentColor,
-                                activeTrackColor = LocalZuneColors.current.accentColor,
-                                inactiveTrackColor = (if (LocalZuneColors.current.isDark) Color.White else Color.Black).copy(alpha = 0.2f)
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_tile_anim_slide),
-                        subtitle = stringResource(R.string.settings_tile_anim_slide_sub),
-                        selected = tileAnimation == TileAnimation.SLIDE,
-                        onClick = { viewModel.setTileAnimation(TileAnimation.SLIDE) }
-                    )
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_tile_anim_flip),
-                        subtitle = stringResource(R.string.settings_tile_anim_flip_sub),
-                        selected = tileAnimation == TileAnimation.FLIP,
-                        onClick = { viewModel.setTileAnimation(TileAnimation.FLIP) }
-                    )
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_tile_anim_off),
-                        subtitle = stringResource(R.string.settings_tile_anim_off_sub),
-                        selected = tileAnimation == TileAnimation.NONE,
-                        onClick = { viewModel.setTileAnimation(TileAnimation.NONE) }
-                    )
-                }
-            }
-        }
-
-        item(key = "weather_sky") {
-            val animatedSky by viewModel.weatherAnimatedSky.collectAsState()
-            SettingGroup(title = stringResource(R.string.hub_weather)) {
-                SettingSwitchRow(
-                    title = stringResource(R.string.weather_animated_sky),
-                    subtitle = stringResource(R.string.weather_animated_sky_sub),
-                    checked = animatedSky,
-                    onCheckedChange = viewModel::setWeatherAnimatedSky
-                )
-            }
-        }
-
-        item(key = "favorite_tiles") {
-            val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
-            val tileSpacing by viewModel.tileSpacing.collectAsState()
-
-            SettingGroup(title = stringResource(R.string.settings_favorite_tiles)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_corners_square),
-                        subtitle = stringResource(R.string.settings_corners_square_sub),
-                        selected = tileCornerStyle == TileCornerStyle.SHARP,
-                        onClick = {
-                            viewModel.setTileCornerStyle(TileCornerStyle.SHARP)
-                        }
-                    )
-
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_corners_rounded),
-                        subtitle = stringResource(R.string.settings_corners_rounded_sub),
-                        selected = tileCornerStyle == TileCornerStyle.ROUNDED,
-                        onClick = {
-                            viewModel.setTileCornerStyle(TileCornerStyle.ROUNDED)
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_tile_spacing),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Text(
-                                text = "$tileSpacing dp",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = LocalZuneColors.current.accentColor
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Slider(
-                            value = tileSpacing.toFloat(),
-                            onValueChange = { viewModel.setTileSpacing(it.toInt()) },
-                            valueRange = 0f..16f,
-                            steps = 15,
-                            colors = SliderDefaults.colors(
-                                thumbColor = LocalZuneColors.current.accentColor,
-                                activeTrackColor = LocalZuneColors.current.accentColor,
-                                inactiveTrackColor = (if (LocalZuneColors.current.isDark) Color.White else Color.Black).copy(alpha = 0.2f)
-                            )
-                        )
-                    }
-                }
-            }
+        items(LookPage.entries, key = { it.name }) { page ->
+            SystemSettingRow(
+                title = stringResource(page.titleRes),
+                subtitle = lookPageSummary(page, viewModel),
+                onClick = { onOpenPage(page) }
+            )
         }
     }
 }
@@ -593,12 +112,13 @@ internal fun LookSettingsPage(
 @Composable
 internal fun HubSettingsPage(
     viewModel: SettingsViewModel,
-    socialHubLayout: SocialHubLayout,
     directCallEnabled: Boolean,
-    onSocialHubLayoutChanged: (SocialHubLayout) -> Unit,
     onDirectCallChanged: (Boolean) -> Unit,
-    onClearBrowserHistory: () -> Unit
+    onOpenSocialSources: () -> Unit = {},
+    onOpenCalendars: () -> Unit = {}
 ) {
+    val socialHubLayout by viewModel.socialHubLayout.collectAsState()
+    val socialSourceList by viewModel.socialSourceList.collectAsState()
     val hubOrder by viewModel.hubOrder.collectAsState()
     var showHistoryClearToast by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -615,16 +135,140 @@ internal fun HubSettingsPage(
             SettingGroup(title = stringResource(R.string.settings_group_social)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
+                        title = stringResource(R.string.settings_social_sources),
+                        subtitle = stringResource(
+                            R.string.settings_social_sources_count,
+                            socialSourceList.count { it.isOn }
+                        ),
+                        selected = true,
+                        onClick = onOpenSocialSources
+                    )
+                    SettingChoiceRow(
                         title = stringResource(R.string.settings_social_timeline),
                         subtitle = stringResource(R.string.settings_social_timeline_sub),
                         selected = socialHubLayout == SocialHubLayout.TIMELINE,
-                        onClick = { onSocialHubLayoutChanged(SocialHubLayout.TIMELINE) }
+                        onClick = { viewModel.setSocialHubLayout(SocialHubLayout.TIMELINE) }
                     )
                     SettingChoiceRow(
                         title = stringResource(R.string.settings_social_grouped),
                         subtitle = stringResource(R.string.settings_social_grouped_sub),
                         selected = socialHubLayout == SocialHubLayout.GROUPED,
-                        onClick = { onSocialHubLayoutChanged(SocialHubLayout.GROUPED) }
+                        onClick = { viewModel.setSocialHubLayout(SocialHubLayout.GROUPED) }
+                    )
+                }
+            }
+        }
+
+        item(key = "calendar") {
+            val calendars by viewModel.calendars.collectAsState()
+            val visible by viewModel.visibleCalendars.collectAsState()
+            val reminder by viewModel.calendarReminderMinutes.collectAsState()
+            val weekStart by viewModel.calendarWeekStart.collectAsState()
+            val showPast by viewModel.calendarShowPast.collectAsState()
+
+            LaunchedEffect(Unit) { viewModel.refreshCalendars() }
+
+            SettingGroup(title = stringResource(R.string.settings_calendar_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingChoiceRow(
+                        title = stringResource(R.string.cal_calendars),
+                        subtitle = stringResource(
+                            R.string.cal_calendar_count,
+                            visible?.size ?: calendars.size,
+                            calendars.size
+                        ),
+                        selected = true,
+                        onClick = onOpenCalendars
+                    )
+                    Text(
+                        text = stringResource(R.string.cal_default_reminder),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted
+                    )
+                    (listOf(-1) + com.serkantkn.zunelauncher.data.model.CalendarEvent.REMINDER_CHOICES)
+                        .forEach { minutes ->
+                            SettingChoiceRow(
+                                title = when {
+                                    minutes < 0 -> stringResource(R.string.cal_no_reminder)
+                                    minutes == 0 -> stringResource(R.string.cal_reminder_at_start)
+                                    minutes >= 1440 -> stringResource(R.string.cal_reminder_days, minutes / 1440)
+                                    minutes >= 60 -> stringResource(R.string.clock_hours_short, minutes / 60)
+                                    else -> stringResource(R.string.clock_minutes_short, minutes)
+                                },
+                                subtitle = "",
+                                selected = (reminder ?: -1) == minutes,
+                                onClick = { viewModel.setCalendarReminderMinutes(minutes.takeIf { it >= 0 }) }
+                            )
+                        }
+                    Text(
+                        text = stringResource(R.string.cal_week_start),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted
+                    )
+                    listOf(
+                        0 to stringResource(R.string.cal_week_start_locale),
+                        java.util.Calendar.MONDAY to com.serkantkn.zunelauncher.ui.screens.clock.shortDayName(java.util.Calendar.MONDAY),
+                        java.util.Calendar.SUNDAY to com.serkantkn.zunelauncher.ui.screens.clock.shortDayName(java.util.Calendar.SUNDAY)
+                    ).forEach { (day, label) ->
+                        SettingChoiceRow(
+                            title = label,
+                            subtitle = "",
+                            selected = weekStart == day,
+                            onClick = { viewModel.setCalendarWeekStart(day) }
+                        )
+                    }
+                    SettingSwitchRow(
+                        title = stringResource(R.string.cal_show_past),
+                        subtitle = stringResource(R.string.cal_show_past_hint),
+                        checked = showPast,
+                        onCheckedChange = { viewModel.setCalendarShowPast(it) }
+                    )
+                }
+            }
+        }
+
+        item(key = "clock") {
+            val snoozeMinutes by viewModel.alarmSnoozeMinutes.collectAsState()
+            val autoSilence by viewModel.alarmAutoSilenceMinutes.collectAsState()
+            val showSeconds by viewModel.clockShowSeconds.collectAsState()
+
+            SettingGroup(title = stringResource(R.string.settings_clock_group)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.clock_snooze_length),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted
+                    )
+                    listOf(5, 10, 15, 20, 30).forEach { minutes ->
+                        SettingChoiceRow(
+                            title = stringResource(R.string.clock_minutes_short, minutes),
+                            subtitle = "",
+                            selected = snoozeMinutes == minutes,
+                            onClick = { viewModel.setAlarmSnoozeMinutes(minutes) }
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.clock_auto_silence),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted
+                    )
+                    listOf(5, 10, 15, 30, 0).forEach { minutes ->
+                        SettingChoiceRow(
+                            title = if (minutes == 0) {
+                                stringResource(R.string.clock_never)
+                            } else {
+                                stringResource(R.string.clock_minutes_short, minutes)
+                            },
+                            subtitle = "",
+                            selected = autoSilence == minutes,
+                            onClick = { viewModel.setAlarmAutoSilenceMinutes(minutes) }
+                        )
+                    }
+                    SettingSwitchRow(
+                        title = stringResource(R.string.clock_show_seconds),
+                        subtitle = stringResource(R.string.clock_show_seconds_hint),
+                        checked = showSeconds,
+                        onCheckedChange = { viewModel.setClockShowSeconds(it) }
                     )
                 }
             }
@@ -642,15 +286,74 @@ internal fun HubSettingsPage(
         }
 
         item(key = "internet") {
+            val searchEngine by viewModel.searchEngine.collectAsState()
+            val suggestionsOn by viewModel.searchSuggestionsEnabled.collectAsState()
+            var showClearDialog by remember { mutableStateOf(false) }
+
             SettingGroup(title = stringResource(R.string.settings_group_internet)) {
-                SystemSettingRow(
-                    title = stringResource(R.string.settings_clear_history),
-                    subtitle = stringResource(R.string.settings_clear_history_sub),
-                    onClick = {
-                        onClearBrowserHistory()
-                        showHistoryClearToast = true
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_search_engine),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted
+                    )
+                    SearchEngine.entries.forEach { engine ->
+                        SettingChoiceRow(
+                            title = engine.label,
+                            subtitle = if (engine.hasLuckySearch) {
+                                stringResource(R.string.settings_search_engine_lucky)
+                            } else {
+                                ""
+                            },
+                            selected = searchEngine == engine,
+                            onClick = { viewModel.setSearchEngine(engine) }
+                        )
                     }
-                )
+
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_search_suggestions),
+                        subtitle = stringResource(R.string.settings_search_suggestions_sub, searchEngine.label),
+                        checked = suggestionsOn,
+                        onCheckedChange = viewModel::setSearchSuggestionsEnabled
+                    )
+
+                    SystemSettingRow(
+                        title = stringResource(R.string.settings_clear_browsing),
+                        subtitle = stringResource(R.string.settings_clear_browsing_sub),
+                        onClick = { showClearDialog = true }
+                    )
+                }
+            }
+
+            if (showClearDialog) {
+                ZuneFlipDialog(
+                    onDismissRequest = { showClearDialog = false },
+                    title = stringResource(R.string.settings_clear_browsing),
+                    confirmButton = {
+                        ZuneDialogButton(
+                            text = stringResource(R.string.common_delete),
+                            onClick = {
+                                viewModel.clearBrowsingData()
+                                showClearDialog = false
+                                showHistoryClearToast = true
+                            },
+                            borderColor = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    dismissButton = {
+                        ZuneDialogButton(
+                            text = stringResource(R.string.common_cancel),
+                            onClick = { showClearDialog = false },
+                            borderColor = LocalZuneColors.current.textMuted
+                        )
+                    }
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_clear_browsing_confirm),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = LocalZuneColors.current.textMuted
+                    )
+                }
             }
         }
 
@@ -744,27 +447,12 @@ internal fun HubSettingsPage(
 
 @Composable
 internal fun NotificationsSettingsPage(
-    viewModel: SettingsViewModel,
-    onOpenAppFilter: () -> Unit = {}
+    viewModel: SettingsViewModel
 ) {
     val notificationStyle by viewModel.notificationStyle.collectAsState()
-    val disabledNotificationApps by viewModel.disabledNotificationApps.collectAsState()
     val context = LocalContext.current
 
     SettingsLazyColumn {
-        item(key = "notification_filter") {
-            SettingGroup(title = stringResource(R.string.settings_notification_filter)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingChoiceRow(
-                        title = stringResource(R.string.settings_notification_apps),
-                        subtitle = if (disabledNotificationApps.isEmpty()) stringResource(R.string.settings_notification_apps_all) else stringResource(R.string.settings_notification_apps_blocked, disabledNotificationApps.size),
-                        selected = true,
-                        onClick = onOpenAppFilter
-                    )
-                }
-            }
-        }
-
         item(key = "notification_style") {
             SettingGroup(title = stringResource(R.string.settings_notification_style)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -837,6 +525,8 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
     val mediaVolume by viewModel.mediaVolume.collectAsState()
     val ringVolume by viewModel.ringVolume.collectAsState()
     val volumeBarStyle by viewModel.volumeBarStyle.collectAsState()
+    val musicOnlineExtras by viewModel.musicOnlineExtras.collectAsState()
+    val musicOnlineWifiOnly by viewModel.musicOnlineWifiOnly.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.refreshSystemSettings()
@@ -965,6 +655,34 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                             )
                         )
                     }
+                }
+            }
+        }
+
+        item(key = "music_online") {
+            SettingGroup(title = stringResource(R.string.settings_music_online)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingSwitchRow(
+                        title = stringResource(R.string.music_online_extras),
+                        subtitle = stringResource(R.string.music_online_extras_summary),
+                        checked = musicOnlineExtras,
+                        onCheckedChange = viewModel::setMusicOnlineExtras
+                    )
+                    // Only worth showing once there is something for it to apply to.
+                    if (musicOnlineExtras) {
+                        SettingSwitchRow(
+                            title = stringResource(R.string.music_online_wifi_only),
+                            subtitle = stringResource(R.string.music_online_wifi_only_summary),
+                            checked = musicOnlineWifiOnly,
+                            onCheckedChange = viewModel::setMusicOnlineWifiOnly
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.settings_music_online_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textDim,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
         }

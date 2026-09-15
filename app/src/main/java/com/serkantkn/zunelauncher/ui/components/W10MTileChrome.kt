@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
@@ -48,6 +49,9 @@ import androidx.compose.ui.unit.dp
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.TileAnimation
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
+import com.serkantkn.zunelauncher.ui.components.rememberPressPoint
+import com.serkantkn.zunelauncher.ui.components.rememberWpTiltAngles
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -96,9 +100,12 @@ private fun rememberShowBack(
 ): Boolean {
     var showBack by remember(liveKey) { mutableStateOf(false) }
     val slot = remember(liveKey) { abs(liveKey.hashCode()) % FACE_SLOTS }
+    // A Start screen that keeps turning over is the most conspicuous motion the launcher has, so
+    // it is the first thing that should stop when motion is switched off.
+    val animationsEnabled = LocalAnimationsEnabled.current
 
-    LaunchedEffect(liveKey, hasBack, isEditing, animation) {
-        if (!hasBack || isEditing || animation == TileAnimation.NONE) {
+    LaunchedEffect(liveKey, hasBack, isEditing, animation, animationsEnabled) {
+        if (!hasBack || isEditing || animation == TileAnimation.NONE || !animationsEnabled) {
             showBack = false
             return@LaunchedEffect
         }
@@ -142,6 +149,12 @@ fun W10MTileSurface(
     tileColor: Color? = null,
     opacity: Float? = null,
     animationOverride: TileAnimation? = null,
+    /** Lit up because a dragged tile is hovering over its middle, ready to make a folder. */
+    highlighted: Boolean = false,
+    /** Folders answer a tap while the board is being edited; everything else waits its turn. */
+    clickableWhileEditing: Boolean = false,
+    /** Tiles that can be given a different picture get a third edit button for it. */
+    onIconClick: (() -> Unit)? = null,
     back: (@Composable BoxScope.() -> Unit)? = null,
     front: @Composable BoxScope.() -> Unit
 ) {
@@ -160,34 +173,16 @@ fun W10MTileSurface(
     )
 
     // ── Press tilt: the tile sinks in on the side the finger landed, as on Windows Phone ──
+    // The lean is the launcher's shared one; only the scale below is the tile's own, because it
+    // has to answer to dragging and editing as well as to a finger.
     var tileSize by remember { mutableStateOf(IntSize.Zero) }
-    var pressPoint by remember { mutableStateOf<Offset?>(null) }
-    LaunchedEffect(interactionSource) {
-        interactionSource.interactions.collect { interaction ->
-            pressPoint = when (interaction) {
-                is PressInteraction.Press -> interaction.pressPosition
-                is PressInteraction.Release, is PressInteraction.Cancel -> null
-                else -> pressPoint
-            }
-        }
-    }
-    val point = pressPoint
-    val tiltX = tiltOf(point?.y, tileSize.height)
-    val tiltY = tiltOf(point?.x, tileSize.width)
-    val tiltSpec = spring<Float>(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
-    val pressTiltX by animateFloatAsState(
-        targetValue = if (point != null) -tiltX * MAX_TILT_DEGREES else 0f,
-        animationSpec = tiltSpec,
-        label = "w10m_tile_tilt_x"
-    )
-    val pressTiltY by animateFloatAsState(
-        targetValue = if (point != null) tiltY * MAX_TILT_DEGREES else 0f,
-        animationSpec = tiltSpec,
-        label = "w10m_tile_tilt_y"
-    )
+    val point = rememberPressPoint(interactionSource)
+    val lean = rememberWpTiltAngles(point, tileSize, maxDegrees = TILE_TILT_DEGREES)
     val pressScale by animateFloatAsState(
         targetValue = when {
             isDragging -> 1.05f
+            // A folder target pulls back a little, the way a pocket opens.
+            highlighted -> 0.90f
             point != null -> 0.975f
             isEditing -> 0.97f
             else -> 1f
@@ -205,6 +200,7 @@ fun W10MTileSurface(
     // The outline is what draws a see-through tile; it fades away as the fill takes over.
     val strokeAlpha = (1f - fillOpacity).coerceIn(0f, 1f)
     val strokeColor = when {
+        highlighted -> Color.White
         isEditing -> zuneColors.accentColor
         zuneColors.isDark -> Color.White.copy(alpha = 0.20f + 0.25f * strokeAlpha)
         else -> Color.White.copy(alpha = 0.35f + 0.35f * strokeAlpha)
@@ -219,14 +215,14 @@ fun W10MTileSurface(
             .graphicsLayer {
                 scaleX = pressScale
                 scaleY = pressScale
-                rotationX = flipRotation + pressTiltX
-                rotationY = pressTiltY
+                rotationX = flipRotation + lean.rotationX
+                rotationY = lean.rotationY
                 cameraDistance = 12f * density.density
             }
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = { if (!isEditing) onClick() },
+                onClick = { if (!isEditing || clickableWhileEditing) onClick() },
                 onLongClick = if (isEditing) null else onLongClick
             )
     ) {
@@ -235,7 +231,7 @@ fun W10MTileSurface(
                 .matchParentSize()
                 .clip(tileShape)
                 .background((tileColor ?: zuneColors.accentColor).copy(alpha = fillOpacity))
-                .border(0.5.dp, strokeColor, tileShape)
+                .border(if (highlighted) 2.dp else 0.5.dp, strokeColor, tileShape)
         ) {
             TileFaces(animation = animation, turn = turn, front = front, back = back)
         }
@@ -276,6 +272,27 @@ fun W10MTileSurface(
                     modifier = Modifier.size(16.dp)
                 )
             }
+
+            if (onIconClick != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(4.dp)
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, Color.White, CircleShape)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .clickable(onClick = onIconClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Brush,
+                        contentDescription = stringResource(R.string.tile_icon_title),
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -297,13 +314,11 @@ fun tileForegroundColor(tileColor: Color? = null): Color {
     }
 }
 
-private const val MAX_TILT_DEGREES = 9f
-
-/** -1 at the near edge, 0 in the middle, 1 at the far edge; 0 when there is nothing to measure. */
-private fun tiltOf(coordinate: Float?, extent: Int): Float {
-    if (coordinate == null || extent <= 0) return 0f
-    return ((coordinate / extent) * 2f - 1f).coerceIn(-1f, 1f)
-}
+/**
+ * A tile leans further than a list row does — nine degrees at its corner against a row's five.
+ * The shared helper measures from the centre outwards, so the number here is twice the angle.
+ */
+private const val TILE_TILT_DEGREES = 18f
 
 /**
  * Puts the two faces on screen for the motion in use: [TileAnimation.SLIDE] pushes the front up

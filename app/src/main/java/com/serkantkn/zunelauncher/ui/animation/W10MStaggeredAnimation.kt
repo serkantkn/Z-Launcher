@@ -21,6 +21,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 
 /**
  * Authentic Windows Phone Turnstile transition.
@@ -57,6 +58,8 @@ fun Modifier.w10mStaggeredAnimation(
     /** 0f..1f position of this tile in the feather order (0 = leaves first). Negative = derive from screen position. */
     exitOrder: Float = -1f
 ): Modifier = composed {
+    // Motion switched off: the tiles are simply in place, neither turning in nor out.
+    if (!LocalAnimationsEnabled.current) return@composed this
     val density = LocalDensity.current.density
     val configuration = LocalConfiguration.current
     val screenWidthPx = (configuration.screenWidthDp * density).coerceAtLeast(1f)

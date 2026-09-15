@@ -24,7 +24,8 @@ class CloudApiParsingTest {
             ]}
             """.trimIndent()
         )
-        val items = GoogleDriveApi.parse(response)
+        // parse now hands back a page, since a folder can arrive in several of them.
+        val items = GoogleDriveApi.parse(response).items
 
         assertEquals(3, items.size)
         assertTrue(items[0].isFolder)
@@ -45,8 +46,8 @@ class CloudApiParsingTest {
 
     @Test
     fun driveHandlesAnEmptyAnswer() {
-        assertTrue(GoogleDriveApi.parse(JSONObject("{}")).isEmpty())
-        assertTrue(GoogleDriveApi.parse(JSONObject("""{"files":[]}""")).isEmpty())
+        assertTrue(GoogleDriveApi.parse(JSONObject("{}")).items.isEmpty())
+        assertTrue(GoogleDriveApi.parse(JSONObject("""{"files":[]}""")).items.isEmpty())
     }
 
     @Test

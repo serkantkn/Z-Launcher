@@ -58,8 +58,43 @@ data class CloudItem(
     val lastModified: Long,
     val mimeType: String,
     /** Google Docs, Sheets and Slides have no bytes of their own; they are exported instead. */
-    val isGoogleDocument: Boolean = false
+    val isGoogleDocument: Boolean = false,
+    /** A small picture of the file, where the service offers one. */
+    val thumbnailUrl: String? = null
 )
+
+/**
+ * One answer from a drive's "what is in this folder" call.
+ *
+ * Services hand a folder over a page at a time and say, with a token, whether there is more. The
+ * hub used to ask for two hundred and ignore the token, so the two hundred and first file in a
+ * folder simply did not exist as far as it was concerned.
+ */
+data class CloudPage(
+    val items: List<CloudItem>,
+    val nextPageToken: String? = null
+) {
+    val hasMore: Boolean get() = !nextPageToken.isNullOrEmpty()
+}
+
+/** How full a drive is. */
+data class CloudQuota(val usedBytes: Long, val totalBytes: Long) {
+    /** Null when the account has no limit, which Google reports for some workspace accounts. */
+    val fraction: Float? get() =
+        if (totalBytes > 0L) (usedBytes.toFloat() / totalBytes).coerceIn(0f, 1f) else null
+}
+
+/** A download or an upload while it is happening. */
+data class CloudTransfer(
+    val name: String,
+    val isUpload: Boolean,
+    val transferredBytes: Long,
+    val totalBytes: Long
+) {
+    /** Null while the service has not said how big the thing is. */
+    val fraction: Float? get() =
+        if (totalBytes > 0L) (transferredBytes.toFloat() / totalBytes).coerceIn(0f, 1f) else null
+}
 
 /** One step of the path inside a drive, used by the breadcrumb and the back gesture. */
 data class CloudCrumb(val id: String, val title: String)

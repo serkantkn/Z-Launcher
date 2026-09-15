@@ -443,18 +443,18 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
 
     /** Creates or updates the CalendarEvent bound to this note. Returns the updated draft. */
     suspend fun setNoteReminder(note: Note, timeMillis: Long): Note {
-        val cal = Calendar.getInstance().apply { timeInMillis = timeMillis }
         val events = calendarDataStore.eventsFlow.first()
         val existing = events.firstOrNull { it.id == note.linkedEventId }
-        val event = (existing ?: CalendarEvent(title = note.displayTitle, timestamp = timeMillis)).copy(
+        // A note's reminder is the launcher's own business, so it stays in the launcher's own
+        // store rather than being written into somebody's real calendar.
+        val event = (existing ?: CalendarEvent(title = note.displayTitle, startMillis = timeMillis)).copy(
             title = note.displayTitle,
             description = if (note.isChecklist) getApplication<Application>().localizedString(R.string.notes_items_list, note.items.size) else note.content.stripForEvent(),
-            timestamp = timeMillis,
-            hour = cal.get(Calendar.HOUR_OF_DAY),
-            minute = cal.get(Calendar.MINUTE),
-            category = "Not",
-            colorHex = note.colorHex ?: "#E0007A",
-            linkedNoteId = note.id
+            startMillis = timeMillis,
+            endMillis = timeMillis + CalendarEvent.DEFAULT_DURATION_MS,
+            colorHex = note.colorHex ?: CalendarEvent.DEFAULT_COLOR,
+            linkedNoteId = note.id,
+            isLocal = true
         )
         val updatedEvents = if (existing != null) events.map { if (it.id == event.id) event else it } else events + event
         calendarDataStore.saveEvents(updatedEvents)

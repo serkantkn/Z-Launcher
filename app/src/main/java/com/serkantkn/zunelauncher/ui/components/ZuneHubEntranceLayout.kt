@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 
 /** Default entrance curve: ultra slow-motion decelerating landing onto the left screen edge. */
 val ZuneHubEntranceEasing: Easing = CubicBezierEasing(0.05f, 0.95f, 0.08f, 1.0f)
@@ -59,13 +60,20 @@ fun rememberZuneHubEntranceState(
     bottomBarDurationMillis: Int = ZuneHubBottomBarDurationMillis,
     bottomBarEasing: Easing = FastOutSlowInEasing
 ): ZuneHubEntranceState {
+    val animationsEnabled = LocalAnimationsEnabled.current
     val state = remember {
         ZuneHubEntranceState(
             entranceAnim = Animatable(0f),
             bottomBarSlideAnim = Animatable(1f)
         )
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(animationsEnabled) {
+        if (!animationsEnabled) {
+            // Motion is switched off: the hub is simply already here.
+            state.entranceAnim.snapTo(1f)
+            state.bottomBarSlideAnim.snapTo(0f)
+            return@LaunchedEffect
+        }
         state.entranceAnim.animateTo(
             targetValue = 1f,
             animationSpec = tween(

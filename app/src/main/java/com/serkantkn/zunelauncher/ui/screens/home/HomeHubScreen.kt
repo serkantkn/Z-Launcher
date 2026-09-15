@@ -83,6 +83,7 @@ import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.components.W10MAppTile
 import com.serkantkn.zunelauncher.ui.components.LocalTileStyle
 import com.serkantkn.zunelauncher.ui.components.TileStyle
+import com.serkantkn.zunelauncher.ui.components.W10MFolderTile
 import com.serkantkn.zunelauncher.ui.components.W10MHubTile
 import com.serkantkn.zunelauncher.ui.components.W10MMusicTile
 import com.serkantkn.zunelauncher.ui.components.W10MPeopleTile
@@ -91,7 +92,15 @@ import com.serkantkn.zunelauncher.ui.screens.weather.conditionIcon
 import com.serkantkn.zunelauncher.ui.components.W10MCalendarTile
 import com.serkantkn.zunelauncher.ui.components.W10MClockTile
 import com.serkantkn.zunelauncher.ui.components.W10MNoteTile
+import com.serkantkn.zunelauncher.ui.components.W10MPersonTile
+import com.serkantkn.zunelauncher.ui.components.W10MThreadTile
+import com.serkantkn.zunelauncher.ui.components.W10MAlbumTile
+import com.serkantkn.zunelauncher.ui.components.W10MWebTile
+import com.serkantkn.zunelauncher.data.repository.BrowserBridge
+import com.serkantkn.zunelauncher.data.repository.PeopleBridge
 import com.serkantkn.zunelauncher.data.repository.NotesBridge
+import com.serkantkn.zunelauncher.data.repository.MusicBridge
+import com.serkantkn.zunelauncher.data.repository.PicturesBridge
 import com.serkantkn.zunelauncher.ui.components.ZuneClock
 import com.serkantkn.zunelauncher.ui.components.ZuneDate
 import com.serkantkn.zunelauncher.ui.components.ZuneHubTitle
@@ -103,11 +112,30 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import com.serkantkn.zunelauncher.util.TileIconFace
+import com.serkantkn.zunelauncher.ui.components.TileIconImage
+import com.serkantkn.zunelauncher.data.model.AppInfo
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import com.serkantkn.zunelauncher.data.model.TileIcon
+import com.serkantkn.zunelauncher.ui.components.TileIconPicker
 
 /**
  * Start. Everything below it draws tiles, so the tile look the user picked — how see-through the
  * tiles are and how their live faces move — is handed down from here.
  */
+/** An open folder lays its tiles out on a four-cell board of its own. */
+private const val FOLDER_COLUMNS = 4
+
+/**
+ * How many cells the start board is wide on a phone.
+ *
+ * Eight, and not a setting: Windows Phone's grid was eight small cells across, and the four-cell
+ * board this used to offer as an alternative drew tiles too large to be worth the choice.
+ */
+private const val START_TILE_COLUMNS = 8
+
 @Composable
 fun HomeHubScreen(
     isHubOpen: Boolean = false,
@@ -167,6 +195,12 @@ private fun HomeHubScreenContent(
     val calculatorTileSubtitle by viewModel.calculatorTileSubtitle.collectAsState()
     val enabledAlarms by viewModel.enabledAlarms.collectAsState()
     val upcomingEvents by viewModel.upcomingEvents.collectAsState()
+
+    // The phone's calendars are read afresh whenever Start comes back, so the takvim tile is not
+    // showing what the diary looked like when the launcher happened to start.
+    androidx.lifecycle.compose.LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshCalendarEvents()
+    }
     val latestMessages by viewModel.latestMessages.collectAsState()
     val peopleFaces by viewModel.peopleFaces.collectAsState()
     val missedCalls by viewModel.missedCalls.collectAsState()
@@ -178,10 +212,13 @@ private fun HomeHubScreenContent(
     val weatherUnit by viewModel.weatherUnit.collectAsState()
     val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
     val tileSpacing by viewModel.tileSpacing.collectAsState()
-    val tileColumns by viewModel.tileColumns.collectAsState()
     val homeScreenLayout by viewModel.homeScreenLayout.collectAsState()
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
+
+    // A tablet is about twice as wide as a phone, so twice the columns keeps a tile the same
+    // size in the hand rather than making it twice as big.
+    val gridColumns = if (isWideScreen) START_TILE_COLUMNS * 2 else START_TILE_COLUMNS
 
     // ── State ──
     var isEditMode by remember { mutableStateOf(false) }
@@ -355,6 +392,32 @@ private fun HomeHubScreenContent(
 
     // ── Shared Start-tile plumbing for both Metro boards (phone grid + Windows 8 board) ──
     var resizeTargetId by remember { mutableStateOf<String?>(null) }
+    var iconTargetApp by remember { mutableStateOf<AppInfo?>(null) }
+    var openFolderId by remember { mutableStateOf<String?>(null) }
+    val openFolder = localStartTiles.firstOrNull { it.id == openFolderId } as? StartTileUIModel.Folder
+
+    // A folder that has been emptied (or whose last tile was taken out) closes itself.
+    LaunchedEffect(openFolderId, localStartTiles) {
+        if (openFolderId != null && openFolder == null) openFolderId = null
+    }
+
+    /** Folders never nest, so a folder being dragged can not be dropped into anything. */
+    val canMerge: (String, String) -> Boolean = { sourceId, targetId ->
+        val source = localStartTiles.firstOrNull { it.id == sourceId }
+        val target = localStartTiles.firstOrNull { it.id == targetId }
+        source != null && source !is StartTileUIModel.Folder && target != null
+    }
+
+    val onMergeTiles: (String, String) -> Unit = { sourceId, targetId ->
+        val source = localStartTiles.firstOrNull { it.id == sourceId }
+        if (source !is StartTileUIModel.Folder) {
+            openFolderId = null
+            viewModel.mergeIntoFolder(sourceId, targetId)
+        }
+    }
+
+    // The open folder answers the back gesture before edit mode does.
+    BackHandler(enabled = openFolderId != null) { openFolderId = null }
 
     val onSetTileSize: (String, Int) -> Unit = { tileId, newSpan ->
         val current = localStartTiles.toMutableList()
@@ -375,6 +438,12 @@ private fun HomeHubScreenContent(
                 is StartTileUIModel.App -> StartTileUIModel.App(old.appInfo, newSpan)
                 is StartTileUIModel.NoteTile -> StartTileUIModel.NoteTile(old.note, newSpan)
                 is StartTileUIModel.QuickNote -> StartTileUIModel.QuickNote(newSpan)
+                is StartTileUIModel.Web -> old.copy(span = newSpan)
+            is StartTileUIModel.Album -> old.copy(span = newSpan)
+            is StartTileUIModel.MusicAlbum -> old.copy(span = newSpan)
+                is StartTileUIModel.Person -> old.copy(span = newSpan)
+                is StartTileUIModel.Thread -> old.copy(span = newSpan)
+                is StartTileUIModel.Folder -> old.copy(span = newSpan)
             }
             localStartTiles = current
             viewModel.updateStartTilesOrder(current)
@@ -389,6 +458,51 @@ private fun HomeHubScreenContent(
             localStartTiles = newList
             viewModel.updateStartTilesOrder(newList)
         }
+    }
+
+    // Collected here, not inside the tiles: this is what makes the board redraw when the icon
+    // style, the icon pack or a picked icon changes.
+    val tileIconStyle by viewModel.tileIconStyle.collectAsState()
+    val tileIconPack by viewModel.iconPackPackage.collectAsState()
+    val tileIconOverrides by viewModel.tileIconOverrides.collectAsState()
+    val tileFace: (AppInfo) -> TileIconFace = { app ->
+        viewModel.tileIconFace(app, tileIconStyle, tileIconPack, tileIconOverrides)
+    }
+
+    val tileIconPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        val target = iconTargetApp
+        if (uri != null && target != null) viewModel.setTileIconPicture(target.packageName, uri)
+        iconTargetApp = null
+    }
+
+    /** The brush button's page: the glyph, icon-pack drawable or picture this app's tile shows. */
+    @Composable
+    fun TileIconPopup() {
+        val target = iconTargetApp ?: return
+        val packDrawables = remember(tileIconPack) {
+            tileIconPack?.let { viewModel.iconPackDrawables(it) }.orEmpty()
+        }
+        TileIconPicker(
+            app = target,
+            current = tileIconOverrides[target.packageName] ?: TileIcon.Default,
+            packPackage = tileIconPack,
+            packDrawables = packDrawables,
+            packPreview = { name ->
+                tileIconPack?.let { viewModel.iconPackPreview(it, name) }
+            },
+            onPick = { icon ->
+                viewModel.setTileIcon(target.packageName, icon)
+                iconTargetApp = null
+            },
+            onPickPicture = {
+                tileIconPicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onDismiss = { iconTargetApp = null }
+        )
     }
 
     /** The resize button's popup: pick 1x1 / 2x2 / 2x4 / 4x4 for the tile being edited. */
@@ -407,12 +521,13 @@ private fun HomeHubScreenContent(
         )
     }
 
-    /** One Start tile: hub (with badge / live face), favourite app, or note. */
+    /** One Start tile: hub (with badge / live face), favourite app, note, or folder. */
     @Composable
     fun StartTile(
         model: StartTileUIModel,
         index: Int,
         isDragging: Boolean,
+        isMergeTarget: Boolean,
         tileModifier: Modifier,
         gridColumns: Int
     ) {
@@ -421,6 +536,12 @@ private fun HomeHubScreenContent(
             is StartTileUIModel.App -> "app_${model.appInfo.packageName}"
             is StartTileUIModel.NoteTile -> "note_${model.note.id}"
             is StartTileUIModel.QuickNote -> "note_new"
+            is StartTileUIModel.Web -> "web_${model.url}"
+            is StartTileUIModel.Album -> "album_${model.bucketId}"
+            is StartTileUIModel.MusicAlbum -> "record_${model.albumId}"
+            is StartTileUIModel.Person -> "person_${model.contactId}"
+            is StartTileUIModel.Thread -> "sms_${model.threadId}"
+            is StartTileUIModel.Folder -> "folder_${model.id}"
         }
         val animated = tileModifier.w10mStaggeredAnimation(
             progress = animationProgress.value,
@@ -548,12 +669,14 @@ private fun HomeHubScreenContent(
             is StartTileUIModel.App -> W10MAppTile(
                 label = model.appInfo.label,
                 tileKey = model.appInfo.packageName,
-                icon = viewModel.getAppIcon(model.appInfo.packageName),
+                face = tileFace(model.appInfo),
+                onIconClick = { iconTargetApp = model.appInfo },
                 span = model.span,
                 gridColumns = gridColumns,
                 spacing = tileSpacing.dp,
                 isEditing = isEditMode,
                 isDragging = isDragging,
+                isMergeTarget = isMergeTarget,
                 cornerStyle = tileCornerStyle,
                 notificationCount = notificationCounts[model.appInfo.packageName] ?: 0,
                 notificationTitle = latestMessages[model.appInfo.packageName]?.title,
@@ -564,6 +687,131 @@ private fun HomeHubScreenContent(
                 onResizeClick = onResize,
                 modifier = animated
             )
+            is StartTileUIModel.Folder -> W10MFolderTile(
+                folder = model,
+                span = model.span,
+                gridColumns = gridColumns,
+                spacing = tileSpacing.dp,
+                isEditing = isEditMode,
+                isDragging = isDragging,
+                isMergeTarget = isMergeTarget,
+                isOpen = openFolderId == model.id,
+                cornerStyle = tileCornerStyle,
+                appFace = tileFace,
+                onClick = { openFolderId = if (openFolderId == model.id) null else model.id },
+                onLongClick = { isEditMode = true },
+                onRemoveClick = { viewModel.dissolveFolder(model.id) },
+                onResizeClick = onResize,
+                modifier = animated
+            )
+            is StartTileUIModel.Person -> W10MPersonTile(
+                label = model.label,
+                photoUri = model.contact?.photoUri?.toString(),
+                span = model.span,
+                gridColumns = gridColumns,
+                spacing = tileSpacing.dp,
+                isEditing = isEditMode,
+                isDragging = isDragging,
+                isMergeTarget = isMergeTarget,
+                cornerStyle = tileCornerStyle,
+                onClick = {
+                    handleLaunch(launchKey) {
+                        PeopleBridge.open(model.contactId)
+                        onHubSelected(HubType.PEOPLE)
+                    }
+                },
+                onLongClick = { isEditMode = true },
+                onRemoveClick = { onRemoveTile(model.id) },
+                onResizeClick = onResize,
+                modifier = animated
+            )
+
+            is StartTileUIModel.Thread -> W10MThreadTile(
+                label = model.label,
+                span = model.span,
+                gridColumns = gridColumns,
+                spacing = tileSpacing.dp,
+                isEditing = isEditMode,
+                isDragging = isDragging,
+                isMergeTarget = isMergeTarget,
+                cornerStyle = tileCornerStyle,
+                onClick = {
+                    handleLaunch(launchKey) {
+                        com.serkantkn.zunelauncher.data.repository.MessagingBridge.openThread(model.threadId)
+                        onHubSelected(HubType.MESSAGING)
+                    }
+                },
+                onLongClick = { isEditMode = true },
+                onRemoveClick = { onRemoveTile(model.id) },
+                onResizeClick = onResize,
+                modifier = animated
+            )
+
+            is StartTileUIModel.MusicAlbum -> W10MAlbumTile(
+                label = model.name.ifBlank { stringResource(R.string.music_unknown_album) },
+                photoUris = listOfNotNull(model.artUri),
+                span = model.span,
+                gridColumns = gridColumns,
+                spacing = tileSpacing.dp,
+                isEditing = isEditMode,
+                isDragging = isDragging,
+                isMergeTarget = isMergeTarget,
+                cornerStyle = tileCornerStyle,
+                onClick = {
+                    handleLaunch(launchKey) {
+                        MusicBridge.playAlbum(model.albumId)
+                        onHubSelected(HubType.MUSIC)
+                    }
+                },
+                onLongClick = { isEditMode = true },
+                onRemoveClick = { onRemoveTile(model.id) },
+                onResizeClick = onResize,
+                modifier = animated
+            )
+
+            is StartTileUIModel.Album -> W10MAlbumTile(
+                label = model.name.ifBlank { stringResource(R.string.pics_unsorted_album) },
+                photoUris = model.covers,
+                span = model.span,
+                gridColumns = gridColumns,
+                spacing = tileSpacing.dp,
+                isEditing = isEditMode,
+                isDragging = isDragging,
+                isMergeTarget = isMergeTarget,
+                cornerStyle = tileCornerStyle,
+                onClick = {
+                    handleLaunch(launchKey) {
+                        PicturesBridge.openAlbum(model.bucketId)
+                        onHubSelected(HubType.PICTURES)
+                    }
+                },
+                onLongClick = { isEditMode = true },
+                onRemoveClick = { onRemoveTile(model.id) },
+                onResizeClick = onResize,
+                modifier = animated
+            )
+
+            is StartTileUIModel.Web -> W10MWebTile(
+                label = model.label,
+                span = model.span,
+                gridColumns = gridColumns,
+                spacing = tileSpacing.dp,
+                isEditing = isEditMode,
+                isDragging = isDragging,
+                isMergeTarget = isMergeTarget,
+                cornerStyle = tileCornerStyle,
+                onClick = {
+                    handleLaunch(launchKey) {
+                        BrowserBridge.open(model.url)
+                        onHubSelected(HubType.INTERNET)
+                    }
+                },
+                onLongClick = { isEditMode = true },
+                onRemoveClick = { onRemoveTile(model.id) },
+                onResizeClick = onResize,
+                modifier = animated
+            )
+
             is StartTileUIModel.NoteTile, is StartTileUIModel.QuickNote -> {
                 val note = (model as? StartTileUIModel.NoteTile)?.note
                 W10MNoteTile(
@@ -612,12 +860,41 @@ private fun HomeHubScreenContent(
                 onMoveTile = { from, to -> moveStartTile(from, to) },
                 onOpenApps = onNavigateToAppsHub,
                 onOpenSettings = { handleLaunch("hub_SETTINGS") { onHubSelected(HubType.SETTINGS) } },
-                tile = { model, index, isDragging, tileModifier ->
-                    StartTile(model, index, isDragging, tileModifier, gridColumns = 4)
+                onMergeTiles = onMergeTiles,
+                canMerge = canMerge,
+                tile = { model, index, isDragging, isMergeTarget, tileModifier ->
+                    StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = 4)
                 }
             )
 
             TileSizePopup()
+            TileIconPopup()
+
+            StartFolderPanel(
+                folder = openFolder,
+                isEditMode = isEditMode,
+                columns = FOLDER_COLUMNS,
+                gap = tileSpacing.dp,
+                onEnterEditMode = { isEditMode = true },
+                onRename = { name -> openFolderId?.let { viewModel.renameFolder(it, name) } },
+                onTakeOut = { childId ->
+                    openFolderId?.let { viewModel.removeFromFolder(it, childId) }
+                },
+                onMoveChild = { from, to ->
+                    openFolderId?.let { viewModel.moveWithinFolder(it, from, to) }
+                },
+                onClose = { openFolderId = null },
+                tile = { model, index, isDragging, isMergeTarget, tileModifier ->
+                    StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = FOLDER_COLUMNS)
+                }
+            )
+
+            StartEditBar(
+                visible = isEditMode && openFolder == null,
+                onDone = { isEditMode = false },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+
         }
     } else if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE) {
         val swipeGestureModifierWp = Modifier.pointerInput(isEditMode) {
@@ -652,11 +929,9 @@ private fun HomeHubScreenContent(
                 }
         ) {
             val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val gridCols = if (isWideScreen) tileColumns * 2 else tileColumns
-
             MetroStartBoard(
                 tiles = localStartTiles,
-                columns = gridCols,
+                columns = gridColumns,
                 gap = tileSpacing.dp,
                 contentPadding = PaddingValues(
                     start = if (isWideScreen) 32.dp else 12.dp,
@@ -668,12 +943,32 @@ private fun HomeHubScreenContent(
                 ),
                 onEnterEditMode = { isEditMode = true },
                 onMoveTile = { from, to -> moveStartTile(from, to) },
-                tile = { model, index, isDragging, tileModifier ->
-                    StartTile(model, index, isDragging, tileModifier, gridColumns = gridCols)
+                onMergeTiles = onMergeTiles,
+                canMerge = canMerge,
+                // The folder does not open over the board: it unfolds into it.
+                openFolder = openFolder,
+                isEditMode = isEditMode,
+                onFolderRename = { name -> openFolderId?.let { viewModel.renameFolder(it, name) } },
+                onFolderTakeOut = { childId ->
+                    openFolderId?.let { viewModel.removeFromFolder(it, childId) }
+                },
+                onFolderMoveChild = { from, to ->
+                    openFolderId?.let { viewModel.moveWithinFolder(it, from, to) }
+                },
+                tile = { model, index, isDragging, isMergeTarget, tileModifier ->
+                    StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = gridColumns)
                 }
             )
 
             TileSizePopup()
+            TileIconPopup()
+
+            StartEditBar(
+                visible = isEditMode,
+                onDone = { isEditMode = false },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+
         }
     } else {
         Box(
@@ -842,7 +1137,7 @@ private fun HomeHubScreenContent(
                         ) { index ->
                             val favApp = favoriteApps[index]
                             SmallFavoriteTile(
-                                icon = viewModel.getAppIcon(favApp.appInfo.packageName),
+                                face = tileFace(favApp.appInfo),
                                 label = favApp.appInfo.label,
                                 onClick = { isFavoritesExpanded = true },
                                 modifier = Modifier
@@ -858,7 +1153,7 @@ private fun HomeHubScreenContent(
 
                     LazyVerticalGrid(
                         state = gridState,
-                        columns = GridCells.Fixed(if (isWideScreen) tileColumns * 2 else tileColumns),
+                        columns = GridCells.Fixed(gridColumns),
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer { alpha = expandedAlpha }
@@ -915,9 +1210,10 @@ private fun HomeHubScreenContent(
 
                                     W10MAppTile(
                                         label = favApp.appInfo.label,
-                                        icon = viewModel.getAppIcon(favApp.appInfo.packageName),
-                                        span = favApp.span.coerceAtMost(if (isWideScreen) tileColumns * 2 else tileColumns),
-                                        gridColumns = if (isWideScreen) tileColumns * 2 else tileColumns,
+                                        face = tileFace(favApp.appInfo),
+                                        onIconClick = { iconTargetApp = favApp.appInfo },
+                                        span = favApp.span.coerceAtMost(gridColumns),
+                                        gridColumns = gridColumns,
                                         isEditing = isEditMode,
                                         isDragging = isDragging,
                                         cornerStyle = tileCornerStyle,
@@ -1005,6 +1301,7 @@ private fun HomeHubScreenContent(
             }
 
             TileSizePopup()
+            TileIconPopup()
         }
     }
 }
@@ -1016,7 +1313,7 @@ private fun HomeHubScreenContent(
 // ────────────────────────────────────────────────────────
 @Composable
 private fun SmallFavoriteTile(
-    icon: Drawable?,
+    face: TileIconFace,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -1039,16 +1336,13 @@ private fun SmallFavoriteTile(
                 .background(zuneColors.accentColor)
                 .border(0.5.dp, stroke, RoundedCornerShape(8.dp))
         ) {
-            icon?.let { drawable ->
-                val bitmap = remember(drawable) { drawable.toImageBitmap() }
-                Image(
-                    bitmap = bitmap,
-                    contentDescription = label,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .align(Alignment.Center)
-                )
-            }
+            TileIconImage(
+                face = face,
+                size = 24.dp,
+                ink = Color.White,
+                contentDescription = label,
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
     }
 }

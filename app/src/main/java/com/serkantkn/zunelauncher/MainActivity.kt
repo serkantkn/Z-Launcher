@@ -44,6 +44,15 @@ class MainActivity : FragmentActivity() {
 
         /** Set by the keyboard's quick settings; carries the name of a SettingsTab entry. */
         const val EXTRA_OPEN_SETTINGS_TAB = "open_settings_tab"
+
+        /** Set by a message notification being tapped; carries the conversation to open. */
+        const val EXTRA_OPEN_MESSAGE_THREAD = "open_message_thread"
+
+        /** Carries the name of a HubType to bring forward; used by the clock's own notifications. */
+        const val EXTRA_OPEN_HUB = "open_hub"
+
+        /** Carries the name of a ClockPage, for a request that names a page as well as the hub. */
+        const val EXTRA_OPEN_CLOCK_PAGE = "open_clock_page"
     }
 
     private var currentVolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
@@ -55,6 +64,15 @@ class MainActivity : FragmentActivity() {
         lifecycleScope.launch {
             settingsDataStore.volumeBarStyle.collect { style ->
                 currentVolumeBarStyle = style
+            }
+        }
+
+        // A call has to be answerable without unlocking the phone, and has to wake the screen.
+        lifecycleScope.launch {
+            com.serkantkn.zunelauncher.data.service.CallManager.callStatus.collect { status ->
+                val onACall = status != com.serkantkn.zunelauncher.data.service.CallStatus.IDLE
+                setShowWhenLocked(onACall)
+                setTurnScreenOn(onACall)
             }
         }
         
@@ -97,6 +115,8 @@ class MainActivity : FragmentActivity() {
 
         handleEmailIntent(intent)
         handleSettingsIntent(intent)
+        handleMessageIntent(intent)
+        handleHubIntent(intent)
         setLauncherContent()
     }
 
@@ -104,6 +124,33 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         handleEmailIntent(intent)
         handleSettingsIntent(intent)
+        handleMessageIntent(intent)
+        handleHubIntent(intent)
+    }
+
+    /** A message notification tap carries the conversation; hand it to the Messaging hub. */
+    private fun handleMessageIntent(intent: Intent?) {
+        val threadId = intent?.getLongExtra(EXTRA_OPEN_MESSAGE_THREAD, -1L) ?: return
+        if (threadId <= 0L) return
+        com.serkantkn.zunelauncher.data.repository.MessagingBridge.openThread(threadId)
+        intent.removeExtra(EXTRA_OPEN_MESSAGE_THREAD)
+    }
+
+    /**
+     * The status bar's alarm symbol and the timer's own notification both land here: they name a
+     * hub, and sometimes the page inside it.
+     */
+    private fun handleHubIntent(intent: Intent?) {
+        val hubName = intent?.getStringExtra(EXTRA_OPEN_HUB) ?: return
+        val hub = runCatching { com.serkantkn.zunelauncher.data.model.HubType.valueOf(hubName) }.getOrNull()
+        if (hub != null) com.serkantkn.zunelauncher.data.repository.HubBridge.open(hub)
+        intent.getStringExtra(EXTRA_OPEN_CLOCK_PAGE)?.let { pageName ->
+            runCatching { com.serkantkn.zunelauncher.data.repository.ClockPage.valueOf(pageName) }
+                .getOrNull()
+                ?.let { com.serkantkn.zunelauncher.data.repository.ClockBridge.openPage(it) }
+        }
+        intent.removeExtra(EXTRA_OPEN_HUB)
+        intent.removeExtra(EXTRA_OPEN_CLOCK_PAGE)
     }
 
     /** A new-mail notification tap carries the message address; hand it to the Email hub. */
@@ -125,12 +172,15 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         com.serkantkn.zunelauncher.data.repository.SocialRepository.isLauncherForeground = true
+        // The call screen lives in here, so a call notification is only wanted while this is away.
+        com.serkantkn.zunelauncher.data.service.CallManager.setScreenVisible(true)
         com.serkantkn.zunelauncher.data.service.WpToastOverlay.hide()
         com.serkantkn.zunelauncher.data.service.WpVolumeOverlay.hide()
     }
 
     override fun onPause() {
         com.serkantkn.zunelauncher.data.repository.SocialRepository.isLauncherForeground = false
+        com.serkantkn.zunelauncher.data.service.CallManager.setScreenVisible(false)
         super.onPause()
     }
 
@@ -168,6 +218,7 @@ class MainActivity : FragmentActivity() {
             val customThemeColor by settingsViewModel.customThemeColor.collectAsState()
             val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
             val fontScale by settingsViewModel.fontScale.collectAsState()
+            val animationsEnabled by settingsViewModel.animationsEnabled.collectAsState()
 
             ZuneLauncherTheme(
                 themeMode = themeMode,
@@ -175,7 +226,8 @@ class MainActivity : FragmentActivity() {
                 dynamicThemeColor = dynamicThemeColor,
                 customThemeColor = customThemeColor,
                 solidBackgroundEnabled = solidBackgroundEnabled,
-                fontScale = fontScale
+                fontScale = fontScale,
+                animationsEnabled = animationsEnabled
             ) {
                 LauncherScreen()
             }

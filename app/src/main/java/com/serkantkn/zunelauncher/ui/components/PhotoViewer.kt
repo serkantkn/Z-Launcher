@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -69,7 +71,9 @@ fun PhotoViewer(
     onDismiss: () -> Unit,
     onToggleFavorite: (MediaImage) -> Unit,
     onEditPhoto: (MediaImage) -> Unit = {},
-    onDeletePhoto: (MediaImage) -> Unit = {}
+    onDeletePhoto: (MediaImage) -> Unit = {},
+    onShare: (MediaImage) -> Unit = {},
+    onSetWallpaper: (MediaImage) -> Unit = {}
 ) {
     AnimatedVisibility(
         visible = !photos.isNullOrEmpty(),
@@ -89,9 +93,25 @@ fun PhotoViewer(
         var currentScale by remember { mutableFloatStateOf(1f) }
         var currentDragOffsetY by remember { mutableFloatStateOf(0f) }
         var showControls by remember { mutableStateOf(true) }
+        var showDetails by remember { mutableStateOf(false) }
+        var slideshow by remember { mutableStateOf(false) }
 
         val currentPhoto = photos.getOrNull(pagerState.currentPage) ?: photos[0]
-        val isFavorite = currentPhoto.id.toString() in favoritePhotoIds
+        // Marked now by a key that survives a rescan, marked once by a plain id: both count.
+        val isFavorite = currentPhoto.stableKey in favoritePhotoIds ||
+            currentPhoto.id.toString() in favoritePhotoIds
+
+        // A slideshow turns the page by itself and gets the controls out of the way; any tap on
+        // the picture stops it, which is the only way out anybody looks for.
+        LaunchedEffect(slideshow, photos.size) {
+            if (!slideshow) return@LaunchedEffect
+            showControls = false
+            while (true) {
+                kotlinx.coroutines.delay(SLIDESHOW_MILLIS)
+                val next = (pagerState.currentPage + 1) % photos.size
+                pagerState.animateScrollToPage(next)
+            }
+        }
 
         val backgroundAlpha = (1f - (abs(currentDragOffsetY) / 600f)).coerceIn(0.2f, 1f)
 
@@ -123,7 +143,14 @@ fun PhotoViewer(
                         }
                     },
                     onDismiss = onDismiss,
-                    onToggleControls = { showControls = !showControls }
+                    onToggleControls = {
+                        if (slideshow) {
+                            slideshow = false
+                            showControls = true
+                        } else {
+                            showControls = !showControls
+                        }
+                    }
                 )
             }
 
@@ -184,8 +211,129 @@ fun PhotoViewer(
                             label = stringResource(R.string.common_close),
                             onClick = onDismiss
                         )
+                    ),
+                    menuItems = listOf(
+                        WpBarMenuItem(stringResource(R.string.common_share)) { onShare(currentPhoto) },
+                        WpBarMenuItem(stringResource(R.string.pics_menu_wallpaper)) {
+                            onSetWallpaper(currentPhoto)
+                        },
+                        WpBarMenuItem(stringResource(R.string.pics_menu_slideshow)) {
+                            slideshow = true
+                        },
+                        WpBarMenuItem(stringResource(R.string.pics_menu_details)) { showDetails = true }
                     )
                 )
+            }
+            if (showDetails) {
+                PhotoDetailsPanel(photo = currentPhoto, onDismiss = { showDetails = false })
+            }
+        }
+    }
+}
+
+/** How long a slideshow rests on each picture. */
+private const val SLIDESHOW_MILLIS = 3_500L
+
+/**
+ * Everything the picture itself knows about.
+ *
+ * The file's own size and shape come from the media store; the camera, the lens and the moment
+ * come from the EXIF block written by whatever took it, which many pictures — screenshots,
+ * downloads, anything re-encoded by a chat app — simply do not have. Those lines are left out
+ * rather than shown empty.
+ */
+@Composable
+private fun PhotoDetailsPanel(photo: MediaImage, onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val zuneColors = com.serkantkn.zunelauncher.ui.theme.LocalZuneColors.current
+    var exif by remember(photo.uri) { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+
+    val cameraLabel = stringResource(R.string.pics_details_camera)
+    val lensLabel = stringResource(R.string.pics_details_lens)
+    val exposureLabel = stringResource(R.string.pics_details_exposure)
+
+    LaunchedEffect(photo.uri) {
+        exif = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.serkantkn.zunelauncher.util.readPhotoExif(
+                context = context,
+                uri = photo.uri,
+                cameraLabel = cameraLabel,
+                lensLabel = lensLabel,
+                exposureLabel = exposureLabel
+            )
+        }
+    }
+
+    val rows = buildList {
+        add(stringResource(R.string.pics_details_name) to photo.displayName)
+        if (photo.bucketName.isNotBlank()) {
+            add(stringResource(R.string.pics_details_folder) to photo.bucketName)
+        }
+        add(
+            stringResource(R.string.pics_details_date) to java.text.SimpleDateFormat(
+                "d MMMM yyyy HH:mm",
+                java.util.Locale.getDefault()
+            ).format(java.util.Date(photo.dateAdded * 1000L))
+        )
+        if (photo.sizeBytes > 0L) {
+            add(
+                stringResource(R.string.pics_details_size) to
+                    com.serkantkn.zunelauncher.util.formatFileSize(photo.sizeBytes)
+            )
+        }
+        if (photo.width > 0 && photo.height > 0) {
+            add(stringResource(R.string.pics_details_dimensions) to "${photo.width} × ${photo.height}")
+        }
+        if (photo.isVideo && photo.durationMillis > 0L) {
+            add(
+                stringResource(R.string.pics_details_duration) to
+                    com.serkantkn.zunelauncher.util.formatDuration(photo.durationMillis)
+            )
+        }
+        if (photo.mimeType.isNotBlank()) {
+            add(stringResource(R.string.pics_details_type) to photo.mimeType)
+        }
+        addAll(exif)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.78f))
+            .pointerInput(Unit) { detectTapGestures { onDismiss() } }
+    ) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(if (zuneColors.isDark) Color(0xFF121212) else Color.White)
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 20.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.pics_details_title),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Light),
+                color = zuneColors.accentColor,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            rows.forEach { (label, value) ->
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 5.dp)
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = zuneColors.textDim,
+                        modifier = Modifier.width(110.dp)
+                    )
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
         }
     }

@@ -1,207 +1,261 @@
 package com.serkantkn.zunelauncher.ui.screens.clock
 
-import androidx.annotation.StringRes
-import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.serkantkn.zunelauncher.data.datastore.ClockDataStore
 import com.serkantkn.zunelauncher.data.model.Alarm
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import com.serkantkn.zunelauncher.data.model.WorldCity
+import com.serkantkn.zunelauncher.data.service.TimerNotifier
+import com.serkantkn.zunelauncher.data.service.TimerReceiver
+import com.serkantkn.zunelauncher.di.appContainer
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class WorldCity(
-    val id: String = java.util.UUID.randomUUID().toString(),
-    @StringRes val cityRes: Int,
-    @StringRes val countryRes: Int,
-    val timeZoneId: String
-)
-
+/**
+ * The Clock hub's state.
+ *
+ * Nothing here counts. The stopwatch and the timer are each a moment written down — when the watch
+ * would have started, when the countdown runs out — so the reading is worked out from the current
+ * time whenever anybody looks. That is what makes them survive the launcher being killed, and it
+ * is why the timer's end is booked with the system rather than being a loop in here that stops the
+ * moment this object does.
+ */
 class ClockHubViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val alarmDataStore = application.appContainer.alarmDataStore
-    private val alarmScheduler = application.appContainer.alarmScheduler
+    private val container = application.appContainer
+    private val alarmDataStore = container.alarmDataStore
+    private val alarmScheduler = container.alarmScheduler
+    private val clockDataStore = container.clockDataStore
+    private val timerScheduler = container.timerScheduler
+    private val settingsDataStore = container.settingsDataStore
 
-    // --- ALARMS ---
-    private val _alarms = MutableStateFlow<List<Alarm>>(emptyList())
-    val alarms: StateFlow<List<Alarm>> = _alarms.asStateFlow()
+    // ── Alarms ──────────────────────────────────────────────────────────────
 
-    // --- WORLD CLOCK ---
-    private val _worldCities = MutableStateFlow<List<WorldCity>>(
-        listOf(
-            WorldCity(cityRes = R.string.city_istanbul, countryRes = R.string.country_turkey, timeZoneId = "Europe/Istanbul"),
-            WorldCity(cityRes = R.string.city_london, countryRes = R.string.country_uk, timeZoneId = "Europe/London"),
-            WorldCity(cityRes = R.string.city_new_york, countryRes = R.string.country_usa, timeZoneId = "America/New_York"),
-            WorldCity(cityRes = R.string.city_tokyo, countryRes = R.string.country_japan, timeZoneId = "Asia/Tokyo"),
-            WorldCity(cityRes = R.string.city_paris, countryRes = R.string.country_france, timeZoneId = "Europe/Paris"),
-            WorldCity(cityRes = R.string.city_sydney, countryRes = R.string.country_australia, timeZoneId = "Australia/Sydney")
-        )
-    )
-    val worldCities: StateFlow<List<WorldCity>> = _worldCities.asStateFlow()
+    val alarms: StateFlow<List<Alarm>> = alarmDataStore.alarmsFlow
+        // Note reminders belong to the note that made them, not to the alarm list.
+        .map { list -> list.filter { it.noteId == null }.sortedWith(compareBy({ it.hour }, { it.minute })) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    // --- STOPWATCH ---
-    private val _stopwatchTimeMs = MutableStateFlow(0L)
-    val stopwatchTimeMs: StateFlow<Long> = _stopwatchTimeMs.asStateFlow()
+    /** Whether the phone will let the launcher name an exact minute for an alarm. */
+    private val _canScheduleExact = MutableStateFlow(true)
+    val canScheduleExact: StateFlow<Boolean> = _canScheduleExact.asStateFlow()
 
-    private val _isStopwatchRunning = MutableStateFlow(false)
-    val isStopwatchRunning: StateFlow<Boolean> = _isStopwatchRunning.asStateFlow()
-
-    private val _stopwatchLaps = MutableStateFlow<List<Long>>(emptyList())
-    val stopwatchLaps: StateFlow<List<Long>> = _stopwatchLaps.asStateFlow()
-
-    private var stopwatchJob: Job? = null
-
-    // --- TIMER ---
-    private val _timerTotalMs = MutableStateFlow(5 * 60 * 1000L) // Default 5 minutes
-    val timerTotalMs: StateFlow<Long> = _timerTotalMs.asStateFlow()
-
-    private val _timerRemainingMs = MutableStateFlow(5 * 60 * 1000L)
-    val timerRemainingMs: StateFlow<Long> = _timerRemainingMs.asStateFlow()
-
-    private val _isTimerRunning = MutableStateFlow(false)
-    val isTimerRunning: StateFlow<Boolean> = _isTimerRunning.asStateFlow()
-
-    private var timerJob: Job? = null
-
-    init {
-        alarmDataStore.alarmsFlow.onEach {
-            _alarms.value = it
-        }.launchIn(viewModelScope)
+    fun checkExactAlarmPermission() {
+        _canScheduleExact.value = alarmScheduler.canScheduleExact()
     }
 
-    // --- ALARM ACTIONS ---
-    fun addAlarm(alarm: Alarm) {
-        val currentList = _alarms.value.toMutableList()
-        currentList.add(alarm)
+    /** The defaults a newly created alarm starts from, as set in Settings. */
+    val defaultSnoozeMinutes: StateFlow<Int> = settingsDataStore.alarmSnoozeMinutes
+        .stateIn(viewModelScope, SharingStarted.Eagerly, Alarm.DEFAULT_SNOOZE_MINUTES)
+
+    val defaultAutoSilenceMinutes: StateFlow<Int> = settingsDataStore.alarmAutoSilenceMinutes
+        .stateIn(viewModelScope, SharingStarted.Eagerly, Alarm.DEFAULT_AUTO_SILENCE_MINUTES)
+
+    val showSeconds: StateFlow<Boolean> = settingsDataStore.clockShowSeconds
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+    fun saveAlarm(alarm: Alarm) {
         viewModelScope.launch {
-            alarmDataStore.saveAlarms(currentList)
+            val stored = alarmDataStore.alarmsFlow.first()
+            val updated = if (stored.any { it.id == alarm.id }) {
+                stored.map { if (it.id == alarm.id) alarm else it }
+            } else {
+                stored + alarm
+            }
+            alarmDataStore.saveAlarms(updated)
             alarmScheduler.schedule(alarm)
         }
     }
 
-    fun updateAlarm(alarm: Alarm) {
-        val currentList = _alarms.value.toMutableList()
-        val index = currentList.indexOfFirst { it.id == alarm.id }
-        if (index != -1) {
-            currentList[index] = alarm
-            viewModelScope.launch {
-                alarmDataStore.saveAlarms(currentList)
-                alarmScheduler.schedule(alarm)
-            }
-        }
-    }
-
     fun toggleAlarm(alarm: Alarm) {
-        val updatedAlarm = alarm.copy(isEnabled = !alarm.isEnabled)
-        updateAlarm(updatedAlarm)
+        // Turning one back on clears a snooze that was left over from the last time it rang.
+        saveAlarm(alarm.copy(isEnabled = !alarm.isEnabled, snoozedUntilMillis = null))
     }
 
     fun deleteAlarm(alarm: Alarm) {
-        val currentList = _alarms.value.toMutableList()
-        currentList.removeIf { it.id == alarm.id }
         viewModelScope.launch {
-            alarmDataStore.saveAlarms(currentList)
+            val stored = alarmDataStore.alarmsFlow.first()
+            alarmDataStore.saveAlarms(stored.filterNot { it.id == alarm.id })
             alarmScheduler.cancel(alarm)
         }
     }
 
-    // --- WORLD CLOCK ACTIONS ---
-    fun addWorldCity(city: WorldCity) {
-        if (_worldCities.value.none { it.timeZoneId == city.timeZoneId }) {
-            _worldCities.value = _worldCities.value + city
-        }
+    /** Drops a pending snooze and puts the alarm back on its own schedule. */
+    fun cancelSnooze(alarm: Alarm) {
+        saveAlarm(alarm.copy(snoozedUntilMillis = null))
     }
 
-    fun removeWorldCity(city: WorldCity) {
-        _worldCities.value = _worldCities.value.filterNot { it.id == city.id }
+    fun duplicateAlarm(alarm: Alarm) {
+        saveAlarm(alarm.copy(id = java.util.UUID.randomUUID().toString(), snoozedUntilMillis = null))
     }
 
-    // --- STOPWATCH ACTIONS ---
-    fun toggleStopwatch() {
-        if (_isStopwatchRunning.value) {
-            pauseStopwatch()
-        } else {
-            startStopwatch()
-        }
-    }
+    // ── World clock ─────────────────────────────────────────────────────────
 
-    private fun startStopwatch() {
-        _isStopwatchRunning.value = true
-        stopwatchJob = viewModelScope.launch {
-            val startTime = System.currentTimeMillis() - _stopwatchTimeMs.value
-            while (_isStopwatchRunning.value) {
-                _stopwatchTimeMs.value = System.currentTimeMillis() - startTime
-                delay(10)
+    val cities: StateFlow<List<WorldCity>> = clockDataStore.cities
+        .map { it ?: WorldCity.DEFAULTS }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, WorldCity.DEFAULTS)
+
+    fun addCity(city: WorldCity) {
+        viewModelScope.launch {
+            val current = cities.value
+            if (current.none { it.timeZoneId == city.timeZoneId }) {
+                clockDataStore.saveCities(current + city)
             }
         }
     }
 
-    fun pauseStopwatch() {
-        _isStopwatchRunning.value = false
-        stopwatchJob?.cancel()
+    fun removeCity(city: WorldCity) {
+        viewModelScope.launch {
+            clockDataStore.saveCities(cities.value.filterNot { it.timeZoneId == city.timeZoneId })
+        }
+    }
+
+    /** Moves a city one place up or down the wall. */
+    fun moveCity(city: WorldCity, by: Int) {
+        viewModelScope.launch {
+            val current = cities.value.toMutableList()
+            val from = current.indexOfFirst { it.timeZoneId == city.timeZoneId }
+            val to = from + by
+            if (from < 0 || to !in current.indices) return@launch
+            current.add(to, current.removeAt(from))
+            clockDataStore.saveCities(current)
+        }
+    }
+
+    // ── Stopwatch ───────────────────────────────────────────────────────────
+
+    val stopwatch: StateFlow<ClockDataStore.StopwatchState> = clockDataStore.stopwatch
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ClockDataStore.StopwatchState())
+
+    fun toggleStopwatch() {
+        val state = stopwatch.value
+        val now = System.currentTimeMillis()
+        viewModelScope.launch {
+            clockDataStore.saveStopwatch(
+                if (state.isRunning) {
+                    state.copy(isRunning = false, elapsedMillis = state.readingAt(now))
+                } else {
+                    state.copy(isRunning = true, baseMillis = now - state.elapsedMillis)
+                }
+            )
+        }
     }
 
     fun resetStopwatch() {
-        pauseStopwatch()
-        _stopwatchTimeMs.value = 0L
-        _stopwatchLaps.value = emptyList()
-    }
-
-    fun addStopwatchLap() {
-        if (_stopwatchTimeMs.value > 0L) {
-            _stopwatchLaps.value = listOf(_stopwatchTimeMs.value) + _stopwatchLaps.value
+        viewModelScope.launch {
+            clockDataStore.saveStopwatch(ClockDataStore.StopwatchState())
         }
     }
 
-    // --- TIMER ACTIONS ---
-    fun setTimerDuration(hours: Int, minutes: Int, seconds: Int) {
-        val totalMs = (hours * 3600 + minutes * 60 + seconds) * 1000L
-        _timerTotalMs.value = totalMs
-        _timerRemainingMs.value = totalMs
-        pauseTimer()
+    fun addLap() {
+        val state = stopwatch.value
+        val reading = state.readingAt(System.currentTimeMillis())
+        if (reading <= 0L) return
+        viewModelScope.launch {
+            clockDataStore.saveStopwatch(state.copy(laps = listOf(reading) + state.laps))
+        }
+    }
+
+    fun clearLaps() {
+        viewModelScope.launch {
+            clockDataStore.saveStopwatch(stopwatch.value.copy(laps = emptyList()))
+        }
+    }
+
+    // ── Timer ───────────────────────────────────────────────────────────────
+
+    val timer: StateFlow<ClockDataStore.TimerState> = clockDataStore.timer
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ClockDataStore.TimerState())
+
+    val timerPresets: StateFlow<List<Long>> = clockDataStore.timerPresets
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Sets what the dial reads, without starting it. */
+    fun setTimerDuration(durationMillis: Long, label: String = timer.value.label) {
+        if (durationMillis <= 0L) return
+        viewModelScope.launch {
+            timerScheduler.cancel()
+            TimerNotifier.clear(getApplication())
+            clockDataStore.saveTimer(
+                ClockDataStore.TimerState(
+                    isRunning = false,
+                    endsAtMillis = 0L,
+                    remainingMillis = durationMillis,
+                    totalMillis = durationMillis,
+                    label = label
+                )
+            )
+        }
     }
 
     fun toggleTimer() {
-        if (_isTimerRunning.value) {
-            pauseTimer()
-        } else {
-            startTimer()
-        }
-    }
-
-    private fun startTimer() {
-        if (_timerRemainingMs.value <= 0L) {
-            _timerRemainingMs.value = _timerTotalMs.value
-        }
-        _isTimerRunning.value = true
-        timerJob = viewModelScope.launch {
-            val endTime = System.currentTimeMillis() + _timerRemainingMs.value
-            while (_isTimerRunning.value && _timerRemainingMs.value > 0L) {
-                val rem = endTime - System.currentTimeMillis()
-                if (rem <= 0L) {
-                    _timerRemainingMs.value = 0L
-                    _isTimerRunning.value = false
-                } else {
-                    _timerRemainingMs.value = rem
-                    delay(50)
-                }
+        val state = timer.value
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            if (state.isRunning) {
+                val remaining = state.remainingAt(System.currentTimeMillis())
+                timerScheduler.cancel()
+                TimerNotifier.clear(context)
+                clockDataStore.saveTimer(
+                    state.copy(isRunning = false, endsAtMillis = 0L, remainingMillis = remaining)
+                )
+            } else {
+                // Restarting a finished countdown starts it over rather than ending immediately.
+                val duration = state.remainingMillis.takeIf { it > 0L } ?: state.totalMillis
+                if (duration <= 0L) return@launch
+                val endsAt = System.currentTimeMillis() + duration
+                timerScheduler.schedule(endsAt)
+                TimerNotifier.showRunning(context, endsAt, state.label)
+                clockDataStore.saveTimer(
+                    state.copy(isRunning = true, endsAtMillis = endsAt, remainingMillis = duration)
+                )
+                clockDataStore.rememberPreset(state.totalMillis)
             }
         }
     }
 
-    fun pauseTimer() {
-        _isTimerRunning.value = false
-        timerJob?.cancel()
+    fun resetTimer() {
+        val state = timer.value
+        viewModelScope.launch {
+            timerScheduler.cancel()
+            TimerNotifier.clear(getApplication())
+            clockDataStore.saveTimer(
+                state.copy(isRunning = false, endsAtMillis = 0L, remainingMillis = state.totalMillis)
+            )
+        }
     }
 
-    fun resetTimer() {
-        pauseTimer()
-        _timerRemainingMs.value = _timerTotalMs.value
+    /** Stretches a running countdown by a minute without stopping it. */
+    fun addTimerMinute() {
+        val state = timer.value
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            if (state.isRunning) {
+                val endsAt = state.endsAtMillis + TimerReceiver.ONE_MINUTE_MS
+                timerScheduler.schedule(endsAt)
+                TimerNotifier.showRunning(context, endsAt, state.label)
+                clockDataStore.saveTimer(
+                    state.copy(
+                        endsAtMillis = endsAt,
+                        totalMillis = state.totalMillis + TimerReceiver.ONE_MINUTE_MS
+                    )
+                )
+            } else {
+                setTimerDuration(state.remainingMillis + TimerReceiver.ONE_MINUTE_MS)
+            }
+        }
+    }
+
+    fun setTimerLabel(label: String) {
+        viewModelScope.launch {
+            clockDataStore.saveTimer(timer.value.copy(label = label))
+        }
     }
 }

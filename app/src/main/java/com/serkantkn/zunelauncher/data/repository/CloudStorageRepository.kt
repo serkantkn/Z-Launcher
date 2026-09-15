@@ -13,6 +13,8 @@ import com.serkantkn.zunelauncher.data.datastore.CloudDataStore
 import com.serkantkn.zunelauncher.data.model.CloudAccount
 import com.serkantkn.zunelauncher.data.model.CloudException
 import com.serkantkn.zunelauncher.data.model.CloudItem
+import com.serkantkn.zunelauncher.data.model.CloudPage
+import com.serkantkn.zunelauncher.data.model.CloudQuota
 import com.serkantkn.zunelauncher.data.model.CloudService
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.localizedString
@@ -56,8 +58,50 @@ class CloudStorageRepository(
     /** Top folder of the account's drive. */
     fun rootFolderId(account: CloudAccount): String = apiOf(account).rootId
 
+    /**
+     * Everything in a folder, however many pages the service hands it over in.
+     *
+     * The loop is bounded: a folder with tens of thousands of files would otherwise be a great
+     * many requests before anything appeared on screen, and nobody scrolls that far.
+     */
     suspend fun list(account: CloudAccount, folderId: String): List<CloudItem> =
-        withContext(Dispatchers.IO) { apiOf(account).list(tokenOf(account), folderId) }
+        withContext(Dispatchers.IO) {
+            val api = apiOf(account)
+            val token = tokenOf(account)
+            val collected = mutableListOf<CloudItem>()
+            var pageToken: String? = null
+            var pages = 0
+            do {
+                val page: CloudPage = api.list(token, folderId, pageToken)
+                collected += page.items
+                pageToken = page.nextPageToken
+                pages++
+            } while (!pageToken.isNullOrEmpty() && pages < MAX_PAGES)
+            if (!pageToken.isNullOrEmpty()) {
+                ZuneLog.w(TAG, "folder $folderId has more than ${collected.size} items; stopped there")
+            }
+            collected
+        }
+
+    /** Files anywhere on the drive whose name matches — the service does the looking. */
+    suspend fun search(account: CloudAccount, query: String): List<CloudItem> =
+        withContext(Dispatchers.IO) { apiOf(account).search(tokenOf(account), query.trim()) }
+
+    /** How full the drive is, or null when the service will not say. */
+    suspend fun quota(account: CloudAccount): CloudQuota? =
+        withContext(Dispatchers.IO) { runCatching { apiOf(account).quota(tokenOf(account)) }.getOrNull() }
+
+    /** Sends a file from the device up into the open folder. */
+    suspend fun upload(
+        account: CloudAccount,
+        parentId: String,
+        file: File,
+        onProgress: (Long, Long) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        val mimeType = android.webkit.MimeTypeMap.getSingleton()
+            .getMimeTypeFromExtension(file.extension.lowercase()) ?: "application/octet-stream"
+        apiOf(account).upload(tokenOf(account), parentId, file, mimeType, onProgress)
+    }
 
     suspend fun createFolder(account: CloudAccount, parentId: String, name: String) =
         withContext(Dispatchers.IO) { apiOf(account).createFolder(tokenOf(account), parentId, name) }
@@ -88,7 +132,11 @@ class CloudStorageRepository(
     }
 
     /** Saves the document into the device's Downloads folder and returns the name it got. */
-    suspend fun saveToDevice(account: CloudAccount, item: CloudItem): String =
+    suspend fun saveToDevice(
+        account: CloudAccount,
+        item: CloudItem,
+        onProgress: (Long, Long) -> Unit = { _, _ -> }
+    ): String =
         withContext(Dispatchers.IO) {
             val api = apiOf(account)
             val token = tokenOf(account)
@@ -103,7 +151,7 @@ class CloudStorageRepository(
                     .insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                     ?: throw CloudException(R.string.cloud_error_save_failed)
                 context.contentResolver.openOutputStream(target)?.use { output ->
-                    api.download(token, item, output)
+                    api.download(token, item, output, onProgress)
                 } ?: throw CloudException(R.string.cloud_error_save_failed)
                 values.clear()
                 values.put(MediaStore.Downloads.IS_PENDING, 0)
@@ -112,7 +160,7 @@ class CloudStorageRepository(
                 val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 if (!downloads.exists()) downloads.mkdirs()
                 val target = uniqueFile(downloads, name)
-                target.outputStream().use { output -> api.download(token, item, output) }
+                target.outputStream().use { output -> api.download(token, item, output, onProgress) }
             }
             name
         }
@@ -172,5 +220,8 @@ class CloudStorageRepository(
 
     private companion object {
         const val TAG = "CloudStorage"
+
+        /** Enough pages for any folder a person actually browses. */
+        const val MAX_PAGES = 25
     }
 }

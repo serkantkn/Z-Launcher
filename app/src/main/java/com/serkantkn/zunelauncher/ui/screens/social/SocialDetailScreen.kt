@@ -40,13 +40,15 @@ import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+import java.util.Locale
 
 @Composable
 fun SocialDetailScreen(
     message: SocialMessageModel?,
     onBack: () -> Unit,
     onReply: (SocialMessageModel, String) -> Unit,
-    onOpen: (SocialMessageModel) -> Unit
+    onOpen: (SocialMessageModel) -> Unit,
+    onOpenApp: (SocialMessageModel) -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
@@ -184,12 +186,12 @@ fun SocialDetailScreen(
                                 modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF555555)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = displayMessage.appName.take(1).uppercase(), color = Color.White)
+                                Text(text = displayMessage.appName.take(1).uppercase(Locale.getDefault()), color = Color.White)
                             }
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = displayMessage.title.uppercase(),
+                            text = displayMessage.title.uppercase(Locale.getDefault()),
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
                             color = MaterialTheme.colorScheme.onBackground
                         )
@@ -206,7 +208,33 @@ fun SocialDetailScreen(
                     )
                 }
 
-                // Reply / Open action
+                // ── Open ──
+                // Always offered, whether or not there is a reply box and whether or not the
+                // notification carried an intent: "go to the app" that is sometimes missing is
+                // worse than one that occasionally lands on the app's front page.
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.social_open_here),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                        color = zuneColors.accentColor,
+                        modifier = Modifier
+                            .clickable { onOpen(displayMessage) }
+                            .padding(vertical = 12.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.social_open_in_app),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                        color = zuneColors.textMuted,
+                        modifier = Modifier
+                            .clickable { onOpenApp(displayMessage) }
+                            .padding(vertical = 12.dp)
+                    )
+                }
+
+                // Reply
                 if (displayMessage.replyAction != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
@@ -248,13 +276,6 @@ fun SocialDetailScreen(
                             )
                         }
                     }
-                } else if (displayMessage.openIntent != null) {
-                    Text(
-                        text = stringResource(R.string.social_open_in_app),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = zuneColors.accentColor,
-                        modifier = Modifier.padding(vertical = 16.dp).clickable { onOpen(displayMessage) }
-                    )
                 }
             }
         }

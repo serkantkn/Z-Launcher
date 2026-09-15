@@ -55,7 +55,6 @@ fun LookPreviewCard(
     tileSpacing: Int,
     /** 0-100, the same scale the transparency slider works on. */
     tileOpacity: Int = 45,
-    tileColumns: Int = 4,
     hubBackgroundOpacity: Float,
     hubBackgroundMode: HubBackgroundMode,
     homeScreenLayout: HomeScreenLayout = HomeScreenLayout.ZUNE,
@@ -159,157 +158,67 @@ fun LookPreviewCard(
                             .fillMaxSize()
                             .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
-                        if (tileColumns == 8) {
-                            // 8-Column Mode Preview
-                            Column(
+                        // 8-Column Mode Preview
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(animatedTileSpacing)
+                        ) {
+                            // Row 1: 4 Mini Tiles
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(animatedTileSpacing)
+                                horizontalArrangement = Arrangement.spacedBy(animatedTileSpacing)
                             ) {
-                                // Row 1: 4 Mini Tiles
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(animatedTileSpacing)
-                                ) {
-                                    MiniTile(
-                                        icon = Icons.Default.Call,
-                                        label = null,
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier.weight(1f).height(36.dp)
-                                    )
-                                    MiniTile(
-                                        icon = Icons.Default.Email,
-                                        label = null,
-                                        badge = "2",
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier.weight(1f).height(36.dp)
-                                    )
-                                    MiniTile(
-                                        icon = Icons.Default.People,
-                                        label = null,
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier.weight(1f).height(36.dp)
-                                    )
-                                    MiniTile(
-                                        icon = Icons.Default.Language,
-                                        label = null,
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier.weight(1f).height(36.dp)
-                                    )
-                                }
-
-                                // Row 2: 1 Medium Tile + 2 Mini Tiles
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(animatedTileSpacing)
-                                ) {
-                                    MiniTile(
-                                        icon = Icons.Default.Image,
-                                        label = stringResource(R.string.pictures_hub),
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier.weight(2f).height(36.dp)
-                                    )
-                                    MiniTile(
-                                        icon = Icons.Default.Folder,
-                                        label = null,
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier.weight(1f).height(36.dp)
-                                    )
-                                    MiniTile(
-                                        icon = Icons.Default.Settings,
-                                        label = null,
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier.weight(1f).height(36.dp)
-                                    )
-                                }
-
-                                // Row 3: 1 Full Wide Tile
                                 MiniTile(
-                                    icon = Icons.Default.MusicNote,
-                                    label = stringResource(R.string.music_hub),
+                                    icon = Icons.Default.Call,
+                                    label = null,
                                     badge = null,
                                     accentColor = animatedAccentColor,
                                     tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
                                     textColor = textColor,
-                                    modifier = Modifier.fillMaxWidth().height(36.dp)
+                                    modifier = Modifier.weight(1f).height(36.dp)
+                                )
+                                MiniTile(
+                                    icon = Icons.Default.Email,
+                                    label = null,
+                                    badge = "2",
+                                    accentColor = animatedAccentColor,
+                                    tileOpacity = tileFillAlpha,
+                                    tileShape = tileShape,
+                                    strokeColor = tileStrokeColor,
+                                    textColor = textColor,
+                                    modifier = Modifier.weight(1f).height(36.dp)
+                                )
+                                MiniTile(
+                                    icon = Icons.Default.People,
+                                    label = null,
+                                    badge = null,
+                                    accentColor = animatedAccentColor,
+                                    tileOpacity = tileFillAlpha,
+                                    tileShape = tileShape,
+                                    strokeColor = tileStrokeColor,
+                                    textColor = textColor,
+                                    modifier = Modifier.weight(1f).height(36.dp)
+                                )
+                                MiniTile(
+                                    icon = Icons.Default.Language,
+                                    label = null,
+                                    badge = null,
+                                    accentColor = animatedAccentColor,
+                                    tileOpacity = tileFillAlpha,
+                                    tileShape = tileShape,
+                                    strokeColor = tileStrokeColor,
+                                    textColor = textColor,
+                                    modifier = Modifier.weight(1f).height(36.dp)
                                 )
                             }
-                        } else {
-                            // 4-Column Mode Preview
-                            Column(
+
+                            // Row 2: 1 Medium Tile + 2 Mini Tiles
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(animatedTileSpacing)
+                                horizontalArrangement = Arrangement.spacedBy(animatedTileSpacing)
                             ) {
-                                // Row 1: 2 Medium Hub Tiles (Phone & Messaging)
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(animatedTileSpacing)
-                                ) {
-                                    MiniTile(
-                                        icon = Icons.Default.Call,
-                                        label = stringResource(R.string.hub_phone),
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(48.dp)
-                                    )
-
-                                    MiniTile(
-                                        icon = Icons.Default.Email,
-                                        label = stringResource(R.string.hub_messaging),
-                                        badge = "2",
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(48.dp)
-                                    )
-                                }
-
-                                // Row 2: 1 Wide Tile (Photos)
                                 MiniTile(
                                     icon = Icons.Default.Image,
                                     label = stringResource(R.string.pictures_hub),
@@ -319,59 +228,44 @@ fun LookPreviewCard(
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
                                     textColor = textColor,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(44.dp)
+                                    modifier = Modifier.weight(2f).height(36.dp)
                                 )
-
-                                // Row 3: 1 Medium Tile (Music) + 2 Small Tiles (Camera & Settings)
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(animatedTileSpacing)
-                                ) {
-                                    MiniTile(
-                                        icon = Icons.Default.MusicNote,
-                                        label = stringResource(R.string.music_hub),
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier
-                                            .weight(2f)
-                                            .height(44.dp)
-                                    )
-
-                                    MiniTile(
-                                        icon = Icons.Default.CameraAlt,
-                                        label = null,
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(44.dp)
-                                    )
-
-                                    MiniTile(
-                                        icon = Icons.Default.Settings,
-                                        label = null,
-                                        badge = null,
-                                        accentColor = animatedAccentColor,
-                                        tileOpacity = tileFillAlpha,
-                                        tileShape = tileShape,
-                                        strokeColor = tileStrokeColor,
-                                        textColor = textColor,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(44.dp)
-                                    )
-                                }
+                                MiniTile(
+                                    icon = Icons.Default.Folder,
+                                    label = null,
+                                    badge = null,
+                                    accentColor = animatedAccentColor,
+                                    tileOpacity = tileFillAlpha,
+                                    tileShape = tileShape,
+                                    strokeColor = tileStrokeColor,
+                                    textColor = textColor,
+                                    modifier = Modifier.weight(1f).height(36.dp)
+                                )
+                                MiniTile(
+                                    icon = Icons.Default.Settings,
+                                    label = null,
+                                    badge = null,
+                                    accentColor = animatedAccentColor,
+                                    tileOpacity = tileFillAlpha,
+                                    tileShape = tileShape,
+                                    strokeColor = tileStrokeColor,
+                                    textColor = textColor,
+                                    modifier = Modifier.weight(1f).height(36.dp)
+                                )
                             }
+
+                            // Row 3: 1 Full Wide Tile
+                            MiniTile(
+                                icon = Icons.Default.MusicNote,
+                                label = stringResource(R.string.music_hub),
+                                badge = null,
+                                accentColor = animatedAccentColor,
+                                tileOpacity = tileFillAlpha,
+                                tileShape = tileShape,
+                                strokeColor = tileStrokeColor,
+                                textColor = textColor,
+                                modifier = Modifier.fillMaxWidth().height(36.dp)
+                            )
                         }
                     }
                 } else {

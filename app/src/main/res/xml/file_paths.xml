@@ -4,4 +4,6 @@
     <root-path name="root" path="." />
     <!-- Cloud downloads the hub opens or shares from the app's own cache -->
     <cache-path name="cloud_cache" path="cloud/" />
+    <!-- A picture taken with the camera on its way to becoming somebody's contact photo -->
+    <cache-path name="contact_photos" path="contact_photos/" />
 </paths>

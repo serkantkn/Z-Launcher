@@ -23,17 +23,25 @@ import androidx.compose.ui.unit.dp
 const val ZUNE_PAGER_LOOP_COUNT = 1000
 
 /**
- * State holder for an infinitely looping hub pager.
+ * State holder for a hub pager, looping or not.
  *
- * The underlying [pagerState] has `ZUNE_PAGER_LOOP_COUNT * pageCount` pages and starts in the
- * middle of that range, so the user can swipe both ways without ever reaching an edge. All
- * public helpers speak in *logical* pages (`0 until pageCount`); use [pagerState] directly only
- * for raw scroll-driven effects (parallax headers etc.).
+ * Looping is the Windows Phone panorama behaviour and the default: the underlying [pagerState]
+ * has `ZUNE_PAGER_LOOP_COUNT * pageCount` pages and starts in the middle of that range, so the
+ * pivot can be swiped both ways without ever reaching an edge.
+ *
+ * A pivot that sits inside another pager wants the opposite. If it loops, it swallows the swipe
+ * for ever and the screen behind it can never be reached; with [isLooping] off it stops at its two
+ * ends and hands the rest of the drag to whatever is carrying it.
+ *
+ * All public helpers speak in *logical* pages (`0 until pageCount`); use [pagerState] directly
+ * only for raw scroll-driven effects (parallax headers etc.).
  */
 @Stable
 class ZuneLoopingPagerState internal constructor(
     val pagerState: PagerState,
-    private val pageCountState: State<Int>
+    private val pageCountState: State<Int>,
+    /** Whether the pivot wraps around, or stops at its first and last page. */
+    val isLooping: Boolean = true
 ) {
     /** Number of logical pages (the real pivot count). */
     val pageCount: Int get() = pageCountState.value
@@ -45,6 +53,7 @@ class ZuneLoopingPagerState internal constructor(
     fun logicalPage(rawPage: Int): Int {
         val size = pageCount
         if (size <= 0) return 0
+        if (!isLooping) return rawPage.coerceIn(0, size - 1)
         return ((rawPage % size) + size) % size
     }
 
@@ -56,6 +65,8 @@ class ZuneLoopingPagerState internal constructor(
         val size = pageCount
         val current = pagerState.currentPage
         if (size <= 0) return current
+        // Without the loop there is only one of each page, and it is where it says it is.
+        if (!isLooping) return logical.coerceIn(0, size - 1)
         var diff = logical - logicalPage(current)
         if (diff > size / 2) {
             diff -= size
@@ -78,17 +89,32 @@ class ZuneLoopingPagerState internal constructor(
 
 /**
  * Remembers a [ZuneLoopingPagerState] for [pageCount] logical pages, starting on logical page
- * [initialPage] in the middle of the loop range. [pageCount] may change over time (e.g. dynamic
- * tag pivots); the underlying pager re-reads it, and normalization always uses the latest value.
+ * [initialPage]. [pageCount] may change over time (e.g. dynamic tag pivots); the underlying pager
+ * re-reads it, and normalization always uses the latest value.
+ *
+ * Pass `looping = false` for a pivot that lives inside another pager, so its two ends give the
+ * swipe back rather than going round for ever.
  */
 @Composable
-fun rememberLoopingPagerState(pageCount: Int, initialPage: Int = 0): ZuneLoopingPagerState {
+fun rememberLoopingPagerState(
+    pageCount: Int,
+    initialPage: Int = 0,
+    looping: Boolean = true
+): ZuneLoopingPagerState {
     val pageCountState = rememberUpdatedState(pageCount)
     val pagerState = rememberPagerState(
-        initialPage = (ZUNE_PAGER_LOOP_COUNT / 2) * pageCount + initialPage,
-        pageCount = { ZUNE_PAGER_LOOP_COUNT * pageCountState.value }
+        initialPage = if (looping) {
+            (ZUNE_PAGER_LOOP_COUNT / 2) * pageCount + initialPage
+        } else {
+            initialPage
+        },
+        pageCount = {
+            if (looping) ZUNE_PAGER_LOOP_COUNT * pageCountState.value else pageCountState.value
+        }
     )
-    return remember(pagerState) { ZuneLoopingPagerState(pagerState, pageCountState) }
+    return remember(pagerState, looping) {
+        ZuneLoopingPagerState(pagerState, pageCountState, looping)
+    }
 }
 
 /**

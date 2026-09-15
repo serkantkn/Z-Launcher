@@ -25,11 +25,14 @@ import com.serkantkn.zunelauncher.data.repository.SmsRepository
 import com.serkantkn.zunelauncher.data.service.ActiveMediaState
 import com.serkantkn.zunelauncher.data.service.ThirdPartyMediaController
 import kotlinx.coroutines.flow.asStateFlow
+import com.serkantkn.zunelauncher.data.model.StartFolders
 import com.serkantkn.zunelauncher.data.model.StartTileItem
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import android.net.Uri
 import com.serkantkn.zunelauncher.data.model.MediaImage
@@ -38,16 +41,25 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.serkantkn.zunelauncher.data.model.TileIcon
+import com.serkantkn.zunelauncher.data.model.TileIconStyle
+import com.serkantkn.zunelauncher.data.repository.IconPackInfo
+import com.serkantkn.zunelauncher.util.TileIconFace
+import androidx.compose.ui.graphics.ImageBitmap
 
 data class FavoriteAppUIModel(
     val appInfo: AppInfo,
     val span: Int
 )
+
+/** How many of an album's pictures a pinned album tile cycles through. */
+private const val ALBUM_TILE_PICTURES = 8
 
 sealed interface StartTileUIModel {
     val id: String
@@ -66,10 +78,86 @@ sealed interface StartTileUIModel {
         override val id: String = "note:${note.id}"
     }
 
+    /**
+     * A website pinned to Start. [title] is what the user saw when they pinned it; a tile that
+     * lost its title — one taken out of a folder, where only ids are kept — falls back to the
+     * address itself.
+     */
+    data class Web(val url: String, val title: String, override val span: Int) : StartTileUIModel {
+        override val id: String = "${StartTileItem.WEB_PREFIX}$url"
+
+        val label: String
+            get() = title.ifBlank {
+                runCatching { java.net.URI(url).host?.removePrefix("www.") }.getOrNull().orEmpty()
+                    .ifBlank { url }
+            }
+    }
+
+    /**
+     * A picture album pinned to Start. [covers] is what the tile cycles through; it arrives after
+     * the media store has been read, so the tile is drawn empty for a moment and then fills.
+     */
+    data class Album(
+        val bucketId: Long,
+        val name: String,
+        val covers: List<Uri>,
+        override val span: Int
+    ) : StartTileUIModel {
+        override val id: String = "${StartTileItem.ALBUM_PREFIX}$bucketId"
+    }
+
+    /** A record pinned to Start: its cover, and it plays when tapped. */
+    data class MusicAlbum(
+        val albumId: Long,
+        val name: String,
+        val artist: String,
+        val artUri: Uri?,
+        override val span: Int
+    ) : StartTileUIModel {
+        override val id: String = "${StartTileItem.MUSIC_ALBUM_PREFIX}$albumId"
+    }
+
+    /**
+     * A person pinned to Start. [contact] is filled in when they are still in the phone book;
+     * [name] is what the tile was pinned with and is what it falls back to.
+     */
+    data class Person(
+        val contactId: String,
+        val name: String,
+        val contact: ContactModel?,
+        override val span: Int
+    ) : StartTileUIModel {
+        override val id: String = "${StartTileItem.PERSON_PREFIX}$contactId"
+
+        val label: String get() = contact?.name?.ifBlank { name } ?: name
+    }
+
+    /**
+     * A conversation pinned to Start. [name] is who it was pinned with; the thread number is what
+     * actually opens it, so the tile survives the person being renamed in the address book.
+     */
+    data class Thread(
+        val threadId: Long,
+        val name: String,
+        override val span: Int
+    ) : StartTileUIModel {
+        override val id: String = "${StartTileItem.SMS_PREFIX}$threadId"
+
+        val label: String get() = name
+    }
+
     /** The "hızlı not" tile that opens a blank editor. */
     data class QuickNote(override val span: Int) : StartTileUIModel {
         override val id: String = StartTileItem.QUICK_NOTE_ID
     }
+
+    /** A folder of tiles. [children] are already resolved, in the order they are shown. */
+    data class Folder(
+        override val id: String,
+        val name: String,
+        val children: List<StartTileUIModel>,
+        override val span: Int
+    ) : StartTileUIModel
 }
 
 private const val PEOPLE_TILE_FACES = 24
@@ -79,16 +167,23 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     private val appRepository = application.appContainer.appRepository
     private val settingsDataStore = application.appContainer.settingsDataStore
     private val mediaRepository = application.appContainer.mediaRepository
+    private val musicRepository = application.appContainer.musicRepository
     private val favoritePhotosDataStore = application.appContainer.favoritePhotosDataStore
     private val notesDataStore = application.appContainer.notesDataStore
     private val alarmDataStore = application.appContainer.alarmDataStore
     private val calendarDataStore = application.appContainer.calendarDataStore
+    private val calendarRepository = application.appContainer.calendarRepository
     private val contactRepository = application.appContainer.contactRepository
     private val weatherRepository = application.appContainer.weatherRepository
     private val callLogRepository = application.appContainer.callLogRepository
+    private val iconPackRepository = application.appContainer.iconPackRepository
+    private val tileIconFactory = application.appContainer.tileIconFactory
 
     private val _allApps = MutableStateFlow<List<AppInfo>>(emptyList())
     private val _allImages = MutableStateFlow<List<MediaImage>>(emptyList())
+
+    /** The records on the phone, read only when one of them is pinned to Start. */
+    private val _musicAlbums = MutableStateFlow<List<com.serkantkn.zunelauncher.data.model.AlbumModel>>(emptyList())
 
     val hubOrder: StateFlow<List<HubType>> = settingsDataStore.hubOrder
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -125,17 +220,41 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         .map { alarms -> alarms.filter { it.isEnabled } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Events from the start of today onwards, soonest first, for the takvim live tile. */
-    val upcomingEvents: StateFlow<List<CalendarEvent>> = calendarDataStore.eventsFlow
-        .map { events ->
-            val startOfToday = java.util.Calendar.getInstance().apply {
-                set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
-            }.timeInMillis
-            events.filter { it.timestamp >= startOfToday }
-                .sortedWith(compareBy({ it.timestamp }, { it.hour }, { it.minute }))
-                .take(6)
+    /**
+     * What the phone's calendars hold over the next fortnight, re-read when the Start screen comes
+     * back into view. The tile used to be fed only by the launcher's own store, which is why a
+     * phone with a full diary still said there was nothing planned.
+     */
+    private val _systemEvents = MutableStateFlow<List<CalendarEvent>>(emptyList())
+
+    fun refreshCalendarEvents() {
+        viewModelScope.launch {
+            _systemEvents.value = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                if (!calendarRepository.canRead()) {
+                    emptyList()
+                } else {
+                    val now = System.currentTimeMillis()
+                    val visible = calendarDataStore.visibleCalendars.first()
+                    calendarRepository.events(
+                        com.serkantkn.zunelauncher.util.startOfDay(now),
+                        now + TILE_HORIZON_MS,
+                        visible
+                    )
+                }
+            }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+
+    /** Events from the start of today onwards, soonest first, for the takvim live tile. */
+    val upcomingEvents: StateFlow<List<CalendarEvent>> =
+        combine(calendarDataStore.eventsFlow, _systemEvents) { local, system -> local + system }
+            .map { events ->
+                val startOfToday = com.serkantkn.zunelauncher.util.startOfDay(System.currentTimeMillis())
+                events.filter { it.endMillis >= startOfToday }
+                    .sortedBy { it.startMillis }
+                    .take(6)
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** "12 × 3 = 36": the last calculation, flipped onto the hesap makinesi tile. */
     val calculatorTileSubtitle: StateFlow<String?> = application.appContainer.calculatorDataStore.historyFlow
@@ -149,16 +268,24 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         .map { notes -> notes.count { it.isPinned && !it.isArchived && !it.isInTrash } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    /**
+     * What the pictures tile shows: the favourites, or the newest pictures when there are none.
+     *
+     * Videos are left out. The tile is a still picture that changes, and a clip's first frame is
+     * often a dark half-second of someone lifting the phone — not what anybody pinned.
+     *
+     * A favourite marked by an older build was remembered by its store id, one marked now by a key
+     * that survives a rescan; both are matched, so nothing already kept falls off the tile.
+     */
     val favoritePhotoUris: StateFlow<List<Uri>> = combine(
         _allImages,
         favoritePhotosDataStore.favoritePhotoIds
-    ) { images, favIds ->
-        if (favIds.isNotEmpty()) {
-            val favs = images.filter { favIds.contains(it.id.toString()) }.map { it.uri }
-            if (favs.isNotEmpty()) favs else images.take(10).map { it.uri }
-        } else {
-            images.take(10).map { it.uri }
-        }
+    ) { images, favourites ->
+        val stills = images.filter { !it.isVideo }
+        val favs = stills
+            .filter { it.stableKey in favourites || it.id.toString() in favourites }
+            .map { it.uri }
+        if (favs.isNotEmpty()) favs else stills.take(10).map { it.uri }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val favoriteApps: StateFlow<List<FavoriteAppUIModel>> = combine(
@@ -177,18 +304,70 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val startTiles: StateFlow<List<StartTileItem>> = settingsDataStore.startTiles
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val unifiedStartTiles: StateFlow<List<StartTileUIModel>> = combine(
+    /** Everyone in the phone book, so a pinned person's tile knows their face and name. */
+    private val _allContacts = MutableStateFlow<List<ContactModel>>(emptyList())
+
+    private val tilesWithoutCovers: Flow<List<StartTileUIModel>> = combine(
         startTiles,
         _allApps,
         appRepository.getFavoritePackages(),
-        notesDataStore.notesFlow
-    ) { currentStartTiles, apps, favoritePackages, notes ->
+        notesDataStore.notesFlow,
+        _allContacts
+    ) { currentStartTiles, apps, favoritePackages, notes, contacts ->
         val appMap = apps.associateBy { it.packageName }
+        val contactMap = contacts.associateBy { it.id }
         val favPkgMap = favoritePackages.associateBy { it.packageName }
         val result = mutableListOf<StartTileUIModel>()
         val includedAppPkgs = mutableSetOf<String>()
 
+        /** One tile of a folder; null when whatever it pointed at is gone. */
+        fun resolve(id: String, span: Int): StartTileUIModel? = when {
+            id == StartTileItem.QUICK_NOTE_ID -> StartTileUIModel.QuickNote(span)
+            id.startsWith("hub:") -> runCatching { HubType.valueOf(id.removePrefix("hub:")) }
+                .getOrNull()?.let { StartTileUIModel.Hub(it, span) }
+
+            id.startsWith("app:") -> appMap[id.removePrefix("app:")]
+                ?.let { StartTileUIModel.App(it, span) }
+
+            id.startsWith("note:") -> notes.firstOrNull { it.id == id.removePrefix("note:") && !it.isInTrash }
+                ?.let { StartTileUIModel.NoteTile(it, span) }
+
+            id.startsWith(StartTileItem.WEB_PREFIX) ->
+                StartTileUIModel.Web(id.removePrefix(StartTileItem.WEB_PREFIX), "", span)
+
+            id.startsWith(StartTileItem.PERSON_PREFIX) -> {
+                val contactId = id.removePrefix(StartTileItem.PERSON_PREFIX)
+                StartTileUIModel.Person(contactId, "", contactMap[contactId], span)
+            }
+
+            id.startsWith(StartTileItem.SMS_PREFIX) ->
+                id.removePrefix(StartTileItem.SMS_PREFIX).toLongOrNull()
+                    ?.let { StartTileUIModel.Thread(it, "", span) }
+
+            id.startsWith(StartTileItem.MUSIC_ALBUM_PREFIX) ->
+                id.removePrefix(StartTileItem.MUSIC_ALBUM_PREFIX).toLongOrNull()
+                    ?.let { StartTileUIModel.MusicAlbum(it, "", "", null, span) }
+
+            id.startsWith(StartTileItem.ALBUM_PREFIX) ->
+                id.removePrefix(StartTileItem.ALBUM_PREFIX).toLongOrNull()
+                    ?.let { StartTileUIModel.Album(it, "", emptyList(), span) }
+
+            else -> null
+        }
+
         currentStartTiles.forEach { item ->
+            if (item.isFolder) {
+                val children = item.children.mapNotNull { childId ->
+                    resolve(childId, StartTileItem.DEFAULT_SPAN)?.also {
+                        if (it is StartTileUIModel.App) includedAppPkgs.add(it.appInfo.packageName)
+                    }
+                }
+                // A folder whose tiles have all been uninstalled is not worth a slot.
+                if (children.isNotEmpty()) {
+                    result.add(StartTileUIModel.Folder(item.id, item.name, children, item.span))
+                }
+                return@forEach
+            }
             if (item.isHub) {
                 item.hubType?.let { hubType ->
                     result.add(StartTileUIModel.Hub(hubType, item.span))
@@ -198,6 +377,28 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             } else if (item.isNote) {
                 notes.firstOrNull { it.id == item.noteId && !it.isInTrash }?.let { note ->
                     result.add(StartTileUIModel.NoteTile(note, item.span))
+                }
+            } else if (item.isPerson) {
+                item.contactId?.let { contactId ->
+                    result.add(
+                        StartTileUIModel.Person(contactId, item.name, contactMap[contactId], item.span)
+                    )
+                }
+            } else if (item.isWeb) {
+                item.webUrl?.let { url ->
+                    result.add(StartTileUIModel.Web(url, item.name, item.span))
+                }
+            } else if (item.isMusicAlbum) {
+                item.musicAlbumId?.let { albumId ->
+                    result.add(StartTileUIModel.MusicAlbum(albumId, item.name, "", null, item.span))
+                }
+            } else if (item.isAlbum) {
+                item.albumBucketId?.let { bucketId ->
+                    result.add(StartTileUIModel.Album(bucketId, item.name, emptyList(), item.span))
+                }
+            } else if (item.isThread) {
+                item.smsThreadId?.let { threadId ->
+                    result.add(StartTileUIModel.Thread(threadId, item.name, item.span))
                 }
             } else if (item.isApp) {
                 val pkg = item.packageName
@@ -220,7 +421,56 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
 
         result
+    }
+
+    /**
+     * The Start board's tiles, with each pinned album's pictures filled in.
+     *
+     * The covers are added in a second pass rather than inside the combine above: the media store
+     * is read separately and only matters to one kind of tile, and a five-source combine is at the
+     * limit of what reads as one thought.
+     */
+    val unifiedStartTiles: StateFlow<List<StartTileUIModel>> = combine(
+        tilesWithoutCovers,
+        _allImages,
+        _musicAlbums
+    ) { tiles, images, records ->
+        if (tiles.none { it.hasAlbum() }) return@combine tiles
+        val byBucket = images.asSequence().filter { !it.isVideo }.groupBy { it.bucketId }
+
+        fun fill(model: StartTileUIModel): StartTileUIModel = when (model) {
+            is StartTileUIModel.Album -> {
+                val inAlbum = byBucket[model.bucketId].orEmpty()
+                model.copy(
+                    // The album may have been renamed since it was pinned; what it is called now
+                    // wins, and what it was called when pinned is the fallback.
+                    name = inAlbum.firstOrNull()?.bucketName?.takeIf { it.isNotBlank() } ?: model.name,
+                    covers = inAlbum.take(ALBUM_TILE_PICTURES).map { it.uri }
+                )
+            }
+            is StartTileUIModel.MusicAlbum -> {
+                val record = records.firstOrNull { it.id == model.albumId }
+                if (record == null) model else model.copy(
+                    name = record.title,
+                    artist = record.artist,
+                    artUri = record.artUri
+                )
+            }
+            is StartTileUIModel.Folder -> model.copy(children = model.children.map(::fill))
+            else -> model
+        }
+
+        tiles.map(::fill)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Whether this tile, or anything in it, is a pinned album waiting for its pictures. */
+    private fun StartTileUIModel.hasAlbum(): Boolean = when (this) {
+        is StartTileUIModel.Album, is StartTileUIModel.MusicAlbum -> true
+        is StartTileUIModel.Folder -> children.any {
+            it is StartTileUIModel.Album || it is StartTileUIModel.MusicAlbum
+        }
+        else -> false
+    }
 
     // ── Live tile feeds ───────────────────────────────────────────────────────────────────────
     // Contacts, the call log and the message store are read straight from the provider, so each
@@ -294,9 +544,6 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val tileSpacing: StateFlow<Int> = settingsDataStore.tileSpacing
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
 
-    val tileColumns: StateFlow<Int> = settingsDataStore.tileColumns
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 4)
-
     val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsDataStore.homeScreenLayout
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeScreenLayout.ZUNE)
 
@@ -315,7 +562,8 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             HubType.NOTES to 2,
             HubType.EMAIL to 2,
             HubType.CALCULATOR to 2,
-            HubType.WEATHER to 4
+            HubType.WEATHER to 4,
+            HubType.CAMERA to 2
         )
     )
     val hubCustomSpans: StateFlow<Map<HubType, Int>> = _hubCustomSpans
@@ -354,14 +602,16 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
      */
     fun refreshLiveTiles() {
         viewModelScope.launch {
-            _peopleFaces.value = try {
+            val contacts = try {
                 contactRepository.getContacts()
-                    .sortedWith(compareByDescending<ContactModel> { it.isFavorite }.thenByDescending { it.lastTimeContacted })
-                    .take(PEOPLE_TILE_FACES)
             } catch (e: Exception) {
                 ZuneLog.w("HomeHubViewModel", "contacts unavailable for the people tile", e)
                 emptyList()
             }
+            _allContacts.value = contacts
+            _peopleFaces.value = contacts
+                .sortedWith(compareByDescending<ContactModel> { it.isFavorite }.thenByDescending { it.lastTimeContacted })
+                .take(PEOPLE_TILE_FACES)
 
             try {
                 val calls = callLogRepository.getRecentCalls()
@@ -406,6 +656,15 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             try {
                 _allImages.value = mediaRepository.getAllImages()
             } catch (e: Exception) { ZuneLog.w("HomeHubViewModel", "loadImages ignored Exception", e) }
+            // Only worth reading the music library when a record is actually pinned.
+            if (startTiles.value.any { it.isMusicAlbum }) {
+                try {
+                    val songs = musicRepository.getLocalSongs()
+                    _musicAlbums.value = musicRepository.albumsOf(songs)
+                } catch (e: Exception) {
+                    ZuneLog.w("HomeHubViewModel", "the pinned record could not be looked up", e)
+                }
+            }
         }
     }
 
@@ -415,6 +674,68 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
 
     fun getAppIcon(packageName: String): Drawable? = appRepository.getAppIcon(packageName)
 
+    // ── Tile icons ────────────────────────────────────────────────────────────────────────────
+
+    val tileIconStyle: StateFlow<TileIconStyle> = settingsDataStore.tileIconStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TileIconStyle.WINDOWS_PHONE)
+
+    val iconPackPackage: StateFlow<String?> = settingsDataStore.iconPackPackage
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val tileIconOverrides: StateFlow<Map<String, TileIcon>> = settingsDataStore.tileIconOverrides
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /**
+     * What an app's tile draws.
+     *
+     * The three settings are passed in rather than read from here so the screen collects them and
+     * redraws when they change; the factory's cache keeps the bitmap work off the frame.
+     */
+    fun tileIconFace(
+        app: AppInfo,
+        style: TileIconStyle,
+        packPackage: String?,
+        overrides: Map<String, TileIcon>
+    ): TileIconFace = tileIconFactory.face(
+        app = app,
+        style = style,
+        packPackage = packPackage,
+        override = overrides[app.packageName] ?: TileIcon.Default
+    )
+
+    fun setTileIcon(packageName: String, icon: TileIcon) {
+        viewModelScope.launch {
+            settingsDataStore.setTileIconOverride(packageName, icon)
+            tileIconFactory.invalidate()
+        }
+    }
+
+    /** Copies a picture the user chose into the launcher's own files and pins it to an app. */
+    fun setTileIconPicture(packageName: String, uri: android.net.Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val context = getApplication<Application>()
+            val safeName = packageName.replace(Regex("[^A-Za-z0-9]"), "_")
+            val file = java.io.File(context.filesDir, "tile_icon_$safeName.png")
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    file.outputStream().use { output -> input.copyTo(output) }
+                }
+                settingsDataStore.setTileIconOverride(packageName, TileIcon.Picture(file.absolutePath))
+                tileIconFactory.invalidate()
+            } catch (e: Exception) {
+                ZuneLog.w("HomeHubViewModel", "custom tile icon could not be saved", e)
+            }
+        }
+    }
+
+    fun installedIconPacks(): List<IconPackInfo> = iconPackRepository.installedPacks()
+
+    fun iconPackDrawables(packPackage: String): List<String> =
+        iconPackRepository.drawableNames(packPackage)
+
+    fun iconPackPreview(packPackage: String, name: String): ImageBitmap? =
+        tileIconFactory.previewOfPack(packPackage, name)
+
     fun updateFavoritesOrder(uiModels: List<FavoriteAppUIModel>) {
         viewModelScope.launch {
             val items = uiModels.map { FavoriteAppItem(it.appInfo.packageName, it.span) }
@@ -422,9 +743,20 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Writes the board's order back. Folders keep what is inside them: the board only ever knows
+     * a folder by its id and size, so the children come from what was stored.
+     */
     fun updateStartTilesOrder(uiModels: List<StartTileUIModel>) {
         viewModelScope.launch {
-            val items = uiModels.map { StartTileItem(it.id, it.span) }
+            val storedById = storedTiles().associateBy { it.id }
+            val items = uiModels.map { model ->
+                val stored = storedById[model.id]
+                if (stored != null && stored.isFolder) stored.copy(span = model.span)
+                // A pinned site keeps the title it was pinned with; rebuilding the tile from its
+                // id alone used to drop it on every reorder.
+                else StartTileItem(model.id, model.span, name = stored?.name.orEmpty())
+            }
             settingsDataStore.setStartTiles(items)
         }
     }
@@ -432,9 +764,10 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
 
     fun removeTile(id: String) {
         viewModelScope.launch {
-            val currentList = (if (startTiles.value.isNotEmpty()) startTiles.value else unifiedStartTiles.value.map { StartTileItem(it.id, it.span) }).toMutableList()
-            currentList.removeAll { it.id == id }
-            settingsDataStore.setStartTiles(currentList)
+            val currentList = if (startTiles.value.isNotEmpty()) startTiles.value
+            else unifiedStartTiles.value.map { StartTileItem(it.id, it.span) }
+            // A tile can be sitting inside a folder, so it is taken out of both places.
+            settingsDataStore.setStartTiles(StartFolders.removeTile(currentList, id))
             if (id.startsWith("app:")) {
                 val pkg = id.removePrefix("app:")
                 appRepository.toggleFavorite(pkg)
@@ -447,4 +780,45 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         removeTile("app:$packageName")
     }
 
+    // ── Folders ───────────────────────────────────────────────────────────────────────────────
+
+    /** The board as it is stored, with folders intact. Board edits are applied to this. */
+    private suspend fun storedTiles(): List<StartTileItem> {
+        val stored = startTiles.value
+        if (stored.isNotEmpty()) return stored
+        return settingsDataStore.startTiles.first()
+    }
+
+    private fun editTiles(edit: (List<StartTileItem>) -> List<StartTileItem>) {
+        viewModelScope.launch {
+            val updated = StartFolders.collapseThinFolders(edit(storedTiles()))
+            settingsDataStore.setStartTiles(updated)
+        }
+    }
+
+    /** Dropping one tile onto another: they become a folder, or the tile joins an existing one. */
+    fun mergeIntoFolder(sourceId: String, targetId: String) {
+        editTiles { StartFolders.merge(it, sourceId, targetId) }
+    }
+
+    fun renameFolder(folderId: String, name: String) {
+        editTiles { StartFolders.rename(it, folderId, name) }
+    }
+
+    /** Takes a tile out of its folder and puts it back on the board next to it. */
+    fun removeFromFolder(folderId: String, childId: String) {
+        editTiles { StartFolders.extract(it, folderId, childId, StartTileItem.DEFAULT_SPAN) }
+    }
+
+    fun dissolveFolder(folderId: String) {
+        editTiles { tiles -> StartFolders.dissolve(tiles, folderId) { StartTileItem.DEFAULT_SPAN } }
+    }
+
+    fun moveWithinFolder(folderId: String, from: Int, to: Int) {
+        editTiles { StartFolders.reorderChildren(it, folderId, from, to) }
+    }
+
 }
+
+/** How far ahead the Start tile looks: a fortnight is more than it can ever show. */
+private const val TILE_HORIZON_MS = 14 * 24 * 60 * 60 * 1000L

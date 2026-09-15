@@ -42,11 +42,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,7 +87,19 @@ fun WP8AddressBar(
     onSwitchTab: (Int) -> Unit,
     onOpenDownloads: () -> Unit,
     downloadsCount: Int = 0,
+    isPinnedToStart: Boolean = false,
+    onTogglePinToStart: () -> Unit = {},
+    onFindInPage: () -> Unit = {},
+    onShare: () -> Unit = {},
+    isDesktopSite: Boolean = false,
+    onToggleDesktopSite: () -> Unit = {},
+    isReadingView: Boolean = false,
+    onToggleReadingView: () -> Unit = {},
+    onNewPrivateTab: () -> Unit = {},
+    thumbnails: Map<String, androidx.compose.ui.graphics.ImageBitmap> = emptyMap(),
+    onTabsOpened: () -> Unit = {},
     onOpenSettings: (() -> Unit)? = null,
+    onSuggestionsDismissed: () -> Unit = {},
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
@@ -92,7 +107,9 @@ fun WP8AddressBar(
 ) {
     val zuneColors = LocalZuneColors.current
     val wp8MenuBarColor = if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFE0E0E0)
-    var inputText by remember(url) { mutableStateOf(url) }
+    // Held as a TextFieldValue so the whole address can be selected the moment the box is
+    // touched: without that, typing a new address appends it to the one already there.
+    var input by remember(url) { mutableStateOf(TextFieldValue(url)) }
     var menuExpanded by remember { mutableStateOf(false) }
     var tabsExpanded by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
@@ -114,9 +131,11 @@ fun WP8AddressBar(
             )
         }
 
-        // Suggestions Dropdown
+        // Suggestions Dropdown — only while the address bar is being typed in. Left to show
+        // whenever the list was non-empty, it sat over the loaded page carrying whatever was
+        // last typed, in whichever tab.
         AnimatedVisibility(
-            visible = suggestions.isNotEmpty() && inputText.isNotEmpty(),
+            visible = suggestions.isNotEmpty() && isFocused && input.text.isNotEmpty(),
             enter = expandVertically(expandFrom = Alignment.Bottom),
             exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
         ) {
@@ -129,7 +148,7 @@ fun WP8AddressBar(
             ) {
                 items(suggestions) { suggestion ->
                     WP8MenuItem(text = suggestion.displayText, subtitle = suggestion.subtitle, enabled = true) {
-                        inputText = suggestion.query
+                        input = TextFieldValue(suggestion.query)
                         menuExpanded = false
                         if (suggestion.isLucky) {
                             onLuckyUrlSubmitted(suggestion.query)
@@ -166,7 +185,11 @@ fun WP8AddressBar(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = { tabsExpanded = !tabsExpanded; menuExpanded = false }
+                        onClick = {
+                            if (!tabsExpanded) onTabsOpened()
+                            tabsExpanded = !tabsExpanded
+                            menuExpanded = false
+                        }
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -208,10 +231,10 @@ fun WP8AddressBar(
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Box(modifier = Modifier.weight(1f)) {
                         BasicTextField(
-                            value = inputText,
+                            value = input,
                             onValueChange = {
-                                inputText = it
-                                onInputChanged(it)
+                                input = it
+                                onInputChanged(it.text)
                             },
                             textStyle = MaterialTheme.typography.bodyLarge.copy(
                                 color = if (zuneColors.isDark) Color.White else Color.Black,
@@ -225,17 +248,25 @@ fun WP8AddressBar(
                             ),
                             keyboardActions = KeyboardActions(
                                 onGo = {
-                                    onUrlSubmitted(inputText)
+                                    onUrlSubmitted(input.text)
                                     menuExpanded = false
                                     tabsExpanded = false
                                     isFocused = false
+                                    onSuggestionsDismissed()
                                 }
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .onFocusChanged { isFocused = it.isFocused }
+                                .onFocusChanged { focus ->
+                                    isFocused = focus.isFocused
+                                    if (focus.isFocused) {
+                                        input = input.copy(selection = TextRange(0, input.text.length))
+                                    } else {
+                                        onSuggestionsDismissed()
+                                    }
+                                }
                         )
-                        if (inputText.isEmpty()) {
+                        if (input.text.isEmpty()) {
                             Text(
                                 text = stringResource(R.string.browser_address_hint),
                                 style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
@@ -249,8 +280,8 @@ fun WP8AddressBar(
                         modifier = Modifier
                             .size(32.dp)
                             .clickable {
-                                if (isFocused || inputText != url) {
-                                    inputText = ""
+                                if (isFocused || input.text != url) {
+                                    input = TextFieldValue("")
                                     onInputChanged("")
                                 } else {
                                     if (isLoading) onStop() else onRefresh()
@@ -258,8 +289,8 @@ fun WP8AddressBar(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        val icon = if (isFocused || inputText != url) Icons.Default.Close else (if (isLoading) Icons.Default.Close else Icons.Default.Refresh)
-                        val tint = if (isFocused || inputText != url) zuneColors.textMuted else (if (zuneColors.isDark) Color.White else Color.Black)
+                        val icon = if (isFocused || input.text != url) Icons.Default.Close else (if (isLoading) Icons.Default.Close else Icons.Default.Refresh)
+                        val tint = if (isFocused || input.text != url) zuneColors.textMuted else (if (zuneColors.isDark) Color.White else Color.Black)
                         Icon(
                             imageVector = icon,
                             contentDescription = stringResource(R.string.browser_action),
@@ -313,9 +344,69 @@ fun WP8AddressBar(
                     menuExpanded = false
                     onToggleFavorite()
                 }
+
+                // Everything below needs a page; on the start screen there is nothing to pin,
+                // search, share or reformat.
+                val onAPage = url.isNotBlank()
+
+                WP8MenuItem(
+                    text = stringResource(
+                        if (isPinnedToStart) R.string.browser_unpin_from_start
+                        else R.string.browser_pin_to_start
+                    ),
+                    subtitle = null,
+                    enabled = onAPage
+                ) {
+                    if (onAPage) {
+                        menuExpanded = false
+                        onTogglePinToStart()
+                    }
+                }
+                WP8MenuItem(text = stringResource(R.string.browser_find_in_page), subtitle = null, enabled = onAPage) {
+                    if (onAPage) {
+                        menuExpanded = false
+                        onFindInPage()
+                    }
+                }
+                WP8MenuItem(text = stringResource(R.string.browser_share), subtitle = null, enabled = onAPage) {
+                    if (onAPage) {
+                        menuExpanded = false
+                        onShare()
+                    }
+                }
+                WP8MenuItem(
+                    text = stringResource(
+                        if (isDesktopSite) R.string.browser_mobile_site else R.string.browser_desktop_site
+                    ),
+                    subtitle = null,
+                    enabled = onAPage
+                ) {
+                    if (onAPage) {
+                        menuExpanded = false
+                        onToggleDesktopSite()
+                    }
+                }
+                WP8MenuItem(
+                    text = stringResource(
+                        if (isReadingView) R.string.browser_reading_view_off
+                        else R.string.browser_reading_view
+                    ),
+                    subtitle = null,
+                    enabled = onAPage
+                ) {
+                    if (onAPage) {
+                        menuExpanded = false
+                        onToggleReadingView()
+                    }
+                }
                 WP8MenuItem(text = stringResource(R.string.browser_tabs_count, tabs.size), subtitle = null, enabled = true) {
                     menuExpanded = false
+                    onTabsOpened()
                     tabsExpanded = true
+                }
+                WP8MenuItem(text = stringResource(R.string.browser_new_private_tab), subtitle = null, enabled = true) {
+                    menuExpanded = false
+                    onNewPrivateTab()
                 }
                 WP8MenuItem(text = stringResource(R.string.browser_downloads_count, downloadsCount), subtitle = null, enabled = true) {
                     menuExpanded = false
@@ -392,26 +483,51 @@ fun WP8AddressBar(
                         Box(
                             modifier = Modifier
                                 .padding(6.dp)
-                                .height(95.dp)
+                                .height(120.dp)
                                 .border(1.5.dp, borderColor)
                                 .clickable {
                                     tabsExpanded = false
                                     onSwitchTab(index)
                                 }
                         ) {
+                            // The page itself, as it was last seen — a card of plain text says
+                            // far less about which tab is which.
+                            thumbnails[tab.id]?.let { shot ->
+                                androidx.compose.foundation.Image(
+                                    bitmap = shot,
+                                    contentDescription = null,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    alignment = Alignment.TopCenter,
+                                    modifier = Modifier.matchParentSize().alpha(0.4f)
+                                )
+                            }
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(8.dp)
                             ) {
-                                Text(
-                                    text = tab.title.ifBlank { stringResource(R.string.browser_new_tab) },
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (tab.isPrivate) {
+                                        Text(
+                                            text = stringResource(R.string.browser_private),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.White,
+                                            modifier = Modifier
+                                                .background(zuneColors.accentColor)
+                                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+                                    Text(
+                                        text = tab.title.ifBlank { stringResource(R.string.browser_new_tab) },
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = if (zuneColors.isDark) Color.White else Color.Black,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(modifier = Modifier.weight(1f))
                                 Text(
                                     text = tab.url.ifBlank { "" },
                                     style = MaterialTheme.typography.bodySmall,

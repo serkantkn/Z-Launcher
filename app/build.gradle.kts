@@ -74,6 +74,8 @@ dependencies {
 
     // Coil
     implementation(libs.coil.compose)
+    // Draws the first frame of a video, so a clip has a thumbnail in the gallery.
+    implementation(libs.coil.video)
 
     // JavaMail (Email hub: IMAP + SMTP)
     implementation(libs.android.mail)
@@ -91,6 +93,14 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.ui)
+
+    // CameraX (camera hub)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.camera.video)
+    implementation(libs.androidx.camera.extensions)
 
     // DataStore & Serialization
     implementation(libs.androidx.datastore.preferences)

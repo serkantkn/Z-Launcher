@@ -45,6 +45,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.filled.Search
 
 /**
  * Desktop / Tablet style browser header with horizontal tab strip and desktop toolbar.
@@ -59,6 +63,7 @@ fun DesktopBrowserHeader(
     tabs: List<BrowserTab>,
     activeTabIndex: Int,
     isFavorited: Boolean,
+    suggestions: List<BrowserSuggestion>,
     onInputChanged: (String) -> Unit,
     onUrlSubmitted: (String) -> Unit,
     onRefresh: () -> Unit,
@@ -366,6 +371,59 @@ fun DesktopBrowserHeader(
             }
         }
 
+        // ── What the address you are typing might be ──
+        // The phone's address bar has shown these all along; on a tablet the launcher was working
+        // them out and then throwing them away, because nothing here was given them to draw.
+        AnimatedVisibility(
+            visible = suggestions.isNotEmpty() && isFocused && inputText.isNotEmpty(),
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(inputBg)
+            ) {
+                suggestions.take(MAX_DESKTOP_SUGGESTIONS).forEach { suggestion ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                inputText = suggestion.query
+                                onUrlSubmitted(suggestion.query)
+                                isFocused = false
+                            }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = zuneColors.textMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = suggestion.displayText,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                                color = if (zuneColors.isDark) Color.White else Color.Black,
+                                maxLines = 1
+                            )
+                            suggestion.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
+                                Text(
+                                    text = subtitle,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = zuneColors.textMuted,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Progress Bar
         if (isLoading && progress > 0f && progress < 1f) {
             LinearProgressIndicator(
@@ -379,3 +437,6 @@ fun DesktopBrowserHeader(
         }
     }
 }
+
+/** More than a handful under a wide address bar is a wall, not a hint. */
+private const val MAX_DESKTOP_SUGGESTIONS = 6

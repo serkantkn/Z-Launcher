@@ -12,7 +12,9 @@ import kotlinx.coroutines.launch
 
 /**
  * AlarmManager forgets every alarm on reboot. Re-arms all enabled alarms (Clock Hub alarms
- * and Notes Hub reminders) once the device has booted.
+ * and Notes Hub reminders) once the device has booted, and books a running timer again — a
+ * countdown is stored as the moment it ends, so it is still right, it just has nothing left to
+ * ring it.
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -35,6 +37,20 @@ class BootReceiver : BroadcastReceiver() {
                     scheduler.schedule(alarm)
                 }
                 container.emailSyncScheduler.reschedule()
+
+                // A countdown booked before the phone went off is gone from the system's clock too.
+                val timer = container.clockDataStore.timer.first()
+                if (timer.isRunning) {
+                    if (timer.endsAtMillis > now) {
+                        container.timerScheduler.schedule(timer.endsAtMillis)
+                        TimerNotifier.showRunning(context, timer.endsAtMillis, timer.label)
+                    } else {
+                        // It ran out while the phone was off; there is nothing left to ring about.
+                        container.clockDataStore.saveTimer(
+                            timer.copy(isRunning = false, endsAtMillis = 0L, remainingMillis = 0L)
+                        )
+                    }
+                }
             } catch (e: Exception) {
                 ZuneLog.e("BootReceiver", "onReceive failed", e)
             } finally {

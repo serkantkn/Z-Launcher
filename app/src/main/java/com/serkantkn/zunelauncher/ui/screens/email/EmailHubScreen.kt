@@ -88,6 +88,7 @@ import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.serkantkn.zunelauncher.ui.animation.rememberHingeSpec
 
 /** Screens that hinge in over the hub (phones) or dock on the right (tablets). */
 private sealed interface EmailSubScreen {
@@ -156,6 +157,7 @@ fun EmailHubScreen(
 
     // ── Sub-screen (hinge) state ─────────────────────────────────────────
     var subScreen by remember { mutableStateOf<EmailSubScreen?>(null) }
+    val hingeSpec = rememberHingeSpec()
     val hingeAnim = remember { Animatable(0f) }
     var showMoveDialogFor by remember { mutableStateOf<Set<String>?>(null) }
     var showAccountPicker by remember { mutableStateOf(false) }
@@ -164,7 +166,7 @@ fun EmailHubScreen(
     fun showSub(screen: EmailSubScreen) {
         subScreen = screen
         if (!isWideScreen) coroutineScope.launch {
-            hingeAnim.animateTo(1f, tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing))
+            hingeAnim.animateTo(1f, hingeSpec)
         }
     }
 
@@ -179,7 +181,7 @@ fun EmailHubScreen(
             subScreen = null
         } else {
             coroutineScope.launch {
-                hingeAnim.animateTo(0f, tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing))
+                hingeAnim.animateTo(0f, hingeSpec)
                 subScreen = null
             }
         }

@@ -1,8 +1,10 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
-import com.serkantkn.zunelauncher.R
-import androidx.compose.ui.res.stringResource
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,81 +12,148 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Message
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.serkantkn.zunelauncher.data.model.ContactModel
+import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
 import com.serkantkn.zunelauncher.data.model.SmsMessageModel
+import com.serkantkn.zunelauncher.data.repository.MessagingBridge
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
+import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
+import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
+import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
+import com.serkantkn.zunelauncher.ui.screens.email.EmailConfirmDialog
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
-import com.serkantkn.zunelauncher.ui.components.ZunePivotHeader
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+import com.serkantkn.zunelauncher.util.PhoneCaller
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
+/**
+ * The Messaging Hub.
+ *
+ * Canonical hub skeleton: ZuneHubEntranceLayout → 18sp header → ZunePivotTabs (tümü / okunmadı /
+ * taslaklar) → ZuneLoopingPager → WindowsPhoneBottomBar, with the conversation and the new-message
+ * picker arriving as door-hinge sub-screens from the left edge.
+ */
 @Composable
 fun MessagingHubScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MessagingHubViewModel = viewModel()
 ) {
-    val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
+    val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val statusMessage by viewModel.statusMessage.collectAsState()
     val hasPermission by viewModel.hasSmsPermission.collectAsState()
+    val isDefaultApp by viewModel.isDefaultSmsApp.collectAsState()
     val conversations by viewModel.conversations.collectAsState()
     val contacts by viewModel.contacts.collectAsState()
     val selectedConv by viewModel.selectedConversation.collectAsState()
     val threadMessages by viewModel.threadMessages.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val matchingMessages by viewModel.matchingMessages.collectAsState()
+    val pinnedThreads by viewModel.pinnedThreads.collectAsState()
+    val sims by viewModel.simLines.collectAsState()
+    val selectedSim by viewModel.selectedSim.collectAsState()
+    val isBlocked by viewModel.selectedBlocked.collectAsState()
 
-    var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+    var composeText by remember { mutableStateOf("") }
+    var pendingForward by remember { mutableStateOf<String?>(null) }
+    var menuConversation by remember { mutableStateOf<SmsConversationModel?>(null) }
+    var menuMessage by remember { mutableStateOf<SmsMessageModel?>(null) }
+    var deleteConversation by remember { mutableStateOf<SmsConversationModel?>(null) }
+    var deleteMessage by remember { mutableStateOf<SmsMessageModel?>(null) }
+    var detailsMessage by remember { mutableStateOf<SmsMessageModel?>(null) }
 
-    // 3D Door Hinge Animation for Both Mobile and Tablet Views (All rotating from LEFT screen edge: TransformOrigin(0f, 0.5f))
+    // The list's stamps say "18:40", "yesterday", "Tuesday"; they have to age as the hub stays open.
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000L)
+            now = System.currentTimeMillis()
+        }
+    }
+
+    val tabs = listOf(
+        stringResource(R.string.msg_tab_all),
+        stringResource(R.string.msg_tab_unread),
+        stringResource(R.string.msg_tab_drafts)
+    )
+    val pager = rememberLoopingPagerState(pageCount = tabs.size)
+
+    // ── Door hinges ──
     val hubHingeAnim = remember { Animatable(1f) }
     val detailHingeAnim = remember { Animatable(0f) }
     val pickerHingeAnim = remember { Animatable(0f) }
     var isTransitioning by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -92,263 +161,339 @@ fun MessagingHubScreen(
         viewModel.checkPermissionAndLoad(context)
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.checkPermissionAndLoad(context)
-    }
+    LaunchedEffect(Unit) { viewModel.checkPermissionAndLoad(context) }
 
-    val openContactPickerWithAnimation: () -> Unit = {
+    val openPicker: () -> Unit = {
         if (!isTransitioning) {
             isTransitioning = true
             coroutineScope.launch {
-                hubHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
-                pickerHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                hubHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                pickerHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
                 isTransitioning = false
             }
         }
     }
 
-    val closeContactPickerWithAnimation: () -> Unit = {
+    val closePicker: () -> Unit = {
         if (!isTransitioning) {
             isTransitioning = true
+            pendingForward = null
             coroutineScope.launch {
-                pickerHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
-                hubHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                pickerHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                hubHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
                 isTransitioning = false
             }
         }
     }
 
-    val openConversationWithAnimation: (SmsConversationModel) -> Unit = { conv ->
-        if (isWideScreen) {
-            viewModel.openConversation(context, conv)
-        } else {
-            if (!isTransitioning) {
-                isTransitioning = true
-                viewModel.openConversation(context, conv)
-                coroutineScope.launch {
-                    hubHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
-                    detailHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
-                    isTransitioning = false
-                }
+    val openConversation: (SmsConversationModel) -> Unit = { conversation ->
+        composeText = pendingForward ?: conversation.draft
+        pendingForward = null
+        viewModel.openConversation(context, conversation)
+        if (!isWideScreen && !isTransitioning) {
+            isTransitioning = true
+            coroutineScope.launch {
+                hubHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                detailHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                isTransitioning = false
             }
         }
     }
 
-    val closeConversationWithAnimation: () -> Unit = {
+    val closeConversation: () -> Unit = {
+        // Whatever was typed and not sent stays under the conversation rather than disappearing.
+        viewModel.saveDraft(context, composeText)
         if (isWideScreen) {
             viewModel.closeConversation()
-        } else {
-            if (!isTransitioning) {
-                isTransitioning = true
-                coroutineScope.launch {
-                    detailHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
-                    viewModel.closeConversation()
-                    hubHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
-                    isTransitioning = false
-                }
+            composeText = ""
+        } else if (!isTransitioning) {
+            isTransitioning = true
+            coroutineScope.launch {
+                detailHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                viewModel.closeConversation()
+                composeText = ""
+                hubHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                isTransitioning = false
             }
         }
     }
 
-    val onContactSelectedInPicker: (name: String, number: String) -> Unit = { name, number ->
-        if (isWideScreen) {
-            viewModel.openConversationWithContact(context, name, number)
-            coroutineScope.launch {
-                pickerHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
-                hubHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
-            }
-        } else {
-            viewModel.openConversationWithContact(context, name, number)
-            coroutineScope.launch {
+    val onRecipientChosen: (String, String) -> Unit = { name, number ->
+        val forwarded = pendingForward
+        viewModel.openConversationWithContact(context, name, number)
+        composeText = forwarded.orEmpty()
+        pendingForward = null
+        coroutineScope.launch {
+            if (isWideScreen) {
+                pickerHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                hubHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+            } else {
                 pickerHingeAnim.snapTo(0f)
                 hubHingeAnim.snapTo(0f)
-                detailHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                detailHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
             }
+        }
+    }
+
+    // ── Things arriving from outside the hub ──
+    val pendingThread by MessagingBridge.pendingThreadId.collectAsState()
+    LaunchedEffect(pendingThread, conversations.size) {
+        val threadId = pendingThread ?: return@LaunchedEffect
+        val conversation = conversations.firstOrNull { it.threadId == threadId }
+        if (conversation != null) {
+            MessagingBridge.consumeThread()
+            openConversation(conversation)
+        } else if (conversations.isNotEmpty()) {
+            // The conversation is gone; do not keep asking for it.
+            MessagingBridge.consumeThread()
+        }
+    }
+
+    val pendingCompose by MessagingBridge.pendingCompose.collectAsState()
+    LaunchedEffect(pendingCompose) {
+        val request = pendingCompose ?: return@LaunchedEffect
+        MessagingBridge.consumeCompose()
+        if (request.address.isNotBlank()) {
+            pendingForward = request.body.takeIf { it.isNotBlank() }
+            viewModel.openConversationWithContact(context, "", request.address)
+            composeText = request.body
+            pendingForward = null
+            if (!isWideScreen) {
+                hubHingeAnim.snapTo(0f)
+                detailHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+            }
+        } else {
+            pendingForward = request.body.takeIf { it.isNotBlank() }
+            openPicker()
         }
     }
 
     BackHandler(
-        enabled = pickerHingeAnim.value > 0f || (!isWideScreen && detailHingeAnim.value > 0f) || (isWideScreen && selectedConv != null)
+        enabled = menuConversation != null || menuMessage != null ||
+            pickerHingeAnim.value > 0f ||
+            (!isWideScreen && detailHingeAnim.value > 0f) ||
+            (isWideScreen && selectedConv != null) ||
+            isSearchActive
     ) {
-        if (pickerHingeAnim.value > 0f) {
-            closeContactPickerWithAnimation()
-        } else if (!isWideScreen && detailHingeAnim.value > 0f) {
-            closeConversationWithAnimation()
-        } else if (isWideScreen && selectedConv != null) {
-            closeConversationWithAnimation()
+        when {
+            menuMessage != null -> menuMessage = null
+            menuConversation != null -> menuConversation = null
+            pickerHingeAnim.value > 0f -> closePicker()
+            !isWideScreen && detailHingeAnim.value > 0f -> closeConversation()
+            isWideScreen && selectedConv != null -> closeConversation()
+            isSearchActive -> {
+                isSearchActive = false
+                viewModel.clearSearch()
+            }
         }
     }
 
+    // ── The bar ──
     val bottomBarActions = listOf(
-            WpBarAction(
-                icon = Icons.Default.Add,
-                label = stringResource(R.string.msg_new),
-                onClick = { openContactPickerWithAnimation() }
-            ),
-            WpBarAction(
-                icon = Icons.Default.Search,
-                label = stringResource(R.string.common_search),
-                onClick = { isSearchActive = !isSearchActive }
-            )
-        )
+        WpBarAction(Icons.Default.Add, stringResource(R.string.msg_new)) { openPicker() },
+        WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) {
+            isSearchActive = !isSearchActive
+            if (!isSearchActive) viewModel.clearSearch()
+        }
+    )
+    val bottomBarMenuItems = buildList {
+        add(WpBarMenuItem(stringResource(R.string.common_refresh)) { viewModel.loadConversations(context) })
+        if (!isDefaultApp) {
+            add(WpBarMenuItem(stringResource(R.string.msg_make_default)) { askToBeDefault(context) })
+        }
+    }
 
-    val bottomBarMenuItems = listOf(
-            WpBarMenuItem(
-                text = stringResource(R.string.common_refresh),
-                onClick = { viewModel.loadConversations(context) }
-            )
-        )
+    val bottomBarClearance = 56.dp + 16.dp +
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            val density = LocalDensity.current
-
-            if (isWideScreen) {
-                // ─── TABLET DUAL-PANE LAYOUT WITH 3D LEFT-EDGE HINGE ANIMATION ───
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val p = hubHingeAnim.value
-                            rotationY = -90f * (1f - p)
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                            cameraDistance = 12f * density.density
-                            alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                        }
+    // ── The pages ──
+    @Composable
+    fun ConversationsPage(tab: MessageTab) {
+        val list = remember(conversations, tab) { viewModel.conversationsFor(tab) }
+        val emptyText = when {
+            errorMessage != null -> stringResource(R.string.msg_load_failed, errorMessage.orEmpty())
+            tab == MessageTab.UNREAD -> stringResource(R.string.msg_unread_empty)
+            tab == MessageTab.DRAFTS -> stringResource(R.string.msg_drafts_empty)
+            else -> stringResource(R.string.msg_history_empty)
+        }
+        ZunePageTransition {
+            if (list.isEmpty()) {
+                Text(
+                    text = emptyText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = zuneColors.textDim,
+                    modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        ZuneWideHubTitle(text = stringResource(R.string.hub_messaging))
-
-                        if (!hasPermission) {
-                            PermissionRequestCard(
-                                onGrant = {
-                                    permissionLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.READ_SMS,
-                                            Manifest.permission.SEND_SMS,
-                                            Manifest.permission.READ_CONTACTS
-                                        )
-                                    )
-                                }
-                            )
-                        } else {
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .padding(start = 72.dp, end = 48.dp)
-                            ) {
-                                // Left Pane: Conversation List
-                                Column(
-                                    modifier = Modifier
-                                        .width(360.dp)
-                                        .fillMaxHeight()
-                                ) {
-                                    AnimatedVisibility(visible = isSearchActive) {
-                                        SearchBar(
-                                            query = searchQuery,
-                                            onQueryChange = { searchQuery = it },
-                                            isVisible = isSearchActive,
-                                            modifier = Modifier.padding(bottom = 12.dp)
-                                        )
-                                    }
-
-                                    ThreadsPage(
-                                        errorMessage = errorMessage,
-                                        conversations = conversations,
-                                        searchQuery = searchQuery,
-                                        onConversationClick = { conv -> openConversationWithAnimation(conv) }
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(32.dp))
-
-                                // Right Pane: Active Chat Conversation
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                ) {
-                                    if (selectedConv != null) {
-                                        ConversationDetailContent(
-                                            conversation = selectedConv!!,
-                                            messages = threadMessages,
-                                            onClose = { closeConversationWithAnimation() },
-                                            onSend = { text ->
-                                                viewModel.sendSms(context, selectedConv!!.address, text) {}
-                                            }
-                                        )
-                                    } else {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(
-                                                    imageVector = Icons.AutoMirrored.Filled.Message,
-                                                    contentDescription = null,
-                                                    tint = zuneColors.textDim,
-                                                    modifier = Modifier.size(64.dp)
-                                                )
-                                                Spacer(modifier = Modifier.height(16.dp))
-                                                Text(
-                                                    text = stringResource(R.string.msg_pick_conversation),
-                                                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light),
-                                                    color = zuneColors.textMuted
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (hasPermission && pickerHingeAnim.value == 0f) {
-                            WindowsPhoneBottomBar(
-                                actions = bottomBarActions,
-                                menuItems = bottomBarMenuItems,
-                                modifier = bottomBarModifier
-                            )
-                        }
-                    }
-                }
-
-                // ─── TABLET 3D HINGE ANIMATED CONTACT PICKER (LEFT-EDGE HINGE) ───
-                if (pickerHingeAnim.value > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val p = pickerHingeAnim.value
-                                rotationY = 90f * (1f - p)
-                                transformOrigin = TransformOrigin(0f, 0.5f)
-                                cameraDistance = 12f * density.density
-                                alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                            }
-                    ) {
-                        ContactPickerScreen(
-                            contacts = contacts,
-                            onClose = { closeContactPickerWithAnimation() },
-                            onContactSelected = onContactSelectedInPicker
+                    items(list, key = { it.threadId }) { conversation ->
+                        ConversationItem(
+                            conversation = conversation,
+                            now = now,
+                            onClick = { openConversation(conversation) },
+                            onLongClick = { menuConversation = conversation }
                         )
                     }
                 }
-            } else {
-                // ─── PHONE MODE: MATCHING PHONE HUB SCREEN DESIGN ───
-                // Hub Screen (Rotates out from the LEFT edge: TransformOrigin(0f, 0.5f))
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val p = hubHingeAnim.value
-                            rotationY = -90f * (1f - p)
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                            cameraDistance = 12f * density.density
-                            alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+            }
+        }
+    }
+
+    @Composable
+    fun SearchResultsPage() {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            val matchingConversations = conversations.filter {
+                it.title.contains(searchQuery, ignoreCase = true) ||
+                    it.address.contains(searchQuery, ignoreCase = true)
+            }
+            items(matchingConversations, key = { "c-${it.threadId}" }) { conversation ->
+                ConversationItem(
+                    conversation = conversation,
+                    now = now,
+                    onClick = { openConversation(conversation) },
+                    onLongClick = { menuConversation = conversation }
+                )
+            }
+            if (matchingMessages.isNotEmpty()) {
+                item(key = "in-messages") {
+                    Text(
+                        text = stringResource(R.string.msg_results_in_messages),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = zuneColors.accentColor,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+            items(matchingMessages, key = { "m-${it.id}" }) { message ->
+                SearchResultRow(
+                    message = message,
+                    onClick = {
+                        viewModel.conversationOf(message)?.let { openConversation(it) }
+                    }
+                )
+            }
+            if (matchingConversations.isEmpty() && matchingMessages.isEmpty()) {
+                item(key = "none") {
+                    Text(
+                        text = stringResource(R.string.common_no_results),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = zuneColors.textDim,
+                        modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun ListArea() {
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (!isDefaultApp && hasPermission) {
+                DefaultAppNotice(onMakeDefault = { askToBeDefault(context) })
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            AnimatedVisibility(visible = isSearchActive) {
+                MessageSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { viewModel.setSearchQuery(context, it) },
+                    isVisible = isSearchActive,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    !hasPermission -> MessagePermissionCard(
+                        onGrant = {
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.READ_SMS,
+                                    Manifest.permission.SEND_SMS,
+                                    Manifest.permission.RECEIVE_SMS,
+                                    Manifest.permission.READ_CONTACTS
+                                )
+                            )
                         }
-                ) {
+                    )
+
+                    isSearchActive && searchQuery.isNotBlank() -> SearchResultsPage()
+
+                    else -> ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
+                        ConversationsPage(MessageTab.entries[page])
+                    }
+                }
+            }
+        }
+    }
+
+    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
+        Box(modifier = Modifier.fillMaxSize()) {
+
+            // ── The hub board ──
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = hubHingeAnim.value
+                        rotationY = -90f * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = 12f * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                    }
+            ) {
+                if (isWideScreen) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        // Top Label (stringResource(R.string.hub_messaging))
+                        ZuneWideHubTitle(text = stringResource(R.string.hub_messaging))
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(start = 72.dp, end = 48.dp)
+                        ) {
+                            Column(modifier = Modifier.width(380.dp).fillMaxHeight()) {
+                                ZunePivotTabs(tabs = tabs, state = pager, fontSize = 30.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                ListArea()
+                            }
+                            Spacer(modifier = Modifier.width(32.dp))
+                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                val conversation = selectedConv
+                                if (conversation != null) {
+                                    ConversationScreen(
+                                        conversation = conversation,
+                                        messages = threadMessages,
+                                        input = composeText,
+                                        onInputChange = { composeText = it },
+                                        now = now,
+                                        sims = sims,
+                                        selectedSim = selectedSim,
+                                        onSelectSim = viewModel::selectSim,
+                                        isBlocked = isBlocked,
+                                        onSend = {
+                                            val text = composeText
+                                            composeText = ""
+                                            viewModel.sendSms(context, conversation.address, text)
+                                        },
+                                        onClose = closeConversation,
+                                        onCall = { PhoneCaller.call(context, conversation.address, conversation.title) },
+                                        onMessageLongPress = { menuMessage = it }
+                                    )
+                                } else {
+                                    EmptyDetailPane()
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(bottomBarClearance))
+                    }
+                } else {
+                    Column(modifier = Modifier.fillMaxSize()) {
                         Text(
                             text = stringResource(R.string.hub_messaging),
                             style = MaterialTheme.typography.titleMedium.copy(
@@ -356,7 +501,11 @@ fun MessagingHubScreen(
                                 fontSize = 18.sp,
                                 letterSpacing = 1.sp
                             ),
-                            color = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f),
+                            color = if (zuneColors.isDark) {
+                                Color.White.copy(alpha = 0.9f)
+                            } else {
+                                Color.Black.copy(alpha = 0.85f)
+                            },
                             maxLines = 1,
                             softWrap = false,
                             modifier = Modifier.padding(
@@ -366,595 +515,322 @@ fun MessagingHubScreen(
                                 end = ZuneDimens.ScreenPaddingHorizontal
                             )
                         )
-
-                        // Main Header (stringResource(R.string.msg_conversations))
-                        ZunePivotHeader(
-                            text = stringResource(R.string.msg_conversations),
-                            modifier = Modifier.padding(
-                                bottom = 12.dp,
-                                start = ZuneDimens.ScreenPaddingHorizontal,
-                                end = ZuneDimens.ScreenPaddingHorizontal
-                            )
-                        )
-
-                        // Collapsible Search Bar
-                        AnimatedVisibility(visible = isSearchActive) {
-                            SearchBar(
-                                query = searchQuery,
-                                onQueryChange = { searchQuery = it },
-                                isVisible = isSearchActive,
-                                modifier = Modifier.padding(
-                                    horizontal = ZuneDimens.ScreenPaddingHorizontal,
-                                    vertical = 6.dp
-                                )
-                            )
-                        }
-
-                        // Content List Area
+                        ZunePivotTabs(tabs = tabs, state = pager, modifier = Modifier.padding(top = 4.dp))
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
                                 .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
                         ) {
-                            if (!hasPermission) {
-                                PermissionRequestCard(
-                                    onGrant = {
-                                        permissionLauncher.launch(
-                                            arrayOf(
-                                                Manifest.permission.READ_SMS,
-                                                Manifest.permission.SEND_SMS,
-                                                Manifest.permission.READ_CONTACTS
-                                            )
-                                        )
-                                    }
-                                )
-                            } else {
-                                ThreadsPage(
-                                    errorMessage = errorMessage,
-                                    conversations = conversations,
-                                    searchQuery = searchQuery,
-                                    onConversationClick = { conv -> openConversationWithAnimation(conv) }
-                                )
-                            }
+                            ListArea()
                         }
-
-                        // Bottom Spacer for Bar
-                        Spacer(modifier = Modifier.height(80.dp))
-                    }
-
-                    // Phone Bottom Application Bar
-                    if (hasPermission && detailHingeAnim.value == 0f && pickerHingeAnim.value == 0f) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .then(bottomBarModifier),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            WindowsPhoneBottomBar(
-                                actions = bottomBarActions,
-                                menuItems = bottomBarMenuItems
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(bottomBarClearance))
                     }
                 }
 
-                // ─── PHONE 3D HINGE ANIMATED CONTACT PICKER (LEFT-EDGE HINGE) ───
-                if (pickerHingeAnim.value > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val p = pickerHingeAnim.value
-                                rotationY = 90f * (1f - p)
-                                transformOrigin = TransformOrigin(0f, 0.5f)
-                                cameraDistance = 12f * density.density
-                                alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                            }
+                if (hasPermission && detailHingeAnim.value == 0f && pickerHingeAnim.value == 0f) {
+                    WindowsPhoneBottomBar(
+                        actions = bottomBarActions,
+                        menuItems = bottomBarMenuItems,
+                        modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier)
+                    )
+                }
+            }
+
+            // ── New message ──
+            if (pickerHingeAnim.value > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val p = pickerHingeAnim.value
+                            rotationY = 90f * (1f - p)
+                            transformOrigin = TransformOrigin(0f, 0.5f)
+                            cameraDistance = 12f * density.density
+                            alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                        }
+                ) {
+                    NewMessageScreen(
+                        contacts = contacts,
+                        onClose = closePicker,
+                        onRecipientChosen = onRecipientChosen
+                    )
+                }
+            }
+
+            // ── The conversation, on a phone ──
+            if (!isWideScreen && detailHingeAnim.value > 0f && selectedConv != null) {
+                val conversation = selectedConv!!
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val p = detailHingeAnim.value
+                            rotationY = 90f * (1f - p)
+                            transformOrigin = TransformOrigin(0f, 0.5f)
+                            cameraDistance = 12f * density.density
+                            alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                        }
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = if (zuneColors.isDark) Color(0xFF0C0C0C) else Color(0xFFFAFAFA)
                     ) {
-                        ContactPickerScreen(
-                            contacts = contacts,
-                            onClose = { closeContactPickerWithAnimation() },
-                            onContactSelected = onContactSelectedInPicker
+                        ConversationScreen(
+                            conversation = conversation,
+                            messages = threadMessages,
+                            input = composeText,
+                            onInputChange = { composeText = it },
+                            now = now,
+                            sims = sims,
+                            selectedSim = selectedSim,
+                            onSelectSim = viewModel::selectSim,
+                            isBlocked = isBlocked,
+                            onSend = {
+                                val text = composeText
+                                composeText = ""
+                                viewModel.sendSms(context, conversation.address, text)
+                            },
+                            onClose = closeConversation,
+                            onCall = { PhoneCaller.call(context, conversation.address, conversation.title) },
+                            onMessageLongPress = { menuMessage = it },
+                            modifier = Modifier.statusBarsPadding()
                         )
                     }
                 }
-
-                // ─── PHONE 3D HINGE ANIMATED FULLSCREEN CHAT (LEFT-EDGE HINGE) ───
-                if (detailHingeAnim.value > 0f && selectedConv != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val p = detailHingeAnim.value
-                                rotationY = 90f * (1f - p)
-                                transformOrigin = TransformOrigin(0f, 0.5f)
-                                cameraDistance = 12f * density.density
-                                alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                            }
-                    ) {
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = if (zuneColors.isDark) Color(0xFF0C0C0C) else Color(0xFFFAFAFA)
-                        ) {
-                            ConversationDetailContent(
-                                conversation = selectedConv!!,
-                                messages = threadMessages,
-                                onClose = { closeConversationWithAnimation() },
-                                onSend = { text ->
-                                    viewModel.sendSms(context, selectedConv!!.address, text) {}
-                                },
-                                modifier = Modifier.statusBarsPadding()
-                            )
-                        }
-                    }
-                }
             }
-        }
-    }
-}
 
-// ── Search Bar Component ────────────────────────────────────────────────────
-
-@Composable
-private fun SearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    isVisible: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val zuneColors = LocalZuneColors.current
-    val bgColor = if (zuneColors.isDark) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
-    val textColor = MaterialTheme.colorScheme.onBackground
-    val hintColor = zuneColors.textDim
-    val focusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(isVisible) {
-        if (isVisible) {
-            kotlinx.coroutines.delay(100)
-            focusRequester.requestFocus()
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(44.dp)
-            .background(bgColor, RoundedCornerShape(2.dp))
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = hintColor,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Box(modifier = Modifier.weight(1f)) {
-                if (query.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.msg_search_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = hintColor
-                    )
-                }
-                BasicTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = textColor),
-                    singleLine = true,
-                    cursorBrush = SolidColor(zuneColors.accentColor),
+            // ── What just happened ──
+            AnimatedVisibility(
+                visible = statusMessage != null,
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(focusRequester)
-                )
-            }
-        }
-    }
-}
-
-// ── Message Threads List (Styled Matching Phone Hub Screen) ──────────────────
-
-@Composable
-private fun ThreadsPage(
-    conversations: List<SmsConversationModel>,
-    errorMessage: String?,
-    searchQuery: String,
-    onConversationClick: (SmsConversationModel) -> Unit
-) {
-    val filteredConversations = remember(conversations, searchQuery) {
-        if (searchQuery.isBlank()) conversations
-        else conversations.filter {
-            it.contactName.contains(searchQuery, ignoreCase = true) ||
-                    it.snippet.contains(searchQuery, ignoreCase = true) ||
-                    it.address.contains(searchQuery)
-        }
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        if (filteredConversations.isEmpty()) {
-            item {
-                Text(
-                    text = errorMessage?.let { stringResource(R.string.msg_load_failed, it) } ?: if (searchQuery.isNotBlank()) stringResource(R.string.common_no_results) else stringResource(R.string.msg_history_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = LocalZuneColors.current.textDim,
-                    modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
-                )
-            }
-        } else {
-            items(filteredConversations, key = { it.threadId }) { conv ->
-                ConversationItem(
-                    conversation = conv,
-                    onClick = { onConversationClick(conv) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ConversationItem(
-    conversation: SmsConversationModel,
-    onClick: () -> Unit
-) {
-    val zuneColors = LocalZuneColors.current
-    val format = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault())
-    val dateString = format.format(Date(conversation.timestamp)).lowercase()
-    val isUnread = !conversation.isRead
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.Chat,
-            contentDescription = null,
-            tint = if (isUnread) zuneColors.accentColor else MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = conversation.contactName,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = dateString,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isUnread) zuneColors.accentColor else zuneColors.textMuted
-                )
-            }
-            Text(
-                text = conversation.snippet,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isUnread) MaterialTheme.colorScheme.onBackground else zuneColors.textMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-// ── Contact Picker Screen ───────────────────────────────────────────────────
-
-@Composable
-private fun ContactPickerScreen(
-    contacts: List<Pair<ContactModel, String>>,
-    onClose: () -> Unit,
-    onContactSelected: (name: String, number: String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val zuneColors = LocalZuneColors.current
-    var filterQuery by remember { mutableStateOf("") }
-
-    val filteredContacts = remember(contacts, filterQuery) {
-        if (filterQuery.isBlank()) contacts
-        else contacts.filter { (contact, number) ->
-            contact.name.contains(filterQuery, ignoreCase = true) || number.contains(filterQuery)
-        }
-    }
-
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = if (zuneColors.isDark) Color(0xFF0F0F0F) else Color(0xFFFAFAFA)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.msg_pick_contact),
-                    style = MaterialTheme.typography.displaySmall.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 36.sp
-                    ),
-                    color = if (zuneColors.isDark) Color.White else Color.Black
-                )
-
-                IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.common_close_cap),
-                        tint = if (zuneColors.isDark) Color.White else Color.Black
+                        .background(zuneColors.accentColor)
+                        .statusBarsPadding()
+                        .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = statusMessage.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = Color.White
                     )
                 }
             }
+        }
+    }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            SearchBar(
-                query = filterQuery,
-                onQueryChange = { filterQuery = it },
-                isVisible = true,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 32.dp)
-            ) {
-                items(filteredContacts) { (contact, number) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onContactSelected(contact.name, number) },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(zuneColors.accentColor, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = contact.name.take(1).uppercase(),
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Color.White
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        Column {
-                            Text(
-                                text = contact.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Text(
-                                text = number,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = zuneColors.textMuted
-                            )
-                        }
-                    }
+    // ── Long press on a conversation ──
+    menuConversation?.let { conversation ->
+        val pinned = conversation.threadId in pinnedThreads
+        MessagingSheet(title = conversation.title, onDismiss = { menuConversation = null }) {
+            if (conversation.unreadCount > 0 || !conversation.isRead) {
+                SheetAction(stringResource(R.string.msg_mark_read)) {
+                    viewModel.markThreadRead(context, conversation)
+                    menuConversation = null
                 }
             }
+            if (conversation.address.isNotBlank()) {
+                SheetAction(stringResource(R.string.msg_call)) {
+                    PhoneCaller.call(context, conversation.address, conversation.title)
+                    menuConversation = null
+                }
+            }
+            SheetAction(
+                stringResource(
+                    if (pinned) R.string.msg_unpin_from_start else R.string.msg_pin_to_start
+                )
+            ) {
+                viewModel.togglePinToStart(conversation)
+                menuConversation = null
+            }
+            if (conversation.address.isNotBlank()) {
+                SheetAction(stringResource(R.string.msg_block_number)) {
+                    viewModel.toggleBlocked(context, conversation)
+                    menuConversation = null
+                }
+            }
+            SheetAction(
+                stringResource(R.string.msg_delete_conversation),
+                color = MaterialTheme.colorScheme.error
+            ) {
+                deleteConversation = conversation
+                menuConversation = null
+            }
         }
+    }
+
+    // ── Long press on a message ──
+    menuMessage?.let { message ->
+        MessagingSheet(
+            title = selectedConv?.title.orEmpty().ifBlank { stringResource(R.string.hub_messaging) },
+            onDismiss = { menuMessage = null }
+        ) {
+            if (message.body.isNotBlank()) {
+                SheetAction(stringResource(R.string.common_copy)) {
+                    copyToClipboard(context, message.body)
+                    viewModel.showStatus(context.getString(R.string.msg_copied))
+                    menuMessage = null
+                }
+                SheetAction(stringResource(R.string.msg_forward)) {
+                    pendingForward = message.body
+                    menuMessage = null
+                    openPicker()
+                }
+            }
+            if (message.isFailed) {
+                SheetAction(stringResource(R.string.msg_resend)) {
+                    viewModel.resend(context, message)
+                    menuMessage = null
+                }
+            }
+            SheetAction(stringResource(R.string.msg_details)) {
+                detailsMessage = message
+                menuMessage = null
+            }
+            SheetAction(
+                stringResource(R.string.msg_delete_message),
+                color = MaterialTheme.colorScheme.error
+            ) {
+                deleteMessage = message
+                menuMessage = null
+            }
+        }
+    }
+
+    // ── Confirmations ──
+    deleteConversation?.let { conversation ->
+        EmailConfirmDialog(
+            title = stringResource(R.string.msg_delete_conversation),
+            message = stringResource(R.string.msg_delete_conversation_message, conversation.title),
+            confirmText = stringResource(R.string.common_delete),
+            onConfirm = {
+                viewModel.deleteThread(context, conversation)
+                deleteConversation = null
+            },
+            onDismiss = { deleteConversation = null }
+        )
+    }
+
+    deleteMessage?.let { message ->
+        EmailConfirmDialog(
+            title = stringResource(R.string.msg_delete_message),
+            message = stringResource(R.string.msg_delete_message_message),
+            confirmText = stringResource(R.string.common_delete),
+            onConfirm = {
+                viewModel.deleteMessage(context, message)
+                deleteMessage = null
+            },
+            onDismiss = { deleteMessage = null }
+        )
+    }
+
+    detailsMessage?.let { message ->
+        MessageDetailsDialog(
+            title = stringResource(R.string.msg_details),
+            lines = messageDetails(message),
+            onDismiss = { detailsMessage = null }
+        )
     }
 }
 
-// ── Conversation Detail View ────────────────────────────────────────────────
+// ── Small pieces of the hub ─────────────────────────────────────────────────
 
 @Composable
-private fun ConversationDetailContent(
-    conversation: SmsConversationModel,
-    messages: List<SmsMessageModel>,
-    onClose: () -> Unit,
-    onSend: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun EmptyDetailPane() {
     val zuneColors = LocalZuneColors.current
-    var inputMessage by remember { mutableStateOf("") }
-    val listState = rememberLazyListState()
-
-    val sortedMessages = remember(messages) {
-        messages.sortedBy { it.timestamp }
-    }
-
-    LaunchedEffect(sortedMessages.size, conversation.threadId) {
-        if (sortedMessages.isNotEmpty()) {
-            listState.scrollToItem(sortedMessages.size - 1)
-        }
-    }
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = conversation.contactName.lowercase(),
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 32.sp,
-                        letterSpacing = (-1).sp
-                    ),
-                    color = if (zuneColors.isDark) Color.White else Color.Black
-                )
-                Text(
-                    text = conversation.address,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = zuneColors.textMuted
-                )
-            }
-
-            IconButton(onClick = onClose) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.common_close_cap),
-                    tint = if (zuneColors.isDark) Color.White else Color.Black
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (sortedMessages.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.msg_no_messages),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
-                    color = zuneColors.textMuted
-                )
-            }
-        } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(sortedMessages) { msg ->
-                    val isOut = msg.isOutgoing
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = if (isOut) Alignment.CenterEnd else Alignment.CenterStart
-                    ) {
-                        Surface(
-                            color = if (isOut) zuneColors.accentColor else (if (zuneColors.isDark) Color(0xFF222222) else Color(0xFFE5E5E5)),
-                            shape = RoundedCornerShape(2.dp),
-                            modifier = Modifier.widthIn(max = 320.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = msg.body,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isOut || zuneColors.isDark) Color.White else Color.Black
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(msg.timestamp)),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                    color = (if (isOut || zuneColors.isDark) Color.White else Color.Black).copy(alpha = 0.6f),
-                                    modifier = Modifier.align(Alignment.End)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = inputMessage,
-                onValueChange = { inputMessage = it },
-                placeholder = { Text(stringResource(R.string.msg_type_hint), color = zuneColors.textMuted) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(2.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = zuneColors.accentColor,
-                    unfocusedBorderColor = (if (zuneColors.isDark) Color.White else Color.Black).copy(alpha = 0.2f),
-                    focusedTextColor = if (zuneColors.isDark) Color.White else Color.Black,
-                    unfocusedTextColor = if (zuneColors.isDark) Color.White else Color.Black
-                )
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Message,
+                contentDescription = null,
+                tint = zuneColors.textDim,
+                modifier = Modifier.size(64.dp)
             )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            IconButton(
-                onClick = {
-                    if (inputMessage.isNotBlank()) {
-                        onSend(inputMessage)
-                        inputMessage = ""
-                    }
-                },
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(zuneColors.accentColor, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = stringResource(R.string.msg_send_cap),
-                    tint = Color.White
-                )
-            }
-        }
-    }
-}
-
-// ── Permission Request Card ─────────────────────────────────────────────────
-
-@Composable
-private fun PermissionRequestCard(onGrant: () -> Unit) {
-    val zuneColors = LocalZuneColors.current
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        color = if (zuneColors.isDark) Color(0xFF181818) else Color(0xFFF2F2F2),
-        shape = RoundedCornerShape(4.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.msg_permission_title),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = if (zuneColors.isDark) Color.White else Color.Black
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.msg_permission_message),
-                style = MaterialTheme.typography.bodyMedium,
+                text = stringResource(R.string.msg_pick_conversation),
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light),
                 color = zuneColors.textMuted
             )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = onGrant,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = zuneColors.accentColor,
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(2.dp)
-            ) {
-                Text(stringResource(R.string.msg_permission_button))
-            }
         }
     }
 }
+
+/** A message the search found, with the number it came from above it. */
+@Composable
+private fun SearchResultRow(message: SmsMessageModel, onClick: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp)
+    ) {
+        Text(
+            text = message.address.ifBlank { stringResource(R.string.hub_messaging) },
+            style = MaterialTheme.typography.labelMedium,
+            color = zuneColors.textDim
+        )
+        Text(
+            text = message.body,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 2,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun messageDetails(message: SmsMessageModel): List<String> {
+    val stamp = remember(message.timestamp) {
+        SimpleDateFormat("dd MMMM yyyy HH:mm", Locale.getDefault()).format(Date(message.timestamp))
+    }
+    val delivery = when (message.delivery) {
+        com.serkantkn.zunelauncher.data.model.MessageDelivery.SENDING -> stringResource(R.string.msg_sending)
+        com.serkantkn.zunelauncher.data.model.MessageDelivery.SENT -> stringResource(R.string.msg_sent)
+        com.serkantkn.zunelauncher.data.model.MessageDelivery.DELIVERED -> stringResource(R.string.msg_delivered)
+        com.serkantkn.zunelauncher.data.model.MessageDelivery.FAILED -> stringResource(R.string.msg_failed)
+        com.serkantkn.zunelauncher.data.model.MessageDelivery.NONE -> ""
+    }
+    val count = messageCount(message.body)
+    return buildList {
+        add(stamp)
+        if (delivery.isNotBlank()) add(delivery)
+        if (message.address.isNotBlank()) add(message.address)
+        add(stringResource(R.string.msg_details_length, count.characters, count.segments))
+    }
+}
+
+private fun copyToClipboard(context: Context, text: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+    clipboard.setPrimaryClip(ClipData.newPlainText("message", text))
+}
+
+/** Asks Android to make the launcher the phone's messaging app. */
+private fun askToBeDefault(context: Context) {
+    runCatching {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val roleManager = context.getSystemService(android.app.role.RoleManager::class.java)
+            if (roleManager != null && roleManager.isRoleAvailable(android.app.role.RoleManager.ROLE_SMS)) {
+                context.startActivity(
+                    roleManager.createRequestRoleIntent(android.app.role.RoleManager.ROLE_SMS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            }
+        }
+        context.startActivity(
+            Intent(android.provider.Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT)
+                .putExtra(android.provider.Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, context.packageName)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+}
+
+private const val HINGE_MILLIS = 320

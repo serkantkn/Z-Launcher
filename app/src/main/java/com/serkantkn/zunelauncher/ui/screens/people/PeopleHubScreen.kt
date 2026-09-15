@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.data.model.ContactGroup
+import androidx.compose.material.icons.filled.Groups
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
@@ -70,6 +72,7 @@ import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import com.serkantkn.zunelauncher.ui.components.ZunePivotHeader
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /** People hub entrance: an even slower, heavier landing than the standard hub curve. */
 private val PeopleHubEntranceEasing = CubicBezierEasing(0.0f, 0.98f, 0.05f, 1.0f)
@@ -92,6 +95,14 @@ fun PeopleHubScreen(
     val favoriteContacts by viewModel.favoriteContacts.collectAsState()
     val recentContacts by viewModel.recentContacts.collectAsState()
     val selectedContactDetail by viewModel.selectedContactDetail.collectAsState()
+    val pinnedContactIds by viewModel.pinnedContactIds.collectAsState()
+    val groups by viewModel.groups.collectAsState()
+    val openGroup by viewModel.openGroup.collectAsState()
+    val groupMembers by viewModel.groupMembers.collectAsState()
+
+    /** Open while a duplicate is being picked to join with the contact on screen. */
+    var linkPickerOpen by remember { mutableStateOf(false) }
+    var newGroupOpen by remember { mutableStateOf(false) }
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     var isSearchVisible by remember { mutableStateOf(false) }
@@ -110,7 +121,12 @@ fun PeopleHubScreen(
         bottomBarDurationMillis = PeopleHubBottomBarDurationMillis
     )
 
-    val tabs = listOf(stringResource(R.string.common_all), stringResource(R.string.people_tab_favorites), stringResource(R.string.recent_apps))
+    val tabs = listOf(
+        stringResource(R.string.common_all),
+        stringResource(R.string.people_tab_favorites),
+        stringResource(R.string.recent_apps),
+        stringResource(R.string.people_groups)
+    )
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
     val coroutineScope = rememberCoroutineScope()
 
@@ -179,6 +195,15 @@ fun PeopleHubScreen(
         }
     }
 
+    // Somebody pinned to the start board opens straight onto their card.
+    LaunchedEffect(hasPermission) {
+        if (!hasPermission) return@LaunchedEffect
+        com.serkantkn.zunelauncher.data.repository.PeopleBridge.consume()?.let { contactId ->
+            viewModel.contactById(contactId)?.let { selectContactWithAnimation(it) }
+        }
+    }
+
+
     val closeDetailWithAnimation: () -> Unit = {
         coroutineScope.launch { editContactHingeAnim.snapTo(0f) }
         if (isWideScreen) {
@@ -204,8 +229,13 @@ fun PeopleHubScreen(
         }
     )
 
-    BackHandler(enabled = editContactHingeAnim.value > 0f || newContactHingeAnim.value > 0f || detailHingeAnim.value > 0f || selectedContactDetail != null) {
-        if (editContactHingeAnim.value > 0f) {
+    BackHandler(
+        enabled = editContactHingeAnim.value > 0f || newContactHingeAnim.value > 0f ||
+            detailHingeAnim.value > 0f || selectedContactDetail != null || openGroup != null
+    ) {
+        if (openGroup != null && selectedContactDetail == null && detailHingeAnim.value == 0f) {
+            viewModel.openGroup(null)
+        } else if (editContactHingeAnim.value > 0f) {
             closeEditContactScreen()
         } else if (newContactHingeAnim.value > 0f) {
             closeNewContactScreen()
@@ -214,11 +244,16 @@ fun PeopleHubScreen(
         }
     }
 
+    val onGroupsPage = pager.pagerState.currentPage % tabs.size == 3
+
     val bottomBarActions = listOf(
         WpBarAction(
             icon = Icons.Default.Add,
-            label = stringResource(R.string.people_new_contact),
-            onClick = { openNewContactScreen() }
+            // On the groups page the plus makes a group; everywhere else it makes a person.
+            label = stringResource(
+                if (onGroupsPage) R.string.people_new_group else R.string.people_new_contact
+            ),
+            onClick = { if (onGroupsPage) newGroupOpen = true else openNewContactScreen() }
         ),
         WpBarAction(
             icon = Icons.Default.Search,
@@ -346,6 +381,16 @@ fun PeopleHubScreen(
                                 }
                             }
                         }
+                    }
+                    3 -> {
+                        GroupsPage(
+                            groups = groups,
+                            openGroup = openGroup,
+                            members = groupMembers,
+                            onOpenGroup = { viewModel.openGroup(it) },
+                            onContactClick = { selectContactWithAnimation(it) },
+                            onDeleteGroup = { viewModel.deleteGroup(it) }
+                        )
                     }
                 }
             }
@@ -514,7 +559,16 @@ fun PeopleHubScreen(
                     viewModel.deleteContact(contactId) { success ->
                         if (success) closeDetailWithAnimation()
                     }
-                }
+                },
+                onToggleFavorite = { viewModel.toggleFavorite(it) },
+                onPinToStart = { viewModel.togglePinToStart(it) },
+                isPinnedToStart = selectedContactDetail?.contact?.id in pinnedContactIds,
+                allGroups = groups,
+                onToggleGroup = { viewModel.toggleGroupMembership(it) },
+                onLinkDuplicate = { linkPickerOpen = true },
+                onUnlink = { viewModel.unlinkOpenContact() },
+                onPhotoPicked = { viewModel.setPhoto(it) },
+                onPhotoRemoved = { viewModel.removePhoto() }
             )
         } else if (detailHingeAnim.value > 0f) {
             Box(
@@ -537,7 +591,16 @@ fun PeopleHubScreen(
                         viewModel.deleteContact(contactId) { success ->
                             if (success) closeDetailWithAnimation()
                         }
-                    }
+                    },
+                    onToggleFavorite = { viewModel.toggleFavorite(it) },
+                    onPinToStart = { viewModel.togglePinToStart(it) },
+                    isPinnedToStart = selectedContactDetail?.contact?.id in pinnedContactIds,
+                    allGroups = groups,
+                    onToggleGroup = { viewModel.toggleGroupMembership(it) },
+                    onLinkDuplicate = { linkPickerOpen = true },
+                    onUnlink = { viewModel.unlinkOpenContact() },
+                    onPhotoPicked = { viewModel.setPhoto(it) },
+                    onPhotoRemoved = { viewModel.removePhoto() }
                 )
             }
         }
@@ -558,12 +621,37 @@ fun PeopleHubScreen(
                 EditContactScreen(
                     detail = selectedContactDetail!!,
                     onClose = { closeEditContactScreen() },
-                    onSave = { firstName, lastName, phoneNumber ->
+                    onSave = { edit ->
                         closeEditContactScreen()
-                        viewModel.updateContact(selectedContactDetail!!.contact.id, firstName, lastName, phoneNumber) {}
+                        viewModel.updateContact(selectedContactDetail!!.contact.id, edit) {}
                     }
                 )
             }
+        }
+
+        // ── Picking the duplicate to join with ──
+        if (linkPickerOpen && selectedContactDetail != null) {
+            val open = selectedContactDetail!!.contact
+            ContactPickerSheet(
+                title = stringResource(R.string.people_link_pick),
+                contacts = groupedContacts.values.flatten().filter { it.id != open.id },
+                onPick = { other ->
+                    linkPickerOpen = false
+                    viewModel.linkWith(other)
+                },
+                onDismiss = { linkPickerOpen = false }
+            )
+        }
+
+        // ── Naming a new group ──
+        if (newGroupOpen) {
+            NewGroupSheet(
+                onCreate = {
+                    viewModel.createGroup(it)
+                    newGroupOpen = false
+                },
+                onDismiss = { newGroupOpen = false }
+            )
         }
 
         // 3D Door Hinge Animated New Contact Screen Overlay
@@ -902,7 +990,7 @@ private fun ContactListItem(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = contact.name.take(1).uppercase(),
+                    text = contact.name.take(1).uppercase(Locale.getDefault()),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = Color.White
                 )
@@ -1027,7 +1115,7 @@ private fun WpFavoriteContactTile(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = contact.name.take(1).uppercase(),
+                            text = contact.name.take(1).uppercase(Locale.getDefault()),
                             style = MaterialTheme.typography.displayLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 42.sp
@@ -1067,5 +1155,209 @@ private fun WpFavoriteContactTile(
                 }
             }
         }
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// GROUPS
+// ════════════════════════════════════════════════════════════
+
+/**
+ * The groups page: the groups themselves, and whoever is inside the one that has been opened.
+ *
+ * Groups are the address book's own, so a group made here shows up in every other contacts app,
+ * and one made elsewhere shows up here.
+ */
+@Composable
+private fun GroupsPage(
+    groups: List<ContactGroup>,
+    openGroup: ContactGroup?,
+    members: List<ContactModel>,
+    onOpenGroup: (ContactGroup?) -> Unit,
+    onContactClick: (ContactModel) -> Unit,
+    onDeleteGroup: (Long) -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+
+    if (openGroup != null) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+            ) {
+                Text(
+                    text = openGroup.title,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = stringResource(R.string.common_back),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = zuneColors.accentColor,
+                    modifier = Modifier
+                        .clickable { onOpenGroup(null) }
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                )
+                Text(
+                    text = stringResource(R.string.common_delete),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .clickable { onDeleteGroup(openGroup.id) }
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                )
+            }
+
+            if (members.isEmpty()) {
+                ZuneEmptyState(stringResource(R.string.people_group_empty))
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 80.dp)
+                ) {
+                    items(members, key = { it.id }) { contact ->
+                        ContactListItem(contact = contact) { onContactClick(it) }
+                    }
+                }
+            }
+        }
+        return
+    }
+
+    if (groups.isEmpty()) {
+        ZuneEmptyState(stringResource(R.string.people_no_groups))
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 80.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        items(groups, key = { it.id }) { group ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenGroup(group) }
+                    .padding(vertical = 10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Groups,
+                    contentDescription = null,
+                    tint = zuneColors.accentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = group.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = androidx.compose.ui.res.pluralStringResource(
+                            R.plurals.people_group_members,
+                            group.memberCount,
+                            group.memberCount
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = zuneColors.textMuted
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Picking one person out of the phone book — used to say which entry is the same person. */
+@Composable
+private fun ContactPickerSheet(
+    title: String,
+    contacts: List<ContactModel>,
+    onPick: (ContactModel) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.72f))
+            .clickable(onClick = onDismiss)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .background(MaterialTheme.colorScheme.background)
+                .navigationBarsPadding()
+                .padding(vertical = 16.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(
+                    horizontal = ZuneDimens.ScreenPaddingHorizontal,
+                    vertical = 8.dp
+                )
+            )
+            if (contacts.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.no_contacts),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = zuneColors.textDim,
+                    modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
+                    contentPadding = PaddingValues(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                ) {
+                    items(contacts, key = { it.id }) { contact ->
+                        ContactListItem(contact = contact) { onPick(it) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Naming a new group. */
+@Composable
+private fun NewGroupSheet(onCreate: (String) -> Unit, onDismiss: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    var title by remember { mutableStateOf("") }
+
+    com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.people_new_group),
+        confirmButton = {
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = stringResource(R.string.common_save),
+                onClick = { if (title.isNotBlank()) onCreate(title) },
+                borderColor = zuneColors.accentColor
+            )
+        },
+        dismissButton = {
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = stringResource(R.string.common_cancel),
+                onClick = onDismiss,
+                borderColor = zuneColors.textMuted
+            )
+        }
+    ) {
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            label = { Text(stringResource(R.string.people_group_name)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }

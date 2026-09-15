@@ -71,6 +71,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.serkantkn.zunelauncher.ui.animation.rememberHingeSpec
 
 /** What a pivot page shows. Tag pages are generated from the notes' tags. */
 private sealed interface TabKind {
@@ -151,6 +152,7 @@ fun NotesHubScreen(
     var jumpLetter by remember { mutableStateOf<Pair<Char, Long>?>(null) }
 
     // 3D Door Hinge transition state for the editor (phone only)
+    val hingeSpec = rememberHingeSpec()
     val editorHingeAnim = remember { Animatable(0f) }
     var isEditorOpen by remember { mutableStateOf(false) }
 
@@ -165,7 +167,7 @@ fun NotesHubScreen(
             coroutineScope.launch {
                 editorHingeAnim.animateTo(
                     targetValue = 1f,
-                    animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing)
+                    animationSpec = hingeSpec
                 )
             }
         }
@@ -195,7 +197,7 @@ fun NotesHubScreen(
             coroutineScope.launch {
                 editorHingeAnim.animateTo(
                     targetValue = 0f,
-                    animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing)
+                    animationSpec = hingeSpec
                 )
                 isEditorOpen = false
                 draft = null

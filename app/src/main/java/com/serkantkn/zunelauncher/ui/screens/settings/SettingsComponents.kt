@@ -414,7 +414,8 @@ internal fun WindowsPhoneSwitch(
         )
     ) {
         Text(
-            text = if (checked) stringResource(R.string.theme_light) else stringResource(R.string.common_off),
+            // "on", not "light": the Turkish for both is açık, which is how this went unnoticed.
+            text = if (checked) stringResource(R.string.common_on) else stringResource(R.string.common_off),
             style = MaterialTheme.typography.bodySmall.copy(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Normal

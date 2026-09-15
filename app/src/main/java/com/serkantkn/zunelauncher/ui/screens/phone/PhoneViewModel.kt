@@ -12,11 +12,28 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.serkantkn.zunelauncher.data.model.SpeedDialEntry
+import com.serkantkn.zunelauncher.util.BlockedNumber
+import com.serkantkn.zunelauncher.util.BlockedNumbers
+import com.serkantkn.zunelauncher.util.CallGroup
+import com.serkantkn.zunelauncher.util.PhoneAccounts
+import com.serkantkn.zunelauncher.util.PhoneNumbers
+import com.serkantkn.zunelauncher.util.SimLine
+import com.serkantkn.zunelauncher.util.Voicemail
+import com.serkantkn.zunelauncher.util.groupCalls
+import com.serkantkn.zunelauncher.util.missedCalls
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 class PhoneViewModel(application: Application) : AndroidViewModel(application) {
 
     private val callLogRepository = application.appContainer.callLogRepository
     private val contactRepository = application.appContainer.contactRepository
+    private val phoneDataStore = application.appContainer.phoneDataStore
 
     private val _recentCalls = MutableStateFlow<List<CallLogModel>>(emptyList())
     val recentCalls: StateFlow<List<CallLogModel>> = _recentCalls.asStateFlow()
@@ -29,6 +46,128 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
     val dialedNumber: StateFlow<String> = _dialedNumber.asStateFlow()
 
     private val _allContacts = MutableStateFlow<List<Pair<ContactModel, String>>>(emptyList())
+    /** Every contact with a number, for the speed dial picker. */
+    val allContacts: StateFlow<List<Pair<ContactModel, String>>> = _allContacts.asStateFlow()
+
+    private val _missedOnly = MutableStateFlow(false)
+    val missedOnly: StateFlow<Boolean> = _missedOnly.asStateFlow()
+
+    /**
+     * The history as the hub shows it: runs of calls with the same person collapsed into one row,
+     * and only the unanswered ones when the filter is on.
+     */
+    val callGroups: StateFlow<List<CallGroup>> = combine(_recentCalls, _missedOnly) { calls, missedOnly ->
+        groupCalls(if (missedOnly) missedCalls(calls) else calls)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val missedCount: StateFlow<Int> = _recentCalls
+        .map { missedCalls(it).size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val speedDial: StateFlow<List<SpeedDialEntry>> = phoneDataStore.speedDial
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // ── The SIM a call goes out on ────────────────────────────────────────────────────────────
+
+    private val _simLines = MutableStateFlow<List<SimLine>>(emptyList())
+    /** The phone's lines. Empty or one long on every single-SIM phone, so nothing is ever asked. */
+    val simLines: StateFlow<List<SimLine>> = _simLines.asStateFlow()
+
+    val preferredSim: StateFlow<String?> = phoneDataStore.preferredSim
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun loadSimLines() {
+        viewModelScope.launch {
+            _simLines.value = withContext(Dispatchers.IO) { PhoneAccounts.lines(getApplication()) }
+        }
+    }
+
+    /** Null puts the choice back to being asked before every call. */
+    fun setPreferredSim(key: String?) {
+        viewModelScope.launch { phoneDataStore.setPreferredSim(key) }
+    }
+
+    // ── Voicemail ─────────────────────────────────────────────────────────────────────────────
+
+    private val _voicemailWaiting = MutableStateFlow(0)
+    /** How many voicemail messages the carrier says are waiting; nought hides the row. */
+    val voicemailWaiting: StateFlow<Int> = _voicemailWaiting.asStateFlow()
+
+    private val _hasVoicemail = MutableStateFlow(false)
+    val hasVoicemail: StateFlow<Boolean> = _hasVoicemail.asStateFlow()
+
+    fun loadVoicemail() {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            withContext(Dispatchers.IO) {
+                Voicemail.exists(app) to Voicemail.waitingCount(app)
+            }.let { (exists, waiting) ->
+                _hasVoicemail.value = exists
+                _voicemailWaiting.value = waiting
+            }
+        }
+    }
+
+    // ── Blocked numbers ───────────────────────────────────────────────────────────────────────
+
+    private val _blockedNumbers = MutableStateFlow<List<BlockedNumber>>(emptyList())
+    /** The phone's blocked list, newest first, for the page that shows it. */
+    val blockedNumbers: StateFlow<List<BlockedNumber>> = _blockedNumbers.asStateFlow()
+
+    /** The same list by match key, so a history row can tell at a glance. */
+    val blockedKeys: StateFlow<Set<String>> = _blockedNumbers
+        .map { list -> list.map { PhoneNumbers.matchKey(it.number) }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    private val _canBlock = MutableStateFlow(false)
+    /** Android only lets the phone app touch its blocked list; false hides the button. */
+    val canBlock: StateFlow<Boolean> = _canBlock.asStateFlow()
+
+    fun loadBlocked() {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val allowed = withContext(Dispatchers.IO) { BlockedNumbers.canBlock(app) }
+            _canBlock.value = allowed
+            _blockedNumbers.value = if (allowed) {
+                withContext(Dispatchers.IO) { BlockedNumbers.all(app) }
+            } else {
+                emptyList()
+            }
+        }
+    }
+
+    fun isBlocked(number: String): Boolean =
+        _blockedNumbers.value.any { PhoneNumbers.sameNumber(it.number, number) }
+
+    /** Blocks a number, or lets it through again if it was already blocked. */
+    fun toggleBlock(number: String, onDone: (blocked: Boolean, worked: Boolean) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val wasBlocked = isBlocked(number)
+            val worked = withContext(Dispatchers.IO) {
+                if (wasBlocked) BlockedNumbers.unblock(app, number) else BlockedNumbers.block(app, number)
+            }
+            loadBlocked()
+            onDone(!wasBlocked, worked)
+        }
+    }
+
+    fun toggleMissedOnly() {
+        _missedOnly.value = !_missedOnly.value
+    }
+
+    fun addToSpeedDial(name: String, number: String, photoUri: String? = null) {
+        viewModelScope.launch { phoneDataStore.add(SpeedDialEntry(number, name, photoUri)) }
+    }
+
+    fun removeFromSpeedDial(number: String) {
+        viewModelScope.launch { phoneDataStore.remove(number) }
+    }
+
+    fun moveSpeedDial(from: Int, to: Int) {
+        viewModelScope.launch { phoneDataStore.move(from, to) }
+    }
+
     
     private val _matchingContacts = MutableStateFlow<List<Pair<ContactModel, String>>>(emptyList())
     val matchingContacts: StateFlow<List<Pair<ContactModel, String>>> = _matchingContacts.asStateFlow()

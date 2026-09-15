@@ -22,10 +22,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.ui.animation.ZuneZoomAnchor
+import com.serkantkn.zunelauncher.ui.animation.zuneZoomAnchor
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
 
@@ -40,18 +43,26 @@ fun ZunePivotTabs(
     state: ZuneLoopingPagerState,
     modifier: Modifier = Modifier,
     fontSize: TextUnit = 72.sp,
+    startPadding: Dp = ZuneDimens.ScreenPaddingHorizontal,
+    firstTabAnchor: ZuneZoomAnchor? = null,
+    firstTabAlpha: Float = 1f,
+    zoomTabIndex: Int = 0,
     onSelected: (Int) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     ZunePivotTabs(
         tabs = tabs,
+        firstTabAnchor = firstTabAnchor,
+        firstTabAlpha = firstTabAlpha,
+        zoomTabIndex = zoomTabIndex,
         pagerState = state.pagerState,
         onSelected = { index ->
             scope.launch { state.animateScrollToPage(index) }
             onSelected(index)
         },
         modifier = modifier,
-        fontSize = fontSize
+        fontSize = fontSize,
+        startPadding = startPadding
     )
 }
 
@@ -61,7 +72,25 @@ fun ZunePivotTabs(
     pagerState: PagerState,
     onSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    fontSize: TextUnit = 72.sp
+    fontSize: TextUnit = 72.sp,
+    /**
+     * How far in from the left the first tab starts. The default is the screen's own margin, for
+     * a pivot placed against the edge; pass 0 when the pivot already sits inside something padded,
+     * or the two margins add up and the words stand further in than the title above them.
+     */
+    startPadding: Dp = ZuneDimens.ScreenPaddingHorizontal,
+    /**
+     * Lets the first tab's word be used as the landing place of a [ZuneTitleZoomOverlay] flight:
+     * the anchor learns where it is, and the alpha hides it while its double is still in the air.
+     */
+    firstTabAnchor: ZuneZoomAnchor? = null,
+    firstTabAlpha: Float = 1f,
+    /**
+     * Which tab the flight lands on. The first one by default — but a hub whose sub-lists live
+     * behind a later tab (the pictures hub opens albums from its second) needs the word that
+     * changes, not the word that happens to be leftmost.
+     */
+    zoomTabIndex: Int = 0
 ) {
     val listState = rememberLazyListState()
     val density = LocalDensity.current
@@ -89,10 +118,7 @@ fun ZunePivotTabs(
     LazyRow(
         state = listState,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(
-            start = ZuneDimens.ScreenPaddingHorizontal,
-            end = 48.dp
-        ),
+        contentPadding = PaddingValues(start = startPadding, end = 48.dp),
         horizontalArrangement = Arrangement.spacedBy(24.dp),
         userScrollEnabled = false
     ) {
@@ -120,7 +146,14 @@ fun ZunePivotTabs(
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier
-                    .alpha(alpha)
+                    .alpha(if (index == zoomTabIndex) alpha * firstTabAlpha else alpha)
+                    .then(
+                        if (index == zoomTabIndex && firstTabAnchor != null) {
+                            Modifier.zuneZoomAnchor(firstTabAnchor)
+                        } else {
+                            Modifier
+                        }
+                    )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,

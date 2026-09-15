@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 
 /**
  * Applies the standard Zune/W10M slide-in and fade-in enter animation 
@@ -23,6 +24,12 @@ fun ZunePageTransition(
     modifier: Modifier = Modifier.fillMaxSize(),
     content: @Composable () -> Unit
 ) {
+    val animationsEnabled = LocalAnimationsEnabled.current
+    if (!animationsEnabled) {
+        androidx.compose.foundation.layout.Box(modifier = modifier) { content() }
+        return
+    }
+
     var isVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {

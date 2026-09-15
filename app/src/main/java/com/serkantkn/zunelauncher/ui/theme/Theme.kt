@@ -93,6 +93,16 @@ val LocalZuneColors = staticCompositionLocalOf { ZuneExtendedColors() }
 val LocalIsWideScreen = staticCompositionLocalOf { false }
 
 /**
+ * Whether the launcher's own motion is wanted.
+ *
+ * The setting existed and was stored for a long time without a single animation consulting it.
+ * Everything shared reads it now — the hub entrance, the turnstile, the page hinge, the title
+ * flight, the press lean and the page transition — so switching it off actually stills the
+ * launcher instead of only being remembered.
+ */
+val LocalAnimationsEnabled = staticCompositionLocalOf { true }
+
+/**
  * App theme. [fontScale] is the user's font-size preference (SettingsDataStore.fontScale). It is
  * multiplied into [LocalDensity].fontScale, so every sp-based size (ZuneTypography and raw `.sp`
  * values) scales on top of the system font size. 1.0f leaves the platform density untouched.
@@ -105,6 +115,7 @@ fun ZuneLauncherTheme(
     customThemeColor: Int? = null,
     solidBackgroundEnabled: Boolean = false,
     fontScale: Float = 1.0f,
+    animationsEnabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val isDarkTheme = when (themeMode) {
@@ -200,6 +211,7 @@ fun ZuneLauncherTheme(
     CompositionLocalProvider(
         LocalZuneColors provides zuneColors,
         LocalIsWideScreen provides isWideScreen,
+        LocalAnimationsEnabled provides animationsEnabled,
         LocalDensity provides scaledDensity
     ) {
         MaterialTheme(

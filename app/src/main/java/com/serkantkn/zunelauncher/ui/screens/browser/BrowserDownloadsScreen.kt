@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FolderZip
@@ -47,6 +48,7 @@ fun BrowserDownloadsScreen(
     onClose: () -> Unit,
     onOpenDownload: (BrowserDownload) -> Unit,
     onRemoveDownload: (Long) -> Unit,
+    onRetryDownload: (BrowserDownload) -> Unit = {},
     onClearAll: () -> Unit,
     onRefreshStatus: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -142,7 +144,8 @@ fun BrowserDownloadsScreen(
                         DownloadItemRow(
                             download = download,
                             onClick = { onOpenDownload(download) },
-                            onRemove = { onRemoveDownload(download.id) }
+                            onRemove = { onRemoveDownload(download.id) },
+                            onRetry = { onRetryDownload(download) }
                         )
                     }
                 }
@@ -224,7 +227,8 @@ fun BrowserDownloadsScreen(
 private fun DownloadItemRow(
     download: BrowserDownload,
     onClick: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onRetry: () -> Unit = {}
 ) {
     val zuneColors = LocalZuneColors.current
     val itemBg = if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFF0F0F0)
@@ -322,11 +326,26 @@ private fun DownloadItemRow(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Remove Button
+            // A download that did not finish is worth another go; Android offers no public way
+            // to pause and resume one, so starting over is the honest offer.
+            if (isFailed) {
+                Text(
+                    text = stringResource(R.string.browser_download_retry),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = zuneColors.accentColor,
+                    modifier = Modifier
+                        .clickable(onClick = onRetry)
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                )
+            }
+
+            // Remove, which for a download still going means stopping it.
             IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
                 Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.files_delete_cap),
+                    imageVector = if (isRunning) Icons.Default.Close else Icons.Default.Delete,
+                    contentDescription = stringResource(
+                        if (isRunning) R.string.browser_download_cancel else R.string.files_delete_cap
+                    ),
                     tint = zuneColors.textMuted,
                     modifier = Modifier.size(18.dp)
                 )

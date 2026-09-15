@@ -11,8 +11,12 @@ import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
+import com.serkantkn.zunelauncher.data.model.StartFolders
+import com.serkantkn.zunelauncher.data.model.SearchEngine
 import com.serkantkn.zunelauncher.data.model.StartTileItem
 import com.serkantkn.zunelauncher.data.model.ThemeMode
+import com.serkantkn.zunelauncher.data.model.TileIcon
+import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import com.serkantkn.zunelauncher.data.model.TileAnimation
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.looksLikeJsonArray
@@ -45,7 +49,6 @@ class SettingsDataStore(private val context: Context) {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val FONT_SCALE = floatPreferencesKey("font_scale")
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
-        val SOCIAL_HUB_LAYOUT = stringPreferencesKey("social_hub_layout")
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
         val DIRECT_CALL_ENABLED = booleanPreferencesKey("direct_call_enabled")
         val HUB_ORDER = stringPreferencesKey("hub_order")
@@ -56,6 +59,8 @@ class SettingsDataStore(private val context: Context) {
         val SOLID_BACKGROUND_ENABLED = booleanPreferencesKey("solid_background_enabled")
         val BROWSER_FAVORITES = stringPreferencesKey("browser_favorites")
         val BROWSER_HISTORY = stringPreferencesKey("browser_history")
+        val SEARCH_ENGINE = stringPreferencesKey("browser_search_engine")
+        val SEARCH_SUGGESTIONS = booleanPreferencesKey("browser_search_suggestions")
         val BROWSER_DOWNLOADS = stringPreferencesKey("browser_downloads")
         val NOTIFICATION_STYLE = stringPreferencesKey("notification_style")
         val VOLUME_BAR_STYLE = stringPreferencesKey("volume_bar_style")
@@ -70,7 +75,86 @@ class SettingsDataStore(private val context: Context) {
         val TILE_ANIMATION = stringPreferencesKey("tile_animation")
         val TILE_SPACING = intPreferencesKey("tile_spacing")
         val HOME_SCREEN_LAYOUT = stringPreferencesKey("home_screen_layout")
-        val TILE_COLUMNS = intPreferencesKey("tile_columns")
+        val TILE_ICON_STYLE = stringPreferencesKey("tile_icon_style")
+        val ICON_PACK_PACKAGE = stringPreferencesKey("icon_pack_package")
+        val TILE_ICON_OVERRIDES = stringPreferencesKey("tile_icon_overrides")
+        val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
+        val SOCIAL_SOURCES = stringPreferencesKey("social_sources")
+        val SOCIAL_HUB_LAYOUT = stringPreferencesKey("social_hub_layout")
+        val ALARM_SNOOZE_MINUTES = intPreferencesKey("alarm_snooze_minutes")
+        val ALARM_AUTO_SILENCE_MINUTES = intPreferencesKey("alarm_auto_silence_minutes")
+        val CLOCK_SHOW_SECONDS = booleanPreferencesKey("clock_show_seconds")
+        val FILES_SORT = stringPreferencesKey("files_sort")
+        val FILES_SORT_ASCENDING = booleanPreferencesKey("files_sort_ascending")
+        val FILES_SHOW_HIDDEN = booleanPreferencesKey("files_show_hidden")
+        val GALLERY_COLUMNS = intPreferencesKey("gallery_columns")
+        val MUSIC_ONLINE_EXTRAS = booleanPreferencesKey("music_online_extras")
+        val MUSIC_ONLINE_WIFI_ONLY = booleanPreferencesKey("music_online_wifi_only")
+    }
+
+    /** Windows Phone tiles carried a white glyph and nothing else, so that is the default. */
+    val tileIconStyle: Flow<TileIconStyle> = context.settingsDataStore.data.map { prefs ->
+        try {
+            TileIconStyle.valueOf(prefs[TILE_ICON_STYLE] ?: TileIconStyle.WINDOWS_PHONE.name)
+        } catch (e: Exception) {
+            TileIconStyle.WINDOWS_PHONE
+        }
+    }
+
+    /** The installed icon pack tiles draw from, or null for none. */
+    val iconPackPackage: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[ICON_PACK_PACKAGE]?.takeIf { it.isNotBlank() }
+    }
+
+    /** Icons the user picked by hand, by package name. */
+    val tileIconOverrides: Flow<Map<String, TileIcon>> = context.settingsDataStore.data.map { prefs ->
+        TileIcon.mapFromJson(prefs[TILE_ICON_OVERRIDES])
+    }
+
+    // ── The app list ──
+
+    /**
+     * Apps the user has taken out of the list. They are still installed and still launchable from
+     * anywhere else; the list simply stops offering them.
+     */
+    val hiddenApps: Flow<Set<String>> = context.settingsDataStore.data.map { prefs ->
+        val raw = prefs[HIDDEN_APPS]
+        if (raw.isNullOrBlank()) emptySet()
+        else LinkedHashSet(parseJsonStringList(raw, TAG).filter { it.isNotBlank() })
+    }
+
+    suspend fun setAppHidden(packageName: String, hidden: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            val current = prefs[HIDDEN_APPS]
+                ?.takeIf { it.isNotBlank() }
+                ?.let { LinkedHashSet(parseJsonStringList(it, TAG)) }
+                ?: LinkedHashSet()
+            if (hidden) current.add(packageName) else current.remove(packageName)
+            prefs[HIDDEN_APPS] = current.toList().toJsonStringArray()
+        }
+    }
+
+    suspend fun clearHiddenApps() {
+        context.settingsDataStore.edit { prefs -> prefs[HIDDEN_APPS] = emptyList<String>().toJsonStringArray() }
+    }
+
+    suspend fun setTileIconStyle(style: TileIconStyle) {
+        context.settingsDataStore.edit { prefs -> prefs[TILE_ICON_STYLE] = style.name }
+    }
+
+    suspend fun setIconPackPackage(packageName: String?) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[ICON_PACK_PACKAGE] = packageName?.takeIf { it.isNotBlank() } ?: ""
+        }
+    }
+
+    /** Sets one app's icon, or clears it back to the launcher's own choice with [TileIcon.Default]. */
+    suspend fun setTileIconOverride(packageName: String, icon: TileIcon) {
+        context.settingsDataStore.edit { prefs ->
+            val current = TileIcon.mapFromJson(prefs[TILE_ICON_OVERRIDES]).toMutableMap()
+            if (icon == TileIcon.Default) current.remove(packageName) else current[packageName] = icon
+            prefs[TILE_ICON_OVERRIDES] = TileIcon.mapToJson(current)
+        }
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -87,14 +171,6 @@ class SettingsDataStore(private val context: Context) {
 
     val animationsEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[ANIMATIONS_ENABLED] ?: true
-    }
-
-    val socialHubLayout: Flow<SocialHubLayout> = context.settingsDataStore.data.map { prefs ->
-        try {
-            SocialHubLayout.valueOf(prefs[SOCIAL_HUB_LAYOUT] ?: SocialHubLayout.TIMELINE.name)
-        } catch (e: Exception) {
-            SocialHubLayout.TIMELINE
-        }
     }
 
     val homeScreenLayout: Flow<HomeScreenLayout> = context.settingsDataStore.data.map { prefs ->
@@ -130,6 +206,7 @@ class SettingsDataStore(private val context: Context) {
             com.serkantkn.zunelauncher.data.model.HubType.PEOPLE,
             com.serkantkn.zunelauncher.data.model.HubType.INTERNET,
             com.serkantkn.zunelauncher.data.model.HubType.PICTURES,
+            com.serkantkn.zunelauncher.data.model.HubType.CAMERA,
             com.serkantkn.zunelauncher.data.model.HubType.MUSIC,
             com.serkantkn.zunelauncher.data.model.HubType.FILES,
             com.serkantkn.zunelauncher.data.model.HubType.CLOCK,
@@ -160,6 +237,7 @@ class SettingsDataStore(private val context: Context) {
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.PEOPLE, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.INTERNET, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.PICTURES, 4),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CAMERA, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.MUSIC, 4),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.FILES, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CLOCK, 2),
@@ -184,7 +262,10 @@ class SettingsDataStore(private val context: Context) {
         } else {
             saved.split(",").mapNotNull { StartTileItem.fromLegacyString(it) }
         }
-        val existingHubs = list.filter { it.isHub }.mapNotNull { it.hubType }.toSet()
+        // A hub the user has filed away in a folder is not missing, so folders are counted too.
+        val existingHubs = StartFolders.allTileIds(list)
+            .mapNotNull { StartTileItem(it).hubType }
+            .toSet()
         val missingHubs = defaultStartTiles.filter { it.isHub && it.hubType !in existingHubs }
         return (list + missingHubs).ifEmpty { defaultStartTiles }
     }
@@ -239,10 +320,6 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    val tileColumns: Flow<Int> = context.settingsDataStore.data.map { prefs ->
-        prefs[TILE_COLUMNS] ?: 4
-    }
-
     val solidBackgroundEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[SOLID_BACKGROUND_ENABLED] ?: false
     }
@@ -261,6 +338,15 @@ class SettingsDataStore(private val context: Context) {
 
     val browserHistory: Flow<String?> = context.settingsDataStore.data.map { prefs ->
         prefs[BROWSER_HISTORY]
+    }
+
+    /** Where a typed search goes, and whether the engine is asked for suggestions as you type. */
+    val searchEngine: Flow<SearchEngine> = context.settingsDataStore.data.map { prefs ->
+        SearchEngine.fromName(prefs[SEARCH_ENGINE])
+    }
+
+    val searchSuggestionsEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[SEARCH_SUGGESTIONS] ?: true
     }
 
     val browserDownloads: Flow<String?> = context.settingsDataStore.data.map { prefs ->
@@ -283,9 +369,132 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    val disabledNotificationApps: Flow<Set<String>> = flow {
+    // ── Pictures ────────────────────────────────────────────────────────────
+
+    /** How many pictures fit across the grid; zero means "work it out from how many there are". */
+    val galleryColumns: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[GALLERY_COLUMNS] ?: 0
+    }
+
+    suspend fun setGalleryColumns(columns: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[GALLERY_COLUMNS] = columns }
+    }
+
+    /**
+     * Whether the music hub may look up covers and lyrics it cannot find on the phone.
+     *
+     * Off by default. It sends what is playing to a service outside the phone, which is somebody's
+     * decision to make rather than something to switch on for them.
+     */
+    val musicOnlineExtras: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[MUSIC_ONLINE_EXTRAS] ?: false
+    }
+
+    suspend fun setMusicOnlineExtras(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[MUSIC_ONLINE_EXTRAS] = enabled }
+    }
+
+    /** Whether those lookups wait for Wi-Fi. On by default, since covers are not small. */
+    val musicOnlineWifiOnly: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[MUSIC_ONLINE_WIFI_ONLY] ?: true
+    }
+
+    suspend fun setMusicOnlineWifiOnly(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[MUSIC_ONLINE_WIFI_ONLY] = enabled }
+    }
+
+    // ── Clock ───────────────────────────────────────────────────────────────
+
+    /**
+     * What a new alarm starts out with. Each alarm keeps its own copy once it is made, so changing
+     * this never quietly rewrites an alarm somebody set deliberately.
+     */
+    val alarmSnoozeMinutes: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[ALARM_SNOOZE_MINUTES] ?: com.serkantkn.zunelauncher.data.model.Alarm.DEFAULT_SNOOZE_MINUTES
+    }
+
+    suspend fun setAlarmSnoozeMinutes(minutes: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[ALARM_SNOOZE_MINUTES] = minutes }
+    }
+
+    /** How long a new alarm rings for before giving up. Zero means it never gives up. */
+    val alarmAutoSilenceMinutes: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[ALARM_AUTO_SILENCE_MINUTES] ?: com.serkantkn.zunelauncher.data.model.Alarm.DEFAULT_AUTO_SILENCE_MINUTES
+    }
+
+    suspend fun setAlarmAutoSilenceMinutes(minutes: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[ALARM_AUTO_SILENCE_MINUTES] = minutes }
+    }
+
+    /** Whether the Clock hub's own big clock counts seconds as well as minutes. */
+    val clockShowSeconds: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[CLOCK_SHOW_SECONDS] ?: true
+    }
+
+    suspend fun setClockShowSeconds(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[CLOCK_SHOW_SECONDS] = enabled }
+    }
+
+    // ── Files ───────────────────────────────────────────────────────────────
+
+    /** How a folder's contents are ordered, remembered between visits. */
+    val filesSort: Flow<com.serkantkn.zunelauncher.util.FileSort> = context.settingsDataStore.data.map { prefs ->
+        runCatching {
+            com.serkantkn.zunelauncher.util.FileSort.valueOf(
+                prefs[FILES_SORT] ?: com.serkantkn.zunelauncher.util.FileSort.NAME.name
+            )
+        }.getOrDefault(com.serkantkn.zunelauncher.util.FileSort.NAME)
+    }
+
+    suspend fun setFilesSort(sort: com.serkantkn.zunelauncher.util.FileSort) {
+        context.settingsDataStore.edit { prefs -> prefs[FILES_SORT] = sort.name }
+    }
+
+    val filesSortAscending: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[FILES_SORT_ASCENDING] ?: true
+    }
+
+    suspend fun setFilesSortAscending(ascending: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[FILES_SORT_ASCENDING] = ascending }
+    }
+
+    /** Whether dot-files and Android's own bookkeeping folders are listed. */
+    val filesShowHidden: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[FILES_SHOW_HIDDEN] ?: false
+    }
+
+    suspend fun setFilesShowHidden(show: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[FILES_SHOW_HIDDEN] = show }
+    }
+
+    val socialHubLayout: Flow<SocialHubLayout> = context.settingsDataStore.data.map { prefs ->
+        runCatching { SocialHubLayout.valueOf(prefs[SOCIAL_HUB_LAYOUT] ?: SocialHubLayout.TIMELINE.name) }
+            .getOrDefault(SocialHubLayout.TIMELINE)
+    }
+
+    suspend fun setSocialHubLayout(layout: SocialHubLayout) {
+        context.settingsDataStore.edit { prefs -> prefs[SOCIAL_HUB_LAYOUT] = layout.name }
+    }
+
+    /**
+     * The apps whose notifications the Social hub collects.
+     *
+     * Null means nobody has chosen yet, and the hub should switch itself on for whichever social
+     * apps are installed. An empty set is a choice like any other: the user turned everything off.
+     */
+    val socialSources: Flow<Set<String>?> = flow {
         migrateLegacyListsIfNeeded()
-        emitAll(context.settingsDataStore.data.map { prefs -> readDisabledNotificationApps(prefs[DISABLED_NOTIFICATION_APPS]) })
+        emitAll(
+            context.settingsDataStore.data.map { prefs ->
+                prefs[SOCIAL_SOURCES]?.let { raw -> LinkedHashSet(parseJsonStringList(raw, TAG)) }
+            }
+        )
+    }
+
+    suspend fun setSocialSources(packages: Set<String>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[SOCIAL_SOURCES] = packages.toList().toJsonStringArray()
+        }
     }
 
     /** JSON array of package names, or the legacy "pkg1,pkg2" string. */
@@ -364,12 +573,6 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setAnimationsEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[ANIMATIONS_ENABLED] = enabled
-        }
-    }
-
-    suspend fun setSocialHubLayout(layout: SocialHubLayout) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[SOCIAL_HUB_LAYOUT] = layout.name
         }
     }
 
@@ -453,12 +656,6 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    suspend fun setTileColumns(columns: Int) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[TILE_COLUMNS] = columns
-        }
-    }
-
     suspend fun setSolidBackgroundEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[SOLID_BACKGROUND_ENABLED] = enabled
@@ -491,6 +688,14 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
+    suspend fun setSearchEngine(engine: SearchEngine) {
+        context.settingsDataStore.edit { prefs -> prefs[SEARCH_ENGINE] = engine.name }
+    }
+
+    suspend fun setSearchSuggestionsEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[SEARCH_SUGGESTIONS] = enabled }
+    }
+
     suspend fun setBrowserHistory(json: String) {
         context.settingsDataStore.edit { prefs ->
             prefs[BROWSER_HISTORY] = json
@@ -512,12 +717,6 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setVolumeBarStyle(style: com.serkantkn.zunelauncher.data.model.VolumeBarStyle) {
         context.settingsDataStore.edit { prefs ->
             prefs[VOLUME_BAR_STYLE] = style.name
-        }
-    }
-
-    suspend fun setDisabledNotificationApps(apps: Set<String>) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[DISABLED_NOTIFICATION_APPS] = apps.toJsonStringArray()
         }
     }
 

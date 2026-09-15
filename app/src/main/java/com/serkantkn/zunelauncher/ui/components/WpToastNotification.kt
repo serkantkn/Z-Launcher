@@ -3,6 +3,7 @@ package com.serkantkn.zunelauncher.ui.components
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.util.sendAllowingBackgroundStart
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -48,6 +49,7 @@ import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * Windows Phone & Windows 8 Desktop style Toast Notification.
@@ -156,12 +158,10 @@ fun WpToastNotification(
                         if (!isExpanded && message.replyAction != null) {
                             isExpanded = true
                         } else {
-                            try {
-                                message.openIntent?.send()
-                                dismissWithFlip()
-                            } catch (e: Exception) {
-                                ZuneLog.e("WpToastNotification", "WpToastNotification failed", e)
-                            }
+                            // The launcher is in front, so it may lend the app its right to open
+                            // a screen; a plain send is blocked and nothing would appear.
+                            message.openIntent?.sendAllowingBackgroundStart(context)
+                            dismissWithFlip()
                         }
                     }
                 )
@@ -206,7 +206,7 @@ fun WpToastNotification(
                             Spacer(modifier = Modifier.width(6.dp))
                         }
                         Text(
-                            text = message.appName.uppercase(),
+                            text = message.appName.uppercase(Locale.getDefault()),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,

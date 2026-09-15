@@ -2,9 +2,12 @@ package com.serkantkn.zunelauncher.data.repository
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import com.serkantkn.zunelauncher.data.datastore.FavoriteAppsDataStore
 import com.serkantkn.zunelauncher.data.model.AppInfo
 import com.serkantkn.zunelauncher.util.AppIconCache
@@ -35,13 +38,17 @@ class AppRepository(private val context: Context) {
             packageManager.queryIntentActivities(intent, 0)
         }
 
+        val installedAt = installTimes()
+
         val apps = resolveInfos
             .filter { it.activityInfo.packageName != context.packageName }
             .map { resolveInfo ->
+                val packageName = resolveInfo.activityInfo.packageName
                 AppInfo(
-                    packageName = resolveInfo.activityInfo.packageName,
+                    packageName = packageName,
                     label = resolveInfo.loadLabel(packageManager).toString(),
-                    activityName = resolveInfo.activityInfo.name
+                    activityName = resolveInfo.activityInfo.name,
+                    firstInstallTime = installedAt[packageName] ?: 0L
                 )
             }
             .sortedBy { it.label.lowercase() }
@@ -49,6 +56,23 @@ class AppRepository(private val context: Context) {
 
         emit(apps)
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * When each installed package arrived, asked once for the whole phone rather than once per
+     * app: a hundred separate questions to the package manager is a visible pause on an older
+     * phone, and this is only needed to sort a list.
+     */
+    private fun installTimes(): Map<String, Long> = try {
+        val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getInstalledPackages(0)
+        }
+        packages.associate { it.packageName to it.firstInstallTime }
+    } catch (e: Exception) {
+        emptyMap()
+    }
 
     /**
      * Returns the app icon drawable with LRU caching.
@@ -94,5 +118,62 @@ class AppRepository(private val context: Context) {
 
     suspend fun updateFavoritesOrder(newList: List<FavoriteAppItem>) {
         favoriteAppsDataStore.updateOrder(newList)
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // WHAT ELSE CAN BE DONE WITH AN APP
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * Asks Android to remove an app, and returns whether the request could even be made.
+     *
+     * The launcher never removes anything itself: it opens the system's own dialog, which is the
+     * only place the answer can be given.
+     */
+    fun requestUninstall(packageName: String): Boolean = try {
+        context.startActivity(
+            Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Whether an app came with the phone, and so cannot simply be removed. */
+    fun isSystemApp(packageName: String): Boolean = try {
+        val info = packageManager.getApplicationInfo(packageName, 0)
+        (info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Opens the system's page for one app: permissions, storage, notifications. */
+    fun openAppSettings(packageName: String): Boolean = try {
+        context.startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Shares an app as its shop address, which is the only link anybody else can open. */
+    fun shareApp(packageName: String, label: String, chooserTitle: String): Boolean = try {
+        val share = Intent(Intent.ACTION_SEND)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_SUBJECT, label)
+            .putExtra(Intent.EXTRA_TEXT, "$label\n$STORE_URL$packageName")
+        context.startActivity(
+            Intent.createChooser(share, chooserTitle).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    } catch (e: Exception) {
+        false
+    }
+
+    private companion object {
+        const val STORE_URL = "https://play.google.com/store/apps/details?id="
     }
 }

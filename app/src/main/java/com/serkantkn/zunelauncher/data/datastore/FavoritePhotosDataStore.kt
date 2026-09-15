@@ -20,8 +20,12 @@ import kotlin.coroutines.cancellation.CancellationException
 private val Context.favoritesDataStore by preferencesDataStore(name = "favorites_datastore")
 
 /**
- * MediaStore ids of the photos marked as favorites, stored as a JSON array of id strings in
- * insertion order. The legacy unordered string set is still read and migrated on first collection.
+ * The pictures marked as favourites, stored as a JSON array in the order they were marked.
+ *
+ * What is stored is each picture's [com.serkantkn.zunelauncher.data.model.MediaImage.stableKey],
+ * not its media-store id: ids are handed out by the store and change when the library is rebuilt,
+ * which would quietly empty somebody's favourites. Keys written by older builds were plain ids and
+ * are still matched, so nothing already marked is lost.
  */
 class FavoritePhotosDataStore(private val context: Context) {
 
@@ -38,16 +42,27 @@ class FavoritePhotosDataStore(private val context: Context) {
         emitAll(context.favoritesDataStore.data.map { preferences -> readIds(preferences) })
     }
 
-    suspend fun toggleFavorite(photoId: Long) {
+    /** Marks or unmarks one picture, by whichever key it is already remembered under. */
+    suspend fun toggleFavorite(key: String, legacyId: Long? = null) {
         context.favoritesDataStore.edit { preferences ->
-            val currentFavorites = readIds(preferences).toMutableSet()
-            val idStr = photoId.toString()
-            if (currentFavorites.contains(idStr)) {
-                currentFavorites.remove(idStr)
-            } else {
-                currentFavorites.add(idStr)
+            val current = readIds(preferences).toMutableSet()
+            val legacy = legacyId?.toString()
+            when {
+                current.remove(key) -> Unit
+                legacy != null && current.remove(legacy) -> Unit
+                else -> current.add(key)
             }
-            saveIds(preferences, currentFavorites)
+            saveIds(preferences, current)
+        }
+    }
+
+    /** Takes several out at once, whichever way each was stored. */
+    suspend fun removeAll(keys: Set<String>, legacyIds: Set<String> = emptySet()) {
+        context.favoritesDataStore.edit { preferences ->
+            val current = readIds(preferences).toMutableSet()
+            current.removeAll(keys)
+            current.removeAll(legacyIds)
+            saveIds(preferences, current)
         }
     }
 

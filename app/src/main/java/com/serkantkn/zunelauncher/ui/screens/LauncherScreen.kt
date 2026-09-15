@@ -39,6 +39,8 @@ import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
+import com.serkantkn.zunelauncher.di.appContainer
+import kotlinx.coroutines.flow.first
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.components.BackgroundMode
 import com.serkantkn.zunelauncher.ui.components.WpToastNotification
@@ -59,6 +61,7 @@ import com.serkantkn.zunelauncher.ui.screens.social.SocialHubScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
+import com.serkantkn.zunelauncher.ui.animation.rememberHingeSpec
 
 private fun setStatusBarExpandDisabled(context: Context, disabled: Boolean) {
     try {
@@ -90,7 +93,7 @@ fun LauncherScreen(
     )
 
     val notificationStyle by settingsViewModel.notificationStyle.collectAsState()
-    val disabledNotificationApps by settingsViewModel.disabledNotificationApps.collectAsState()
+    val socialSources by settingsViewModel.socialSources.collectAsState()
     val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
     val timeFormat by settingsViewModel.timeFormat.collectAsState()
     val dateFormat by settingsViewModel.dateFormat.collectAsState()
@@ -99,8 +102,19 @@ fun LauncherScreen(
     val customHubWallpaperPath by settingsViewModel.customHubWallpaperPath.collectAsState()
     val customWallpaperPath by settingsViewModel.customWallpaperPath.collectAsState()
 
-    LaunchedEffect(disabledNotificationApps) {
-        SocialRepository.updateDisabledApps(disabledNotificationApps)
+    // The notification listener asks the repository on every single notification, so the answer is
+    // pushed here — from the launcher, which is always composed — rather than from the hub's own
+    // screen, which is not alive until somebody swipes to it.
+    val launcherContext = LocalContext.current
+    LaunchedEffect(socialSources) {
+        val chosen = socialSources
+        val resolved = chosen ?: com.serkantkn.zunelauncher.data.model.SocialApps.defaultSources(
+            launcherContext.appContainer.appRepository
+                .getInstalledApps()
+                .first()
+                .map { app -> app.packageName }
+        )
+        SocialRepository.updateSources(resolved)
     }
 
     val latestNotification by SocialRepository.latestToastMessage.collectAsState()
@@ -118,6 +132,26 @@ fun LauncherScreen(
         if (pendingEmailRequest != null && navState.currentHub != HubType.EMAIL) {
             navState.openHub(HubType.EMAIL)
         }
+    }
+    // Cross-hub requests for the Messaging hub (pinned conversations, notifications, sms: links)
+    val pendingMessageThread by com.serkantkn.zunelauncher.data.repository.MessagingBridge.pendingThreadId.collectAsState()
+    LaunchedEffect(pendingMessageThread) {
+        if (pendingMessageThread != null && navState.currentHub != HubType.MESSAGING) {
+            navState.openHub(HubType.MESSAGING)
+        }
+    }
+    val pendingMessageCompose by com.serkantkn.zunelauncher.data.repository.MessagingBridge.pendingCompose.collectAsState()
+    LaunchedEffect(pendingMessageCompose) {
+        if (pendingMessageCompose != null && navState.currentHub != HubType.MESSAGING) {
+            navState.openHub(HubType.MESSAGING)
+        }
+    }
+    // The Social hub handing a notification to one of the launcher's own hubs
+    val pendingHub by com.serkantkn.zunelauncher.data.repository.HubBridge.pendingHub.collectAsState()
+    LaunchedEffect(pendingHub) {
+        val hub = pendingHub ?: return@LaunchedEffect
+        com.serkantkn.zunelauncher.data.repository.HubBridge.consume()
+        if (navState.currentHub != hub) navState.openHub(hub)
     }
     // The keyboard's quick panel asks for the settings hub on its keyboard tab
     val pendingSettingsTab by com.serkantkn.zunelauncher.data.repository.SettingsBridge.pendingTab.collectAsState()
@@ -145,6 +179,7 @@ fun LauncherScreen(
     val density = LocalDensity.current.density
 
     // ── Hinge animation state ──
+    val hingeSpec = rememberHingeSpec()
     val hingeProgress = remember { Animatable(0f) }
     var activeHub by remember { mutableStateOf(navState.currentHub) }
     // Hinge direction, Windows Phone style: hubs ENTER from outside the screen (in front, -90° -> 0°,
@@ -167,10 +202,10 @@ fun LauncherScreen(
             } else if (targetHub != null) {
                 activeHub = targetHub
                 isHubHingeOpening = true
-                hingeProgress.animateTo(1f, animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing))
+                hingeProgress.animateTo(1f, animationSpec = hingeSpec)
             } else {
                 isHubHingeOpening = false
-                hingeProgress.animateTo(0f, animationSpec = tween(HingeAnimation.DURATION_MS, easing = FastOutSlowInEasing))
+                hingeProgress.animateTo(0f, animationSpec = hingeSpec)
                 activeHub = null
             }
         }
@@ -612,6 +647,9 @@ private fun RenderHubScreen(
             onBack = { if (!navState.popHub()) navState.closeHub() }
         )
         HubType.WEATHER -> com.serkantkn.zunelauncher.ui.screens.weather.WeatherHubScreen(
+            onBack = { if (!navState.popHub()) navState.closeHub() }
+        )
+        HubType.CAMERA -> com.serkantkn.zunelauncher.ui.screens.camera.CameraHubScreen(
             onBack = { if (!navState.popHub()) navState.closeHub() }
         )
         else -> {}

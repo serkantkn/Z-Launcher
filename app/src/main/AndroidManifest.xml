@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -27,6 +28,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -39,12 +42,36 @@
     <uses-permission android:name="android.permission.WRITE_SMS" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!-- A ringing call has to come up over whatever is on screen, and over the lock screen. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <!-- A call in progress has to be a foreground service: Android refuses a CallStyle
+         notification that belongs to neither a foreground service nor a full screen intent. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Camera hub -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Before Android 10 a picture has to be written to shared storage by hand. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <queries>
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
+
+        <!-- Icon packs announce themselves with one of these; without them they are invisible. -->
+        <intent><action android:name="org.adw.launcher.THEMES" /></intent>
+        <intent><action android:name="org.adw.launcher.icons.ACTION_PICK_ICON" /></intent>
+        <intent><action android:name="com.novalauncher.THEME" /></intent>
+        <intent><action android:name="com.gau.go.launcherex.theme" /></intent>
+        <intent><action android:name="com.anddoes.launcher.THEME" /></intent>
+        <intent><action android:name="ch.deletescape.lawnchair.ICONPACK" /></intent>
+        <intent><action android:name="com.teslacoilsw.launcher.THEME" /></intent>
     </queries>
 
     <application
@@ -129,10 +156,21 @@
             </intent-filter>
         </service>
 
-        <!-- Telecom InCallService required for Default Phone / Dialer role eligibility -->
+        <!-- Answering and turning down a call from its notification. -->
+        <receiver
+            android:name=".data.service.CallActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.serkantkn.zunelauncher.CALL_ANSWER" />
+                <action android:name="com.serkantkn.zunelauncher.CALL_DECLINE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Telecom InCallService: the launcher's own call screen, while it is the default phone app -->
         <service
             android:name=".data.service.WpInCallService"
             android:permission="android.permission.BIND_INCALL_SERVICE"
+            android:foregroundServiceType="phoneCall"
             android:exported="true">
             <meta-data
                 android:name="android.telecom.IN_CALL_SERVICE_UI"
@@ -190,6 +228,10 @@
         </service>
 
         <receiver android:name=".data.service.AlarmReceiver" android:exported="false" />
+
+        <receiver android:name=".data.service.TimerReceiver" android:exported="false" />
+
+        <receiver android:name=".data.service.EventReminderReceiver" android:exported="false" />
 
         <receiver
             android:name=".data.service.BootReceiver"
@@ -262,6 +304,16 @@
                 <data android:mimeType="application/vnd.wap.mms-message" />
             </intent-filter>
         </receiver>
+
+        <!-- What the network says about a message after it has left: went out, arrived, failed -->
+        <receiver
+            android:name=".data.receiver.SmsStatusReceiver"
+            android:exported="false" />
+
+        <!-- Replying to a message, or waving it away, from its notification -->
+        <receiver
+            android:name=".data.service.MessageActionReceiver"
+            android:exported="false" />
 
         <!-- SMS Compose Activity for Default SMS App eligibility -->
         <activity

@@ -55,6 +55,8 @@ import com.serkantkn.zunelauncher.data.model.UnitDef
 import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
 import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
 import com.serkantkn.zunelauncher.ui.screens.notes.WpRadioRow
+import androidx.compose.ui.unit.IntSize
+import com.serkantkn.zunelauncher.ui.components.rememberWpTiltAngles
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.util.CalcEngine.Tokens
@@ -84,10 +86,15 @@ fun RowScope.CalcKeyButton(key: CalcKey, modifier: Modifier = Modifier, compact:
     val density = LocalDensity.current
     var pressed by remember { mutableStateOf(false) }
     var pressOffset by remember { mutableStateOf(Offset.Zero) }
-    var size by remember { mutableStateOf(Offset(1f, 1f)) }
+    var size by remember { mutableStateOf(IntSize(1, 1)) }
 
-    val tiltX by animateFloatAsState(if (pressed) ((pressOffset.y / size.y) - 0.5f) * -14f else 0f, spring(stiffness = 900f), label = "calc_tilt_x")
-    val tiltY by animateFloatAsState(if (pressed) ((pressOffset.x / size.x) - 0.5f) * 14f else 0f, spring(stiffness = 900f), label = "calc_tilt_y")
+    // A key handles its own press so it fires the instant it is touched, rather than on release —
+    // so it cannot use the plain tilt modifier, but it uses the same lean underneath it.
+    val lean = rememberWpTiltAngles(
+        pressPoint = pressOffset.takeIf { pressed },
+        size = size,
+        maxDegrees = KEY_TILT_DEGREES
+    )
     val scale by animateFloatAsState(if (pressed) 0.96f else 1f, spring(stiffness = 900f), label = "calc_scale")
 
     val fg = if (zuneColors.isDark) Color.White else Color.Black
@@ -109,8 +116,8 @@ fun RowScope.CalcKeyButton(key: CalcKey, modifier: Modifier = Modifier, compact:
             .weight(key.weight)
             .fillMaxHeight()
             .graphicsLayer {
-                rotationX = tiltX
-                rotationY = tiltY
+                rotationX = lean.rotationX
+                rotationY = lean.rotationY
                 scaleX = scale
                 scaleY = scale
                 cameraDistance = 12f * density.density
@@ -120,7 +127,7 @@ fun RowScope.CalcKeyButton(key: CalcKey, modifier: Modifier = Modifier, compact:
             .border(1.dp, border, RoundedCornerShape(0.dp))
             .graphicsLayer { alpha = if (key.enabled) 1f else 0.35f }
             .pointerInput(key.enabled, key.onPress) {
-                size = Offset(this.size.width.toFloat().coerceAtLeast(1f), this.size.height.toFloat().coerceAtLeast(1f))
+                size = IntSize(this.size.width.coerceAtLeast(1), this.size.height.coerceAtLeast(1))
                 detectTapGestures(
                     onPress = { offset ->
                         if (key.enabled) {
@@ -370,3 +377,6 @@ object CalcKeys {
         )
     }
 }
+
+/** A key leans a touch further than a list row: seven degrees at its corner. */
+private const val KEY_TILT_DEGREES = 14f

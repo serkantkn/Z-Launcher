@@ -114,7 +114,15 @@ fun Windows8StartScreen(
     onOpenApps: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    tile: @Composable (model: StartTileUIModel, flatIndex: Int, isDragging: Boolean, tileModifier: Modifier) -> Unit
+    onMergeTiles: (sourceId: String, targetId: String) -> Unit = { _, _ -> },
+    canMerge: (sourceId: String, targetId: String) -> Boolean = { _, _ -> false },
+    tile: @Composable (
+        model: StartTileUIModel,
+        flatIndex: Int,
+        isDragging: Boolean,
+        isMergeTarget: Boolean,
+        tileModifier: Modifier
+    ) -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
@@ -123,10 +131,11 @@ fun Windows8StartScreen(
     val fg = if (zuneColors.isDark) Color.White else Color.Black
 
     var zoomedOut by remember { mutableStateOf(false) }
-    var dragId by remember { mutableStateOf<String?>(null) }
-    var dragAmount by remember { mutableStateOf(Offset.Zero) }
+    val drag = rememberStartDragState()
 
     val currentTiles by rememberUpdatedState(tiles)
+    val currentCanMerge by rememberUpdatedState(canMerge)
+    val currentOnMove by rememberUpdatedState(onMoveTile)
 
     // Tiles are grouped by kind, keeping the user's order inside each group.
     val groupedTiles = remember(tiles) {
@@ -273,7 +282,8 @@ fun Windows8StartScreen(
                             val flatIndex = tiles.indexOfFirst { it.id == cell.id }
                             if (flatIndex < 0) return@forEach
                             val model = tiles[flatIndex]
-                            val isDragging = dragId == cell.id
+                            val isDragging = drag.dragId == cell.id
+                            val isMergeTarget = drag.mergeTargetId == cell.id
 
                             key(cell.id) {
                                 Box(
@@ -282,35 +292,58 @@ fun Windows8StartScreen(
                                         .width(cell.cols * small + (cell.cols - 1) * gap)
                                         .zIndex(if (isDragging) 10f else 0f)
                                 ) {
+                                    val here = with(density) {
+                                        Offset(
+                                            (groupX + cell.col * unit).toPx(),
+                                            (GroupHeaderHeight + cell.row * unit).toPx()
+                                        )
+                                    }
                                     tile(
                                         model,
                                         flatIndex,
                                         isDragging,
+                                        isMergeTarget,
                                         Modifier
                                             .fillMaxWidth()
                                             .graphicsLayer {
-                                                if (isDragging) {
-                                                    translationX = dragAmount.x
-                                                    translationY = dragAmount.y
-                                                }
+                                                if (!isDragging) return@graphicsLayer
+                                                val wanted = drag.pointer - drag.grabWithinTile
+                                                translationX = wanted.x - here.x
+                                                translationY = wanted.y - here.y
+                                                scaleX = 1.06f
+                                                scaleY = 1.06f
+                                                shadowElevation = 18.dp.toPx()
                                             }
                                             .pointerInput(cell.id, zoomedOut) {
                                                 if (zoomedOut) return@pointerInput
                                                 detectDragGesturesAfterLongPress(
-                                                    onDragStart = {
+                                                    onDragStart = { grabPoint ->
                                                         onEnterEditMode()
-                                                        dragId = cell.id
-                                                        dragAmount = Offset.Zero
+                                                        val rect = currentRects[cell.id]
+                                                            ?: return@detectDragGesturesAfterLongPress
+                                                        drag.start(cell.id, rect.topLeft, grabPoint)
                                                     },
                                                     onDrag = { change, delta ->
                                                         change.consume()
-                                                        dragAmount += delta
-                                                        moveTowards(dragId, dragAmount, currentRects, currentTiles, onMoveTile) { adjust ->
-                                                            dragAmount += adjust
+                                                        drag.moveBy(delta)
+                                                        drag.update(
+                                                            nowMillis = System.currentTimeMillis(),
+                                                            order = currentTiles.map { it.id },
+                                                            rects = currentRects,
+                                                            canMergeInto = { target ->
+                                                drag.dragId?.let { currentCanMerge(it, target) } == true
+                                            },
+                                                            onReorder = { from, to -> currentOnMove(from, to) }
+                                                        )
+                                                    },
+                                                    onDragEnd = {
+                                                        val held = drag.dragId
+                                                        val mergeInto = drag.finish()
+                                                        if (held != null && mergeInto != null) {
+                                                            onMergeTiles(held, mergeInto)
                                                         }
                                                     },
-                                                    onDragEnd = { dragId = null; dragAmount = Offset.Zero },
-                                                    onDragCancel = { dragId = null; dragAmount = Offset.Zero }
+                                                    onDragCancel = { drag.cancel() }
                                                 )
                                             }
                                     )
@@ -370,6 +403,11 @@ private fun kindOf(model: StartTileUIModel): Win8GroupKind = when (model) {
     is StartTileUIModel.Hub -> Win8GroupKind.HUBS
     is StartTileUIModel.App -> Win8GroupKind.APPS
     is StartTileUIModel.NoteTile, is StartTileUIModel.QuickNote -> Win8GroupKind.NOTES
+    // A pinned site or person is something the user put there, like an app.
+    is StartTileUIModel.Web, is StartTileUIModel.Person, is StartTileUIModel.Thread,
+    is StartTileUIModel.Album, is StartTileUIModel.MusicAlbum -> Win8GroupKind.APPS
+    // A folder sits with the hubs; what is inside it can be anything.
+    is StartTileUIModel.Folder -> Win8GroupKind.HUBS
 }
 
 private fun titleResOf(kind: Win8GroupKind): Int = when (kind) {
