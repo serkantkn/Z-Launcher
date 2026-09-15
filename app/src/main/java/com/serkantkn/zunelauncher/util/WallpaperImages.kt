@@ -32,23 +32,46 @@ object WallpaperImages {
     private var cachedKey: String? = null
     private var cached: Wallpapers = Wallpapers(null, null)
 
-    /** The wallpaper and its blurred copy, decoded at most once per [customPath] and [version]. */
-    suspend fun load(context: Context, customPath: String?, version: Int): Wallpapers =
-        mutex.withLock {
-            val key = "${customPath.orEmpty()}#$version"
-            if (key == cachedKey && cached.full?.isRecycled == false) return@withLock cached
+    /**
+     * The wallpaper, decoded at most once per [customPath] and [version].
+     *
+     * [blurred] says whether the blurred copy is wanted as well. It is asked for separately
+     * because most people never turn that background on, and blurring a picture nobody is going
+     * to see is a second bitmap and a tenth of a second of somebody's first frame.
+     */
+    suspend fun load(
+        context: Context,
+        customPath: String?,
+        version: Int,
+        blurred: Boolean
+    ): Wallpapers = mutex.withLock {
+        val key = "${customPath.orEmpty()}#$version"
+        val hit = key == cachedKey && cached.full?.isRecycled == false
+        if (hit && (!blurred || cached.blurred != null)) return@withLock cached
 
-            val metrics = context.resources.displayMetrics
-            val wallpapers = withContext(Dispatchers.IO) {
-                val full = decode(context, customPath, metrics.widthPixels, metrics.heightPixels)
-                Wallpapers(full, full?.let { blurredCopy(it) })
-            }
-            if (wallpapers.full != null) {
-                cachedKey = key
-                cached = wallpapers
-            }
-            wallpapers
+        val metrics = context.resources.displayMetrics
+        val wallpapers = withContext(Dispatchers.IO) {
+            val full = if (hit) cached.full
+            else decode(context, customPath, metrics.widthPixels, metrics.heightPixels)
+            Wallpapers(full, if (blurred) full?.let { blurredCopy(it) } else cached.blurred)
         }
+        if (wallpapers.full != null) {
+            cachedKey = key
+            cached = wallpapers
+        }
+        wallpapers
+    }
+
+    /**
+     * Forgets the decoded wallpaper. The next background that asks reads it again.
+     *
+     * Nothing is recycled here on purpose: a background that is still on screen is holding the
+     * same bitmap, and recycling underneath it would draw a hole.
+     */
+    fun trim() {
+        cachedKey = null
+        cached = Wallpapers(null, null)
+    }
 
     /**
      * A blurred copy, small on purpose: it is only ever drawn stretched across the screen under a

@@ -63,6 +63,15 @@ android {
     }
 }
 
+composeCompiler {
+    stabilityConfigurationFiles.add(
+        rootProject.layout.projectDirectory.file("compose_stability.conf")
+    )
+    // Uncomment to see which composables skip and which classes are stable:
+    // reportsDestination = layout.buildDirectory.dir("compose_compiler")
+    // metricsDestination = layout.buildDirectory.dir("compose_compiler")
+}
+
 dependencies {
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))

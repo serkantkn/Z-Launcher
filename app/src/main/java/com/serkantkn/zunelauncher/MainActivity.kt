@@ -5,6 +5,7 @@ import android.content.Intent
 import com.serkantkn.zunelauncher.data.repository.EmailBridge
 import com.serkantkn.zunelauncher.data.model.NoteFallbackTitles
 import com.serkantkn.zunelauncher.util.AppLocale
+import com.serkantkn.zunelauncher.util.DeviceClass
 import com.serkantkn.zunelauncher.di.appContainer
 import android.content.pm.ActivityInfo
 import android.os.Bundle
@@ -93,31 +94,57 @@ class MainActivity : FragmentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        // Force maximum display refresh rate (120Hz) for liquid smooth animations
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            display?.supportedModes?.maxByOrNull { it.refreshRate }?.let { maxMode ->
-                window.attributes = window.attributes.apply {
-                    preferredDisplayModeId = maxMode.modeId
-                }
-            }
-        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            @Suppress("DEPRECATION")
-            val displayManager = getSystemService(android.content.Context.DISPLAY_SERVICE) as? android.hardware.display.DisplayManager
-            @Suppress("DEPRECATION")
-            val defaultDisplay = displayManager?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
-            @Suppress("DEPRECATION")
-            val maxRate = defaultDisplay?.supportedModes?.maxOfOrNull { it.refreshRate } ?: 120f
-            window.attributes = window.attributes.apply {
-                @Suppress("DEPRECATION")
-                preferredRefreshRate = maxRate
-            }
-        }
+        requestFastestRefreshRate()
 
         handleEmailIntent(intent)
         handleSettingsIntent(intent)
         handleMessageIntent(intent)
         handleHubIntent(intent)
         setLauncherContent()
+    }
+
+    /**
+     * Asks the screen for its fastest mode — on a phone that can keep up.
+     *
+     * Two things were wrong with asking unconditionally. A phone whose GPU cannot hold 120 Hz
+     * misses more deadlines at 120 than it would at 60, so the animations it was meant to smooth
+     * read as worse; and picking simply the mode with the highest refresh rate can pick a mode
+     * with a *smaller* resolution, because a display's modes vary in both. Only modes the size of
+     * the one the screen is already in are considered now.
+     */
+    private fun requestFastestRefreshRate() {
+        if (!DeviceClass.wantsHighRefreshRate(this)) return
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            val current = display?.mode ?: return
+            val fastest = display?.supportedModes
+                ?.filter {
+                    it.physicalWidth == current.physicalWidth &&
+                        it.physicalHeight == current.physicalHeight
+                }
+                ?.maxByOrNull { it.refreshRate }
+                ?: return
+            if (fastest.refreshRate <= current.refreshRate) return
+            window.attributes = window.attributes.apply { preferredDisplayModeId = fastest.modeId }
+            return
+        }
+
+        @Suppress("DEPRECATION")
+        val displayManager = getSystemService(android.content.Context.DISPLAY_SERVICE)
+            as? android.hardware.display.DisplayManager
+        @Suppress("DEPRECATION")
+        val defaultDisplay = displayManager?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+        @Suppress("DEPRECATION")
+        val maxRate = defaultDisplay?.supportedModes
+            ?.filter {
+                it.physicalWidth == defaultDisplay.mode.physicalWidth &&
+                    it.physicalHeight == defaultDisplay.mode.physicalHeight
+            }
+            ?.maxOfOrNull { it.refreshRate } ?: return
+        window.attributes = window.attributes.apply {
+            @Suppress("DEPRECATION")
+            preferredRefreshRate = maxRate
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

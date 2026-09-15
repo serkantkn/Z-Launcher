@@ -96,8 +96,9 @@ fun ZuneBackground(
     // The picture itself is read by WallpaperImages, which keeps one copy for the whole launcher:
     // several of these backgrounds are alive at once — the Start screen, the hub in front of it,
     // the settings preview — and they were each decoding the same wallpaper for themselves.
-    LaunchedEffect(wallpaperVersion, effectiveCustomPath) {
-        val wallpapers = WallpaperImages.load(context, effectiveCustomPath, wallpaperVersion)
+    val wantsBlur = (forceModeOverride ?: mode) == BackgroundMode.BLURRED_WALLPAPER
+    LaunchedEffect(wallpaperVersion, effectiveCustomPath, wantsBlur) {
+        val wallpapers = WallpaperImages.load(context, effectiveCustomPath, wallpaperVersion, wantsBlur)
         if (wallpapers.full != null) {
             wallpaperBitmap = wallpapers.full
             blurredWallpaperBitmap = wallpapers.blurred

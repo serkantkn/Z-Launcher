@@ -8,6 +8,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.serkantkn.zunelauncher.data.model.NoteFallbackTitles
 import com.serkantkn.zunelauncher.data.service.TimerNotifier
 import com.serkantkn.zunelauncher.di.AppContainer
+import com.serkantkn.zunelauncher.util.DeviceClass
+import com.serkantkn.zunelauncher.util.WallpaperImages
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.localized
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +33,14 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
         coil.ImageLoader.Builder(this)
             .components { add(coil.decode.VideoFrameDecoder.Factory()) }
             .crossfade(true)
+            // A launcher is meant to still be in memory when it is asked for, so it takes a
+            // smaller share of the heap for pictures than an app that can afford to be killed —
+            // and a smaller share again on a phone that has little to give.
+            .memoryCache {
+                coil.memory.MemoryCache.Builder(this)
+                    .maxSizePercent(if (DeviceClass.isLowEnd(this)) 0.10 else 0.20)
+                    .build()
+            }
             .build()
 
     /** Single shared dependency container for the whole process. See [AppContainer]. */
@@ -40,6 +50,24 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
         super.onCreate()
         NoteFallbackTitles.refresh(localized())
         rearmClock()
+    }
+
+    /**
+     * Gives memory back when Android asks for it.
+     *
+     * The launcher is the process every other app is launched from, so being killed for holding
+     * onto app icons and a wallpaper is the worst trade it could make: coming back from a kill
+     * is a cold start with a blank screen, while re-reading an icon is one call to the package
+     * manager. Anything that can be read again is let go of as soon as memory is short.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level < TRIM_MEMORY_RUNNING_LOW) return
+        runCatching {
+            coil.Coil.imageLoader(this).memoryCache?.clear()
+            container.appRepository.trimIconCache()
+            if (level >= TRIM_MEMORY_COMPLETE) WallpaperImages.trim()
+        }.onFailure { ZuneLog.w("ZuneLauncherApp", "could not give memory back", it) }
     }
 
     /**

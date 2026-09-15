@@ -85,6 +85,10 @@ class LocalMediaController(private val context: Context) {
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             publish()
+            if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
+                // Nothing moves while the music is stopped, so nothing needs watching either.
+                if (player.isPlaying) startTicking() else stopTicking()
+            }
             if (events.containsAny(
                     Player.EVENT_MEDIA_ITEM_TRANSITION,
                     Player.EVENT_TIMELINE_CHANGED,
@@ -108,7 +112,7 @@ class LocalMediaController(private val context: Context) {
                     built.addListener(listener)
                     _isReady.value = true
                     publish()
-                    startTicking()
+                    if (built.isPlaying) startTicking()
                 }
                 .onFailure { ZuneLog.e(TAG, "the player would not connect", it) }
         }, MoreExecutors.directExecutor())
@@ -222,14 +226,26 @@ class LocalMediaController(private val context: Context) {
         controller?.clearMediaItems()
     }
 
+    /**
+     * Follows the position while something is playing, and only then.
+     *
+     * The loop used to wake twice a second for the life of the process whether or not there was
+     * any music, which is a poor thing to do to a phone that is trying to keep a launcher in
+     * memory. The player says when it starts and stops; this follows.
+     */
     private fun startTicking() {
-        ticker?.cancel()
+        if (ticker?.isActive == true) return
         ticker = scope.launch {
-            while (true) {
-                if (controller?.isPlaying == true) publish()
+            while (controller?.isPlaying == true) {
+                publish()
                 delay(TICK_MS)
             }
         }
+    }
+
+    private fun stopTicking() {
+        ticker?.cancel()
+        ticker = null
     }
 
     private fun publish() {

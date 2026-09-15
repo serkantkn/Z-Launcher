@@ -90,6 +90,16 @@ class AppRepository(private val context: Context) {
     }
 
     /**
+     * Lets go of the cached icons.
+     *
+     * Called when Android says memory is short: a launcher that will not give anything back is
+     * a launcher that gets killed, and re-reading an icon costs one call to the package manager.
+     */
+    fun trimIconCache() {
+        iconCache.clear()
+    }
+
+    /**
      * Launches an app by package name.
      */
     fun launchApp(packageName: String) {
