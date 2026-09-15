@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,6 +45,12 @@ fun WhatsNewScreen(
     onDismiss: () -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
+    val isWide = com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen.current
+    val sidePadding = if (isWide) {
+        com.serkantkn.zunelauncher.ui.components.ZuneWideHubStartPadding
+    } else {
+        ZuneDimens.ScreenPaddingHorizontal
+    }
 
     BackHandler { onDismiss() }
 
@@ -57,7 +64,7 @@ fun WhatsNewScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                .padding(horizontal = sidePadding)
         ) {
             Spacer(modifier = Modifier.height(36.dp))
             Text(
@@ -70,7 +77,13 @@ fun WhatsNewScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            LazyColumn(modifier = Modifier.weight(1f).padding(top = 28.dp)) {
+            // Kept to a readable column on a tablet rather than running the full width.
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(if (isWide) Modifier.widthIn(max = 620.dp) else Modifier.fillMaxWidth())
+                    .padding(top = 28.dp)
+            ) {
                 notes.forEach { note ->
                     item(key = "title_${note.version}") {
                         Text(

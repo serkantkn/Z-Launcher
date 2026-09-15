@@ -40,6 +40,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.serkantkn.zunelauncher.R
+import androidx.compose.foundation.layout.widthIn
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubStartPadding
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.util.OnboardingStep
@@ -61,6 +65,12 @@ fun OnboardingScreen(
     onSkip: () -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
+    val animate = LocalAnimationsEnabled.current
+    val isWide = LocalIsWideScreen.current
+    // A line of text the width of a tablet is a line nobody finishes. The tour keeps to a column
+    // of about the width it has on a phone, standing where a hub's title stands.
+    val sidePadding = if (isWide) ZuneWideHubStartPadding else ZuneDimens.ScreenPaddingHorizontal
+    val contentWidth = if (isWide) Modifier.widthIn(max = 620.dp) else Modifier.fillMaxWidth()
 
     // Back walks the tour backwards rather than dropping out of it; only the first page lets go.
     BackHandler { if (tour.isFirst) onSkip() else onBack() }
@@ -81,7 +91,7 @@ fun OnboardingScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 16.dp)
+                    .padding(horizontal = sidePadding, vertical = 16.dp)
             ) {
                 StepDots(count = tour.steps.size, current = tour.index, accent = zuneColors.accentColor)
                 Spacer(modifier = Modifier.weight(1f))
@@ -101,7 +111,9 @@ fun OnboardingScreen(
             AnimatedContent(
                 targetState = tour.step,
                 transitionSpec = {
-                    fadeIn(tween(220)) togetherWith fadeOut(tween(140))
+                    // Instant when the launcher has been asked to hold still.
+                    val duration = if (animate) 220 else 0
+                    fadeIn(tween(duration)) togetherWith fadeOut(tween(duration / 2))
                 },
                 label = "onboarding_step",
                 modifier = Modifier.weight(1f)
@@ -109,9 +121,11 @@ fun OnboardingScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                        .padding(horizontal = sidePadding)
                 ) {
-                    OnboardingStepContent(step, viewModel)
+                    Column(modifier = contentWidth) {
+                        OnboardingStepContent(step, viewModel)
+                    }
                 }
             }
 
@@ -120,7 +134,7 @@ fun OnboardingScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 24.dp)
+                    .padding(horizontal = sidePadding, vertical = 24.dp)
             ) {
                 if (!tour.isFirst) {
                     Text(
