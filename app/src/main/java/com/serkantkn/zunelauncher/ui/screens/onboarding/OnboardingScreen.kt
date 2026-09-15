@@ -127,27 +127,33 @@ fun OnboardingScreen(
 
             // -- The page itself --
             //
-            // Pages turn on the hinge the rest of the launcher uses for its sub-screens: the one
-            // on screen swings away on its left edge, and the next swings in behind it. Two
-            // halves of one door rather than a cross-fade.
+            // Pages turn like the panels of a revolving door, on one post at the left edge. Going
+            // forward, the page on screen swings away from you and off to the left while the next
+            // one comes round from in front, nearer than the screen, and settles flat. Going back
+            // runs the same door the other way. The hinge never changes sides, which is what makes
+            // it read as one door rather than two.
             var shownStep by remember { mutableStateOf(tour.step) }
             var shownIndex by remember { mutableIntStateOf(tour.index) }
-            val swing = remember { Animatable(0f) }
-            val halfHinge = remember(animate) {
+
+            /** Where the panel is: 0 flat, -1 swung away behind, +1 swung round in front. */
+            val turn = remember { Animatable(0f) }
+            val halfTurn = remember(animate) {
                 tween<Float>(
                     durationMillis = if (animate) HingeAnimation.DURATION_MS / 2 else 0,
                     easing = HingeAnimation.EASING
                 )
             }
-            // Going back turns the door the other way, so the tour feels reversible.
-            val forwards = tour.index >= shownIndex
 
             LaunchedEffect(tour.step) {
                 if (tour.step == shownStep) return@LaunchedEffect
-                swing.animateTo(1f, halfHinge)
+                val forwards = tour.index >= shownIndex
+                // Away from you on the way out, towards you on the way in - or the reverse, when
+                // the door is being turned backwards.
+                turn.animateTo(if (forwards) -1f else 1f, halfTurn)
                 shownStep = tour.step
                 shownIndex = tour.index
-                swing.animateTo(0f, halfHinge)
+                turn.snapTo(if (forwards) 1f else -1f)
+                turn.animateTo(0f, halfTurn)
             }
 
             Box(
@@ -158,11 +164,11 @@ fun OnboardingScreen(
                     // draws straight over the tour's own buttons.
                     .clipToBounds()
                     .graphicsLayer {
-                        val sign = if (forwards) -1f else 1f
-                        rotationY = sign * swing.value * HingeAnimation.MAX_ROTATION_DEGREES
+                        rotationY = turn.value * HingeAnimation.MAX_ROTATION_DEGREES
                         cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
-                        transformOrigin = TransformOrigin(if (forwards) 0f else 1f, 0.5f)
-                        alpha = (1f - swing.value * 1.4f).coerceIn(0f, 1f)
+                        // The post is always the left edge, whichever way the door is going.
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        alpha = (1f - kotlin.math.abs(turn.value) * 1.4f).coerceIn(0f, 1f)
                     }
             ) {
                 if (shownStep.isLesson) {
