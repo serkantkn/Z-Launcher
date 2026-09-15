@@ -1,21 +1,39 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# ════════════════════════════════════════════════════════════
+# ZUNE LAUNCHER — RELEASE SHRINKING
+# ════════════════════════════════════════════════════════════
 #
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Almost nothing here is about keeping our own code: the launcher reaches everything through
+# ordinary calls, so R8 can follow it. What needs saying out loud is the code that is only ever
+# reached by name — the mail library's providers, and the platform classes we call reflectively.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# A crash report is worth reading, so keep the file and line a stack trace was thrown from.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# ── JavaMail (Email hub) ────────────────────────────────────
+# The session looks its transports and stores up by name, out of the javamail.* provider files
+# in META-INF; the classes those name are never called directly and would otherwise go.
+-keep class javax.mail.** { *; }
+-keep class javax.activation.** { *; }
+-keep class com.sun.mail.** { *; }
+-keep class myjava.awt.datatransfer.** { *; }
+-dontwarn javax.mail.**
+-dontwarn javax.activation.**
+-dontwarn com.sun.mail.**
+-dontwarn myjava.awt.**
+-dontwarn java.awt.**
+-dontwarn javax.security.sasl.**
+-dontwarn org.ietf.jgss.**
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ── Media3 ──────────────────────────────────────────────────
+# The player picks its renderers and extractors up by name at runtime.
+-dontwarn androidx.media3.**
+
+# ── Platform reflection ─────────────────────────────────────
+# The notification shade is opened through StatusBarManager, which is not in the SDK.
+-dontwarn android.app.StatusBarManager
+
+# ── Coil ────────────────────────────────────────────────────
+-dontwarn coil.**
+-dontwarn okhttp3.**
+-dontwarn okio.**

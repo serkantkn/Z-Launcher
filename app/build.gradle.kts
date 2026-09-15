@@ -46,7 +46,11 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // The launcher is the one app that is always resident, so its footprint is its
+            // manners. R8 takes the 95 MB of dex this app links against — the extended icon set
+            // alone is 38 MB, of which 150 icons are used — down to what is actually reached.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
