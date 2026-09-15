@@ -235,3 +235,118 @@ fun ChoiceRow(
         )
     }
 }
+
+// -- The home button --------------------------------------------------------
+
+/**
+ * Asking to become the launcher the home button opens.
+ *
+ * Two routes, because neither works everywhere. Android's role manager can grant it in a single
+ * dialog, but it will only offer the home role on some versions and quietly refuses on others; the
+ * system's own "default apps" screen always works but is two taps further away. The role is tried
+ * first and the settings screen is the fallback, so most people press one button and the rest are
+ * still not stuck.
+ *
+ * It is skippable. A launcher that has not been made the default still runs perfectly well when
+ * it is opened by hand, and somebody who wants to try it before committing should be allowed to.
+ */
+@Composable
+fun DefaultLauncherStepPage(
+    isDefault: Boolean,
+    onMakeDefault: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    OnboardingPage(
+        title = stringResource(R.string.onboarding_default_title),
+        line = stringResource(R.string.onboarding_default_line)
+    ) {
+        if (isDefault) {
+            Text(
+                text = stringResource(R.string.onboarding_default_done),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                color = zuneColors.accentColor
+            )
+        } else {
+            ActionButton(
+                label = stringResource(R.string.onboarding_default_action),
+                onClick = onMakeDefault
+            )
+        }
+    }
+}
+
+// -- Permissions ------------------------------------------------------------
+
+/**
+ * The few things the start screen itself needs.
+ *
+ * Each one says plainly what it is for and is asked for on its own, so anybody can give the two
+ * they want and leave the third. Nothing here blocks going on: a page of permissions that cannot
+ * be walked past is a wall, and the hubs ask for their own when they are opened anyway.
+ */
+@Composable
+fun PermissionsStepPage(
+    permissions: List<OnboardingPermission>,
+    granted: Set<OnboardingPermission>,
+    onRequest: (OnboardingPermission) -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    OnboardingPage(
+        title = stringResource(R.string.onboarding_permissions_title),
+        line = stringResource(R.string.onboarding_permissions_line)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            permissions.forEach { permission ->
+                val isGranted = permission in granted
+                Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(permission.titleRes),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = stringResource(permission.reasonRes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = zuneColors.textMuted,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    Text(
+                        text = stringResource(
+                            if (isGranted) R.string.onboarding_perm_granted else R.string.onboarding_perm_allow
+                        ),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                        color = if (isGranted) zuneColors.textDim else zuneColors.accentColor,
+                        modifier = Modifier
+                            .padding(start = 16.dp)
+                            .then(
+                                if (isGranted) Modifier else Modifier.clickable { onRequest(permission) }
+                            )
+                            .padding(vertical = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A Windows Phone button: a word inside a thin accent box, nothing rounded. */
+@Composable
+fun ActionButton(label: String, onClick: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = Modifier
+            .wpTilt(interactionSource)
+            .border(2.dp, zuneColors.accentColor)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(horizontal = 22.dp, vertical = 12.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}

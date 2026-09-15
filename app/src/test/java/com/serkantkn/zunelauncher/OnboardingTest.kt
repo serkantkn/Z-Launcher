@@ -83,8 +83,41 @@ class OnboardingTest {
             FirstRunAction.SHOW_ONBOARDING,
             firstRunAction(
                 onboardingCompleted = false,
+                onboardingStarted = false,
                 hasExistingData = false,
                 lastSeenVersion = 0,
+                currentVersion = 3,
+                hasUnseenNotes = true
+            )
+        )
+    }
+
+    @Test
+    fun `a tour interrupted by a restart is picked back up`() {
+        // Making the launcher the default home app restarts it, and by then the tour has written
+        // a setting or two - so "has existing data" says used, and only the started flag saves it.
+        assertEquals(
+            FirstRunAction.SHOW_ONBOARDING,
+            firstRunAction(
+                onboardingCompleted = false,
+                onboardingStarted = true,
+                hasExistingData = true,
+                lastSeenVersion = 0,
+                currentVersion = 3,
+                hasUnseenNotes = true
+            )
+        )
+    }
+
+    @Test
+    fun `a finished tour beats a stale started flag`() {
+        assertEquals(
+            FirstRunAction.NOTHING,
+            firstRunAction(
+                onboardingCompleted = true,
+                onboardingStarted = true,
+                hasExistingData = true,
+                lastSeenVersion = 3,
                 currentVersion = 3,
                 hasUnseenNotes = true
             )
@@ -98,6 +131,7 @@ class OnboardingTest {
             FirstRunAction.NOTHING,
             firstRunAction(
                 onboardingCompleted = false,
+                onboardingStarted = false,
                 hasExistingData = true,
                 lastSeenVersion = 0,
                 currentVersion = 3,
@@ -112,6 +146,7 @@ class OnboardingTest {
             FirstRunAction.SHOW_WHATS_NEW,
             firstRunAction(
                 onboardingCompleted = true,
+                onboardingStarted = false,
                 hasExistingData = true,
                 lastSeenVersion = 2,
                 currentVersion = 3,
@@ -126,6 +161,7 @@ class OnboardingTest {
             FirstRunAction.NOTHING,
             firstRunAction(
                 onboardingCompleted = true,
+                onboardingStarted = false,
                 hasExistingData = true,
                 lastSeenVersion = 2,
                 currentVersion = 3,
@@ -140,6 +176,7 @@ class OnboardingTest {
             FirstRunAction.NOTHING,
             firstRunAction(
                 onboardingCompleted = true,
+                onboardingStarted = false,
                 hasExistingData = true,
                 lastSeenVersion = 3,
                 currentVersion = 3,
@@ -155,6 +192,7 @@ class OnboardingTest {
             FirstRunAction.NOTHING,
             firstRunAction(
                 onboardingCompleted = true,
+                onboardingStarted = false,
                 hasExistingData = true,
                 lastSeenVersion = 5,
                 currentVersion = 5,

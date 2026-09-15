@@ -1,6 +1,8 @@
 package com.serkantkn.zunelauncher.ui.screens.onboarding
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -24,6 +26,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +37,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -179,15 +186,39 @@ private fun OnboardingStepContent(step: OnboardingStep, viewModel: OnboardingVie
 
         OnboardingStep.WELCOME -> WelcomeStepPage()
 
-        OnboardingStep.DEFAULT_LAUNCHER -> OnboardingPage(
-            title = stringResource(R.string.onboarding_default_title),
-            line = stringResource(R.string.onboarding_default_line)
-        )
+        OnboardingStep.DEFAULT_LAUNCHER -> {
+            // Coming back from the system's screen is the only way to learn the answer.
+            var checkedAt by remember { mutableIntStateOf(0) }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { checkedAt++ }
+            val isDefault = remember(checkedAt) { viewModel.isDefaultLauncher() }
 
-        OnboardingStep.PERMISSIONS -> OnboardingPage(
-            title = stringResource(R.string.onboarding_permissions_title),
-            line = stringResource(R.string.onboarding_permissions_line)
-        )
+            val roleLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult()
+            ) { checkedAt++ }
+
+            DefaultLauncherStepPage(
+                isDefault = isDefault,
+                onMakeDefault = {
+                    val intent = viewModel.defaultLauncherIntent()
+                    if (intent != null) roleLauncher.launch(intent) else viewModel.openHomeSettings()
+                }
+            )
+        }
+
+        OnboardingStep.PERMISSIONS -> {
+            val granted by viewModel.grantedPermissions.collectAsState()
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshGrantedPermissions() }
+
+            val permissionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission()
+            ) { viewModel.refreshGrantedPermissions() }
+
+            PermissionsStepPage(
+                permissions = viewModel.askablePermissions,
+                granted = granted,
+                onRequest = { permission -> permissionLauncher.launch(permission.manifestName) }
+            )
+        }
 
         OnboardingStep.GESTURES -> OnboardingPage(
             title = stringResource(R.string.onboarding_gestures_title),

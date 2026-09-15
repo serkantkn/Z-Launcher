@@ -92,6 +92,8 @@ class SettingsDataStore(private val context: Context) {
         val MUSIC_ONLINE_WIFI_ONLY = booleanPreferencesKey("music_online_wifi_only")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val LAST_SEEN_VERSION = intPreferencesKey("last_seen_version")
+        val ONBOARDING_STARTED = booleanPreferencesKey("onboarding_started")
+        val ONBOARDING_STEP = intPreferencesKey("onboarding_step")
     }
 
     /** Windows Phone tiles carried a white glyph and nothing else, so that is the default. */
@@ -414,6 +416,29 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setOnboardingCompleted(completed: Boolean) {
         context.settingsDataStore.edit { prefs -> prefs[ONBOARDING_COMPLETED] = completed }
+    }
+
+    /**
+     * Whether the tour has been begun but not finished.
+     *
+     * Making the launcher the default home app restarts it, and the tour has by then written a
+     * setting or two; without this it would look like a used installation and be abandoned midway.
+     */
+    val onboardingStarted: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[ONBOARDING_STARTED] ?: false
+    }
+
+    suspend fun setOnboardingStarted(started: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[ONBOARDING_STARTED] = started }
+    }
+
+    /** Which page the tour was on, so a restart picks it up rather than starting over. */
+    val onboardingStep: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[ONBOARDING_STEP] ?: 0
+    }
+
+    suspend fun setOnboardingStep(index: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[ONBOARDING_STEP] = index }
     }
 
     /** The newest version whose changes have been read. */

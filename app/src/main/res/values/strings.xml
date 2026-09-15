@@ -1711,4 +1711,6 @@
     <string name="onboarding_language_title">language</string>
     <string name="onboarding_language_line">the launcher can speak the phone\'s language, or one you pick.</string>
     <string name="onboarding_accent_line">and a colour to go with it</string>
+    <string name="onboarding_perm_allow">allow</string>
+    <string name="onboarding_perm_granted">given</string>
 </resources>

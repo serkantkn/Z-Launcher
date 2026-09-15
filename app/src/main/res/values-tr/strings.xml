@@ -1710,4 +1710,6 @@
     <string name="onboarding_language_title">dil</string>
     <string name="onboarding_language_line">başlatıcı telefonun dilini konuşabilir ya da senin seçtiğini.</string>
     <string name="onboarding_accent_line">bir de yanına bir renk</string>
+    <string name="onboarding_perm_allow">izin ver</string>
+    <string name="onboarding_perm_granted">verildi</string>
 </resources>

@@ -67,28 +67,42 @@ enum class FirstRunAction {
 /**
  * Which of the three it is.
  *
- * The awkward case is an installation that predates any of this being recorded: there is no flag
- * saying the tour was taken, but the launcher plainly has been used. Treating that as a new
- * install would drag somebody who has been using it for months through a beginner's tour. So the
- * question asked is not "is the flag set" but "is there anything here at all" - [hasExistingData]
- * is true when the settings store already holds something, which only a used installation does.
+ * Two awkward cases, and they pull in opposite directions.
+ *
+ * The first is an installation that predates any of this being recorded: no flag saying the tour
+ * was taken, but the launcher plainly has been used. Treating that as new would drag somebody who
+ * has used it for months through a beginner's tour, so the question asked is not "is the flag set"
+ * but "is there anything here at all" - [hasExistingData].
+ *
+ * The second is a tour that was interrupted. Making the launcher the default home app restarts it,
+ * and by then the tour has written a setting or two, so "is there anything here" would say used
+ * and abandon somebody in the middle. [onboardingStarted] settles that: once the tour has begun it
+ * is finished or skipped, never quietly dropped.
  */
 fun firstRunAction(
     onboardingCompleted: Boolean,
+    onboardingStarted: Boolean,
     hasExistingData: Boolean,
     lastSeenVersion: Int,
     currentVersion: Int,
     hasUnseenNotes: Boolean
 ): FirstRunAction = when {
+    // Already been through it: the only thing left to say is what changed.
+    onboardingCompleted ->
+        if (lastSeenVersion < currentVersion && hasUnseenNotes) {
+            FirstRunAction.SHOW_WHATS_NEW
+        } else {
+            FirstRunAction.NOTHING
+        }
+
+    // Halfway through, and something restarted the launcher. Pick it back up.
+    onboardingStarted -> FirstRunAction.SHOW_ONBOARDING
+
     // Never toured, and nothing here: a fresh installation.
-    !onboardingCompleted && !hasExistingData -> FirstRunAction.SHOW_ONBOARDING
+    !hasExistingData -> FirstRunAction.SHOW_ONBOARDING
 
     // Never toured, but plainly used: an installation from before any of this existed. It is not
     // shown the tour, and it is not shown a pile of notes for versions it already lived through.
-    !onboardingCompleted -> FirstRunAction.NOTHING
-
-    lastSeenVersion < currentVersion && hasUnseenNotes -> FirstRunAction.SHOW_WHATS_NEW
-
     else -> FirstRunAction.NOTHING
 }
 

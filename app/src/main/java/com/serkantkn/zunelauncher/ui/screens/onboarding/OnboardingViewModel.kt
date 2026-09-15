@@ -94,11 +94,14 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
             // Read before anything else writes a default, or every installation looks used.
             val hasExistingData = runCatching { settings.hasExistingData() }.getOrDefault(true)
             val completed = runCatching { settings.onboardingCompleted.first() }.getOrDefault(true)
+            val started = runCatching { settings.onboardingStarted.first() }.getOrDefault(false)
+            val resumeAt = runCatching { settings.onboardingStep.first() }.getOrDefault(0)
             val lastSeen = runCatching { settings.lastSeenVersion.first() }.getOrDefault(currentVersion())
             val unseen = unseenReleaseNotes(ReleaseNotes.ALL, lastSeen, currentVersion())
 
             val action = firstRunAction(
                 onboardingCompleted = completed,
+                onboardingStarted = started,
                 hasExistingData = hasExistingData,
                 lastSeenVersion = lastSeen,
                 currentVersion = currentVersion(),
@@ -110,11 +113,13 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
             ZuneLog.d(TAG, "first run: completed=$completed existing=$hasExistingData lastSeen=$lastSeen action=$action")
             when (action) {
                 FirstRunAction.SHOW_ONBOARDING -> {
-                    // A launcher opened for the first time should look like the phone it is on:
-                    // the theme page then shows what is already true rather than a default nobody
-                    // chose. The language already follows the phone by itself.
-                    runCatching { settings.setThemeMode(ThemeMode.SYSTEM) }
-                    startTour()
+                    if (!started) {
+                        // A launcher opened for the first time should look like the phone it is
+                        // on: the theme page then shows what is already true rather than a default
+                        // nobody chose. The language already follows the phone by itself.
+                        runCatching { settings.setThemeMode(ThemeMode.SYSTEM) }
+                    }
+                    startTour(resumeAt = if (started) resumeAt else 0)
                 }
                 FirstRunAction.SHOW_WHATS_NEW -> _screen.value = FirstRunScreen.WhatsNew(unseen)
                 FirstRunAction.NOTHING -> {
@@ -130,9 +135,11 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    /** Opens the tour by hand, from settings. */
-    fun startTour() {
-        _screen.value = FirstRunScreen.Tour(steps = onboardingSteps(conditions()), index = 0)
+    /** Opens the tour, from the first page or from wherever it was interrupted. */
+    fun startTour(resumeAt: Int = 0) {
+        val steps = onboardingSteps(conditions())
+        _screen.value = FirstRunScreen.Tour(steps = steps, index = resumeAt.coerceIn(0, steps.lastIndex))
+        viewModelScope.launch { runCatching { settings.setOnboardingStarted(true) } }
     }
 
     private fun conditions(): OnboardingConditions {
@@ -141,6 +148,72 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
             isDefaultLauncher = isDefaultLauncher(),
             hasPermissionsToAsk = missingPermissions(context).isNotEmpty()
         )
+    }
+
+    /**
+     * The three, whether or not they have been given, so a given one still shows as given.
+     *
+     * Declared before the state that reads it: a class body runs top to bottom, and a property
+     * built from one below it is built from null.
+     */
+    val askablePermissions: List<OnboardingPermission> =
+        OnboardingPermission.entries.filter { it.appliesHere() }
+
+    /** Which of the three have been given. */
+    private val _grantedPermissions = MutableStateFlow(grantedNow())
+    val grantedPermissions: StateFlow<Set<OnboardingPermission>> = _grantedPermissions.asStateFlow()
+
+    private fun grantedNow(): Set<OnboardingPermission> {
+        val context = getApplication<Application>()
+        return askablePermissions.filter {
+            ContextCompat.checkSelfPermission(context, it.manifestName) == PackageManager.PERMISSION_GRANTED
+        }.toSet()
+    }
+
+    /** Re-read after an answer, and whenever the launcher comes back from the system's settings. */
+    fun refreshGrantedPermissions() {
+        _grantedPermissions.value = grantedNow()
+    }
+
+    /**
+     * Asks the system to make this the home app.
+     *
+     * The role manager can do it in one dialog, but it only offers the home role on some versions
+     * and refuses on others; the system's own default-apps screen always works. The role is tried
+     * first and the settings screen is the fallback, so most people press one button.
+     */
+    fun defaultLauncherIntent(): android.content.Intent? {
+        val context = getApplication<Application>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = context.getSystemService(android.app.role.RoleManager::class.java)
+            if (roleManager != null &&
+                roleManager.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME) &&
+                !roleManager.isRoleHeld(android.app.role.RoleManager.ROLE_HOME)
+            ) {
+                return runCatching {
+                    roleManager.createRequestRoleIntent(android.app.role.RoleManager.ROLE_HOME)
+                }.getOrNull()
+            }
+        }
+        return null
+    }
+
+    /** The long way round, for phones where the role cannot be asked for. */
+    fun openHomeSettings() {
+        val context = getApplication<Application>()
+        val routes = listOf(
+            android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS),
+            android.content.Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS),
+            android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+        )
+        for (intent in routes) {
+            val opened = runCatching {
+                context.startActivity(intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                true
+            }.getOrDefault(false)
+            if (opened) return
+        }
+        ZuneLog.w(TAG, "no way to reach the phone's default-apps screen")
     }
 
     /** Whether the home button already opens this launcher. */
@@ -154,12 +227,18 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
 
     fun next() {
         val tour = _screen.value as? FirstRunScreen.Tour ?: return
-        if (tour.isLast) finish() else _screen.value = tour.copy(index = tour.index + 1)
+        if (tour.isLast) finish() else moveTo(tour, tour.index + 1)
     }
 
     fun back() {
         val tour = _screen.value as? FirstRunScreen.Tour ?: return
-        if (!tour.isFirst) _screen.value = tour.copy(index = tour.index - 1)
+        if (!tour.isFirst) moveTo(tour, tour.index - 1)
+    }
+
+    /** Moves a page, and remembers where, so a restart lands back here. */
+    private fun moveTo(tour: FirstRunScreen.Tour, index: Int) {
+        _screen.value = tour.copy(index = index)
+        viewModelScope.launch { runCatching { settings.setOnboardingStep(index) } }
     }
 
     /** Ends the tour, whether it was walked through or skipped. */
@@ -167,6 +246,8 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             runCatching {
                 settings.setOnboardingCompleted(true)
+                settings.setOnboardingStarted(false)
+                settings.setOnboardingStep(0)
                 // Somebody who has just installed this version does not need to be told what
                 // changed in it.
                 settings.setLastSeenVersion(currentVersion())
