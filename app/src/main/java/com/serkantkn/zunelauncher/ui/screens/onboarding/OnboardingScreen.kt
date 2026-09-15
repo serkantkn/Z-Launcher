@@ -3,11 +3,8 @@ package com.serkantkn.zunelauncher.ui.screens.onboarding
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,13 +23,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import androidx.compose.foundation.layout.widthIn
 import com.serkantkn.zunelauncher.ui.components.ZuneWideHubStartPadding
 import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
@@ -75,6 +78,21 @@ fun OnboardingScreen(
     // Back walks the tour backwards rather than dropping out of it; only the first page lets go.
     BackHandler { if (tour.isFirst) onSkip() else onBack() }
 
+    /**
+     * A finished lesson moves the tour on by itself, after a pause.
+     *
+     * Two seconds: long enough to watch the tick appear and understand what was just done, short
+     * enough that nobody sits wondering whether they are supposed to press something. Leaving the
+     * page by hand cancels it, since the wait is keyed to the page.
+     */
+    var lessonDone by remember(tour.index) { mutableStateOf(false) }
+    val onLessonDone: () -> Unit = { lessonDone = true }
+    LaunchedEffect(tour.index, lessonDone) {
+        if (!lessonDone) return@LaunchedEffect
+        kotlinx.coroutines.delay(LESSON_PAUSE_MS)
+        onNext()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -108,23 +126,58 @@ fun OnboardingScreen(
             }
 
             // -- The page itself --
-            AnimatedContent(
-                targetState = tour.step,
-                transitionSpec = {
-                    // Instant when the launcher has been asked to hold still.
-                    val duration = if (animate) 220 else 0
-                    fadeIn(tween(duration)) togetherWith fadeOut(tween(duration / 2))
-                },
-                label = "onboarding_step",
-                modifier = Modifier.weight(1f)
-            ) { step ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = sidePadding)
-                ) {
-                    Column(modifier = contentWidth) {
-                        OnboardingStepContent(step, viewModel)
+            //
+            // Pages turn on the hinge the rest of the launcher uses for its sub-screens: the one
+            // on screen swings away on its left edge, and the next swings in behind it. Two
+            // halves of one door rather than a cross-fade.
+            var shownStep by remember { mutableStateOf(tour.step) }
+            var shownIndex by remember { mutableIntStateOf(tour.index) }
+            val swing = remember { Animatable(0f) }
+            val halfHinge = remember(animate) {
+                tween<Float>(
+                    durationMillis = if (animate) HingeAnimation.DURATION_MS / 2 else 0,
+                    easing = HingeAnimation.EASING
+                )
+            }
+            // Going back turns the door the other way, so the tour feels reversible.
+            val forwards = tour.index >= shownIndex
+
+            LaunchedEffect(tour.step) {
+                if (tour.step == shownStep) return@LaunchedEffect
+                swing.animateTo(1f, halfHinge)
+                shownStep = tour.step
+                shownIndex = tour.index
+                swing.animateTo(0f, halfHinge)
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    // Compose does not clip by default, and a full-size clone of the start screen
+                    // is taller than the space it is given: without this its last row of tiles
+                    // draws straight over the tour's own buttons.
+                    .clipToBounds()
+                    .graphicsLayer {
+                        val sign = if (forwards) -1f else 1f
+                        rotationY = sign * swing.value * HingeAnimation.MAX_ROTATION_DEGREES
+                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
+                        transformOrigin = TransformOrigin(if (forwards) 0f else 1f, 0.5f)
+                        alpha = (1f - swing.value * 1.4f).coerceIn(0f, 1f)
+                    }
+            ) {
+                if (shownStep.isLesson) {
+                    // A lesson is the launcher at full size; the tour's own margins would shrink
+                    // the very thing being shown.
+                    OnboardingStepContent(shownStep, viewModel, onLessonDone)
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = sidePadding)
+                    ) {
+                        Column(modifier = contentWidth) {
+                            OnboardingStepContent(shownStep, viewModel, onLessonDone)
+                        }
                     }
                 }
             }
@@ -172,7 +225,11 @@ fun OnboardingScreen(
  * doing parts arrive with their own rounds; for now each page says what it is for.
  */
 @Composable
-private fun OnboardingStepContent(step: OnboardingStep, viewModel: OnboardingViewModel) {
+private fun OnboardingStepContent(
+    step: OnboardingStep,
+    viewModel: OnboardingViewModel,
+    onLessonDone: () -> Unit
+) {
     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
 
     when (step) {
@@ -234,11 +291,11 @@ private fun OnboardingStepContent(step: OnboardingStep, viewModel: OnboardingVie
             )
         }
 
-        OnboardingStep.GESTURE_SWIPE -> SwipeLessonPage()
+        OnboardingStep.GESTURE_SWIPE -> SwipeLessonPage(onLessonDone)
 
-        OnboardingStep.GESTURE_TILE -> TileLessonPage()
+        OnboardingStep.GESTURE_TILE -> TileLessonPage(onLessonDone)
 
-        OnboardingStep.GESTURE_PIVOT -> PivotLessonPage()
+        OnboardingStep.GESTURE_PIVOT -> PivotLessonPage(onLessonDone)
 
         OnboardingStep.DONE -> OnboardingPage(
             title = stringResource(R.string.onboarding_done_title),
@@ -292,3 +349,6 @@ private fun StepDots(count: Int, current: Int, accent: Color) {
         }
     }
 }
+
+/** How long a finished lesson is left on screen before the tour moves on. */
+private const val LESSON_PAUSE_MS = 2_000L

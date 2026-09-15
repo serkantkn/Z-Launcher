@@ -26,7 +26,11 @@ enum class OnboardingStep {
     GESTURE_SWIPE,
     GESTURE_TILE,
     GESTURE_PIVOT,
-    DONE
+    DONE;
+
+    /** Whether this page is a lesson, which is played on a full-size copy of the launcher. */
+    val isLesson: Boolean
+        get() = this == GESTURE_SWIPE || this == GESTURE_TILE || this == GESTURE_PIVOT
 }
 
 /** What the phone already is, so the tour can leave out what is already settled. */

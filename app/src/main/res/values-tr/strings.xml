@@ -1728,4 +1728,5 @@
     <string name="onboarding_pivot_body_one">şu an olanlar</string>
     <string name="onboarding_pivot_body_two">ve sonrasında gelenler</string>
     <string name="onboarding_pivot_try">sonraki sayfaya geç</string>
+    <string name="onboarding_pivot_hub">takvim</string>
 </resources>

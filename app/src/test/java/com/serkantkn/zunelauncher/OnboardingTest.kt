@@ -79,6 +79,22 @@ class OnboardingTest {
         }
     }
 
+    @Test
+    fun `the three lessons know they are lessons and nothing else does`() {
+        // A lesson is drawn full-bleed over a copy of the launcher; everything else keeps the
+        // tour's margins, and getting that wrong is a page that looks broken rather than one that
+        // crashes.
+        val lessons = OnboardingStep.entries.filter { it.isLesson }
+        assertEquals(
+            listOf(
+                OnboardingStep.GESTURE_SWIPE,
+                OnboardingStep.GESTURE_TILE,
+                OnboardingStep.GESTURE_PIVOT
+            ),
+            lessons
+        )
+    }
+
     // -- What happens on the first run of a build -------------------------
 
     @Test

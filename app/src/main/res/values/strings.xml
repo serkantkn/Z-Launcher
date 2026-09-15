@@ -1729,4 +1729,5 @@
     <string name="onboarding_pivot_body_one">what is happening now</string>
     <string name="onboarding_pivot_body_two">and what comes after it</string>
     <string name="onboarding_pivot_try">move to the next page</string>
+    <string name="onboarding_pivot_hub">calendar</string>
 </resources>
