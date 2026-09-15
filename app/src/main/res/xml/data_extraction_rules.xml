@@ -11,6 +11,7 @@
         <exclude domain="sharedpref" path="zune_secrets.xml" />
         <exclude domain="file" path="datastore/email.preferences_pb" />
         <exclude domain="file" path="email/" />
+        <exclude domain="file" path="datastore/browsing.preferences_pb" />
         <exclude domain="file" path="datastore/cloud_accounts.preferences_pb" />
         <exclude domain="file" path="datastore/keyboard.preferences_pb" />
         <exclude domain="file" path="datastore/notes.preferences_pb" />
@@ -24,6 +25,7 @@
         <exclude domain="sharedpref" path="zune_secrets.xml" />
         <exclude domain="file" path="datastore/email.preferences_pb" />
         <exclude domain="file" path="email/" />
+        <exclude domain="file" path="datastore/browsing.preferences_pb" />
         <exclude domain="file" path="datastore/cloud_accounts.preferences_pb" />
         <exclude domain="file" path="datastore/keyboard.preferences_pb" />
         <exclude domain="file" path="datastore/notes.preferences_pb" />

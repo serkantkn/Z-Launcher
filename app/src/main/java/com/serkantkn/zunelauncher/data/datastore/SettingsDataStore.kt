@@ -340,6 +340,10 @@ class SettingsDataStore(private val context: Context) {
         prefs[BROWSER_FAVORITES]
     }
 
+    /**
+     * Where browsing history used to be kept. It lives in BrowsingDataStore now, out of the
+     * file that gets backed up; this is only here so what was written before can be moved.
+     */
     val browserHistory: Flow<String?> = context.settingsDataStore.data.map { prefs ->
         prefs[BROWSER_HISTORY]
     }
@@ -353,6 +357,7 @@ class SettingsDataStore(private val context: Context) {
         prefs[SEARCH_SUGGESTIONS] ?: true
     }
 
+    /** As [browserHistory]: kept only so what was written before the split can be moved. */
     val browserDownloads: Flow<String?> = context.settingsDataStore.data.map { prefs ->
         prefs[BROWSER_DOWNLOADS]
     }
@@ -754,15 +759,11 @@ class SettingsDataStore(private val context: Context) {
         context.settingsDataStore.edit { prefs -> prefs[SEARCH_SUGGESTIONS] = enabled }
     }
 
-    suspend fun setBrowserHistory(json: String) {
+    /** Removes what BrowsingDataStore has taken over, so no copy is left in the backed-up file. */
+    suspend fun clearLegacyBrowsingKeys() {
         context.settingsDataStore.edit { prefs ->
-            prefs[BROWSER_HISTORY] = json
-        }
-    }
-
-    suspend fun setBrowserDownloads(json: String) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[BROWSER_DOWNLOADS] = json
+            prefs.remove(BROWSER_HISTORY)
+            prefs.remove(BROWSER_DOWNLOADS)
         }
     }
 

@@ -50,6 +50,21 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
         super.onCreate()
         NoteFallbackTitles.refresh(localized())
         rearmClock()
+        sealLockedNotes()
+    }
+
+    /**
+     * Locks away any note that was marked private before notes were encrypted.
+     *
+     * Done here rather than in the hub because a note somebody locked is locked whether or not
+     * they ever open the notes hub again, and until it has been written back it is sitting in
+     * the file in plain text.
+     */
+    private fun sealLockedNotes() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            runCatching { container.notesDataStore.sealLegacyNotes() }
+                .onFailure { ZuneLog.w("ZuneLauncherApp", "locked notes could not be sealed", it) }
+        }
     }
 
     /**

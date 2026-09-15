@@ -119,6 +119,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     private val repository = application.appContainer.settingsDataStore
 
+    /** History and downloads live apart from the settings, and out of the backup. */
+    private val browsing = application.appContainer.browsingDataStore
+
     private val _state = MutableStateFlow(BrowserState())
     val state: StateFlow<BrowserState> = _state.asStateFlow()
 
@@ -138,7 +141,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
         }
         viewModelScope.launch {
-            repository.browserHistory.collect { json ->
+            browsing.history.collect { json ->
                 val list = parseJsonObjectList(json, TAG, BrowserHistory::fromJson)
                 _state.update { it.copy(history = list) }
             }
@@ -162,7 +165,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
         }
         viewModelScope.launch {
-            repository.browserDownloads.collect { json ->
+            browsing.downloads.collect { json ->
                 val list = parseJsonObjectList(json, TAG, BrowserDownload::fromJson)
                 _state.update { it.copy(downloads = list) }
                 if (list.any { it.status == DownloadManager.STATUS_RUNNING || it.status == DownloadManager.STATUS_PENDING }) {
@@ -200,13 +203,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     private fun saveHistory(newHistory: List<BrowserHistory>) {
         viewModelScope.launch {
-            repository.setBrowserHistory(newHistory.toJsonArrayString { it.toJson() })
+            browsing.setHistory(newHistory.toJsonArrayString { it.toJson() })
         }
     }
 
     private fun saveDownloads(newDownloads: List<BrowserDownload>) {
         viewModelScope.launch {
-            repository.setBrowserDownloads(newDownloads.toJsonArrayString { it.toJson() })
+            browsing.setDownloads(newDownloads.toJsonArrayString { it.toJson() })
         }
     }
 

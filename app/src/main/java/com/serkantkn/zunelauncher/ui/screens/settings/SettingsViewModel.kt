@@ -58,6 +58,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), default)
 
     private val settingsDataStore = application.appContainer.settingsDataStore
+    private val browsingDataStore = application.appContainer.browsingDataStore
 
     private val iconPackRepository = application.appContainer.iconPackRepository
 
@@ -839,7 +840,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      */
     fun clearBrowsingData() {
         viewModelScope.launch {
-            settingsDataStore.setBrowserHistory("[]")
+            browsingDataStore.clearHistory()
             BrowsingData.clearCookies()
             BrowsingData.clearSiteData()
             BrowsingData.clearCache(getApplication())

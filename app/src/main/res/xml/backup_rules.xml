@@ -20,6 +20,9 @@
     <exclude domain="file" path="datastore/email.preferences_pb" />
     <exclude domain="file" path="email/" />
 
+    <!-- Where the browser has been, and what it downloaded. -->
+    <exclude domain="file" path="datastore/browsing.preferences_pb" />
+
     <!-- Cloud storage accounts. -->
     <exclude domain="file" path="datastore/cloud_accounts.preferences_pb" />
 

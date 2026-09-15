@@ -3,6 +3,7 @@ package com.serkantkn.zunelauncher.di
 import android.content.Context
 import com.serkantkn.zunelauncher.ZuneLauncherApp
 import com.serkantkn.zunelauncher.data.datastore.AlarmDataStore
+import com.serkantkn.zunelauncher.data.datastore.BrowsingDataStore
 import com.serkantkn.zunelauncher.data.datastore.CalculatorDataStore
 import com.serkantkn.zunelauncher.data.datastore.CalendarDataStore
 import com.serkantkn.zunelauncher.data.datastore.ClockDataStore
@@ -48,6 +49,7 @@ class AppContainer(private val appContext: Context) {
     // --- Data stores ---
     val settingsDataStore: SettingsDataStore by lazy { SettingsDataStore(appContext) }
     val favoritePhotosDataStore: FavoritePhotosDataStore by lazy { FavoritePhotosDataStore(appContext) }
+    val browsingDataStore: BrowsingDataStore by lazy { BrowsingDataStore(appContext, settingsDataStore) }
     val alarmDataStore: AlarmDataStore by lazy { AlarmDataStore(appContext) }
     val clockDataStore: ClockDataStore by lazy { ClockDataStore(appContext) }
     val calendarDataStore: CalendarDataStore by lazy { CalendarDataStore(appContext) }
