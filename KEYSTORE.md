@@ -9,11 +9,14 @@ both the key and the file that holds its passwords.
 
 ```bash
 keytool -genkeypair -v \
-  -keystore ~/zune-upload.jks \
-  -storetype JKS \
+  -keystore ~/zune-upload.p12 \
+  -storetype PKCS12 \
   -keyalg RSA -keysize 4096 -validity 10000 \
   -alias zune-upload
 ```
+
+PKCS12 rather than JKS: JKS is Java's own old format and keytool now says so every time it is
+touched. Play accepts either; this one is the standard.
 
 Answer the questions (name, organisation, country); they end up in the certificate and nobody
 sees them. Keep the file and the password somewhere you will still have them in five years —
@@ -24,7 +27,7 @@ a password manager, not this machine alone.
 Create `keystore.properties` next to `settings.gradle.kts`:
 
 ```properties
-storeFile=/Users/serkan/zune-upload.jks
+storeFile=/Users/serkan/zune-upload.p12
 storePassword=…
 keyAlias=zune-upload
 keyPassword=…
@@ -33,6 +36,10 @@ keyPassword=…
 That is all. `./gradlew :app:bundleFreeRelease` then produces a signed `.aab` in
 `app/build/outputs/bundle/freeRelease/`. Without the file the build still works and produces an
 unsigned artefact, so a machine that has no business signing anything cannot.
+
+Both halves were tested with a throwaway key, which was then deleted: with the file in place
+`jarsigner -verify` says "jar verified", and with it removed the same command says "jar is
+unsigned". Check your own the same way the first time.
 
 ## What goes to Play
 
