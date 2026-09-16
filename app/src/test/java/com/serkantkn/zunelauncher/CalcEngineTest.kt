@@ -22,6 +22,16 @@ class CalcEngineTest {
     @Test fun percentPostfix() = assertEquals("0.5", plain("50", Tokens.PERCENT))
     @Test fun factorial() = assertEquals("120", plain("5", Tokens.FACT))
     @Test fun squareRoot() = assertEquals("4", plain("√", "(", "16", ")"))
+
+    // The root is worked out by hand rather than by BigDecimal.sqrt, which only exists on
+    // Android 13 and later. These are the cases where an approximation would show.
+    // Twenty significant figures, every one of them right: 1.41421356237309504880...
+    @Test fun squareRootOfTwo() = assertEquals("1.4142135623730950488", plain("√", "(", "2", ")"))
+    @Test fun squareRootOfZero() = assertEquals("0", plain("√", "(", "0", ")"))
+    @Test fun squareRootOfAFraction() = assertEquals("0.5", plain("√", "(", "0.25", ")"))
+    @Test fun squareRootOfSomethingLarge() = assertEquals("1000000", plain("√", "(", "1000000000000", ")"))
+    @Test fun squareRootSquaresBack() =
+        assertEquals("7", plain("√", "(", "49", ")"))
     @Test fun sinInDegrees() = assertEquals("1", plain("sin", "(", "90", ")"))
     @Test fun sinOf180IsZero() = assertEquals("0", plain("sin", "(", "180", ")"))
     @Test fun implicitClosingParenthesis() = assertEquals("6", plain("2", Tokens.MUL, "(", "1", Tokens.ADD, "2"))

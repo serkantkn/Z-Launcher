@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launcher's own icon, in the layered form Android has wanted since Oreo. Without it the
+  system draws the old square badge on a white plate, which on a launcher — the one icon people
+  see next to every other app — reads as an app that was not finished.
+
+  The mark sits at 61% of the canvas, which keeps it clear of every mask the phone might apply:
+  circle, squircle, rounded square, teardrop. The ground is the black the artwork already had,
+  so the two layers meet invisibly.
+
+  There is deliberately no monochrome layer. A themed icon is a single flat silhouette, and this
+  mark is a Z drawn out of overlapping shards: flattened, it stops being a Z. Until somebody
+  draws one by hand, themed launchers are better off showing the icon as it is.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

@@ -4,6 +4,7 @@ import android.app.AppOpsManager
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Process
 import android.provider.Settings
 
@@ -22,11 +23,22 @@ object AppUsage {
     /** Whether the phone will answer at all. */
     fun isGranted(context: Context): Boolean = try {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager
-        val mode = appOps?.unsafeCheckOpNoThrow(
-            AppOpsManager.OPSTR_GET_USAGE_STATS,
-            Process.myUid(),
-            context.packageName
-        )
+        // Renamed in Android 10. Asking for the new name on Android 9 is not an exception that
+        // can be caught — it is a NoSuchMethodError, and it ends the process.
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps?.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
+                context.packageName
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            appOps?.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
+                context.packageName
+            )
+        }
         mode == AppOpsManager.MODE_ALLOWED
     } catch (e: Exception) {
         ZuneLog.w(TAG, "the phone would not say whether usage access is granted", e)

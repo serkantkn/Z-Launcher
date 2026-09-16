@@ -1274,6 +1274,7 @@
     <string name="people_linked">%1$d kayıttan oluşuyor.</string>
     <string name="people_link_pick">aynı kişi hangisi?</string>
     <plurals name="people_group_members">
+        <item quantity="one">%1$d kişi</item>
         <item quantity="other">%1$d kişi</item>
     </plurals>
     <string name="people_photo">fotoğraf</string>

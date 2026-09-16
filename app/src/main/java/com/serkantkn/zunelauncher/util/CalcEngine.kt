@@ -17,6 +17,8 @@ import kotlin.math.E
 object CalcEngine {
 
     private val MC = MathContext(20, RoundingMode.HALF_EVEN)
+    private val TWO = BigDecimal(2)
+    private const val NEWTON_STEPS = 5
     private const val MAX_DIGITS = 12
 
     class CalcException(val reasonKey: String) : Exception(reasonKey)
@@ -161,7 +163,7 @@ object CalcEngine {
             "atan" -> deg(Math.atan(d))
             "ln" -> if (d <= 0) throw CalcException("domain") else Math.log(d)
             "log" -> if (d <= 0) throw CalcException("domain") else Math.log10(d)
-            "√" -> if (d < 0) throw CalcException("domain") else return x.sqrt(MC)
+            "√" -> if (d < 0) throw CalcException("domain") else return squareRoot(x)
             "sq" -> return x.multiply(x, MC)
             "inv" -> return if (x.signum() == 0) throw CalcException("divzero") else BigDecimal.ONE.divide(x, MC)
             "neg" -> return x.negate()
@@ -170,6 +172,29 @@ object CalcEngine {
         if (r.isNaN() || r.isInfinite()) throw CalcException("domain")
         // Trig results like sin(180°) come back as 1.2E-16: snap to 12 significant digits.
         return BigDecimal(r, MC).round(MathContext(12, RoundingMode.HALF_EVEN)).let { if (it.abs() < BigDecimal("1E-11")) BigDecimal.ZERO else it }
+    }
+
+    /**
+     * Square root to the calculator's own precision.
+     *
+     * BigDecimal grew a sqrt of its own, but only on Android 13 and later, and calling it on
+     * anything older is not an exception that can be caught — it is a NoSuchMethodError that
+     * ends the process, on a phone whose only sin was being three years old. So the root is
+     * worked out here: a double gives the first fifteen digits, and Newton's method doubles the
+     * number of correct digits each time round.
+     */
+    private fun squareRoot(x: BigDecimal): BigDecimal {
+        if (x.signum() == 0) return BigDecimal.ZERO
+        val approximate = Math.sqrt(x.toDouble())
+        var guess = if (approximate.isNaN() || approximate.isInfinite() || approximate == 0.0) {
+            BigDecimal.ONE
+        } else {
+            BigDecimal(approximate, MC)
+        }
+        repeat(NEWTON_STEPS) {
+            guess = guess.add(x.divide(guess, MC), MC).divide(TWO, MC)
+        }
+        return guess.round(MC).stripTrailingZeros()
     }
 
     private fun factorial(x: BigDecimal): BigDecimal {
