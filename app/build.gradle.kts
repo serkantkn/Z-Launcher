@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -44,8 +46,28 @@ android {
         }
     }
 
+    // The upload key, read from keystore.properties — a file that is deliberately not in the
+    // repository (see .gitignore). Without it the release still builds, unsigned, which is what
+    // a machine that has no business signing anything should produce.
+    val keystoreProperties = Properties().apply {
+        val file = rootProject.file("keystore.properties")
+        if (file.exists()) file.inputStream().use { load(it) }
+    }
+
+    signingConfigs {
+        if (keystoreProperties.getProperty("storeFile") != null) {
+            create("upload") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("upload")
             // The launcher is the one app that is always resident, so its footprint is its
             // manners. R8 takes the 95 MB of dex this app links against — the extended icon set
             // alone is 38 MB, of which 150 icons are used — down to what is actually reached.

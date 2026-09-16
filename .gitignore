@@ -10,3 +10,9 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+
+# The upload key and its passwords. The keystore never goes near the repository: losing it means
+# never being able to update the app again, and committing it means anybody can sign as you.
+/keystore.properties
+*.jks
+*.keystore
