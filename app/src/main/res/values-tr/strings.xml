@@ -177,7 +177,7 @@
     <string name="settings_volume_style">ses arayüzü stili</string>
     <string name="settings_volume_wp_sub">ekranın üstünden kayan köşeli wp ses kontrolü</string>
     <string name="settings_volume_system_sub">sistemin kendi ses paneli kullanılır</string>
-    <string name="settings_volume_permissions_info">diğer uygulamalar açıkken de wp ses barı için iki izin gerekir</string>
+    <string name="settings_volume_permissions_info">diğer uygulamalar açıkken de wp ses barı için iki izin gerekir. servis yalnızca ses tuşlarını dinler: ekranındaki hiçbir şeyi okumaz, hiçbir kayıt tutmaz, hiçbir veri dışarı göndermez. istediğin an kapatabilirsin.</string>
     <string name="settings_overlay_permission">üstte gösterim izni</string>
     <string name="settings_permission_granted">verildi</string>
     <string name="settings_overlay_permission_sub">ses barının diğer uygulamaların üstünde çizilmesi için</string>

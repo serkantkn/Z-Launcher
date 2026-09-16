@@ -177,7 +177,7 @@
     <string name="settings_volume_style">volume ui style</string>
     <string name="settings_volume_wp_sub">square wp volume control sliding from the top of the screen</string>
     <string name="settings_volume_system_sub">the system\'s own volume panel is used</string>
-    <string name="settings_volume_permissions_info">two permissions are needed for the wp volume bar while other apps are open</string>
+    <string name="settings_volume_permissions_info">two permissions are needed for the wp volume bar while other apps are open. the service listens for the volume keys and nothing else: it does not read what is on your screen, keeps no record of anything, and sends nothing anywhere. turn it off whenever you like.</string>
     <string name="settings_overlay_permission">display over other apps</string>
     <string name="settings_permission_granted">granted</string>
     <string name="settings_overlay_permission_sub">so the volume bar can be drawn over other apps</string>
