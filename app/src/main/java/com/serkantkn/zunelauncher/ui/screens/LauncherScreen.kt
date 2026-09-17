@@ -689,7 +689,13 @@ private fun RenderHubScreen(
             onBack = { if (!navState.popHub()) navState.closeHub() }
         )
         HubType.CAMERA -> com.serkantkn.zunelauncher.ui.screens.camera.CameraHubScreen(
-            onBack = { if (!navState.popHub()) navState.closeHub() }
+            onBack = { if (!navState.popHub()) navState.closeHub() },
+            // The shot just taken belongs in this launcher's own pictures hub, on top of the
+            // camera, so closing it puts the viewfinder back rather than the Start screen.
+            onOpenPictures = { uri ->
+                com.serkantkn.zunelauncher.data.repository.PicturesBridge.openPhoto(uri)
+                navState.openHub(HubType.PICTURES)
+            }
         )
         else -> {}
     }

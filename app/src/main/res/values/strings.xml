@@ -1153,6 +1153,7 @@
     <string name="camera_timer_10">10 s</string>
     <string name="camera_grid">grid</string>
     <string name="camera_flip">flip</string>
+    <string name="camera_mirror">mirror</string>
     <string name="camera_open_last">open the last shot</string>
     <string name="camera_night_stacked">frames stacked</string>
     <string name="camera_sweep_hint">press, then turn slowly</string>

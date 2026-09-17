@@ -1153,6 +1153,7 @@
     <string name="camera_timer_10">10 sn</string>
     <string name="camera_grid">ızgara</string>
     <string name="camera_flip">çevir</string>
+    <string name="camera_mirror">ayna</string>
     <string name="camera_open_last">son çekimi aç</string>
     <string name="camera_night_stacked">kareler üst üste</string>
     <string name="camera_sweep_hint">bas, sonra yavaşça çevir</string>

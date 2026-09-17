@@ -130,6 +130,7 @@ fun PicturesHubScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val pinnedAlbums by viewModel.pinnedAlbums.collectAsState()
     val pendingAlbum by PicturesBridge.pendingAlbum.collectAsState()
+    val pendingPhoto by PicturesBridge.pendingPhoto.collectAsState()
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (hasPermission) viewModel.loadMedia()
@@ -280,6 +281,29 @@ fun PicturesHubScreen(
 
     fun onTileClick(list: List<MediaImage>, item: MediaImage) {
         if (selectionMode) viewModel.toggleSelection(item) else openViewer(list, item)
+    }
+
+    // The camera asks for the shot it has just taken. The media store publishes it a moment after
+    // the file is written, so the ask is retried for a second or so rather than given up on; if
+    // the picture never turns up the hub simply stays where it is, on the roll.
+    LaunchedEffect(pendingPhoto) {
+        val wanted = pendingPhoto ?: return@LaunchedEffect
+        viewModel.selectAlbum(null)
+        viewModel.clearSelection()
+        pager.scrollToPage(CAMERA_ROLL_TAB)
+        repeat(PENDING_PHOTO_TRIES) { attempt ->
+            val roll = viewModel.cameraRollImages.value
+            val found = roll.firstOrNull { it.uri == wanted }
+                ?: viewModel.allImages.value.firstOrNull { it.uri == wanted }
+            if (found != null) {
+                openViewer(if (found in roll) roll else viewModel.allImages.value, found)
+                PicturesBridge.consumePhoto()
+                return@LaunchedEffect
+            }
+            if (attempt > 0) viewModel.loadMedia()
+            kotlinx.coroutines.delay(PENDING_PHOTO_WAIT_MILLIS)
+        }
+        PicturesBridge.consumePhoto()
     }
 
     ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
@@ -740,6 +764,13 @@ private fun SearchPage(
 
 /** Which pivot page the albums live on. */
 private const val ALBUMS_TAB = 1
+
+/** Which pivot page the camera's own shots live on. */
+private const val CAMERA_ROLL_TAB = 0
+
+/** How long the hub waits for the media store to publish a shot the camera has just taken. */
+private const val PENDING_PHOTO_TRIES = 8
+private const val PENDING_PHOTO_WAIT_MILLIS = 180L
 
 /** The pivot's own size, so a word that flies into it lands at exactly the right scale. */
 private val PIVOT_FONT_SIZE = 72.sp

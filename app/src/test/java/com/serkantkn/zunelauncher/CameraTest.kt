@@ -1,9 +1,12 @@
 package com.serkantkn.zunelauncher
 
+import android.view.Surface
+import com.serkantkn.zunelauncher.util.CameraGeometry
 import com.serkantkn.zunelauncher.util.PanoramaPlanner
 import com.serkantkn.zunelauncher.util.averageFrames
 import com.serkantkn.zunelauncher.util.brighten
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -184,5 +187,57 @@ class CameraTest {
     fun blackStaysBlackAndNoGainChangesNothing() {
         assertEquals(0, (brighten(grey(0), 1.6f)[0] shr 16) and 0xFF)
         assertEquals(grey(60).toList(), brighten(grey(60), 1f).toList())
+    }
+
+    // ── Pinching the viewfinder ───────────────────────────────────────────────────────────────
+
+    @Test
+    fun aPinchMovesTheZoomByAProportionRatherThanAnAmount() {
+        assertEquals(2f, CameraGeometry.zoomAfterPinch(1f, 2f, min = 1f, max = 10f), 0.001f)
+        assertEquals(8f, CameraGeometry.zoomAfterPinch(4f, 2f, min = 1f, max = 10f), 0.001f)
+    }
+
+    @Test
+    fun aPinchCannotTakeTheLensPastWhatItCanDo() {
+        assertEquals(10f, CameraGeometry.zoomAfterPinch(8f, 4f, min = 1f, max = 10f), 0.001f)
+        assertEquals(1f, CameraGeometry.zoomAfterPinch(1.2f, 0.1f, min = 1f, max = 10f), 0.001f)
+    }
+
+    @Test
+    fun anImpossibleFactorLeavesTheZoomWhereItWas() {
+        assertEquals(3f, CameraGeometry.zoomAfterPinch(3f, Float.NaN, min = 1f, max = 10f), 0.001f)
+        assertEquals(3f, CameraGeometry.zoomAfterPinch(3f, 0f, min = 1f, max = 10f), 0.001f)
+        assertEquals("a lens with no range has one setting", 1f,
+            CameraGeometry.zoomAfterPinch(1f, 2f, min = 1f, max = 1f), 0.001f)
+    }
+
+    @Test
+    fun aLensThatDoesNotZoomIsNotAskedTo() {
+        assertTrue(CameraGeometry.canZoom(min = 1f, max = 10f))
+        assertFalse(CameraGeometry.canZoom(min = 1f, max = 1f))
+        assertFalse("a hair of range is not a zoom", CameraGeometry.canZoom(min = 1f, max = 1.005f))
+    }
+
+    // ── Which way up the phone is held ────────────────────────────────────────────────────────
+
+    @Test
+    fun eachQuarterTurnIsRoundedToTheNearestWayUp() {
+        assertEquals(Surface.ROTATION_0, CameraGeometry.surfaceRotationFor(0))
+        assertEquals(Surface.ROTATION_0, CameraGeometry.surfaceRotationFor(44))
+        assertEquals(Surface.ROTATION_270, CameraGeometry.surfaceRotationFor(90))
+        assertEquals(Surface.ROTATION_180, CameraGeometry.surfaceRotationFor(180))
+        assertEquals(Surface.ROTATION_90, CameraGeometry.surfaceRotationFor(270))
+        assertEquals(Surface.ROTATION_0, CameraGeometry.surfaceRotationFor(350))
+    }
+
+    @Test
+    fun aPhoneLyingFlatIsTakenAsUpright() {
+        // The sensor says -1 when it cannot tell, which is most of the time on a table.
+        assertEquals(Surface.ROTATION_0, CameraGeometry.surfaceRotationFor(-1))
+    }
+
+    @Test
+    fun aReadingPastAFullCircleStillMeansSomething() {
+        assertEquals(Surface.ROTATION_270, CameraGeometry.surfaceRotationFor(450))
     }
 }

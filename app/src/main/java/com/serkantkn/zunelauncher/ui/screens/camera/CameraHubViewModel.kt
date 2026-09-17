@@ -1,6 +1,9 @@
 package com.serkantkn.zunelauncher.ui.screens.camera
 
+import android.Manifest
 import android.app.Application
+import android.content.ContentUris
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Matrix
@@ -10,7 +13,11 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.MeteringPoint
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.R
@@ -21,6 +28,7 @@ import com.serkantkn.zunelauncher.data.model.CameraSettings
 import com.serkantkn.zunelauncher.data.model.FlashMode
 import com.serkantkn.zunelauncher.data.model.TimerOption
 import com.serkantkn.zunelauncher.di.appContainer
+import com.serkantkn.zunelauncher.util.CameraGeometry
 import com.serkantkn.zunelauncher.util.MediaSaver
 import com.serkantkn.zunelauncher.util.PanoramaPlanner
 import com.serkantkn.zunelauncher.util.ZuneLog
@@ -77,6 +85,10 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
     /** The last thing saved, for the corner thumbnail. */
     private val _lastShot = MutableStateFlow<LastShot?>(null)
     val lastShot: StateFlow<LastShot?> = _lastShot.asStateFlow()
+
+    /** What the lens is zoomed to, in multiples of its widest view. */
+    private val _zoom = MutableStateFlow(1f)
+    val zoom: StateFlow<Float> = _zoom.asStateFlow()
 
     val events = MutableSharedFlow<CameraEvent>(extraBufferCapacity = 4)
 
@@ -136,6 +148,64 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
     /** True when nothing on this phone can tell the sweep how far it has turned. */
     val canSweep: Boolean = rotationSensor != null || gyroscope != null
 
+    init {
+        // Windows Phone's viewfinder always had the last picture waiting in the corner, whether
+        // it was taken a second ago or last week. Without this the corner is empty until the
+        // first shot of the visit, and the way through to the pictures is hidden.
+        viewModelScope.launch { _lastShot.value = withContext(Dispatchers.IO) { newestShot() } }
+    }
+
+    /**
+     * The newest thing this camera saved, found in the album it saves into.
+     *
+     * Only this launcher's own album is looked at: the corner is a way back to the shot that was
+     * just taken, and a screenshot or a downloaded picture standing in for it would be a lie.
+     */
+    private fun newestShot(): LastShot? {
+        if (!canReadTheGallery()) return null
+        val photo = newestIn(MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+        val video = newestIn(MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+        return when {
+            photo == null && video == null -> null
+            video == null -> LastShot(photo!!.second, isVideo = false)
+            photo == null -> LastShot(video.second, isVideo = true)
+            video.first > photo.first -> LastShot(video.second, isVideo = true)
+            else -> LastShot(photo.second, isVideo = false)
+        }
+    }
+
+    /** When it arrived and where it is, for the newest item of one kind, or null if there is none. */
+    private fun newestIn(collection: Uri): Pair<Long, Uri>? = try {
+        val columns = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DATE_ADDED)
+        // Before Android 10 there is no relative path to narrow by, so the newest one stands.
+        val inOurAlbum = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        getApplication<Application>().contentResolver.query(
+            collection,
+            columns,
+            if (inOurAlbum) "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?" else null,
+            if (inOurAlbum) arrayOf("%${MediaSaver.ALBUM}%") else null,
+            "${MediaStore.MediaColumns.DATE_ADDED} DESC"
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+            val added = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED))
+            added to ContentUris.withAppendedId(collection, id)
+        }
+    } catch (e: Exception) {
+        ZuneLog.w(TAG, "the gallery would not say what the last shot was", e)
+        null
+    }
+
+    private fun canReadTheGallery(): Boolean {
+        val wanted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        return ContextCompat.checkSelfPermission(getApplication(), wanted) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
     // ── Settings ─────────────────────────────────────────────────────────────────────────────
 
     fun setMode(mode: CameraMode) {
@@ -181,6 +251,42 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun onCapabilities(capabilities: CameraCapabilities) {
         _capabilities.value = capabilities
+        // A rebind puts the lens back to its widest, so the reading has to go back with it.
+        _zoom.value = engine.currentZoom()
+    }
+
+    /** A pinch on the viewfinder. The factor multiplies, so the feel is the same at every zoom. */
+    fun onPinch(factor: Float) {
+        val (min, max) = engine.zoomLimits()
+        if (!CameraGeometry.canZoom(min, max)) return
+        val next = CameraGeometry.zoomAfterPinch(
+            current = _zoom.value,
+            factor = factor,
+            min = min,
+            max = max
+        )
+        if (next != _zoom.value) {
+            _zoom.value = next
+            engine.setZoom(next)
+        }
+    }
+
+    /** A tap on the viewfinder: focus and meter there. */
+    fun focusAt(point: MeteringPoint): Boolean = engine.focusAt(point)
+
+    /**
+     * Which way up the phone is being held, from the sensor rather than from the display.
+     *
+     * The sensor reports every degree; only the four quarter-turns mean anything to a picture, so
+     * the engine only hears about it when the answer actually changes.
+     */
+    private var lastSurfaceRotation = Int.MIN_VALUE
+
+    fun onDeviceOrientation(degrees: Int) {
+        val rotation = CameraGeometry.surfaceRotationFor(degrees)
+        if (rotation == lastSurfaceRotation) return
+        lastSurfaceRotation = rotation
+        engine.setTargetRotation(rotation)
     }
 
     // ── The shutter ──────────────────────────────────────────────────────────────────────────

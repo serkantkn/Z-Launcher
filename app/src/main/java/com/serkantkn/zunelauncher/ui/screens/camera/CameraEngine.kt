@@ -6,13 +6,16 @@ import android.hardware.camera2.CameraCharacteristics
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.view.Surface
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.MeteringPoint
 import androidx.camera.core.Preview
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
@@ -36,6 +39,7 @@ import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.math.atan
 
@@ -65,6 +69,12 @@ class CameraEngine(private val context: Context) {
     private var imageCapture: ImageCapture? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var recording: Recording? = null
+
+    /**
+     * Which way up the phone was last held, so a shot taken sideways is stored the right way up.
+     * Kept here rather than on the use case because the use cases are thrown away on every rebind.
+     */
+    private var targetRotation: Int = Surface.ROTATION_0
 
     val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
@@ -123,6 +133,7 @@ class CameraEngine(private val context: Context) {
 
         camera = cameraProvider.bindToLifecycle(owner, selector, *useCases.toTypedArray())
         applyFlash(mode, flash)
+        setTargetRotation(targetRotation)
 
         return CameraCapabilities(
             hasFrontCamera = cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA),
@@ -155,6 +166,59 @@ class CameraEngine(private val context: Context) {
             camera?.cameraControl?.enableTorch(mode == CameraMode.VIDEO && flash == FlashMode.ON)
         }
     }
+
+    /**
+     * Records which way up the phone is held, so the picture is stored that way round.
+     *
+     * The display's own rotation is no help here: with auto-rotate off it never changes, and the
+     * shot taken with the phone on its side would be saved on its side.
+     */
+    fun setTargetRotation(rotation: Int) {
+        targetRotation = rotation
+        imageCapture?.targetRotation = rotation
+        videoCapture?.targetRotation = rotation
+    }
+
+    /**
+     * Focuses and meters where the viewfinder was touched.
+     *
+     * The measurement is given a few seconds and then let go of, the way Windows Phone did it: a
+     * tap is a hint about this shot, not a lock the person then has to remember to undo.
+     */
+    fun focusAt(point: MeteringPoint): Boolean {
+        val control = camera?.cameraControl ?: return false
+        return try {
+            control.startFocusAndMetering(
+                FocusMeteringAction.Builder(
+                    point,
+                    FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE
+                ).setAutoCancelDuration(FOCUS_HOLD_SECONDS, TimeUnit.SECONDS).build()
+            )
+            true
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "the lens would not focus there", e)
+            false
+        }
+    }
+
+    /** Sets the zoom outright; the caller has already worked out what the lens will allow. */
+    fun setZoom(ratio: Float) {
+        camera?.cameraControl?.setZoomRatio(ratio)
+    }
+
+    /**
+     * What the lens will zoom between, asked now rather than remembered from the bind.
+     *
+     * The range arrives with the camera rather than with the binding call, so a copy taken the
+     * instant the use cases were bound can still say "this lens does not zoom" about one that does.
+     */
+    fun zoomLimits(): Pair<Float, Float> {
+        val state = camera?.cameraInfo?.zoomState?.value ?: return 1f to 1f
+        return state.minZoomRatio to state.maxZoomRatio
+    }
+
+    /** What the lens is zoomed to now, or 1x when nothing is bound. */
+    fun currentZoom(): Float = camera?.cameraInfo?.zoomState?.value?.zoomRatio ?: 1f
 
     /** Takes the still and hands back where it was saved, or null if it could not be. */
     suspend fun takePhoto(mirrorFront: Boolean, facing: CameraFacing): Uri? {
@@ -302,5 +366,8 @@ class CameraEngine(private val context: Context) {
 
     private companion object {
         const val TAG = "CameraEngine"
+
+        /** How long a tapped focus is held before the lens goes back to deciding for itself. */
+        const val FOCUS_HOLD_SECONDS = 4L
     }
 }
