@@ -19,6 +19,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import com.serkantkn.zunelauncher.ui.components.wpTilt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1183,8 +1188,7 @@ private fun HomeHubScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(tileSpacing.dp),
                         verticalArrangement = Arrangement.spacedBy(tileSpacing.dp)
                     ) {
-                        if (favoriteApps.isNotEmpty()) {
-                            item(key = "fav_label", span = { GridItemSpan(maxLineSpan) }) {
+                        item(key = "fav_label", span = { GridItemSpan(maxLineSpan) }) {
                                 Text(
                                     text = stringResource(R.string.people_tab_favorites),
                                     style = MaterialTheme.typography.displayLarge.copy(
@@ -1203,8 +1207,17 @@ private fun HomeHubScreenContent(
                                         }
                                         .padding(bottom = 4.dp)
                                 )
-                            }
+                        }
 
+                        if (favoriteApps.isEmpty()) {
+                            item(key = "fav_empty", span = { GridItemSpan(maxLineSpan) }) {
+                                FavoritesEmptyState(
+                                    onOpenAppList = onNavigateToAppsHub,
+                                    modifier = Modifier
+                                        .w10mStaggeredAnimation({ animationProgress.value }, 9)
+                                )
+                            }
+                        } else {
                             favoriteApps.forEachIndexed { favIndex, favApp ->
                                 val absoluteIndex = favIndex + 1 // label is item 0
                                 val isDragging =
@@ -1315,6 +1328,71 @@ private fun HomeHubScreenContent(
 }
 
 
+
+/**
+ * What stands where the favourites would be before there are any.
+ *
+ * An empty pane says nothing: somebody who swipes across and finds a blank half-screen learns
+ * neither what the space is for nor that they can fill it. This says both, in as few words as
+ * the rest of the launcher uses, and then offers the one tap that leads to the doing — the app
+ * list, where an app is held down and pinned.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FavoritesEmptyState(
+    onOpenAppList: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val zuneColors = LocalZuneColors.current
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Column(modifier = modifier.padding(top = 8.dp, end = 24.dp)) {
+        Text(
+            text = stringResource(R.string.home_favorites_empty_line),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Light,
+                lineHeight = 26.sp
+            ),
+            color = zuneColors.textMuted
+        )
+
+        Spacer(modifier = Modifier.height(ZuneDimens.SpacingLg))
+
+        // The way out of the empty state, and the only thing here that answers a tap.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .wpTilt(interactionSource)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onOpenAppList
+                )
+                .padding(vertical = 4.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.home_favorites_empty_action),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                color = zuneColors.accentColor
+            )
+            Spacer(modifier = Modifier.width(ZuneDimens.SpacingSm))
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = zuneColors.accentColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(ZuneDimens.SpacingXs))
+
+        Text(
+            text = stringResource(R.string.home_favorites_empty_hint),
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Light),
+            color = zuneColors.textDim
+        )
+    }
+}
 
 // ────────────────────────────────────────────────────────
 // Small favourite tile used in the collapsed single-column

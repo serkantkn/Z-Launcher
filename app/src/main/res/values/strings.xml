@@ -10,6 +10,9 @@
     <string name="search_apps">search apps</string>
     <string name="recent_apps">recent</string>
     <string name="favorite_apps">favorites</string>
+    <string name="home_favorites_empty_line">this is where the apps you reach for live — one tap, without leaving the start screen. you haven’t pinned any yet.</string>
+    <string name="home_favorites_empty_action">open the app list</string>
+    <string name="home_favorites_empty_hint">press and hold an app, then choose \"pin to start\"</string>
     <string name="coming_soon">coming soon</string>
     <string name="theme_setting">theme</string>
     <string name="theme_light">light</string>
