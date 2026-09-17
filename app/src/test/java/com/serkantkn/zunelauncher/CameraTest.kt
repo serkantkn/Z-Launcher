@@ -2,7 +2,8 @@ package com.serkantkn.zunelauncher
 
 import android.view.Surface
 import com.serkantkn.zunelauncher.util.CameraGeometry
-import com.serkantkn.zunelauncher.util.PanoramaPlanner
+import com.serkantkn.zunelauncher.util.FrameAlign
+import com.serkantkn.zunelauncher.util.PanoramaSheet
 import com.serkantkn.zunelauncher.util.averageFrames
 import com.serkantkn.zunelauncher.util.brighten
 import org.junit.Assert.assertEquals
@@ -13,126 +14,248 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.PI
 
-/** Sweeping a panorama, and stacking a night shot. */
+/** Sweeping a panorama, stacking a night shot, and the arithmetic of the viewfinder. */
 class CameraTest {
 
-    // A 1000px frame across a 1 radian lens: a radian of turn slides the scene 1000px.
-    private fun planner(
-        stripWidth: Int = 50,
-        maxWidth: Int = 1000
-    ) = PanoramaPlanner(frameWidth = 1000, stripWidth = stripWidth, horizontalFov = 1f, maxWidth = maxWidth)
+    // ── A made-up scene to sweep across ───────────────────────────────────────────────────────
+    //
+    // The texture is built as one line of values across and another down, so that a frame's
+    // column averages carry the first and its row averages carry the second — which is exactly
+    // what the real thing reads off a photograph.
 
-    // ── Where the strips land ─────────────────────────────────────────────────────────────────
+    private fun texture(length: Int, seed: Int): IntArray {
+        var state = seed
+        var value = 128
+        return IntArray(length) {
+            state = state * 1103515245 + 12345
+            value = (value + ((state shr 20) and 0x3F) - 32).coerceIn(20, 235)
+            value
+        }
+    }
+
+    private val across = texture(1200, seed = 7)
+    private val down = texture(1200, seed = 31)
+
+    /** A frame of the scene, taken [offsetX] across and [offsetY] down from the origin. */
+    private fun frame(
+        width: Int = 160,
+        height: Int = 120,
+        offsetX: Int = 0,
+        offsetY: Int = 0,
+        gain: Float = 1f,
+        lift: Int = 0
+    ) = IntArray(width * height) { i ->
+        val x = i % width
+        val y = i / width
+        val grey = (((across[x + offsetX] + down[y + offsetY]) / 2) * gain + lift)
+            .toInt().coerceIn(0, 255)
+        (0xFF shl 24) or (grey shl 16) or (grey shl 8) or grey
+    }
+
+    private fun profile(pixels: IntArray, width: Int = 160, height: Int = 120) =
+        FrameAlign.profileOf(pixels, width, height)!!
+
+    // ── Reading the movement out of the pictures ──────────────────────────────────────────────
 
     @Test
-    fun theFirstReadingStartsThePictureRatherThanMovingIt() {
-        val plan = planner()
+    fun theSidewaysMovementIsReadOffTheFrames() {
+        val previous = profile(frame(offsetX = 40))
+        val next = profile(frame(offsetX = 40 + 17))
 
-        assertEquals(0, plan.onYaw(0f))
-        assertEquals(0, plan.nextStripAt)
+        val shift = FrameAlign.shiftBetween(previous, next, maxDx = 80, maxDy = 10)
+
+        assertNotNull(shift)
+        assertEquals(17, shift!!.dx)
     }
 
     @Test
-    fun aStripIsLaidDownEveryTimeTheSceneHasMovedItsWidth() {
-        val plan = planner(stripWidth = 50)
-        plan.onYaw(0f)
+    fun turningTheOtherWayComesBackNegative() {
+        val previous = profile(frame(offsetX = 40))
+        val next = profile(frame(offsetX = 40 - 12))
 
-        // 50px of scene is 0.05 radians at this geometry.
-        assertNull("not yet a strip's worth", plan.onYaw(0.02f))
-        assertEquals(50, plan.onYaw(0.06f))
-        assertEquals(100, plan.onYaw(0.11f))
+        assertEquals(-12, FrameAlign.shiftBetween(previous, next, maxDx = 80, maxDy = 10)?.dx)
     }
 
     @Test
-    fun theSweepPicksItsDirectionFromTheFirstRealMovement() {
-        val plan = planner()
-        plan.onYaw(0f)
+    fun theUpAndDownWanderIsReadTheSameWay() {
+        val previous = profile(frame(offsetX = 40, offsetY = 30))
+        val next = profile(frame(offsetX = 46, offsetY = 30 + 5))
 
-        plan.onYaw(-0.06f)
+        val shift = FrameAlign.shiftBetween(previous, next, maxDx = 80, maxDy = 20)
 
-        assertEquals("turning left is a sweep too", -1, plan.direction)
-        assertEquals(50, plan.nextStripAt)
+        assertNotNull(shift)
+        assertEquals(6, shift!!.dx)
+        assertEquals(5, shift.dy)
     }
 
     @Test
-    fun aWobbleDoesNotDecideTheDirection() {
-        val plan = planner()
-        plan.onYaw(0f)
+    fun aFrameThatStayedStillSaysSo() {
+        val previous = profile(frame(offsetX = 40))
+        val next = profile(frame(offsetX = 40))
 
-        plan.onYaw(0.001f)   // one pixel of movement
-
-        assertEquals(0, plan.direction)
+        assertEquals(0, FrameAlign.shiftBetween(previous, next, maxDx = 80, maxDy = 10)?.dx)
     }
 
     @Test
-    fun turningBackDoesNotUnwindThePicture() {
-        val plan = planner()
-        plan.onYaw(0f)
-        plan.onYaw(0.06f)
+    fun aCloudOverTheSunDoesNotMoveTheScene() {
+        val previous = profile(frame(offsetX = 40))
+        // The same view, a third darker and lifted off black: a different exposure, not a pan.
+        val next = profile(frame(offsetX = 40 + 9, gain = 0.66f, lift = 18))
 
-        assertNull(plan.onYaw(0.0f))
-        assertNull(plan.onYaw(0.03f))
-        assertEquals("only new ground adds a strip", 50, plan.nextStripAt)
+        assertEquals(9, FrameAlign.shiftBetween(previous, next, maxDx = 80, maxDy = 10)?.dx)
     }
 
     @Test
-    fun theSweepStopsWhenThePictureIsAsWideAsItCanBe() {
-        val plan = planner(stripWidth = 50, maxWidth = 200)
-        plan.onYaw(0f)
+    fun aBlankWallWillNotSayWhereItWent() {
+        val flat = IntArray(160 * 120) { (0xFF shl 24) or 0x808080 }
+        val reading = FrameAlign.profileOf(flat, 160, 120)!!
 
-        var yaw = 0f
-        repeat(10) {
-            yaw += 0.06f
-            plan.onYaw(yaw)
+        assertFalse(reading.columnsReadable)
+        assertNull(FrameAlign.shiftBetween(reading, reading, maxDx = 80, maxDy = 10))
+    }
+
+    @Test
+    fun aMatchThatIsNoBetterThanAnyOtherIsNotAMatch() {
+        val previous = profile(frame(offsetX = 40))
+        val next = profile(frame(offsetX = 40 + 11))
+
+        val (offset, confidence) = FrameAlign.bestOffset(previous.columns, next.columns, 80)!!
+
+        assertEquals(11, offset)
+        assertTrue("a real match stands well clear of the rest", confidence > FrameAlign.MIN_CONFIDENCE)
+    }
+
+    // ── Where each piece of the sweep goes ────────────────────────────────────────────────────
+
+    private fun sheet() = PanoramaSheet(
+        frameWidth = 100,
+        frameHeight = 60,
+        maxWidth = 400,
+        verticalMargin = 6
+    )
+
+    @Test
+    fun aSweepToTheRightOpensAtTheLeftEdgeWithHalfAFrame() {
+        val plan = sheet()
+
+        val opening = plan.start(5)!!
+
+        assertEquals(1, plan.direction)
+        assertEquals(0, opening.left)
+        assertEquals(0, opening.sourceLeft)
+        assertEquals(50, opening.sourceRight)
+        assertEquals(6, opening.top)
+    }
+
+    @Test
+    fun aSweepToTheLeftOpensAtTheRightEdgeInstead() {
+        val plan = sheet()
+
+        val opening = plan.start(-5)!!
+
+        assertEquals(-1, plan.direction)
+        assertEquals(350, opening.left)
+        assertEquals(50, opening.sourceLeft)
+        assertEquals(100, opening.sourceRight)
+        assertEquals(400, plan.filledLeft + plan.filledWidth)
+    }
+
+    @Test
+    fun exactlyAsMuchIsLaidDownAsTheSceneMoved() {
+        val plan = sheet()
+        plan.start(5)
+
+        val paste = plan.advance(10, 0)!!
+
+        assertEquals("it starts where the last piece ended", 50, paste.left)
+        assertEquals(10, paste.width)
+        assertEquals(60, plan.frontier)
+    }
+
+    @Test
+    fun theWholeSweepIsOnePieceWithNoGapAndNoOverlap() {
+        val plan = sheet()
+        plan.start(5)
+        var edge = 50
+
+        listOf(10, 7, 22, 4, 31).forEach { step ->
+            val paste = plan.advance(step, 0)!!
+            assertEquals("piece starts where the last one ended", edge, paste.left)
+            edge += paste.width
+        }
+
+        assertEquals(edge, plan.frontier)
+    }
+
+    @Test
+    fun turningBackLaysNothingDownAndGoingOnAgainPicksUpWhereItStopped() {
+        val plan = sheet()
+        plan.start(5)
+        plan.advance(10, 0)
+
+        assertNull("the sheet already holds that ground", plan.advance(-4, 0))
+        val paste = plan.advance(9, 0)!!
+
+        assertEquals("only the newly uncovered part", 5, paste.width)
+        assertEquals(60, paste.left)
+    }
+
+    @Test
+    fun theSweepDriftsUpwardsAndThePictureIsTheBandTheyAllShare() {
+        val plan = sheet()
+        plan.start(5)
+
+        plan.advance(10, 3)
+        plan.advance(10, 2)
+
+        assertEquals(11, plan.frameTop)
+        assertEquals("the lowest top any frame had", 11, plan.filledTop)
+        assertEquals("down to the highest bottom", 55, plan.filledHeight)
+    }
+
+    @Test
+    fun theWanderCannotLeaveTheSheet() {
+        val plan = sheet()
+        plan.start(5)
+
+        repeat(20) { plan.advance(10, 5) }
+
+        assertEquals(plan.canvasHeight - plan.frameHeight, plan.frameTop)
+    }
+
+    @Test
+    fun theSheetFillsUpAndNothingIsLaidPastItsEdge() {
+        val plan = sheet()
+        plan.start(5)
+
+        var lastEdge = 50
+        repeat(20) {
+            plan.advance(50, 0)?.let { lastEdge = it.left + it.width }
         }
 
         assertTrue(plan.isFull)
-        assertEquals(200, plan.canvasWidth())
-        assertEquals(1f, plan.progress, 0.01f)
+        assertEquals(400, plan.frontier)
+        assertEquals("nothing was drawn past the end", 400, lastEdge)
+        assertEquals(400, plan.filledWidth)
     }
 
     @Test
-    fun theStripIsCutFromTheMiddleOfTheFrame() {
-        assertEquals(475, planner(stripWidth = 50).sourceLeft())
+    fun aSweepThatNeverMovedNeverStarts() {
+        val plan = sheet()
+
+        assertNull(plan.start(0))
+        assertNull("and nothing can be laid on a sheet that was never opened", plan.advance(10, 0))
     }
 
-    // ── The geometry behind it ────────────────────────────────────────────────────────────────
-
-    @Test
-    fun aWiderLensMovesTheSceneLessForTheSameTurn() {
-        val narrow = PanoramaPlanner.pixelsPerRadian(1000, 1f)
-        val wide = PanoramaPlanner.pixelsPerRadian(1000, 2f)
-
-        assertTrue(wide < narrow)
-        assertEquals(1000f, narrow, 0.01f)
-    }
-
-    @Test
-    fun aLensThatWillNotSayHowWideItSeesGetsATypicalPhoneLens() {
-        val guessed = PanoramaPlanner.pixelsPerRadian(1000, 0f)
-
-        assertEquals(1000f / PanoramaPlanner.FALLBACK_FOV_RADIANS, guessed, 0.01f)
-        assertEquals(guessed, PanoramaPlanner.pixelsPerRadian(1000, Float.NaN), 0.01f)
-    }
+    // ── The turn itself ───────────────────────────────────────────────────────────────────────
 
     @Test
     fun crossingNorthIsASmallTurnNotAWholeCircle() {
         val justPastNorth = (PI - 0.1).toFloat()
         val justBeforeNorth = (-PI + 0.1).toFloat()
 
-        assertEquals(0.2f, PanoramaPlanner.shortestAngle(justPastNorth, justBeforeNorth), 0.001f)
-        assertEquals(-0.2f, PanoramaPlanner.shortestAngle(justBeforeNorth, justPastNorth), 0.001f)
-    }
-
-    @Test
-    fun aSweepAcrossNorthKeepsGoingRatherThanTurningRound() {
-        val plan = planner()
-        plan.onYaw((PI - 0.02).toFloat())
-
-        val landed = plan.onYaw((-PI + 0.04).toFloat())
-
-        assertEquals(1, plan.direction)
-        assertEquals(50, landed)
+        assertEquals(0.2f, PanoramaSheet.shortestAngle(justPastNorth, justBeforeNorth), 0.001f)
+        assertEquals(-0.2f, PanoramaSheet.shortestAngle(justBeforeNorth, justPastNorth), 0.001f)
     }
 
     // ── Night: frames added together ──────────────────────────────────────────────────────────
@@ -207,8 +330,10 @@ class CameraTest {
     fun anImpossibleFactorLeavesTheZoomWhereItWas() {
         assertEquals(3f, CameraGeometry.zoomAfterPinch(3f, Float.NaN, min = 1f, max = 10f), 0.001f)
         assertEquals(3f, CameraGeometry.zoomAfterPinch(3f, 0f, min = 1f, max = 10f), 0.001f)
-        assertEquals("a lens with no range has one setting", 1f,
-            CameraGeometry.zoomAfterPinch(1f, 2f, min = 1f, max = 1f), 0.001f)
+        assertEquals(
+            "a lens with no range has one setting", 1f,
+            CameraGeometry.zoomAfterPinch(1f, 2f, min = 1f, max = 1f), 0.001f
+        )
     }
 
     @Test

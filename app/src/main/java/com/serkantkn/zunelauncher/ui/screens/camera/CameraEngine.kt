@@ -2,12 +2,14 @@ package com.serkantkn.zunelauncher.ui.screens.camera
 
 import android.content.ContentValues
 import android.content.Context
-import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CaptureRequest
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Size
 import android.view.Surface
-import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
@@ -17,6 +19,8 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.MeteringPoint
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -34,22 +38,19 @@ import com.serkantkn.zunelauncher.data.model.CameraFacing
 import com.serkantkn.zunelauncher.data.model.CameraMode
 import com.serkantkn.zunelauncher.data.model.FlashMode
 import com.serkantkn.zunelauncher.util.MediaSaver
-import com.serkantkn.zunelauncher.util.PanoramaPlanner
 import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
-import kotlin.math.atan
 
-/** What came back from binding the camera: what it can do, and how wide it sees. */
+/** What came back from binding the camera: what it can do. */
 data class CameraCapabilities(
     val hasFrontCamera: Boolean = false,
     val hasFlash: Boolean = false,
     /** True when the phone's own night extension is doing the work rather than the fallback. */
-    val vendorNightMode: Boolean = false,
-    val horizontalFov: Float = PanoramaPlanner.FALLBACK_FOV_RADIANS
+    val vendorNightMode: Boolean = false
 )
 
 /**
@@ -116,7 +117,7 @@ class CameraEngine(private val context: Context) {
             CameraMode.NIGHT -> {
                 useCases += stillCapture(flash).also { imageCapture = it }
                 // Without a vendor night mode the frames themselves are what makes the picture.
-                if (!nightAvailable && onFrame != null) useCases += frameReader(onFrame)
+                if (!nightAvailable && onFrame != null) useCases += frameReader(onFrame, NIGHT_FRAME_SIZE)
             }
 
             CameraMode.VIDEO -> {
@@ -128,7 +129,12 @@ class CameraEngine(private val context: Context) {
                 useCases += VideoCapture.withOutput(recorder).also { videoCapture = it }
             }
 
-            CameraMode.PANORAMA -> if (onFrame != null) useCases += frameReader(onFrame)
+            // The panorama is built out of these frames, so they are as big as the phone will
+            // comfortably hand over; the night stack keeps eight of them in memory at once and
+            // is happier small.
+            CameraMode.PANORAMA -> if (onFrame != null) {
+                useCases += frameReader(onFrame, PANORAMA_FRAME_SIZE)
+            }
         }
 
         camera = cameraProvider.bindToLifecycle(owner, selector, *useCases.toTypedArray())
@@ -138,8 +144,7 @@ class CameraEngine(private val context: Context) {
         return CameraCapabilities(
             hasFrontCamera = cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA),
             hasFlash = camera?.cameraInfo?.hasFlashUnit() == true,
-            vendorNightMode = nightAvailable,
-            horizontalFov = horizontalFovOf(camera)
+            vendorNightMode = nightAvailable
         )
     }
 
@@ -307,11 +312,43 @@ class CameraEngine(private val context: Context) {
             }
         }
 
-    private fun frameReader(onFrame: (ImageProxy) -> Unit): ImageAnalysis = ImageAnalysis.Builder()
-        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-        .build()
-        .also { analysis -> analysis.setAnalyzer(executor) { frame -> onFrame(frame) } }
+    private fun frameReader(onFrame: (ImageProxy) -> Unit, size: Size): ImageAnalysis =
+        ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+            .setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setResolutionStrategy(
+                        ResolutionStrategy(size, ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER)
+                    )
+                    .build()
+            )
+            .build()
+            .also { analysis -> analysis.setAnalyzer(executor) { frame -> onFrame(frame) } }
+
+    /**
+     * Holds the exposure and the white balance still.
+     *
+     * A sweep across a window and back into a room walks through several stops of light. Left to
+     * itself the camera follows, and the panorama comes out in bands of different brightness with
+     * a visible step at every join. Windows Phone locked both on the first frame of a sweep.
+     */
+    fun lockExposure(locked: Boolean) {
+        val control = camera?.cameraControl ?: return
+        try {
+            val options = if (locked) {
+                CaptureRequestOptions.Builder()
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_LOCK, true)
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, true)
+                    .build()
+            } else {
+                CaptureRequestOptions.Builder().build()
+            }
+            Camera2CameraControl.from(control).setCaptureRequestOptions(options)
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "this camera will not hold its exposure", e)
+        }
+    }
 
     private fun selectorFor(facing: CameraFacing): CameraSelector = when (facing) {
         CameraFacing.FRONT -> CameraSelector.DEFAULT_FRONT_CAMERA
@@ -327,27 +364,6 @@ class CameraEngine(private val context: Context) {
     } catch (e: Exception) {
         ZuneLog.w(TAG, "no camera extensions on this phone", e)
         false
-    }
-
-    /** How wide the lens sees, worked out from the sensor and the focal length it is set to. */
-    private fun horizontalFovOf(camera: Camera?): Float {
-        val info = camera?.cameraInfo ?: return PanoramaPlanner.FALLBACK_FOV_RADIANS
-        return try {
-            val characteristics = Camera2CameraInfo.from(info)
-            val size = characteristics
-                .getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
-            val focal = characteristics
-                .getCameraCharacteristic(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
-                ?.firstOrNull()
-            if (size == null || focal == null || focal <= 0f) {
-                PanoramaPlanner.FALLBACK_FOV_RADIANS
-            } else {
-                (2.0 * atan((size.width / (2.0 * focal)))).toFloat()
-            }
-        } catch (e: Exception) {
-            ZuneLog.w(TAG, "lens would not say how wide it sees", e)
-            PanoramaPlanner.FALLBACK_FOV_RADIANS
-        }
     }
 
     private suspend fun awaitProvider(): ProcessCameraProvider = suspendCancellableCoroutine { cont ->
@@ -369,5 +385,9 @@ class CameraEngine(private val context: Context) {
 
         /** How long a tapped focus is held before the lens goes back to deciding for itself. */
         const val FOCUS_HOLD_SECONDS = 4L
+
+        /** What the panorama and the night stack ask their frames to be. */
+        val PANORAMA_FRAME_SIZE = Size(1280, 720)
+        val NIGHT_FRAME_SIZE = Size(640, 480)
     }
 }

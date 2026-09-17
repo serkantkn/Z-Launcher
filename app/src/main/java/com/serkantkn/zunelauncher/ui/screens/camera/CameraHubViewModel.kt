@@ -29,8 +29,9 @@ import com.serkantkn.zunelauncher.data.model.FlashMode
 import com.serkantkn.zunelauncher.data.model.TimerOption
 import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.CameraGeometry
+import com.serkantkn.zunelauncher.util.FrameAlign
 import com.serkantkn.zunelauncher.util.MediaSaver
-import com.serkantkn.zunelauncher.util.PanoramaPlanner
+import com.serkantkn.zunelauncher.util.PanoramaSheet
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.averageFrames
 import com.serkantkn.zunelauncher.util.brighten
@@ -44,7 +45,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.max
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** The last thing the camera saved, for the corner thumbnail. */
@@ -92,17 +93,18 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
 
     val events = MutableSharedFlow<CameraEvent>(extraBufferCapacity = 4)
 
-    // ── Panorama and night gather frames; these hold what they have gathered ──────────────────
+    // ── The night stack holds what it has gathered until there is enough of it ────────────────
 
-    private var planner: PanoramaPlanner? = null
-    private var canvas: Bitmap? = null
     private var nightFrames = mutableListOf<IntArray>()
     private var nightSize: Pair<Int, Int>? = null
     private var wantedNightFrames = 0
-    private var stripsSincePreview = 0
 
     @Volatile
     private var yaw = 0f
+
+    /** False until the sensor has actually reported; its first reading is a place, not a turn. */
+    @Volatile
+    private var yawSeen = false
 
     private val sensors = application.getSystemService(SensorManager::class.java)
 
@@ -135,11 +137,13 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
                 val previous = lastGyroNanos
                 lastGyroNanos = event.timestamp
                 if (previous != 0L) yaw += event.values[1] * (event.timestamp - previous) / 1e9f
+                yawSeen = true
                 return
             }
             SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
             SensorManager.getOrientation(rotationMatrix, orientation)
             yaw = orientation[0]
+            yawSeen = true
         }
 
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -393,7 +397,20 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    // ── Panorama: strips laid down as the phone turns ────────────────────────────────────────
+    // ── Panorama: measured from the pictures, not from the sensor ────────────────────────────
+
+    private var sheet: PanoramaSheet? = null
+    private var canvas: Bitmap? = null
+    private var lastProfile: FrameAlign.Profile? = null
+    private var framePixels: IntArray? = null
+
+    /** Learned as the sweep goes: how far the scene slides for a radian of turn, on this lens. */
+    private var pixelsPerRadian = 0f
+    private var lastYaw: Float? = null
+
+    /** How wide the picture has to get to be half a turn, once the sweep knows its own scale. */
+    private var targetWidth = 0
+    private var framesSincePreview = 0
 
     private fun startSweep() {
         lastGyroNanos = 0L
@@ -402,41 +419,62 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
             rotationSensor ?: gyroscope,
             SensorManager.SENSOR_DELAY_GAME
         )
-        planner = null
-        canvas = null
-        stripsSincePreview = 0
-        _sweepProgress.value = 0f
-        _sweepPreview.value = null
+        clearSweep()
+        // A sweep across a window and back into the room walks through several stops of light.
+        engine.lockExposure(true)
         _state.value = CaptureState.SWEEPING
     }
 
     fun cancelSweep() {
         if (_state.value == CaptureState.SWEEPING) _state.value = CaptureState.IDLE
         sensors?.unregisterListener(yawListener)
-        planner = null
+        engine.lockExposure(false)
+        clearSweep()
+    }
+
+    private fun clearSweep() {
+        sheet = null
         canvas = null
+        lastProfile = null
+        framePixels = null
+        pixelsPerRadian = 0f
+        lastYaw = null
+        yawSeen = false
+        targetWidth = 0
+        framesSincePreview = 0
         _sweepProgress.value = 0f
         _sweepPreview.value = null
     }
 
     private fun finishSweep() {
-        val picture = canvas
-        val plan = planner
+        val plan = sheet
+        val sheetBitmap = canvas
         _state.value = CaptureState.CAPTURING
         sensors?.unregisterListener(yawListener)
+        engine.lockExposure(false)
         viewModelScope.launch {
-            val uri = if (picture == null || plan == null || plan.canvasWidth() < MIN_PANORAMA_WIDTH) {
+            val uri = if (
+                plan == null || sheetBitmap == null ||
+                plan.filledWidth < PanoramaSheet.MIN_PANORAMA_WIDTH ||
+                plan.filledHeight <= 0
+            ) {
                 null
             } else {
                 withContext(Dispatchers.Default) {
-                    val cropped = Bitmap.createBitmap(picture, 0, 0, plan.canvasWidth(), picture.height)
+                    // Only the band every frame covered is kept: a sweep that drifts upwards
+                    // leaves the early frames' floor and the late ones' ceiling with nothing
+                    // beside them.
+                    val cropped = Bitmap.createBitmap(
+                        sheetBitmap,
+                        plan.filledLeft,
+                        plan.filledTop,
+                        plan.filledWidth,
+                        plan.filledHeight
+                    )
                     MediaSaver.saveJpeg(getApplication(), cropped, MediaSaver.fileName("PANO", "jpg"))
                 }
             }
-            planner = null
-            canvas = null
-            _sweepProgress.value = 0f
-            _sweepPreview.value = null
+            clearSweep()
             _state.value = CaptureState.IDLE
             if (uri != null) {
                 _lastShot.value = LastShot(uri, isVideo = false)
@@ -455,7 +493,7 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
         try {
             when {
                 wantedNightFrames > 0 -> collectNightFrame(frame)
-                _state.value == CaptureState.SWEEPING -> addSweepStrip(frame)
+                _state.value == CaptureState.SWEEPING -> addSweepFrame(frame)
             }
         } catch (e: Exception) {
             ZuneLog.w(TAG, "a frame could not be read", e)
@@ -473,35 +511,161 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
         nightFrames.add(pixels)
     }
 
-    private fun addSweepStrip(frame: ImageProxy) {
+    /**
+     * One frame of the sweep.
+     *
+     * How far the scene has moved is read out of the picture rather than off the sensor, and the
+     * piece of the frame that is copied across is exactly as wide as that movement. The sensor is
+     * kept for two things it is genuinely good for: saying how far round the sweep has come, and
+     * standing in when the camera is pointed at something too plain to measure — a bare wall, a
+     * clear sky — at the scale the readable frames have taught it.
+     */
+    private fun addSweepFrame(frame: ImageProxy) {
         val bitmap = frame.toUprightBitmap() ?: return
-        var plan = planner
+        val width = bitmap.width
+        val height = bitmap.height
+        val buffer = framePixels?.takeIf { it.size == width * height }
+            ?: IntArray(width * height).also { framePixels = it }
+        bitmap.getPixels(buffer, 0, width, 0, 0, width, height)
+
+        val profile = FrameAlign.profileOf(buffer, width, height) ?: return
+        val previous = lastProfile
+        lastProfile = profile
+
+        val yawNow = if (yawSeen) yaw else null
+        val since = lastYaw
+        val turned = if (yawNow != null && since != null) {
+            PanoramaSheet.shortestAngle(since, yawNow)
+        } else {
+            0f
+        }
+        if (yawNow != null) lastYaw = yawNow
+        if (previous == null) return
+
+        val halfFrame = width / 2
+        val measured = FrameAlign.shiftBetween(
+            previous = previous,
+            next = profile,
+            maxDx = halfFrame,
+            maxDy = height / VERTICAL_SEARCH_DIVISOR
+        )
+
+        val dx: Int
+        val dy: Int
+        if (measured != null) {
+            dx = measured.dx
+            dy = measured.dy
+            learnScale(dx, turned, width)
+        } else {
+            if (pixelsPerRadian == 0f) return
+            dx = (turned * pixelsPerRadian).roundToInt()
+            dy = 0
+        }
+        if (dx == 0) return
+
+        // Nothing may move by more than half a frame at a time: beyond that the two frames no
+        // longer overlap enough to be sure of anything, and a gap would be left on the sheet.
+        val step = dx.coerceIn(-halfFrame, halfFrame)
+
+        val plan = sheet
         if (plan == null) {
-            val stripWidth = max(MIN_STRIP_WIDTH, bitmap.width / STRIP_DIVISOR)
-            val perRadian = PanoramaPlanner.pixelsPerRadian(bitmap.width, _capabilities.value.horizontalFov)
-            val wide = (PanoramaPlanner.TARGET_SWEEP_RADIANS * perRadian).roundToInt() + stripWidth
-            plan = PanoramaPlanner(
-                frameWidth = bitmap.width,
-                stripWidth = stripWidth,
-                horizontalFov = _capabilities.value.horizontalFov,
-                maxWidth = wide.coerceIn(stripWidth * 8, PanoramaPlanner.MAX_CANVAS_WIDTH)
+            val fresh = PanoramaSheet(
+                frameWidth = width,
+                frameHeight = height,
+                maxWidth = sheetWidthFor(width),
+                verticalMargin = (height * PanoramaSheet.VERTICAL_MARGIN_FRACTION).toInt()
             )
-            planner = plan
-            canvas = Bitmap.createBitmap(plan.maxWidth, bitmap.height, Bitmap.Config.ARGB_8888)
+            val opening = fresh.start(step) ?: return
+            sheet = fresh
+            canvas = Bitmap.createBitmap(fresh.maxWidth, fresh.canvasHeight, Bitmap.Config.ARGB_8888)
+            paste(bitmap, opening)
+            return
         }
-        val target = plan.onYaw(yaw) ?: return
-        val sheet = canvas ?: return
-        val source = Rect(plan.sourceLeft(), 0, plan.sourceLeft() + plan.stripWidth, bitmap.height)
-        val destination = Rect(target, 0, target + plan.stripWidth, sheet.height)
-        Canvas(sheet).drawBitmap(bitmap, source, destination, null)
-        _sweepProgress.value = plan.progress
-        // The sheet is as wide as the sweep is allowed to get, so the preview is the part of it
-        // that has actually been filled; copying that every few strips is cheap enough.
-        if (target == 0 || ++stripsSincePreview >= PREVIEW_EVERY_STRIPS) {
-            stripsSincePreview = 0
-            _sweepPreview.value = Bitmap.createBitmap(sheet, 0, 0, plan.canvasWidth(), sheet.height)
+
+        val next = plan.advance(step, dy) ?: return
+        paste(bitmap, next)
+
+        // How far along the sweep is, measured in the picture it has actually gathered rather
+        // than in what the sensor claims. A sensor's jitter adds up to a turn it never made.
+        val reach = if (targetWidth > 0) targetWidth else plan.maxWidth
+        _sweepProgress.value = (plan.filledWidth.toFloat() / reach).coerceIn(0f, 1f)
+
+        if (++framesSincePreview >= PREVIEW_EVERY_FRAMES) {
+            framesSincePreview = 0
+            publishPreview()
         }
-        if (plan.isFull) viewModelScope.launch { finishSweep() }
+        // Half a turn is a panorama; past that it is a room seen twice.
+        if (plan.isFull || plan.filledWidth >= reach) viewModelScope.launch { finishSweep() }
+    }
+
+    /**
+     * Teaches the sweep how far the scene slides for a turn of a given size.
+     *
+     * This is what the lens's own specification was supposed to say and never says accurately.
+     * Readings from turns too small to mean anything are ignored, and the answer is held inside
+     * what any phone lens could plausibly be doing, so that one bad pair of frames cannot decide
+     * that a panorama is finished when it has barely started.
+     */
+    private fun learnScale(dx: Int, turned: Float, frameWidth: Int) {
+        if (abs(turned) <= MIN_LEARNING_TURN) return
+        val learned = dx / turned
+        val plausible = learned.coerceIn(frameWidth * NARROWEST_LENS, frameWidth * WIDEST_LENS)
+        pixelsPerRadian = if (pixelsPerRadian == 0f) {
+            plausible
+        } else {
+            pixelsPerRadian * (1f - LEARNING_RATE) + plausible * LEARNING_RATE
+        }
+        targetWidth = (PanoramaSheet.TARGET_SWEEP_RADIANS * abs(pixelsPerRadian)).toInt()
+    }
+
+    /**
+     * How wide a sheet to lay out for half a turn.
+     *
+     * Once the first pair of frames has been read, the sweep knows roughly how far the scene
+     * slides for a turn of a given size, and a sheet cut to that is a few megabytes rather than
+     * twenty. Before it knows anything, it takes the largest it is allowed.
+     */
+    private fun sheetWidthFor(frameWidth: Int): Int {
+        if (pixelsPerRadian == 0f) return PanoramaSheet.MAX_CANVAS_WIDTH
+        val needed = PanoramaSheet.TARGET_SWEEP_RADIANS * abs(pixelsPerRadian) * SHEET_HEADROOM
+        return (needed.toInt() + frameWidth)
+            .coerceIn(frameWidth * 4, PanoramaSheet.MAX_CANVAS_WIDTH)
+    }
+
+    private fun paste(frame: Bitmap, paste: PanoramaSheet.Paste) {
+        val sheetBitmap = canvas ?: return
+        Canvas(sheetBitmap).drawBitmap(
+            frame,
+            Rect(paste.sourceLeft, 0, paste.sourceRight, frame.height),
+            Rect(paste.left, paste.top, paste.left + paste.width, paste.top + frame.height),
+            null
+        )
+    }
+
+    /**
+     * The strip under the viewfinder.
+     *
+     * Drawn straight into a small bitmap rather than copied out of the sheet and shrunk: the sheet
+     * is twenty megabytes and this happens every few frames.
+     */
+    private fun publishPreview() {
+        val plan = sheet ?: return
+        val sheetBitmap = canvas ?: return
+        if (plan.filledWidth <= 0 || plan.filledHeight <= 0) return
+        val width = (plan.filledWidth * PREVIEW_HEIGHT / plan.filledHeight).coerceIn(1, PREVIEW_MAX_WIDTH)
+        val preview = Bitmap.createBitmap(width, PREVIEW_HEIGHT, Bitmap.Config.ARGB_8888)
+        Canvas(preview).drawBitmap(
+            sheetBitmap,
+            Rect(
+                plan.filledLeft,
+                plan.filledTop,
+                plan.filledLeft + plan.filledWidth,
+                plan.filledTop + plan.filledHeight
+            ),
+            Rect(0, 0, width, PREVIEW_HEIGHT),
+            null
+        )
+        _sweepPreview.value = preview
     }
 
     /** The analyser's frames arrive the way the sensor read them; this puts them upright. */
@@ -531,11 +695,28 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
         const val NIGHT_TIMEOUT_MILLIS = 4000
         const val NIGHT_GAIN = 1.6f
 
-        const val STRIP_DIVISOR = 20
-        const val MIN_STRIP_WIDTH = 24
-        const val MIN_PANORAMA_WIDTH = 300
+        /** How far up and down a frame is searched for its neighbour, as a fraction of its height. */
+        const val VERTICAL_SEARCH_DIVISOR = 12
 
-        /** How often the gathered picture is copied out for the strip under the viewfinder. */
-        const val PREVIEW_EVERY_STRIPS = 3
+        /** A turn smaller than this teaches the sweep nothing about its own scale. */
+        const val MIN_LEARNING_TURN = 0.004f
+
+        /** How quickly the learned scale follows the newest measurement. */
+        const val LEARNING_RATE = 0.25f
+
+        /**
+         * What a phone lens could plausibly be: between a quarter of a radian across and two.
+         * A reading outside that came from a sensor that stumbled, not from a lens.
+         */
+        const val NARROWEST_LENS = 0.5f
+        const val WIDEST_LENS = 4f
+
+        /** Room to spare on the sheet, in case the first reading was an optimistic one. */
+        const val SHEET_HEADROOM = 1.3f
+
+        /** How often the gathered picture is drawn into the strip under the viewfinder. */
+        const val PREVIEW_EVERY_FRAMES = 4
+        const val PREVIEW_HEIGHT = 96
+        const val PREVIEW_MAX_WIDTH = 1600
     }
 }
