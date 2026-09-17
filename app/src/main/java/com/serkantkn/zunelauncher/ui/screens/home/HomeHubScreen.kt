@@ -11,6 +11,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1149,12 +1150,24 @@ private fun HomeHubScreenContent(
                             key = { index -> "c_${favoriteApps[index].appInfo.packageName}" }
                         ) { index ->
                             val favApp = favoriteApps[index]
+                            val key = "app_${favApp.appInfo.packageName}"
                             SmallFavoriteTile(
                                 face = tileFace(favApp.appInfo),
                                 label = favApp.appInfo.label,
-                                onClick = { isFavoritesExpanded = true },
+                                // A tap opens the app, like a tap on anything else with an icon
+                                // on it. Widening the strip is what the swipe across is for, and
+                                // a tile that only makes itself bigger is a tile that does
+                                // nothing — the whole point of having favourites in reach.
+                                onClick = {
+                                    handleLaunch(key) { viewModel.launchApp(favApp.appInfo.packageName) }
+                                },
+                                onLongClick = { isFavoritesExpanded = true },
                                 modifier = Modifier
-                                    .w10mStaggeredAnimation({ animationProgress.value }, 2 + index)
+                                    .w10mStaggeredAnimation(
+                                        { animationProgress.value },
+                                        2 + index,
+                                        clickedItemKey == key
+                                    )
                             )
                         }
                     }
@@ -1397,11 +1410,13 @@ private fun FavoritesEmptyState(
 // ────────────────────────────────────────────────────────
 // Small favourite tile used in the collapsed single-column
 // ────────────────────────────────────────────────────────
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SmallFavoriteTile(
     face: TileIconFace,
     label: String,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
@@ -1412,7 +1427,7 @@ private fun SmallFavoriteTile(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .clickable(onClick = onClick),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         contentAlignment = Alignment.Center
     ) {
         Box(
