@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.TileAnimation
+import com.serkantkn.zunelauncher.data.model.TileInk
+import com.serkantkn.zunelauncher.data.model.tileInkIsDark
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.ui.components.rememberPressPoint
 import com.serkantkn.zunelauncher.ui.components.rememberWpTiltAngles
@@ -68,7 +70,9 @@ import kotlin.math.abs
 data class TileStyle(
     /** 0f = only the outline is left and the wallpaper shows through, 1f = a solid colour block. */
     val opacity: Float = 0.45f,
-    val animation: TileAnimation = TileAnimation.SLIDE
+    val animation: TileAnimation = TileAnimation.SLIDE,
+    /** Black, white, or whatever suits the theme. See [TileInk]. */
+    val ink: TileInk = TileInk.AUTO
 )
 
 val LocalTileStyle = staticCompositionLocalOf { TileStyle() }
@@ -313,11 +317,13 @@ fun tileForegroundColor(tileColor: Color? = null): Color {
     val zuneColors = LocalZuneColors.current
     val style = LocalTileStyle.current
     val fill = tileColor ?: zuneColors.accentColor
-    return when {
-        style.opacity < 0.6f -> if (zuneColors.isDark) Color.White else Color.Black
-        fill.luminance() > 0.5f -> Color.Black
-        else -> Color.White
-    }
+    val dark = tileInkIsDark(
+        ink = style.ink,
+        isDarkTheme = zuneColors.isDark,
+        opacity = style.opacity,
+        fillLuminance = fill.luminance()
+    )
+    return if (dark) Color.Black else Color.White
 }
 
 /**

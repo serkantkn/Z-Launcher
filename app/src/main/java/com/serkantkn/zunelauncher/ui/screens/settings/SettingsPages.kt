@@ -83,6 +83,7 @@ internal fun LookSettingsPage(
     SettingsLazyColumn {
         item(key = "preview") {
             val tileOpacity by viewModel.tileOpacity.collectAsState()
+            val tileInk by viewModel.tileInk.collectAsState()
             LookPreviewCard(
                 themeMode = themeMode,
                 accentColor = accentColor,
@@ -93,6 +94,7 @@ internal fun LookSettingsPage(
                 tileCornerStyle = tileCornerStyle,
                 tileSpacing = tileSpacing,
                 tileOpacity = tileOpacity,
+                tileInk = tileInk,
                 hubBackgroundOpacity = hubBackgroundOpacity,
                 hubBackgroundMode = hubBackgroundMode,
                 homeScreenLayout = homeScreenLayout

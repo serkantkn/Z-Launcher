@@ -145,6 +145,13 @@
     <string name="settings_tile_look">karo görünümü</string>
     <string name="settings_tile_transparency">şeffaflık</string>
     <string name="settings_tile_transparency_sub">duvar kağıdının karolardan ne kadar görüneceği</string>
+    <string name="settings_tile_ink">yazı ve simgeler</string>
+    <string name="settings_tile_ink_auto">temaya uy</string>
+    <string name="settings_tile_ink_auto_sub">açık temada siyah, koyu temada beyaz</string>
+    <string name="settings_tile_ink_dark">siyah</string>
+    <string name="settings_tile_ink_dark_sub">açık duvar kağıdında daha iyi okunur</string>
+    <string name="settings_tile_ink_light">beyaz</string>
+    <string name="settings_tile_ink_light_sub">koyu duvar kağıdında daha iyi okunur</string>
     <string name="settings_tile_anim_slide">kaydır</string>
     <string name="settings_tile_anim_slide_sub">canlı karolar içeriği yukarı kaydırır, Windows Phone\'daki gibi</string>
     <string name="settings_tile_anim_flip">çevir</string>

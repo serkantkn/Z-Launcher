@@ -29,6 +29,7 @@ import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.TileAnimation
+import com.serkantkn.zunelauncher.data.model.TileInk
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
@@ -399,6 +400,7 @@ private fun TileGroups(viewModel: SettingsViewModel) {
     val tileSpacing by viewModel.tileSpacing.collectAsState()
     val tileOpacity by viewModel.tileOpacity.collectAsState()
     val tileAnimation by viewModel.tileAnimation.collectAsState()
+    val tileInk by viewModel.tileInk.collectAsState()
 
     SettingGroup(title = stringResource(R.string.settings_favorite_tiles)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -461,6 +463,33 @@ private fun TileGroups(viewModel: SettingsViewModel) {
                 subtitle = stringResource(R.string.settings_tile_anim_off_sub),
                 selected = tileAnimation == TileAnimation.NONE,
                 onClick = { viewModel.setTileAnimation(TileAnimation.NONE) }
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    // Follows the transparency slider for a reason: turning a tile down until the wallpaper
+    // shows through is what raises the question of whether its writing can still be read.
+    SettingGroup(title = stringResource(R.string.settings_tile_ink)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SettingChoiceRow(
+                title = stringResource(R.string.settings_tile_ink_auto),
+                subtitle = stringResource(R.string.settings_tile_ink_auto_sub),
+                selected = tileInk == TileInk.AUTO,
+                onClick = { viewModel.setTileInk(TileInk.AUTO) }
+            )
+            SettingChoiceRow(
+                title = stringResource(R.string.settings_tile_ink_dark),
+                subtitle = stringResource(R.string.settings_tile_ink_dark_sub),
+                selected = tileInk == TileInk.DARK,
+                onClick = { viewModel.setTileInk(TileInk.DARK) }
+            )
+            SettingChoiceRow(
+                title = stringResource(R.string.settings_tile_ink_light),
+                subtitle = stringResource(R.string.settings_tile_ink_light_sub),
+                selected = tileInk == TileInk.LIGHT,
+                onClick = { viewModel.setTileInk(TileInk.LIGHT) }
             )
         }
     }

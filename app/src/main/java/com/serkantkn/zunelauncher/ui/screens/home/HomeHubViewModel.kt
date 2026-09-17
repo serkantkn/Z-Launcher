@@ -21,6 +21,7 @@ import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.data.model.TemperatureUnit
 import com.serkantkn.zunelauncher.data.model.WeatherSnapshot
 import com.serkantkn.zunelauncher.data.model.TileAnimation
+import com.serkantkn.zunelauncher.data.model.TileInk
 import com.serkantkn.zunelauncher.data.repository.SmsRepository
 import com.serkantkn.zunelauncher.data.service.ActiveMediaState
 import com.serkantkn.zunelauncher.data.service.ThirdPartyMediaController
@@ -540,6 +541,9 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
 
     val tileAnimation: StateFlow<TileAnimation> = settingsDataStore.tileAnimation
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TileAnimation.SLIDE)
+
+    val tileInk: StateFlow<TileInk> = settingsDataStore.tileInk
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TileInk.AUTO)
 
     val tileSpacing: StateFlow<Int> = settingsDataStore.tileSpacing
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)

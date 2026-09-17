@@ -98,7 +98,10 @@ fun W10MAppTile(
                             Text(
                                 text = "+$notificationCount",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
-                                color = if (zuneColors.isDark) Color.White else fg
+                                // The same ink as the rest of the tile: this used to consult the
+                                // theme on its own, which left one number the wrong colour once
+                                // the ink could be chosen.
+                                color = fg
                             )
                         }
                     }

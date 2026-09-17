@@ -18,6 +18,7 @@ import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.TileIcon
 import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import com.serkantkn.zunelauncher.data.model.TileAnimation
+import com.serkantkn.zunelauncher.data.model.TileInk
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.looksLikeJsonArray
 import com.serkantkn.zunelauncher.data.model.parseJsonObjectList
@@ -73,6 +74,7 @@ class SettingsDataStore(private val context: Context) {
         val TILE_CORNER_STYLE = stringPreferencesKey("tile_corner_style")
         val TILE_OPACITY = intPreferencesKey("tile_opacity")
         val TILE_ANIMATION = stringPreferencesKey("tile_animation")
+        val TILE_INK = stringPreferencesKey("tile_ink")
         val TILE_SPACING = intPreferencesKey("tile_spacing")
         val HOME_SCREEN_LAYOUT = stringPreferencesKey("home_screen_layout")
         val TILE_ICON_STYLE = stringPreferencesKey("tile_icon_style")
@@ -312,6 +314,16 @@ class SettingsDataStore(private val context: Context) {
      */
     val tileOpacity: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         (prefs[TILE_OPACITY] ?: DEFAULT_TILE_OPACITY).coerceIn(0, 100)
+    }
+
+    /** Whether the tiles write in black, in white, or in whatever suits the theme. */
+    val tileInk: Flow<TileInk> = context.settingsDataStore.data.map { prefs ->
+        try {
+            TileInk.valueOf(prefs[TILE_INK] ?: TileInk.AUTO.name)
+        } catch (e: IllegalArgumentException) {
+            ZuneLog.w(TAG, "unknown tile ink, letting the theme decide", e)
+            TileInk.AUTO
+        }
     }
 
     /** Motion the live tiles use when they turn to their back face. */
@@ -704,6 +716,12 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setTileOpacity(opacity: Int) {
         context.settingsDataStore.edit { prefs ->
             prefs[TILE_OPACITY] = opacity.coerceIn(0, 100)
+        }
+    }
+
+    suspend fun setTileInk(ink: TileInk) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_INK] = ink.name
         }
     }
 

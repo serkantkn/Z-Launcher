@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,8 @@ import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
+import com.serkantkn.zunelauncher.data.model.TileInk
+import com.serkantkn.zunelauncher.data.model.tileInkIsDark
 import com.serkantkn.zunelauncher.ui.components.BackgroundMode
 import com.serkantkn.zunelauncher.ui.components.ZuneBackground
 import com.serkantkn.zunelauncher.ui.components.ZuneWallpaperOverlay
@@ -55,6 +58,7 @@ fun LookPreviewCard(
     tileSpacing: Int,
     /** 0-100, the same scale the transparency slider works on. */
     tileOpacity: Int = 45,
+    tileInk: TileInk = TileInk.AUTO,
     hubBackgroundOpacity: Float,
     hubBackgroundMode: HubBackgroundMode,
     homeScreenLayout: HomeScreenLayout = HomeScreenLayout.ZUNE,
@@ -78,6 +82,17 @@ fun LookPreviewCard(
         targetValue = effectiveAccentColor,
         label = "preview_accent"
     )
+
+    // The tiles' own ink, worked out exactly the way the Start board works it out, so the
+    // preview shows what the setting actually does rather than an approximation of it.
+    val tileTextColor = if (
+        tileInkIsDark(
+            ink = tileInk,
+            isDarkTheme = isDark,
+            opacity = tileOpacity / 100f,
+            fillLuminance = effectiveAccentColor.luminance()
+        )
+    ) Color.Black else Color.White
 
     val animatedCornerRadius by animateDpAsState(
         targetValue = if (tileCornerStyle == TileCornerStyle.SHARP) 0.dp else 8.dp,
@@ -176,7 +191,7 @@ fun LookPreviewCard(
                                     tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
-                                    textColor = textColor,
+                                    textColor = tileTextColor,
                                     modifier = Modifier.weight(1f).height(36.dp)
                                 )
                                 MiniTile(
@@ -187,7 +202,7 @@ fun LookPreviewCard(
                                     tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
-                                    textColor = textColor,
+                                    textColor = tileTextColor,
                                     modifier = Modifier.weight(1f).height(36.dp)
                                 )
                                 MiniTile(
@@ -198,7 +213,7 @@ fun LookPreviewCard(
                                     tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
-                                    textColor = textColor,
+                                    textColor = tileTextColor,
                                     modifier = Modifier.weight(1f).height(36.dp)
                                 )
                                 MiniTile(
@@ -209,7 +224,7 @@ fun LookPreviewCard(
                                     tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
-                                    textColor = textColor,
+                                    textColor = tileTextColor,
                                     modifier = Modifier.weight(1f).height(36.dp)
                                 )
                             }
@@ -227,7 +242,7 @@ fun LookPreviewCard(
                                     tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
-                                    textColor = textColor,
+                                    textColor = tileTextColor,
                                     modifier = Modifier.weight(2f).height(36.dp)
                                 )
                                 MiniTile(
@@ -238,7 +253,7 @@ fun LookPreviewCard(
                                     tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
-                                    textColor = textColor,
+                                    textColor = tileTextColor,
                                     modifier = Modifier.weight(1f).height(36.dp)
                                 )
                                 MiniTile(
@@ -249,7 +264,7 @@ fun LookPreviewCard(
                                     tileOpacity = tileFillAlpha,
                                     tileShape = tileShape,
                                     strokeColor = tileStrokeColor,
-                                    textColor = textColor,
+                                    textColor = tileTextColor,
                                     modifier = Modifier.weight(1f).height(36.dp)
                                 )
                             }

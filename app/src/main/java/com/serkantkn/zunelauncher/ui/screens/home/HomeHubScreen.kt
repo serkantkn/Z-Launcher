@@ -152,8 +152,13 @@ fun HomeHubScreen(
 ) {
     val tileOpacity by viewModel.tileOpacity.collectAsState()
     val tileAnimation by viewModel.tileAnimation.collectAsState()
+    val tileInk by viewModel.tileInk.collectAsState()
     CompositionLocalProvider(
-        LocalTileStyle provides TileStyle(opacity = tileOpacity / 100f, animation = tileAnimation)
+        LocalTileStyle provides TileStyle(
+            opacity = tileOpacity / 100f,
+            animation = tileAnimation,
+            ink = tileInk
+        )
     ) {
         HomeHubScreenContent(
             isHubOpen = isHubOpen,

@@ -28,6 +28,7 @@ import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.TileAnimation
+import com.serkantkn.zunelauncher.data.model.TileInk
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
@@ -667,6 +668,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val tileAnimation: StateFlow<TileAnimation> = settingsDataStore.tileAnimation.asState(TileAnimation.SLIDE)
 
+    val tileInk: StateFlow<TileInk> = settingsDataStore.tileInk.asState(TileInk.AUTO)
+
     /** The weather hub's moving sky. On unless it is switched off here. */
     val weatherAnimatedSky: StateFlow<Boolean> =
         application.appContainer.weatherDataStore.animatedSky.asState(true)
@@ -729,6 +732,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setTileOpacity(opacity: Int) {
         viewModelScope.launch {
             settingsDataStore.setTileOpacity(opacity)
+        }
+    }
+
+    fun setTileInk(ink: TileInk) {
+        viewModelScope.launch {
+            settingsDataStore.setTileInk(ink)
         }
     }
 
