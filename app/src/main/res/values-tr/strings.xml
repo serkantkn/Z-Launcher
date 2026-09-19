@@ -1164,6 +1164,7 @@
     <string name="camera_error_capture">fotoğraf çekilemedi</string>
     <string name="camera_error_record">kayıt kaydedilemedi</string>
     <string name="camera_error_panorama_short">panorama için biraz daha çevir</string>
+    <string name="camera_error_panorama_memory">panorama toplamak için yeterli yer yok</string>
     <string name="camera_permission_title">kamera</string>
     <string name="camera_permission_body">Fotoğraf ve video çekebilmek için Z Launcher\'ın kameraya erişmesi gerekiyor.</string>
     <string name="camera_permission_button">izin ver</string>

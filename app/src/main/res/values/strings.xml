@@ -1164,6 +1164,7 @@
     <string name="camera_error_capture">the shot could not be taken</string>
     <string name="camera_error_record">the recording could not be saved</string>
     <string name="camera_error_panorama_short">turn a little further for a panorama</string>
+    <string name="camera_error_panorama_memory">there is not enough room to gather a panorama</string>
     <string name="camera_permission_title">camera</string>
     <string name="camera_permission_body">Z Launcher needs the camera to take photos and video.</string>
     <string name="camera_permission_button">allow</string>

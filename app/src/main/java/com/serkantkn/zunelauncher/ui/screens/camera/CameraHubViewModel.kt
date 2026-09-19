@@ -523,7 +523,10 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
                 wantedNightFrames > 0 -> collectNightFrame(frame)
                 _state.value == CaptureState.SWEEPING -> addSweepFrame(frame)
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Not just exceptions: running out of room for a bitmap is an Error, and one of
+            // those going past here takes the analyser down with it — after which the sweep
+            // gathers nothing and the shutter appears to have stopped working.
             ZuneLog.w(TAG, "a frame could not be read", e)
         } finally {
             frame.close()
@@ -597,15 +600,24 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
 
         val plan = sheet
         if (plan == null) {
+            val margin = (height * PanoramaSheet.VERTICAL_MARGIN_FRACTION).toInt()
+            val sheetWidth = sheetWidthFor(width, height + margin * 2)
+            if (sheetWidth == 0) return giveUpOnSweep()
             val fresh = PanoramaSheet(
                 frameWidth = width,
                 frameHeight = height,
-                maxWidth = sheetWidthFor(width),
-                verticalMargin = (height * PanoramaSheet.VERTICAL_MARGIN_FRACTION).toInt()
+                maxWidth = sheetWidth,
+                verticalMargin = margin
             )
             val opening = fresh.start(step) ?: return
+            val sheetBitmap = try {
+                Bitmap.createBitmap(fresh.maxWidth, fresh.canvasHeight, Bitmap.Config.ARGB_8888)
+            } catch (e: OutOfMemoryError) {
+                ZuneLog.e(TAG, "no room for a panorama this size", e)
+                null
+            } ?: return giveUpOnSweep()
             sheet = fresh
-            canvas = Bitmap.createBitmap(fresh.maxWidth, fresh.canvasHeight, Bitmap.Config.ARGB_8888)
+            canvas = sheetBitmap
             paste(bitmap, opening)
             return
         }
@@ -647,17 +659,34 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * How wide a sheet to lay out for half a turn.
+     * How wide a sheet to lay out for half a turn, and whether there is room for it at all.
      *
      * Once the first pair of frames has been read, the sweep knows roughly how far the scene
      * slides for a turn of a given size, and a sheet cut to that is a few megabytes rather than
-     * twenty. Before it knows anything, it takes the largest it is allowed.
+     * the largest one allowed. What it is never allowed to be is more than a modest share of the
+     * heap: a phone that hands over big analysis frames would otherwise be asked for a thirty
+     * megabyte bitmap, and the sweep would die on a frame nobody was watching, leaving a shutter
+     * that starts a panorama and never produces one.
+     *
+     * Returns 0 when not even one frame's width can be afforded.
      */
-    private fun sheetWidthFor(frameWidth: Int): Int {
-        if (pixelsPerRadian == 0f) return PanoramaSheet.MAX_CANVAS_WIDTH
-        val needed = PanoramaSheet.TARGET_SWEEP_RADIANS * abs(pixelsPerRadian) * SHEET_HEADROOM
-        return (needed.toInt() + frameWidth)
-            .coerceIn(frameWidth * 4, PanoramaSheet.MAX_CANVAS_WIDTH)
+    private fun sheetWidthFor(frameWidth: Int, canvasHeight: Int): Int {
+        val wanted = if (pixelsPerRadian == 0f) {
+            PanoramaSheet.MAX_CANVAS_WIDTH
+        } else {
+            (PanoramaSheet.TARGET_SWEEP_RADIANS * abs(pixelsPerRadian) * SHEET_HEADROOM).toInt() +
+                frameWidth
+        }
+        val budget = Runtime.getRuntime().maxMemory() / SHEET_MEMORY_SHARE
+        val affordable = (budget / (canvasHeight.toLong() * BYTES_PER_PIXEL)).toInt()
+        val width = minOf(wanted, PanoramaSheet.MAX_CANVAS_WIDTH, affordable)
+        return if (width < frameWidth) 0 else width
+    }
+
+    /** There is no room to gather this panorama; say so rather than sweeping into nothing. */
+    private fun giveUpOnSweep() {
+        cancelSweep()
+        events.tryEmit(CameraEvent.Failed(R.string.camera_error_panorama_memory))
     }
 
     private fun paste(frame: Bitmap, paste: PanoramaSheet.Paste) {
@@ -760,6 +789,10 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
 
         /** Room to spare on the sheet, in case the first reading was an optimistic one. */
         const val SHEET_HEADROOM = 1.3f
+
+        /** At most this fraction of the heap goes on the sheet — one over this many. */
+        const val SHEET_MEMORY_SHARE = 8L
+        const val BYTES_PER_PIXEL = 4L
 
         /** How often the gathered picture is drawn into the strip under the viewfinder. */
         const val PREVIEW_EVERY_FRAMES = 4
