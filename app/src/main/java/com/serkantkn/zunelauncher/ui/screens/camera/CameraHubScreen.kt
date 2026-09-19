@@ -98,6 +98,7 @@ fun CameraHubScreen(
     var hasCamera by remember { mutableStateOf(granted(Manifest.permission.CAMERA)) }
     var hasMicrophone by remember { mutableStateOf(granted(Manifest.permission.RECORD_AUDIO)) }
     var microphoneAsked by remember { mutableStateOf(false) }
+    var waitingForMicrophone by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
 
     // Where the last tap landed, and a count so the same spot tapped twice plays again.
@@ -108,8 +109,14 @@ fun CameraHubScreen(
     val askForCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         hasCamera = it
     }
-    val askForMicrophone = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        hasMicrophone = it
+    val askForMicrophone = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasMicrophone = granted
+        // The press that asked for the microphone was a press of the shutter; answering the
+        // question should start the take, not leave the person pressing it a second time.
+        if (waitingForMicrophone) {
+            waitingForMicrophone = false
+            viewModel.onShutter(granted)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -189,7 +196,12 @@ fun CameraHubScreen(
     }
 
     DisposableEffect(Unit) {
-        onDispose { viewModel.engine.unbind() }
+        onDispose {
+            viewModel.engine.unbind()
+            // The camera goes; the view model stays, because it belongs to the launcher rather
+            // than to this screen. It must not be left believing a shot is still in the air.
+            viewModel.onViewfinderGone()
+        }
     }
 
     BackHandler {
@@ -282,9 +294,11 @@ fun CameraHubScreen(
                 onShutter = {
                     // Asking for the microphone used to happen while the take was already
                     // running, which recorded the first attempt silently. It is asked first now,
-                    // and a refusal is taken as an answer rather than asked again every press.
+                    // the answer starts the take, and a refusal is taken as an answer rather
+                    // than asked again on every press.
                     if (settings.mode == CameraMode.VIDEO && !hasMicrophone && !microphoneAsked) {
                         microphoneAsked = true
+                        waitingForMicrophone = true
                         askForMicrophone.launch(Manifest.permission.RECORD_AUDIO)
                     } else {
                         viewModel.onShutter(hasMicrophone)

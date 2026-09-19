@@ -35,6 +35,7 @@ import com.serkantkn.zunelauncher.util.PanoramaSheet
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.averageFrames
 import com.serkantkn.zunelauncher.util.brighten
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -323,12 +324,30 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
         action()
     }
 
+    /**
+     * Takes the shot.
+     *
+     * Whatever happens, the viewfinder is handed back: a shot that throws on its way out used to
+     * leave the camera believing it was still busy, and a camera that believes it is busy ignores
+     * the shutter — every press after that, for as long as the launcher stayed open.
+     */
     private suspend fun capture(current: CameraSettings) {
         _state.value = CaptureState.CAPTURING
-        val uri = if (current.mode == CameraMode.NIGHT && !_capabilities.value.vendorNightMode) {
-            gatherNightShot()
-        } else {
-            engine.takePhoto(current.mirrorFrontCamera, current.facing)
+        val uri = try {
+            if (current.mode == CameraMode.NIGHT && !_capabilities.value.vendorNightMode) {
+                gatherNightShot()
+            } else {
+                engine.takePhoto(current.mirrorFrontCamera, current.facing)
+            }
+        } catch (e: CancellationException) {
+            _state.value = CaptureState.IDLE
+            throw e
+        } catch (e: Exception) {
+            ZuneLog.e(TAG, "the shot did not come back", e)
+            null
+        } finally {
+            wantedNightFrames = 0
+            nightFrames = mutableListOf()
         }
         _state.value = CaptureState.IDLE
         if (uri != null) {
@@ -460,18 +479,27 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
             ) {
                 null
             } else {
-                withContext(Dispatchers.Default) {
-                    // Only the band every frame covered is kept: a sweep that drifts upwards
-                    // leaves the early frames' floor and the late ones' ceiling with nothing
-                    // beside them.
-                    val cropped = Bitmap.createBitmap(
-                        sheetBitmap,
-                        plan.filledLeft,
-                        plan.filledTop,
-                        plan.filledWidth,
-                        plan.filledHeight
-                    )
-                    MediaSaver.saveJpeg(getApplication(), cropped, MediaSaver.fileName("PANO", "jpg"))
+                // A sheet this wide is megabytes; running out of room for the copy must end the
+                // sweep with a message, not with a viewfinder that has quietly stopped working.
+                try {
+                    withContext(Dispatchers.Default) {
+                        // Only the band every frame covered is kept: a sweep that drifts upwards
+                        // leaves the early frames' floor and the late ones' ceiling with nothing
+                        // beside them.
+                        val cropped = Bitmap.createBitmap(
+                            sheetBitmap,
+                            plan.filledLeft,
+                            plan.filledTop,
+                            plan.filledWidth,
+                            plan.filledHeight
+                        )
+                        MediaSaver.saveJpeg(getApplication(), cropped, MediaSaver.fileName("PANO", "jpg"))
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    ZuneLog.e(TAG, "the panorama could not be put together", e)
+                    null
                 }
             }
             clearSweep()
@@ -679,6 +707,25 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
     } catch (e: Exception) {
         ZuneLog.w(TAG, "frame would not convert", e)
         null
+    }
+
+    /**
+     * The viewfinder has gone.
+     *
+     * The camera is unbound when the hub closes, but this view model is the launcher's and lives
+     * on. Anything it believed was in progress is not in progress any more, and leaving it
+     * believing otherwise is what makes the shutter stop answering on the way back in.
+     */
+    fun onViewfinderGone() {
+        if (_state.value == CaptureState.SWEEPING) {
+            cancelSweep()
+        } else {
+            clearSweep()
+        }
+        if (engine.isRecording) engine.stopRecording()
+        _countdown.value = 0
+        _recordedSeconds.value = 0
+        _state.value = CaptureState.IDLE
     }
 
     override fun onCleared() {

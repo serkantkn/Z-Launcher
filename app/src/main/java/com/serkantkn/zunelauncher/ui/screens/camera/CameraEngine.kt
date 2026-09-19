@@ -245,20 +245,27 @@ class CameraEngine(private val context: Context) {
             .build()
 
         return suspendCancellableCoroutine { continuation ->
-            capture.takePicture(
-                options,
-                ContextCompat.getMainExecutor(context),
-                object : ImageCapture.OnImageSavedCallback {
-                    override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                        continuation.resume(output.savedUri)
-                    }
+            try {
+                capture.takePicture(
+                    options,
+                    ContextCompat.getMainExecutor(context),
+                    object : ImageCapture.OnImageSavedCallback {
+                        override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                            continuation.resume(output.savedUri)
+                        }
 
-                    override fun onError(exception: ImageCaptureException) {
-                        ZuneLog.e(TAG, "takePicture failed", exception)
-                        continuation.resume(null)
+                        override fun onError(exception: ImageCaptureException) {
+                            ZuneLog.e(TAG, "takePicture failed", exception)
+                            continuation.resume(null)
+                        }
                     }
-                }
-            )
+                )
+            } catch (e: Exception) {
+                // A use case that was unbound between the press and here throws rather than
+                // calling back, and a coroutine nobody resumes never lets go of the shutter.
+                ZuneLog.e(TAG, "takePicture would not start", e)
+                continuation.resume(null)
+            }
         }
     }
 
@@ -289,8 +296,8 @@ class CameraEngine(private val context: Context) {
                         onFinished(if (event.hasError()) null else event.outputResults.outputUri)
                     }
                 }
-        } catch (e: SecurityException) {
-            ZuneLog.e(TAG, "recording refused", e)
+        } catch (e: Exception) {
+            ZuneLog.e(TAG, "the recording would not start", e)
             onFinished(null)
             null
         }
