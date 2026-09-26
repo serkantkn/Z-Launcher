@@ -11,6 +11,7 @@ import android.provider.Settings
 import com.serkantkn.zunelauncher.data.datastore.FavoriteAppsDataStore
 import com.serkantkn.zunelauncher.data.model.AppInfo
 import com.serkantkn.zunelauncher.util.AppIconCache
+import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -114,6 +115,35 @@ class AppRepository(private val context: Context) {
      * Returns a flow of favorite apps data.
      */
     fun getFavoritePackages(): Flow<List<FavoriteAppItem>> = favoriteAppsDataStore.favoritePackages
+
+    /**
+     * One app, asked for by name.
+     *
+     * Reading the whole phone takes a question per installed app for the labels alone, and on a
+     * phone with a hundred and fifty of them that is most of a second. A handful of pinned
+     * favourites do not need to wait behind all of that: each of them is two quick questions.
+     */
+    fun appInfoFor(packageName: String): AppInfo? = try {
+        val intent = Intent(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_LAUNCHER)
+            .setPackage(packageName)
+        val resolved = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.queryIntentActivities(intent, 0)
+        }.firstOrNull() ?: return null
+
+        AppInfo(
+            packageName = packageName,
+            label = resolved.loadLabel(packageManager).toString(),
+            activityName = resolved.activityInfo.name,
+            firstInstallTime = 0L
+        )
+    } catch (e: Exception) {
+        ZuneLog.w("AppRepository", "no such app: $packageName", e)
+        null
+    }
 
     /**
      * Toggle favorite status for a package.

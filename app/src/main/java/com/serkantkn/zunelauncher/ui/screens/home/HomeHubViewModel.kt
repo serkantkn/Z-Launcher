@@ -45,7 +45,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.serkantkn.zunelauncher.data.model.TileIcon
@@ -289,6 +291,18 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         if (favs.isNotEmpty()) favs else stills.take(10).map { it.uri }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * The apps pinned beside the hub list.
+     *
+     * These used to be looked up in the full list of everything installed, which meant that on a
+     * cold start — coming back from an app the phone had made room for by killing the launcher —
+     * they could not be drawn until the package manager had named every app on the phone. The
+     * hub's own words are just words, so they arrived at once and turned in, and the tiles they
+     * belong beside appeared afterwards, which reads as the launcher stumbling.
+     *
+     * A pinned favourite is now asked for by name, which does not wait for anything. The full
+     * list still arrives a moment later and takes over, so nothing else changes.
+     */
     val favoriteApps: StateFlow<List<FavoriteAppUIModel>> = combine(
         _allApps,
         appRepository.getFavoritePackages()
@@ -296,11 +310,33 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         val appMap = apps.associateBy { it.packageName }
         // Keep the exact order defined in favoritePackages
         favoritePackages.mapNotNull { item ->
-            appMap[item.packageName]?.let { appInfo ->
-                FavoriteAppUIModel(appInfo, item.span)
+            val appInfo = appMap[item.packageName]
+                ?: appRepository.appInfoFor(item.packageName)
+                ?: return@mapNotNull null
+            FavoriteAppUIModel(appInfo, item.span)
+        }
+    }.flowOn(Dispatchers.IO)
+        .onEach { warmTileFaces(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Draws the favourites' faces before the screen asks for them.
+     *
+     * A tile's face is built the first time it is wanted and kept, and building one reads the
+     * app's icon and redraws it. On the first frame after a cold start that work would otherwise
+     * happen on the main thread, with the entrance animation already running.
+     */
+    private fun warmTileFaces(favourites: List<FavoriteAppUIModel>) {
+        if (favourites.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val style = settingsDataStore.tileIconStyle.first()
+            val pack = settingsDataStore.iconPackPackage.first()
+            val overrides = settingsDataStore.tileIconOverrides.first()
+            favourites.forEach { favourite ->
+                runCatching { tileIconFace(favourite.appInfo, style, pack, overrides) }
             }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
 
     val startTiles: StateFlow<List<StartTileItem>> = settingsDataStore.startTiles
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
