@@ -6,7 +6,7 @@
 | `feature-graphic-en.png` | Aynısı, İngilizce alt satır | Hazır |
 | `screenshots/*.png` | Telefon ekran görüntüleri, 1080 × 2400 | **Taslak** |
 | `../play_store_icon.png` | Uygulama ikonu, 512 × 512 | Hazır |
-| `tanitim-videosu.mp4` | Tanıtım videosu, 1920 × 1080, 1 dk 41 sn | Hazır (emülatör çekimi) |
+| `tanitim-videosu.mp4` | Tanıtım videosu, 1920 × 1080, 1 dk 51 sn | Hazır (emülatör çekimi, Pro sürüm) |
 
 Metinler (uygulama adı, kısa ve tam açıklama, iki dilde) `../STORE.md` dosyasında.
 
@@ -34,18 +34,28 @@ Play en az 2, en fazla 8 telefon görüntüsü ister; 16:9 ile 9:16 arasında, k
 
 ## Tanıtım videosu hakkında
 
-`tanitim-videosu.mp4` — 1920 × 1080, 30 fps, 1 dk 41 sn, sessiz. Play'in tanıtım videosu
+`tanitim-videosu.mp4` — 1920 × 1080, 30 fps, 1 dk 51 sn, sessiz. Play'in tanıtım videosu
 alanı bir YouTube bağlantısı ister, dosya yüklemez: videoyu YouTube'a yükleyip bağlantısını
 Play Console'a yazman gerekir. Yüklerken listelenmemiş (unlisted) değil, herkese açık olmalı,
 yoksa Play kabul etmez.
+
+Videoda sırasıyla: Zune başlangıç ekranı ve favoriler bölümüne geçiş · turnike · Windows Phone
+başlangıç ekranı ve karo boyutlandırma · fotoğraflar · müzik · kamera · telefon · kişiler ·
+mesajlar · internet · dosyalar · hava durumu · e-posta · saat · hesap makinesi · notlar ·
+notun hatırlatıcısının takvime düşmesi · Windows Phone klavyesi · sosyal hub · açık tema ·
+vurgu rengi · duvar kağıdı.
+
+**Pro sürümle çekildi.** Vurgu renkleri, özel duvar kağıdı, sosyal hub ve klavye ücretsiz
+sürümde kilitli; videoda hepsi görünüyor. Mağaza açıklamasında bunların Pro olduğu yazıyor,
+ama videoya bir "Pro" ibaresi eklemek istersen yerinde olur.
 
 Sesi yok. Bilerek: telifsiz olduğundan emin olmadığım bir müziği mağaza materyaline koymak
 istemedim. Müzik eklemek istersen YouTube'un kendi ses kitaplığı ya da satın alınmış bir
 lisans en güvenlisi.
 
 İçerik emülatörde, üretilmiş test verisiyle çekildi: fotoğraflar emülatörün sanal sahnesinden
-kameranın kendisiyle çekildi, albüm kapakları ve şarkı adları uydurmadır, kişiler ve çağrı
-kaydı örnek veridir. Gerçek telefonunda kendi içeriğinle çekersen daha inandırıcı olur —
-ekran görüntüleri için de aynı şey geçerli.
+kameranın kendisiyle çekildi, albüm kapakları ve şarkı adları uydurmadır, kişiler ve mesajlar
+örnek veridir. Gerçek telefonunda kendi içeriğinle çekersen daha inandırıcı olur — ekran
+görüntüleri için de aynı şey geçerli.
 
 Videoda uygulama adı ya da logo geçmiyor.
