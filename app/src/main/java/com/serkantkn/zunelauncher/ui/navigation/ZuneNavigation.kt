@@ -137,6 +137,11 @@ class ZuneNavigationState {
         return true
     }
 
+    /** Closes every hub that was left running. */
+    fun stopAllHubs() {
+        backgroundHubs = emptyList()
+    }
+
     /** Closes a hub that was left running, from the running-hubs section. */
     fun stopHub(hub: HubType) {
         backgroundHubs = backgroundHubs - hub

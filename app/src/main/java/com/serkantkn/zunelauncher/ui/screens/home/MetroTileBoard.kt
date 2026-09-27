@@ -434,7 +434,7 @@ fun MetroStartBoard(
                     }
                 }
             }
-            Box(modifier = Modifier.padding(start = startPad, end = endPad)) {
+            Column(modifier = Modifier.padding(start = startPad, end = endPad)) {
                 footer()
             }
             Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))

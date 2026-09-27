@@ -67,6 +67,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -156,6 +158,7 @@ fun HomeHubScreen(
     homeResetSignal: Int = 0,
     runningHubs: List<HubType> = emptyList(),
     onStopHub: (HubType) -> Unit = {},
+    onStopAllHubs: () -> Unit = {},
     timeFormat: String = "HH:mm",
     dateFormat: String = "EEEE, MMMM d",
     modifier: Modifier = Modifier,
@@ -181,6 +184,7 @@ fun HomeHubScreen(
             homeResetSignal = homeResetSignal,
             runningHubs = runningHubs,
             onStopHub = onStopHub,
+            onStopAllHubs = onStopAllHubs,
             timeFormat = timeFormat,
             dateFormat = dateFormat,
             modifier = modifier,
@@ -201,6 +205,7 @@ private fun HomeHubScreenContent(
     homeResetSignal: Int,
     runningHubs: List<HubType>,
     onStopHub: (HubType) -> Unit,
+    onStopAllHubs: () -> Unit,
     timeFormat: String,
     dateFormat: String,
     modifier: Modifier,
@@ -356,6 +361,8 @@ private fun HomeHubScreenContent(
     val gridState = rememberLazyGridState()
     // Hoisted: the Home key, pressed on a Start screen that is already in front, takes the board
     // back to its beginning.
+    val hubsOffHome by viewModel.hubsOffHome.collectAsState()
+    var addingHub by remember { mutableStateOf(false) }
     var previewTarget by remember { mutableStateOf<RunningHubTarget?>(null) }
     var hostOrigin by remember { mutableStateOf(Offset.Zero) }
     val boardScrollState = rememberScrollState()
@@ -948,13 +955,23 @@ private fun HomeHubScreenContent(
                     }
                 )
 
-                // The tablet board scrolls sideways, so the running strip is laid over its
-                // bottom-left corner rather than under the last row.
+                // The tablet board scrolls sideways, so the strip and the add button are laid
+                // over its bottom-left corner rather than under the last row.
+                if (isEditMode) {
+                    AddHubButton(
+                        missing = hubsOffHome,
+                        onClick = { addingHub = true },
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 32.dp, bottom = 150.dp)
+                    )
+                }
                 RunningHubsSection(
                     hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
                     cornerStyle = tileCornerStyle,
                     onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
                     onStop = onStopHub,
+                    onStopAll = onStopAllHubs,
                     onPreview = { previewTarget = it },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -1016,11 +1033,15 @@ private fun HomeHubScreenContent(
                     ),
                     scrollState = boardScrollState,
                     footer = {
+                        if (isEditMode) {
+                            AddHubButton(missing = hubsOffHome, onClick = { addingHub = true })
+                        }
                         RunningHubsSection(
                             hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
                             cornerStyle = tileCornerStyle,
                             onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
                             onStop = onStopHub,
+                            onStopAll = onStopAllHubs,
                             onPreview = { previewTarget = it }
                         )
                     },
@@ -1154,23 +1175,53 @@ private fun HomeHubScreenContent(
 
                     localHubOrder.forEachIndexed { index, hubType ->
                         val key = "hub_$hubType"
-                        ZuneHubTitle(
-                            title = stringResource(hubType.titleRes),
-                            accentColor = if (zuneColors.isDark) Color.White else Color.Black,
-                            verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
-                            onClick = {
-                                if (isFavoritesExpanded) {
-                                    isFavoritesExpanded = false
-                                } else {
-                                    handleLaunch(key) { onHubSelected(hubType) }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isEditMode) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.55f))
+                                        .border(0.5.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                                        .clickable { onRemoveTile("hub:${hubType.name}") },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.home_running_hub_close),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
                                 }
-                            },
-                            modifier = Modifier.w10mStaggeredAnimation(
-                                progress = { animationProgress.value },
-                                index = 4 + index,
-                                isClicked = clickedItemKey == key
+                                Spacer(modifier = Modifier.width(10.dp))
+                            }
+                            ZuneHubTitle(
+                                title = stringResource(hubType.titleRes),
+                                accentColor = if (zuneColors.isDark) Color.White else Color.Black,
+                                verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
+                                onClick = {
+                                    if (isFavoritesExpanded) {
+                                        isFavoritesExpanded = false
+                                    } else if (isEditMode) {
+                                        isEditMode = false
+                                    } else {
+                                        handleLaunch(key) { onHubSelected(hubType) }
+                                    }
+                                },
+                                // The Zune list has no tiles to hold, so its titles are what
+                                // opens editing.
+                                onLongClick = { isEditMode = true },
+                                modifier = Modifier.w10mStaggeredAnimation(
+                                    progress = { animationProgress.value },
+                                    index = 4 + index,
+                                    isClicked = clickedItemKey == key
+                                )
                             )
-                        )
+                        }
+                    }
+
+                    if (isEditMode) {
+                        AddHubButton(missing = hubsOffHome, onClick = { addingHub = true })
                     }
 
                     RunningHubsSection(
@@ -1178,6 +1229,7 @@ private fun HomeHubScreenContent(
                         cornerStyle = tileCornerStyle,
                         onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
                         onStop = onStopHub,
+                        onStopAll = onStopAllHubs,
                         onPreview = { previewTarget = it },
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
@@ -1415,6 +1467,17 @@ private fun HomeHubScreenContent(
                 TileSizePopup()
                 TileIconPopup()
             }
+        }
+
+        if (addingHub) {
+            AddHubDialog(
+                missing = hubsOffHome,
+                onPick = { hub ->
+                    addingHub = false
+                    viewModel.addHub(hub)
+                },
+                onDismiss = { addingHub = false }
+            )
         }
 
         previewTarget?.let { target ->

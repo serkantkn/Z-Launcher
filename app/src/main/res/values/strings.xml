@@ -17,6 +17,9 @@
     <string name="home_running_hub_close">close</string>
     <string name="home_running_hub_preview">preview</string>
     <string name="home_running_hub_open">open</string>
+    <string name="home_running_hubs_stop_all">close all</string>
+    <string name="home_add_hub">add a hub</string>
+    <string name="home_add_hub_title">add a hub to start</string>
     <string name="coming_soon">coming soon</string>
     <string name="theme_setting">theme</string>
     <string name="theme_light">light</string>

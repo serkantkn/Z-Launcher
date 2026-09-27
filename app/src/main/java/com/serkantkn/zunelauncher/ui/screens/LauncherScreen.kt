@@ -665,6 +665,7 @@ fun LauncherScreen(
                                     homeResetSignal = homeResetSignal,
                                     runningHubs = navState.backgroundHubs,
                                     onStopHub = { hub -> navState.stopHub(hub) },
+                                    onStopAllHubs = { navState.stopAllHubs() },
                                     timeFormat = timeFormat,
                                     dateFormat = dateFormat
                                 )

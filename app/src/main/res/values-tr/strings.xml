@@ -17,6 +17,9 @@
     <string name="home_running_hub_close">kapat</string>
     <string name="home_running_hub_preview">önizleme</string>
     <string name="home_running_hub_open">aç</string>
+    <string name="home_running_hubs_stop_all">tümünü kapat</string>
+    <string name="home_add_hub">hub ekle</string>
+    <string name="home_add_hub_title">başlangıca hub ekle</string>
     <string name="coming_soon">yakında</string>
     <string name="theme_setting">tema</string>
     <string name="theme_light">açık</string>

@@ -815,8 +815,21 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
                 val pkg = id.removePrefix("app:")
                 appRepository.toggleFavorite(pkg)
             }
+            // Both lists fill themselves in with whatever hub they are missing, so a hub has to
+            // be remembered as taken off or it comes straight back on the next read.
+            StartTileItem(id).hubType?.let { settingsDataStore.setHubRemoved(it, true) }
         }
     }
+
+    /** Puts a hub back on the home screen; it returns to the end of the board and of the list. */
+    fun addHub(hub: HubType) {
+        viewModelScope.launch { settingsDataStore.setHubRemoved(hub, false) }
+    }
+
+    /** The hubs not on the home screen at the moment, in the order they are offered in. */
+    val hubsOffHome: StateFlow<List<HubType>> = settingsDataStore.removedHubs
+        .map { removed -> HubType.entries.filter { it != HubType.HOME && it in removed } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
 
     fun removeFavorite(packageName: String) {

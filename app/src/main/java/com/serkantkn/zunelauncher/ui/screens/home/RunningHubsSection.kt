@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box as LayoutBox
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -84,6 +87,7 @@ fun RunningHubsSection(
     cornerStyle: TileCornerStyle,
     onOpen: (HubType) -> Unit,
     onStop: (HubType) -> Unit,
+    onStopAll: () -> Unit,
     onPreview: (RunningHubTarget) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -93,7 +97,10 @@ fun RunningHubsSection(
 
     Column(modifier = modifier.fillMaxWidth()) {
         Spacer(modifier = Modifier.height(20.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Box(
                 modifier = Modifier
                     .size(width = 22.dp, height = 2.dp)
@@ -109,17 +116,34 @@ fun RunningHubsSection(
                 ),
                 color = ink.copy(alpha = 0.7f)
             )
+            Spacer(modifier = Modifier.weight(1f))
+            if (hubs.size > 1) {
+                Text(
+                    text = stringResource(R.string.home_running_hubs_stop_all),
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 14.sp
+                    ),
+                    color = zuneColors.accentColor,
+                    modifier = Modifier
+                        .clickable(onClick = onStopAll)
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            hubs.forEach { hub ->
+        // A lazy row for the sake of animateItem: when one hub is closed the rest slide along
+        // into the space it leaves rather than jumping.
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(items = hubs, key = { it.name }) { hub ->
                 RunningHubTile(
                     hub = hub,
                     cornerStyle = cornerStyle,
                     ink = ink,
                     onOpen = { onOpen(hub) },
                     onPreview = { bounds -> onPreview(RunningHubTarget(hub, bounds)) },
-                    onStop = { onStop(hub) }
+                    onStop = { onStop(hub) },
+                    modifier = Modifier.animateItem()
                 )
             }
         }
@@ -134,7 +158,8 @@ private fun RunningHubTile(
     ink: Color,
     onOpen: () -> Unit,
     onPreview: (Rect) -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
     val shape = when (cornerStyle) {
@@ -146,7 +171,7 @@ private fun RunningHubTile(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(TILE)
+        modifier = modifier.width(TILE)
     ) {
         Box(modifier = Modifier.size(TILE)) {
             Box(

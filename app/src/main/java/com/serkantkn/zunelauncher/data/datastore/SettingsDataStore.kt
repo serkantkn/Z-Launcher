@@ -54,6 +54,7 @@ class SettingsDataStore(private val context: Context) {
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
         val DIRECT_CALL_ENABLED = booleanPreferencesKey("direct_call_enabled")
         val HUB_ORDER = stringPreferencesKey("hub_order")
+        val REMOVED_HUBS = stringPreferencesKey("removed_hubs")
         val START_TILES = stringPreferencesKey("start_tiles_v1")
         val CUSTOM_WALLPAPER_PATH = stringPreferencesKey("custom_wallpaper_path")
         val DYNAMIC_THEME_COLOR = intPreferencesKey("dynamic_theme_color")
@@ -208,9 +209,35 @@ class SettingsDataStore(private val context: Context) {
         prefs[DIRECT_CALL_ENABLED] ?: false
     }
 
+    /**
+     * The hubs the user has taken off the home screen.
+     *
+     * Both lists fill themselves in with any hub they are missing, so that a hub added in a new
+     * version turns up on a board that was saved before it existed. That back-fill is also what
+     * used to undo a removal on the very next read, which is why a removed hub has to be
+     * remembered by name rather than by its absence.
+     */
+    val removedHubs: Flow<Set<com.serkantkn.zunelauncher.data.model.HubType>> =
+        context.settingsDataStore.data.map { prefs -> readRemovedHubs(prefs[REMOVED_HUBS]) }
+
+    private fun readRemovedHubs(saved: String?): Set<com.serkantkn.zunelauncher.data.model.HubType> {
+        if (saved.isNullOrEmpty()) return emptySet()
+        val names = if (saved.looksLikeJsonArray()) parseJsonStringList(saved, TAG) else saved.split(",")
+        return names.mapNotNull { name ->
+            try {
+                com.serkantkn.zunelauncher.data.model.HubType.valueOf(name)
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+        }.toSet()
+    }
+
     val hubOrder: Flow<List<com.serkantkn.zunelauncher.data.model.HubType>> = flow {
         migrateLegacyListsIfNeeded()
-        emitAll(context.settingsDataStore.data.map { prefs -> readHubOrder(prefs[HUB_ORDER]) })
+        emitAll(context.settingsDataStore.data.map { prefs ->
+            val removed = readRemovedHubs(prefs[REMOVED_HUBS])
+            readHubOrder(prefs[HUB_ORDER]).filterNot { it in removed }
+        })
     }
 
     /** JSON array of HubType names, or the legacy "A,B,C" string; unknown names are skipped. */
@@ -266,12 +293,19 @@ class SettingsDataStore(private val context: Context) {
 
     val startTiles: Flow<List<StartTileItem>> = flow {
         migrateLegacyListsIfNeeded()
-        emitAll(context.settingsDataStore.data.map { prefs -> readStartTiles(prefs[START_TILES]) })
+        emitAll(context.settingsDataStore.data.map { prefs ->
+            readStartTiles(prefs[START_TILES], readRemovedHubs(prefs[REMOVED_HUBS]))
+        })
     }
 
     /** JSON array of [StartTileItem.toJson] objects, or the legacy "id#span,..." string. */
-    private fun readStartTiles(saved: String?): List<StartTileItem> {
-        if (saved.isNullOrEmpty()) return defaultStartTiles
+    private fun readStartTiles(
+        saved: String?,
+        removed: Set<com.serkantkn.zunelauncher.data.model.HubType> = emptySet()
+    ): List<StartTileItem> {
+        fun List<StartTileItem>.withoutRemovedHubs() =
+            filterNot { it.isHub && it.hubType in removed }
+        if (saved.isNullOrEmpty()) return defaultStartTiles.withoutRemovedHubs()
         val list = if (saved.looksLikeJsonArray()) {
             parseJsonObjectList(saved, TAG, StartTileItem::fromJson)
         } else {
@@ -281,8 +315,11 @@ class SettingsDataStore(private val context: Context) {
         val existingHubs = StartFolders.allTileIds(list)
             .mapNotNull { StartTileItem(it).hubType }
             .toSet()
-        val missingHubs = defaultStartTiles.filter { it.isHub && it.hubType !in existingHubs }
-        return (list + missingHubs).ifEmpty { defaultStartTiles }
+        val missingHubs = defaultStartTiles.filter {
+            it.isHub && it.hubType !in existingHubs && it.hubType !in removed
+        }
+        return (list.withoutRemovedHubs() + missingHubs)
+            .ifEmpty { defaultStartTiles.withoutRemovedHubs() }
     }
 
     val customWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
@@ -675,6 +712,14 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setDirectCallEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[DIRECT_CALL_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setHubRemoved(hub: com.serkantkn.zunelauncher.data.model.HubType, removed: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            val current = readRemovedHubs(prefs[REMOVED_HUBS]).toMutableSet()
+            if (removed) current.add(hub) else current.remove(hub)
+            prefs[REMOVED_HUBS] = current.map { it.name }.toJsonStringArray()
         }
     }
 
