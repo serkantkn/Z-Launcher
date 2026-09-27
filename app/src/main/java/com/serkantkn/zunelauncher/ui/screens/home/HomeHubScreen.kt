@@ -151,6 +151,10 @@ fun HomeHubScreen(
     onNavigateToSocialHub: () -> Unit = {},
     onNavigateToAppsHub: () -> Unit = {},
     onExpandProgressChange: (Float) -> Unit = {},
+    /** Bumped when the Home key is pressed while Start is already in front. */
+    homeResetSignal: Int = 0,
+    runningHubs: List<HubType> = emptyList(),
+    onStopHub: (HubType) -> Unit = {},
     timeFormat: String = "HH:mm",
     dateFormat: String = "EEEE, MMMM d",
     modifier: Modifier = Modifier,
@@ -173,6 +177,9 @@ fun HomeHubScreen(
             onNavigateToSocialHub = onNavigateToSocialHub,
             onNavigateToAppsHub = onNavigateToAppsHub,
             onExpandProgressChange = onExpandProgressChange,
+            homeResetSignal = homeResetSignal,
+            runningHubs = runningHubs,
+            onStopHub = onStopHub,
             timeFormat = timeFormat,
             dateFormat = dateFormat,
             modifier = modifier,
@@ -190,6 +197,9 @@ private fun HomeHubScreenContent(
     onNavigateToSocialHub: () -> Unit,
     onNavigateToAppsHub: () -> Unit,
     onExpandProgressChange: (Float) -> Unit,
+    homeResetSignal: Int,
+    runningHubs: List<HubType>,
+    onStopHub: (HubType) -> Unit,
     timeFormat: String,
     dateFormat: String,
     modifier: Modifier,
@@ -341,6 +351,11 @@ private fun HomeHubScreenContent(
 
     // ── Grid state for expanded favorites ──
     val gridState = rememberLazyGridState()
+    // Hoisted: the Home key, pressed on a Start screen that is already in front, takes the board
+    // back to its beginning.
+    val boardScrollState = rememberScrollState()
+    val zuneScrollState = rememberScrollState()
+    val win8ScrollState = rememberScrollState()
     val localDensity = LocalDensity.current
 
     val gridDragDropState = rememberGridDragDropState(
@@ -409,6 +424,19 @@ private fun HomeHubScreenContent(
     var iconTargetApp by remember { mutableStateOf<AppInfo?>(null) }
     var openFolderId by remember { mutableStateOf<String?>(null) }
     val openFolder = localStartTiles.firstOrNull { it.id == openFolderId } as? StartTileUIModel.Folder
+
+    // The Home key on a Start screen that is already in front: back to the top, with whatever
+    // was opened over it — edit mode, the favourites pane, an open folder — put away first.
+    LaunchedEffect(homeResetSignal) {
+        if (homeResetSignal == 0) return@LaunchedEffect
+        isEditMode = false
+        isFavoritesExpanded = false
+        openFolderId = null
+        launch { boardScrollState.animateScrollTo(0) }
+        launch { zuneScrollState.animateScrollTo(0) }
+        launch { win8ScrollState.animateScrollTo(0) }
+        launch { gridState.animateScrollToItem(0) }
+    }
 
     // A folder that has been emptied (or whose last tile was taken out) closes itself.
     LaunchedEffect(openFolderId, localStartTiles) {
@@ -870,6 +898,7 @@ private fun HomeHubScreenContent(
                 tiles = localStartTiles,
                 tileSpacing = tileSpacing.dp,
                 isEditMode = isEditMode,
+                scrollState = win8ScrollState,
                 onEnterEditMode = { isEditMode = true },
                 onMoveTile = { from, to -> moveStartTile(from, to) },
                 onOpenApps = onNavigateToAppsHub,
@@ -901,6 +930,19 @@ private fun HomeHubScreenContent(
                 tile = { model, index, isDragging, isMergeTarget, tileModifier ->
                     StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = FOLDER_COLUMNS)
                 }
+            )
+
+            // The tablet board scrolls sideways, so the running strip is laid over its
+            // bottom-left corner rather than under the last row.
+            RunningHubsSection(
+                hubs = runningHubs,
+                cornerStyle = tileCornerStyle,
+                onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
+                onStop = onStopHub,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 32.dp, bottom = 24.dp)
+                    .width(320.dp)
             )
 
             StartEditBar(
@@ -955,6 +997,15 @@ private fun HomeHubScreenContent(
                         .asPaddingValues()
                         .calculateBottomPadding() + 24.dp
                 ),
+                scrollState = boardScrollState,
+                footer = {
+                    RunningHubsSection(
+                        hubs = runningHubs,
+                        cornerStyle = tileCornerStyle,
+                        onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
+                        onStop = onStopHub
+                    )
+                },
                 onEnterEditMode = { isEditMode = true },
                 onMoveTile = { from, to -> moveStartTile(from, to) },
                 onMergeTiles = onMergeTiles,
@@ -1014,7 +1065,7 @@ private fun HomeHubScreenContent(
                             Modifier.fillMaxSize()
                         }
                     )
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(zuneScrollState)
                     .padding(
                         start = 72.dp,
                         end = ZuneDimens.ScreenPaddingHorizontal
@@ -1103,6 +1154,14 @@ private fun HomeHubScreenContent(
                         )
                     )
                 }
+
+                RunningHubsSection(
+                    hubs = runningHubs,
+                    cornerStyle = tileCornerStyle,
+                    onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
+                    onStop = onStopHub,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
             }
 
             // ════════════════════════════════════════════════

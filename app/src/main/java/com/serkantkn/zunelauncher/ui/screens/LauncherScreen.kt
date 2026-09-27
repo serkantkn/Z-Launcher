@@ -29,12 +29,19 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
@@ -228,6 +235,36 @@ fun LauncherScreen(
         }
     }
 
+    // ── The Home key ──
+    // First press: whatever hub is open steps aside and keeps running, and the pager comes back
+    // to the Start page. Pressed again on Start, it takes the board back to its beginning.
+    val focusManager = LocalFocusManager.current
+    val rootView = LocalView.current
+
+    // Which hub the screen is actually showing. A hub reads it to know whether it may still answer
+    // the Back key: one left running behind Start must not, or it walks its own history back a
+    // page at a time while the user is only trying to get out of a folder on Start.
+    val visibleHubState = remember { mutableStateOf<HubType?>(null) }
+    val homePresses by com.serkantkn.zunelauncher.data.repository.HomeKeyBridge.presses.collectAsState()
+    var handledHomePresses by remember { mutableIntStateOf(homePresses) }
+    var homeResetSignal by remember { mutableIntStateOf(0) }
+    LaunchedEffect(homePresses) {
+        if (homePresses == handledHomePresses) return@LaunchedEffect
+        handledHomePresses = homePresses
+        // A hub going away must not leave a text field holding the keyboard open behind it —
+        // nor an Android view inside it holding the *window* focus. A WebView that keeps focus
+        // goes on answering the Back key from behind the Start screen, one page at a time,
+        // because a key event reaches the focused view before it ever reaches the dispatcher.
+        focusManager.clearFocus(force = true)
+        rootView.clearFocus()
+        when {
+            navState.sendToBackground() ->
+                if (pagerState.currentPage != 1) pagerState.animateScrollToPage(1)
+            pagerState.currentPage != 1 -> pagerState.animateScrollToPage(1)
+            else -> homeResetSignal++
+        }
+    }
+
     // Handle back press
     BackHandler(enabled = navState.currentHub != null || navState.isSplitMode) {
         val popped = navState.popHub()
@@ -317,6 +354,37 @@ fun LauncherScreen(
 
                 val messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel = viewModel()
                 val screenWidthPx = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+
+                // Every open hub is composed exactly once and stays composed for as long as it is
+                // open — that is what lets a hub the Home key put away keep its page, its scroll
+                // and its half-typed text. The content is *movable* so that stepping between the
+                // visible chrome and the host underneath is a move rather than a rebuild, and a
+                // rebuild is precisely what "still running" must not mean.
+                val hubContents = remember { mutableMapOf<HubType, @Composable () -> Unit>() }
+                val hubContentFor: (HubType) -> @Composable () -> Unit = { hub ->
+                    hubContents.getOrPut(hub) {
+                        movableContentOf {
+                            // Its own navigation-event dispatcher, switched off while the hub is
+                            // not the one on screen. Back arrives through this tree now, not
+                            // through OnBackPressedDispatcher, and a disabled dispatcher passes
+                            // nothing to the handlers under it.
+                            val backOwner = rememberNavigationEventDispatcherOwner(
+                                enabled = hub == visibleHubState.value
+                            )
+                            CompositionLocalProvider(
+                                LocalNavigationEventDispatcherOwner provides backOwner
+                            ) {
+                                RenderHubScreen(
+                                    hub = hub,
+                                    navState = navState,
+                                    messagingViewModel = messagingViewModel,
+                                    settingsViewModel = settingsViewModel,
+                                    context = context
+                                )
+                            }
+                        }
+                    }
+                }
 
                 if (isWideScreen && navState.isSplitMode) {
                     // ════════════════════════════════════════════════════════
@@ -497,6 +565,39 @@ fun LauncherScreen(
                     // ════════════════════════════════════════════════════════
                     // NORMAL SINGLE HUB LAUNCHER MODE
                     // ════════════════════════════════════════════════════════
+                    // The hub the overlay is really drawing, and only while it is drawing it: the
+                    // hinge reaches zero a frame before activeHub is cleared, and a hub that
+                    // belongs to neither layer for even one pass has its composition thrown away —
+                    // which is the one thing "still running" may not do.
+                    val visibleHub = activeHub.takeIf { hingeProgress.value > 0f }
+                    SideEffect { visibleHubState.value = visibleHub }
+
+                    // LAYER 0 — every open hub except that one: composed so it goes on living,
+                    // drawn by nobody, and deaf to touch. The pointer events are consumed on the
+                    // Initial pass so the hubs below never see them, and the layer sits under the
+                    // pager, so an event reaches it only when nothing above wanted it.
+                    val hiddenHubs = navState.openHubs.filter { it != visibleHub }
+                    if (hiddenHubs.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .zIndex(0f)
+                                .drawWithContent { /* nothing: nobody can see these */ }
+                                .pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            awaitPointerEvent(PointerEventPass.Initial)
+                                                .changes.forEach { it.consume() }
+                                        }
+                                    }
+                                }
+                        ) {
+                            CompositionLocalProvider(LocalScreenAwake provides false) {
+                                hiddenHubs.forEach { hub -> hubContentFor(hub)() }
+                            }
+                        }
+                    }
+
                     // LAYER 1 — Main pager (Home + Apps)
                     //
                     // Once the hub in front of it has turned far enough to be opaque, this layer
@@ -509,6 +610,7 @@ fun LauncherScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .zIndex(1f)
                             .graphicsLayer {
                                 val progress = hingeProgress.value
                                 rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * progress
@@ -547,6 +649,9 @@ fun LauncherScreen(
                                             else -> navState.openHub(hub)
                                         }
                                     },
+                                    homeResetSignal = homeResetSignal,
+                                    runningHubs = navState.backgroundHubs,
+                                    onStopHub = { hub -> navState.stopHub(hub) },
                                     timeFormat = timeFormat,
                                     dateFormat = dateFormat
                                 )
@@ -559,12 +664,11 @@ fun LauncherScreen(
                     }
 
                     // LAYER 2 — Hub overlay
-                    if (hingeProgress.value > 0f) {
-                        val hub = activeHub
-
+                    if (visibleHub != null) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .zIndex(2f)
                                 .graphicsLayer {
                                     val progress = hingeProgress.value
                                     // Opening: -90° (outside, in front) -> 0°. Closing: 0° -> +90° (into the depth).
@@ -584,15 +688,7 @@ fun LauncherScreen(
                                 if (effectiveHubMode != BackgroundMode.SOLID) {
                                     ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
                                 }
-                                if (hub != null) {
-                                    RenderHubScreen(
-                                        hub = hub,
-                                        navState = navState,
-                                        messagingViewModel = messagingViewModel,
-                                        settingsViewModel = settingsViewModel,
-                                        context = context
-                                    )
-                                }
+                                hubContentFor(visibleHub)()
                             }
                         }
                     }

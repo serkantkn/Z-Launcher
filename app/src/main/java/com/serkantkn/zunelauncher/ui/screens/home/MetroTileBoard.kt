@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DriveFileMove
@@ -236,6 +237,10 @@ fun MetroStartBoard(
     onFolderRename: (String) -> Unit = {},
     onFolderTakeOut: (childId: String) -> Unit = {},
     onFolderMoveChild: (from: Int, to: Int) -> Unit = { _, _ -> },
+    /** Hoisted so the Home key can take the board back to its beginning. */
+    scrollState: ScrollState = rememberScrollState(),
+    /** Drawn under the last row of tiles; the running-hubs strip lives here. */
+    footer: @Composable () -> Unit = {},
     tile: @Composable (
         model: StartTileUIModel,
         flatIndex: Int,
@@ -246,7 +251,6 @@ fun MetroStartBoard(
 ) {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
-    val scrollState = rememberScrollState()
     val drag = rememberStartDragState()
 
     val currentTiles by rememberUpdatedState(tiles)
@@ -429,6 +433,9 @@ fun MetroStartBoard(
                         )
                     }
                 }
+            }
+            Box(modifier = Modifier.padding(start = startPad, end = endPad)) {
+                footer()
             }
             Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
         }

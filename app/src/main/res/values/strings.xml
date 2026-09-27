@@ -13,6 +13,8 @@
     <string name="home_favorites_empty_line">this is where the apps you reach for live — one tap, without leaving the start screen. you haven’t pinned any yet.</string>
     <string name="home_favorites_empty_action">open the app list</string>
     <string name="home_favorites_empty_hint">press and hold an app, then choose \"pin to start\"</string>
+    <string name="home_running_hubs">running hubs</string>
+    <string name="home_running_hub_close">close</string>
     <string name="coming_soon">coming soon</string>
     <string name="theme_setting">theme</string>
     <string name="theme_light">light</string>

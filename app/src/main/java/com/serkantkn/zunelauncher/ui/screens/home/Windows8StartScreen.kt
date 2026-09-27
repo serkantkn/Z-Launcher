@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -116,6 +117,8 @@ fun Windows8StartScreen(
     modifier: Modifier = Modifier,
     onMergeTiles: (sourceId: String, targetId: String) -> Unit = { _, _ -> },
     canMerge: (sourceId: String, targetId: String) -> Boolean = { _, _ -> false },
+    /** Hoisted so the Home key can take the board back to its first group. */
+    scrollState: ScrollState = rememberScrollState(),
     tile: @Composable (
         model: StartTileUIModel,
         flatIndex: Int,
@@ -127,7 +130,6 @@ fun Windows8StartScreen(
     val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
-    val scrollState = rememberScrollState()
     val fg = if (zuneColors.isDark) Color.White else Color.Black
 
     var zoomedOut by remember { mutableStateOf(false) }

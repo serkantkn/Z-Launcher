@@ -149,10 +149,22 @@ class MainActivity : FragmentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        handleHomeKey(intent)
         handleEmailIntent(intent)
         handleSettingsIntent(intent)
         handleMessageIntent(intent)
         handleHubIntent(intent)
+    }
+
+    /**
+     * The Home key, arriving the only way it can: as a fresh MAIN/HOME intent on the activity that
+     * is already in front. Only [onNewIntent] asks about it — the same intent on [onCreate] is the
+     * launcher starting up, not somebody pressing Home.
+     */
+    private fun handleHomeKey(intent: Intent?) {
+        val isHome = intent?.action == Intent.ACTION_MAIN &&
+            intent.hasCategory(Intent.CATEGORY_HOME)
+        if (isHome) com.serkantkn.zunelauncher.data.repository.HomeKeyBridge.press()
     }
 
     /** A message notification tap carries the conversation; hand it to the Messaging hub. */

@@ -21,6 +21,20 @@ class ZuneNavigationState {
     var hubStack by mutableStateOf<List<HubType>>(emptyList())
         private set
 
+    /**
+     * Hubs the user left with the Home key, most recently left first.
+     *
+     * They stay composed behind the Start screen — a page keeps its scroll, a half-typed note
+     * keeps its text — and they are what the "running hubs" section on Start lists. Back is the
+     * other way out of a hub and closes it, so it never adds anything here.
+     */
+    var backgroundHubs by mutableStateOf<List<HubType>>(emptyList())
+        private set
+
+    /** Every hub that is composed right now: the foreground stack plus what is running behind it. */
+    val openHubs: List<HubType>
+        get() = (hubStack + backgroundHubs).distinct()
+
     /** In tablet split screen mode, rightHub is docked on the right 50% pane. */
     var rightHub by mutableStateOf<HubType?>(null)
         private set
@@ -57,6 +71,9 @@ class ZuneNavigationState {
     }
 
     fun openHub(hub: HubType) {
+        // Coming back to a hub that was left running: it leaves the running list and is picked up
+        // where it stood, because its composition was never thrown away.
+        backgroundHubs = backgroundHubs - hub
         if (isSplitMode) {
             // Prevent opening duplicate hubs if already open in left or right pane, EXCEPT for INTERNET hub
             if (hub != HubType.INTERNET && (rightHub == hub || leftHub == hub)) {
@@ -104,17 +121,46 @@ class ZuneNavigationState {
         }
     }
 
+    /**
+     * The Home key while a hub is open: the whole stack steps aside and keeps running.
+     *
+     * Returns true if there was anything to send back, so the caller can tell a press that went
+     * Home from a press that was already home.
+     */
+    fun sendToBackground(): Boolean {
+        if (hubStack.isEmpty() && !isSplitMode) return false
+        val leaving = (hubStack.reversed() + listOfNotNull(leftHub, rightHub))
+            .filter { it.runsInBackground }
+        backgroundHubs = (leaving + backgroundHubs).distinct().take(MAX_BACKGROUND_HUBS)
+        hubStack = emptyList()
+        exitSplitMode()
+        return true
+    }
+
+    /** Closes a hub that was left running, from the running-hubs section. */
+    fun stopHub(hub: HubType) {
+        backgroundHubs = backgroundHubs - hub
+        if (hubStack.contains(hub)) {
+            val newStack = hubStack - hub
+            hubStack = newStack
+            newStack.lastOrNull()?.let { lastHub = it }
+        }
+    }
+
     fun popHub(): Boolean {
         if (isSplitMode) {
             closeHub()
             return true
         }
         if (hubStack.size > 1) {
+            val closing = hubStack.last()
             val newStack = hubStack.dropLast(1)
             hubStack = newStack
+            backgroundHubs = backgroundHubs - closing
             lastHub = newStack.last()
             return true
         } else if (hubStack.isNotEmpty()) {
+            backgroundHubs = backgroundHubs - hubStack.last()
             hubStack = emptyList()
             return true
         }
@@ -122,12 +168,16 @@ class ZuneNavigationState {
     }
 
     fun closeHub() {
+        backgroundHubs = backgroundHubs - hubStack.toSet()
         hubStack = emptyList()
         exitSplitMode()
     }
 
     companion object {
         private const val NONE = ""
+
+        /** How many hubs may be left running at once. Each one holds on to its whole composition. */
+        const val MAX_BACKGROUND_HUBS = 4
 
         /**
          * Persists the full navigation state as a flat list of Strings so it fits in a Bundle.
@@ -141,7 +191,8 @@ class ZuneNavigationState {
                     state.rightHub?.name ?: NONE,
                     state.leftHub?.name ?: NONE,
                     state.isSplitMode.toString(),
-                    state.lastHub.name
+                    state.lastHub.name,
+                    state.backgroundHubs.joinToString(",") { it.name }
                 )
             },
             restore = { saved ->
@@ -154,6 +205,14 @@ class ZuneNavigationState {
                     leftHub = saved.getOrNull(2)?.toHubTypeOrNull()
                     isSplitMode = saved.getOrNull(3)?.toBoolean() ?: false
                     lastHub = saved.getOrNull(4)?.toHubTypeOrNull() ?: HubType.MUSIC
+                    // What was running is remembered by name only: after process death the hubs
+                    // are composed afresh, so the section still lists them but their contents
+                    // start over. That is the honest best a saved Bundle can do.
+                    backgroundHubs = saved.getOrNull(5)
+                        ?.split(",")
+                        ?.mapNotNull { it.toHubTypeOrNull() }
+                        ?.take(MAX_BACKGROUND_HUBS)
+                        ?: emptyList()
 
                     // Split mode without a docked hub is meaningless; fall back to stack mode.
                     if (isSplitMode && rightHub == null && leftHub == null) {

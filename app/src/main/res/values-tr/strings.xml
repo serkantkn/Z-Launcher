@@ -13,6 +13,8 @@
     <string name="home_favorites_empty_line">burası en sık açtığın uygulamaların yeri — başlangıç ekranından çıkmadan, tek dokunuşla. henüz hiçbirini sabitlemedin.</string>
     <string name="home_favorites_empty_action">uygulama listesini aç</string>
     <string name="home_favorites_empty_hint">bir uygulamaya basılı tut, \"başlangıca sabitle\" de</string>
+    <string name="home_running_hubs">çalışan hublar</string>
+    <string name="home_running_hub_close">kapat</string>
     <string name="coming_soon">yakında</string>
     <string name="theme_setting">tema</string>
     <string name="theme_light">açık</string>
