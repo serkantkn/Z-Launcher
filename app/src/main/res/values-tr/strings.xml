@@ -15,6 +15,8 @@
     <string name="home_favorites_empty_hint">bir uygulamaya basılı tut, \"başlangıca sabitle\" de</string>
     <string name="home_running_hubs">çalışan hublar</string>
     <string name="home_running_hub_close">kapat</string>
+    <string name="home_running_hub_preview">önizleme</string>
+    <string name="home_running_hub_open">aç</string>
     <string name="coming_soon">yakında</string>
     <string name="theme_setting">tema</string>
     <string name="theme_light">açık</string>
@@ -887,6 +889,10 @@
     <string name="win8_zoom_out">grupları göster</string>
     <string name="settings_layout_win8">windows 8</string>
     <string name="settings_layout_win8_sub">tam ekran başlangıç, gruplu karolar</string>
+    <string name="settings_task_switcher">görev yöneticisi</string>
+    <string name="settings_task_switcher_show">başlangıçta göster</string>
+    <string name="settings_task_switcher_on">çalışan hublar başlangıcın altında listelenir</string>
+    <string name="settings_task_switcher_off">gizli; hublar yine de çalışmaya devam eder</string>
     <string name="tile_size_title">Karo boyutu</string>
     <string name="tile_size_small">küçük · 1x1</string>
     <string name="tile_size_medium">orta · 2x2</string>

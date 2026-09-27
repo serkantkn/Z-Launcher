@@ -363,6 +363,7 @@ private fun HubBackgroundGroups(viewModel: SettingsViewModel) {
 @Composable
 private fun StartScreenGroups(viewModel: SettingsViewModel) {
     val homeScreenLayout by viewModel.homeScreenLayout.collectAsState()
+    val taskSwitcherVisible by viewModel.taskSwitcherVisible.collectAsState()
     val isTablet = LocalIsWideScreen.current
 
     SettingGroup(title = stringResource(R.string.settings_start_layout)) {
@@ -388,6 +389,19 @@ private fun StartScreenGroups(viewModel: SettingsViewModel) {
         }
     }
 
+    Spacer(modifier = Modifier.height(16.dp))
+
+    SettingGroup(title = stringResource(R.string.settings_task_switcher)) {
+        SettingSwitchRow(
+            title = stringResource(R.string.settings_task_switcher_show),
+            subtitle = stringResource(
+                if (taskSwitcherVisible) R.string.settings_task_switcher_on
+                else R.string.settings_task_switcher_off
+            ),
+            checked = taskSwitcherVisible,
+            onCheckedChange = { viewModel.setTaskSwitcherVisible(it) }
+        )
+    }
 }
 
 // ════════════════════════════════════════════════════════════

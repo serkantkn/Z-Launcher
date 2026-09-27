@@ -50,6 +50,7 @@ class SettingsDataStore(private val context: Context) {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val FONT_SCALE = floatPreferencesKey("font_scale")
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
+        val TASK_SWITCHER_VISIBLE = booleanPreferencesKey("task_switcher_visible")
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
         val DIRECT_CALL_ENABLED = booleanPreferencesKey("direct_call_enabled")
         val HUB_ORDER = stringPreferencesKey("hub_order")
@@ -177,6 +178,14 @@ class SettingsDataStore(private val context: Context) {
 
     val animationsEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[ANIMATIONS_ENABLED] ?: true
+    }
+
+    /**
+     * Whether the running-hubs strip is shown at the foot of Start. Turning it off hides the list,
+     * not the hubs: they go on running and their own tiles still open them where they stood.
+     */
+    val taskSwitcherVisible: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[TASK_SWITCHER_VISIBLE] ?: true
     }
 
     val homeScreenLayout: Flow<HomeScreenLayout> = context.settingsDataStore.data.map { prefs ->
@@ -648,6 +657,12 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setAnimationsEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[ANIMATIONS_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setTaskSwitcherVisible(visible: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TASK_SWITCHER_VISIBLE] = visible
         }
     }
 

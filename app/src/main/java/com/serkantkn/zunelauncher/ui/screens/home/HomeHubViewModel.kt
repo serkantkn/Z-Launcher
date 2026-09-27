@@ -587,6 +587,9 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsDataStore.homeScreenLayout
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeScreenLayout.ZUNE)
 
+    val taskSwitcherVisible: StateFlow<Boolean> = settingsDataStore.taskSwitcherVisible
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     private val _hubCustomSpans = MutableStateFlow<Map<HubType, Int>>(
         mapOf(
             HubType.PICTURES to 4,

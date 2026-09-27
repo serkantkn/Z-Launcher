@@ -235,6 +235,8 @@ private fun HomeHubScreenContent(
     val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
     val tileSpacing by viewModel.tileSpacing.collectAsState()
     val homeScreenLayout by viewModel.homeScreenLayout.collectAsState()
+    val taskSwitcherVisible by viewModel.taskSwitcherVisible.collectAsState()
+    val hubPreviews by com.serkantkn.zunelauncher.data.repository.HubPreviewStore.previews.collectAsState()
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
 
@@ -935,8 +937,9 @@ private fun HomeHubScreenContent(
             // The tablet board scrolls sideways, so the running strip is laid over its
             // bottom-left corner rather than under the last row.
             RunningHubsSection(
-                hubs = runningHubs,
+                hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
                 cornerStyle = tileCornerStyle,
+                previews = hubPreviews,
                 onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
                 onStop = onStopHub,
                 modifier = Modifier
@@ -1000,8 +1003,9 @@ private fun HomeHubScreenContent(
                 scrollState = boardScrollState,
                 footer = {
                     RunningHubsSection(
-                        hubs = runningHubs,
+                        hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
                         cornerStyle = tileCornerStyle,
+                        previews = hubPreviews,
                         onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
                         onStop = onStopHub
                     )
@@ -1156,8 +1160,9 @@ private fun HomeHubScreenContent(
                 }
 
                 RunningHubsSection(
-                    hubs = runningHubs,
+                    hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
                     cornerStyle = tileCornerStyle,
+                    previews = hubPreviews,
                     onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
                     onStop = onStopHub,
                     modifier = Modifier.padding(bottom = 24.dp)

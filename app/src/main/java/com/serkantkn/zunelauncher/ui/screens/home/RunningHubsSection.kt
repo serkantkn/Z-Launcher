@@ -1,8 +1,11 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,27 +14,40 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
@@ -52,11 +68,13 @@ import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 fun RunningHubsSection(
     hubs: List<HubType>,
     cornerStyle: TileCornerStyle,
+    previews: Map<HubType, ImageBitmap>,
     onOpen: (HubType) -> Unit,
     onStop: (HubType) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (hubs.isEmpty()) return
+    var previewHub by remember { mutableStateOf<HubType?>(null) }
     val zuneColors = LocalZuneColors.current
     val ink = if (zuneColors.isDark) Color.White else Color.Black
 
@@ -87,19 +105,134 @@ fun RunningHubsSection(
                     cornerStyle = cornerStyle,
                     ink = ink,
                     onOpen = { onOpen(hub) },
+                    onPreview = { previewHub = hub },
                     onStop = { onStop(hub) }
                 )
             }
         }
     }
+
+    previewHub?.let { hub ->
+        HubPreviewDialog(
+            hub = hub,
+            preview = previews[hub],
+            onOpen = { previewHub = null; onOpen(hub) },
+            onStop = { previewHub = null; onStop(hub) },
+            onDismiss = { previewHub = null }
+        )
+    }
 }
 
+/**
+ * What the hub looked like when it was left, held up on a dark field.
+ *
+ * The picture is the one taken as the hub turned away; a hub whose picture was lost — after the
+ * launcher's process was restarted, say — falls back to its glyph rather than an empty frame.
+ */
+@Composable
+private fun HubPreviewDialog(
+    hub: HubType,
+    preview: ImageBitmap?,
+    onOpen: () -> Unit,
+    onStop: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    val name = stringResource(hub.titleRes)
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.88f))
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = onDismiss
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.wrapContentSize()
+            ) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 34.sp
+                    ),
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                // The frame hugs the picture: an aspect ratio taken from the bitmap itself, so
+                // the border is around the hub and not around the empty space beside it.
+                val frameHeight = screenHeight * 0.66f
+                if (preview != null) {
+                    Image(
+                        bitmap = preview,
+                        contentDescription = stringResource(R.string.home_running_hub_preview),
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .height(frameHeight)
+                            .aspectRatio(preview.width.toFloat() / preview.height.toFloat())
+                            .border(1.dp, zuneColors.accentColor)
+                            .clickable(onClick = onOpen)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .height(frameHeight)
+                            .aspectRatio(0.46f)
+                            .background(zuneColors.accentColor)
+                            .border(1.dp, zuneColors.accentColor)
+                            .clickable(onClick = onOpen),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = getHubIcon(hub),
+                            contentDescription = name,
+                            tint = Color.White,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(18.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                    Text(
+                        text = stringResource(R.string.home_running_hub_open),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        modifier = Modifier
+                            .clickable(onClick = onOpen)
+                            .padding(horizontal = 18.dp, vertical = 8.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.home_running_hub_close),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier
+                            .clickable(onClick = onStop)
+                            .padding(horizontal = 18.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RunningHubTile(
     hub: HubType,
     cornerStyle: TileCornerStyle,
     ink: Color,
     onOpen: () -> Unit,
+    onPreview: () -> Unit,
     onStop: () -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
@@ -119,7 +252,7 @@ private fun RunningHubTile(
                     .size(TILE)
                     .clip(shape)
                     .background(zuneColors.accentColor)
-                    .clickable(onClick = onOpen),
+                    .combinedClickable(onClick = onOpen, onLongClick = onPreview),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

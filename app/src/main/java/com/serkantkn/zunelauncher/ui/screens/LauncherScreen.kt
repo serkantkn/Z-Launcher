@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
@@ -257,12 +258,21 @@ fun LauncherScreen(
         // because a key event reaches the focused view before it ever reaches the dispatcher.
         focusManager.clearFocus(force = true)
         rootView.clearFocus()
+        // The picture for the task switcher is taken while the hub is still the whole screen,
+        // before the hinge starts turning it away.
+        navState.currentHub
+            ?.takeIf { it.runsInBackground }
+            ?.let { com.serkantkn.zunelauncher.data.repository.HubPreviewStore.capture(rootView, it) }
         when {
             navState.sendToBackground() ->
                 if (pagerState.currentPage != 1) pagerState.animateScrollToPage(1)
             pagerState.currentPage != 1 -> pagerState.animateScrollToPage(1)
             else -> homeResetSignal++
         }
+    }
+
+    LaunchedEffect(navState.backgroundHubs) {
+        com.serkantkn.zunelauncher.data.repository.HubPreviewStore.keepOnly(navState.backgroundHubs)
     }
 
     // Handle back press
@@ -583,6 +593,9 @@ fun LauncherScreen(
                                 .fillMaxSize()
                                 .zIndex(0f)
                                 .drawWithContent { /* nothing: nobody can see these */ }
+                                // Nor should a screen reader find them: without this, TalkBack
+                                // walks straight into a hub that is not on screen.
+                                .clearAndSetSemantics { }
                                 .pointerInput(Unit) {
                                     awaitPointerEventScope {
                                         while (true) {
