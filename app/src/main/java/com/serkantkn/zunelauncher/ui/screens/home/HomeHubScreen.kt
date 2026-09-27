@@ -66,6 +66,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -355,6 +356,8 @@ private fun HomeHubScreenContent(
     val gridState = rememberLazyGridState()
     // Hoisted: the Home key, pressed on a Start screen that is already in front, takes the board
     // back to its beginning.
+    var previewTarget by remember { mutableStateOf<RunningHubTarget?>(null) }
+    var hostOrigin by remember { mutableStateOf(Offset.Zero) }
     val boardScrollState = rememberScrollState()
     val zuneScrollState = rememberScrollState()
     val win8ScrollState = rememberScrollState()
@@ -426,6 +429,10 @@ private fun HomeHubScreenContent(
     var iconTargetApp by remember { mutableStateOf<AppInfo?>(null) }
     var openFolderId by remember { mutableStateOf<String?>(null) }
     val openFolder = localStartTiles.firstOrNull { it.id == openFolderId } as? StartTileUIModel.Folder
+
+    LaunchedEffect(runningHubs) {
+        if (previewTarget?.hub !in runningHubs) previewTarget = null
+    }
 
     // The Home key on a Start screen that is already in front: back to the top, with whatever
     // was opened over it — edit mode, the favourites pane, an open folder — put away first.
@@ -881,525 +888,550 @@ private fun HomeHubScreenContent(
         }
     }
 
-    if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE && isWideScreen) {
-        // ═══════════════════════════════════════════════
-        // TABLET — Windows 8 full-screen Start menu
-        // ═══════════════════════════════════════════════
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .clickable(
-                    enabled = isEditMode,
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    isEditMode = false
-                }
-        ) {
-            Windows8StartScreen(
-                tiles = localStartTiles,
-                tileSpacing = tileSpacing.dp,
-                isEditMode = isEditMode,
-                scrollState = win8ScrollState,
-                onEnterEditMode = { isEditMode = true },
-                onMoveTile = { from, to -> moveStartTile(from, to) },
-                onOpenApps = onNavigateToAppsHub,
-                onOpenSettings = { handleLaunch("hub_SETTINGS") { onHubSelected(HubType.SETTINGS) } },
-                onMergeTiles = onMergeTiles,
-                canMerge = canMerge,
-                tile = { model, index, isDragging, isMergeTarget, tileModifier ->
-                    StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = 4)
-                }
-            )
-
-            TileSizePopup()
-            TileIconPopup()
-
-            StartFolderPanel(
-                folder = openFolder,
-                isEditMode = isEditMode,
-                columns = FOLDER_COLUMNS,
-                gap = tileSpacing.dp,
-                onEnterEditMode = { isEditMode = true },
-                onRename = { name -> openFolderId?.let { viewModel.renameFolder(it, name) } },
-                onTakeOut = { childId ->
-                    openFolderId?.let { viewModel.removeFromFolder(it, childId) }
-                },
-                onMoveChild = { from, to ->
-                    openFolderId?.let { viewModel.moveWithinFolder(it, from, to) }
-                },
-                onClose = { openFolderId = null },
-                tile = { model, index, isDragging, isMergeTarget, tileModifier ->
-                    StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = FOLDER_COLUMNS)
-                }
-            )
-
-            // The tablet board scrolls sideways, so the running strip is laid over its
-            // bottom-left corner rather than under the last row.
-            RunningHubsSection(
-                hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
-                cornerStyle = tileCornerStyle,
-                previews = hubPreviews,
-                onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
-                onStop = onStopHub,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 32.dp, bottom = 24.dp)
-                    .width(320.dp)
-            )
-
-            StartEditBar(
-                visible = isEditMode && openFolder == null,
-                onDone = { isEditMode = false },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
-
-        }
-    } else if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE) {
-        val swipeGestureModifierWp = Modifier.pointerInput(isEditMode) {
-            if (isEditMode) return@pointerInput
-            detectHorizontalDragGestures(
-                onDragStart = { totalDragX = 0f },
-                onDragEnd = {
-                    if (totalDragX > 40f) {
-                        onNavigateToSocialHub()
-                    } else if (totalDragX < -40f) {
-                        onNavigateToAppsHub()
-                    }
-                },
-                onDragCancel = { totalDragX = 0f },
-                onHorizontalDrag = { change, dragAmount ->
-                    totalDragX += dragAmount
-                    change.consume()
-                }
-            )
-        }
-
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .then(swipeGestureModifierWp)
-                .clickable(
-                    enabled = isEditMode,
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    isEditMode = false
-                }
-        ) {
-            val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            MetroStartBoard(
-                tiles = localStartTiles,
-                columns = gridColumns,
-                gap = tileSpacing.dp,
-                contentPadding = PaddingValues(
-                    start = if (isWideScreen) 32.dp else 12.dp,
-                    end = if (isWideScreen) 32.dp else 12.dp,
-                    top = statusBarPadding + 16.dp,
-                    bottom = WindowInsets.navigationBars
-                        .asPaddingValues()
-                        .calculateBottomPadding() + 24.dp
-                ),
-                scrollState = boardScrollState,
-                footer = {
-                    RunningHubsSection(
-                        hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
-                        cornerStyle = tileCornerStyle,
-                        previews = hubPreviews,
-                        onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
-                        onStop = onStopHub
-                    )
-                },
-                onEnterEditMode = { isEditMode = true },
-                onMoveTile = { from, to -> moveStartTile(from, to) },
-                onMergeTiles = onMergeTiles,
-                canMerge = canMerge,
-                // The folder does not open over the board: it unfolds into it.
-                openFolder = openFolder,
-                isEditMode = isEditMode,
-                onFolderRename = { name -> openFolderId?.let { viewModel.renameFolder(it, name) } },
-                onFolderTakeOut = { childId ->
-                    openFolderId?.let { viewModel.removeFromFolder(it, childId) }
-                },
-                onFolderMoveChild = { from, to ->
-                    openFolderId?.let { viewModel.moveWithinFolder(it, from, to) }
-                },
-                tile = { model, index, isDragging, isMergeTarget, tileModifier ->
-                    StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = gridColumns)
-                }
-            )
-
-            TileSizePopup()
-            TileIconPopup()
-
-            StartEditBar(
-                visible = isEditMode,
-                onDone = { isEditMode = false },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
-
-        }
-    } else {
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .then(swipeGestureModifier)
-                .clickable(
-                    enabled = isEditMode,
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    isEditMode = false
-                }
-        ) {
-
-            // ════════════════════════════════════════════════
-            // LAYER 1 — Hub Section (Clock, Date, Weather, Hub Titles)
-            //
-            // Always laid out at FULL screen width so text/clock
-            // has room to measure properly. graphicsLayer slides
-            // it right and fades it when favorites expand.
-            // ════════════════════════════════════════════════
-            Column(
-                modifier = Modifier
-                    .then(
-                        if (isWideScreen) {
-                            Modifier.fillMaxWidth(0.35f).fillMaxHeight().align(Alignment.CenterStart)
-                        } else {
-                            Modifier.fillMaxSize()
-                        }
-                    )
-                    .verticalScroll(zuneScrollState)
-                    .padding(
-                        start = 72.dp,
-                        end = ZuneDimens.ScreenPaddingHorizontal
-                    )
-                    .graphicsLayer {
-                        if (!isWideScreen) {
-                            translationX = size.width * 0.7f * p
-                            val scale = lerp(1f, 0.75f, p)
-                            scaleX = scale
-                            scaleY = scale
-                            alpha = lerp(1f, 0.3f, p)
-                            rotationY = lerp(0f, 25f, p)
-                            transformOrigin = TransformOrigin(1f, 0.5f)
-                            cameraDistance = 12f * density
-                        }
+    // One box over all three Start layouts, so the preview balloon has a single place to live
+    // and a single origin to measure the held tile against.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { hostOrigin = it.boundsInRoot().topLeft }
+    ) {
+        if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE && isWideScreen) {
+            // ═══════════════════════════════════════════════
+            // TABLET — Windows 8 full-screen Start menu
+            // ═══════════════════════════════════════════════
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .clickable(
+                        enabled = isEditMode,
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        isEditMode = false
                     }
             ) {
-                Spacer(modifier = Modifier.height(80.dp))
-
-                ZuneClock(
-                    timeFormat = timeFormat,
-                    onClick = {
-                        if (isFavoritesExpanded) {
-                            isFavoritesExpanded = false
-                        } else {
-                            handleLaunch("hub_CLOCK") { onHubSelected(HubType.CLOCK) }
-                        }
-                    },
-                    modifier = Modifier.w10mStaggeredAnimation(
-                        progress = { animationProgress.value },
-                        index = 1,
-                        isClicked = clickedItemKey == "hub_CLOCK"
-                    )
-                )
-                ZuneDate(
-                    dateFormat = dateFormat,
-                    onClick = {
-                        if (isFavoritesExpanded) {
-                            isFavoritesExpanded = false
-                        } else {
-                            handleLaunch("hub_CALENDAR") { onHubSelected(HubType.CALENDAR) }
-                        }
-                    },
-                    modifier = Modifier.w10mStaggeredAnimation(
-                        progress = { animationProgress.value },
-                        index = 2,
-                        isClicked = clickedItemKey == "hub_CALENDAR"
-                    )
-                )
-                ZuneWeather(
-                    temperature = weatherSnapshot?.let { "${weatherUnit.of(it.now.temperature)}°" },
-                    conditionLabel = weatherSnapshot?.let { stringResource(it.now.condition.labelRes) },
-                    icon = weatherSnapshot?.let { conditionIcon(it.now.condition, it.now.isDay) },
-                    onClick = { handleLaunch("hub_WEATHER") { onHubSelected(HubType.WEATHER) } },
-                    modifier = Modifier
-                        .padding(top = ZuneDimens.SpacingSm)
-                        .w10mStaggeredAnimation({ animationProgress.value }, 3)
-                )
-
-                Spacer(modifier = Modifier
-                    .height(ZuneDimens.SpacingLg)
-                    .onGloballyPositioned { coordinates ->
-                        // Bottom of this spacer = top of hub titles
-                        hubTitlesTopPx = coordinates.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y +
-                                coordinates.size.height.toFloat()
+                Windows8StartScreen(
+                    tiles = localStartTiles,
+                    tileSpacing = tileSpacing.dp,
+                    isEditMode = isEditMode,
+                    scrollState = win8ScrollState,
+                    onEnterEditMode = { isEditMode = true },
+                    onMoveTile = { from, to -> moveStartTile(from, to) },
+                    onOpenApps = onNavigateToAppsHub,
+                    onOpenSettings = { handleLaunch("hub_SETTINGS") { onHubSelected(HubType.SETTINGS) } },
+                    onMergeTiles = onMergeTiles,
+                    canMerge = canMerge,
+                    tile = { model, index, isDragging, isMergeTarget, tileModifier ->
+                        StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = 4)
                     }
                 )
 
-                localHubOrder.forEachIndexed { index, hubType ->
-                    val key = "hub_$hubType"
-                    ZuneHubTitle(
-                        title = stringResource(hubType.titleRes),
-                        accentColor = if (zuneColors.isDark) Color.White else Color.Black,
-                        verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
+                TileSizePopup()
+                TileIconPopup()
+
+                StartFolderPanel(
+                    folder = openFolder,
+                    isEditMode = isEditMode,
+                    columns = FOLDER_COLUMNS,
+                    gap = tileSpacing.dp,
+                    onEnterEditMode = { isEditMode = true },
+                    onRename = { name -> openFolderId?.let { viewModel.renameFolder(it, name) } },
+                    onTakeOut = { childId ->
+                        openFolderId?.let { viewModel.removeFromFolder(it, childId) }
+                    },
+                    onMoveChild = { from, to ->
+                        openFolderId?.let { viewModel.moveWithinFolder(it, from, to) }
+                    },
+                    onClose = { openFolderId = null },
+                    tile = { model, index, isDragging, isMergeTarget, tileModifier ->
+                        StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = FOLDER_COLUMNS)
+                    }
+                )
+
+                // The tablet board scrolls sideways, so the running strip is laid over its
+                // bottom-left corner rather than under the last row.
+                RunningHubsSection(
+                    hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
+                    cornerStyle = tileCornerStyle,
+                    onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
+                    onStop = onStopHub,
+                    onPreview = { previewTarget = it },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 32.dp, bottom = 24.dp)
+                        .width(320.dp)
+                )
+
+                StartEditBar(
+                    visible = isEditMode && openFolder == null,
+                    onDone = { isEditMode = false },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+
+            }
+        } else if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE) {
+            val swipeGestureModifierWp = Modifier.pointerInput(isEditMode) {
+                if (isEditMode) return@pointerInput
+                detectHorizontalDragGestures(
+                    onDragStart = { totalDragX = 0f },
+                    onDragEnd = {
+                        if (totalDragX > 40f) {
+                            onNavigateToSocialHub()
+                        } else if (totalDragX < -40f) {
+                            onNavigateToAppsHub()
+                        }
+                    },
+                    onDragCancel = { totalDragX = 0f },
+                    onHorizontalDrag = { change, dragAmount ->
+                        totalDragX += dragAmount
+                        change.consume()
+                    }
+                )
+            }
+
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .then(swipeGestureModifierWp)
+                    .clickable(
+                        enabled = isEditMode,
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        isEditMode = false
+                    }
+            ) {
+                val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                MetroStartBoard(
+                    tiles = localStartTiles,
+                    columns = gridColumns,
+                    gap = tileSpacing.dp,
+                    contentPadding = PaddingValues(
+                        start = if (isWideScreen) 32.dp else 12.dp,
+                        end = if (isWideScreen) 32.dp else 12.dp,
+                        top = statusBarPadding + 16.dp,
+                        bottom = WindowInsets.navigationBars
+                            .asPaddingValues()
+                            .calculateBottomPadding() + 24.dp
+                    ),
+                    scrollState = boardScrollState,
+                    footer = {
+                        RunningHubsSection(
+                            hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
+                            cornerStyle = tileCornerStyle,
+                            onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
+                            onStop = onStopHub,
+                            onPreview = { previewTarget = it }
+                        )
+                    },
+                    onEnterEditMode = { isEditMode = true },
+                    onMoveTile = { from, to -> moveStartTile(from, to) },
+                    onMergeTiles = onMergeTiles,
+                    canMerge = canMerge,
+                    // The folder does not open over the board: it unfolds into it.
+                    openFolder = openFolder,
+                    isEditMode = isEditMode,
+                    onFolderRename = { name -> openFolderId?.let { viewModel.renameFolder(it, name) } },
+                    onFolderTakeOut = { childId ->
+                        openFolderId?.let { viewModel.removeFromFolder(it, childId) }
+                    },
+                    onFolderMoveChild = { from, to ->
+                        openFolderId?.let { viewModel.moveWithinFolder(it, from, to) }
+                    },
+                    tile = { model, index, isDragging, isMergeTarget, tileModifier ->
+                        StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = gridColumns)
+                    }
+                )
+
+                TileSizePopup()
+                TileIconPopup()
+
+                StartEditBar(
+                    visible = isEditMode,
+                    onDone = { isEditMode = false },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+
+            }
+        } else {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .then(swipeGestureModifier)
+                    .clickable(
+                        enabled = isEditMode,
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        isEditMode = false
+                    }
+            ) {
+
+                // ════════════════════════════════════════════════
+                // LAYER 1 — Hub Section (Clock, Date, Weather, Hub Titles)
+                //
+                // Always laid out at FULL screen width so text/clock
+                // has room to measure properly. graphicsLayer slides
+                // it right and fades it when favorites expand.
+                // ════════════════════════════════════════════════
+                Column(
+                    modifier = Modifier
+                        .then(
+                            if (isWideScreen) {
+                                Modifier.fillMaxWidth(0.35f).fillMaxHeight().align(Alignment.CenterStart)
+                            } else {
+                                Modifier.fillMaxSize()
+                            }
+                        )
+                        .verticalScroll(zuneScrollState)
+                        .padding(
+                            start = 72.dp,
+                            end = ZuneDimens.ScreenPaddingHorizontal
+                        )
+                        .graphicsLayer {
+                            if (!isWideScreen) {
+                                translationX = size.width * 0.7f * p
+                                val scale = lerp(1f, 0.75f, p)
+                                scaleX = scale
+                                scaleY = scale
+                                alpha = lerp(1f, 0.3f, p)
+                                rotationY = lerp(0f, 25f, p)
+                                transformOrigin = TransformOrigin(1f, 0.5f)
+                                cameraDistance = 12f * density
+                            }
+                        }
+                ) {
+                    Spacer(modifier = Modifier.height(80.dp))
+
+                    ZuneClock(
+                        timeFormat = timeFormat,
                         onClick = {
                             if (isFavoritesExpanded) {
                                 isFavoritesExpanded = false
                             } else {
-                                handleLaunch(key) { onHubSelected(hubType) }
+                                handleLaunch("hub_CLOCK") { onHubSelected(HubType.CLOCK) }
                             }
                         },
                         modifier = Modifier.w10mStaggeredAnimation(
                             progress = { animationProgress.value },
-                            index = 4 + index,
-                            isClicked = clickedItemKey == key
+                            index = 1,
+                            isClicked = clickedItemKey == "hub_CLOCK"
                         )
                     )
-                }
+                    ZuneDate(
+                        dateFormat = dateFormat,
+                        onClick = {
+                            if (isFavoritesExpanded) {
+                                isFavoritesExpanded = false
+                            } else {
+                                handleLaunch("hub_CALENDAR") { onHubSelected(HubType.CALENDAR) }
+                            }
+                        },
+                        modifier = Modifier.w10mStaggeredAnimation(
+                            progress = { animationProgress.value },
+                            index = 2,
+                            isClicked = clickedItemKey == "hub_CALENDAR"
+                        )
+                    )
+                    ZuneWeather(
+                        temperature = weatherSnapshot?.let { "${weatherUnit.of(it.now.temperature)}°" },
+                        conditionLabel = weatherSnapshot?.let { stringResource(it.now.condition.labelRes) },
+                        icon = weatherSnapshot?.let { conditionIcon(it.now.condition, it.now.isDay) },
+                        onClick = { handleLaunch("hub_WEATHER") { onHubSelected(HubType.WEATHER) } },
+                        modifier = Modifier
+                            .padding(top = ZuneDimens.SpacingSm)
+                            .w10mStaggeredAnimation({ animationProgress.value }, 3)
+                    )
 
-                RunningHubsSection(
-                    hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
-                    cornerStyle = tileCornerStyle,
-                    previews = hubPreviews,
-                    onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
-                    onStop = onStopHub,
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
-            }
-
-            // ════════════════════════════════════════════════
-            // LAYER 2 — Favorites Section
-            //
-            // Overlays the left portion of the screen.
-            // Width animates from 15 % (collapsed) to 85 % (expanded).
-            // Contains two sub-layers that cross-fade:
-            //   • Collapsed: LazyColumn of small icon tiles
-            //   • Expanded:  LazyVerticalGrid (4 cols) with editing
-            // ════════════════════════════════════════════════
-            Box(
-                modifier = Modifier
-                    .then(
-                        if (isWideScreen) {
-                            Modifier.fillMaxWidth(0.65f).fillMaxHeight().align(Alignment.CenterEnd)
-                        } else {
-                            Modifier.fillMaxWidth(lerp(0.15f, 0.85f, p)).fillMaxHeight()
+                    Spacer(modifier = Modifier
+                        .height(ZuneDimens.SpacingLg)
+                        .onGloballyPositioned { coordinates ->
+                            // Bottom of this spacer = top of hub titles
+                            hubTitlesTopPx = coordinates.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y +
+                                    coordinates.size.height.toFloat()
                         }
                     )
-            ) {
-                // ── Collapsed favourites (single column, small tiles) ──
-                if (!isWideScreen && p < 0.7f) {
-                    val collapsedAlpha = lerp(0.6f, 0f, (p / 0.5f).coerceIn(0f, 1f))
 
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer { alpha = collapsedAlpha },
-                        contentPadding = PaddingValues(
-                            start = 6.dp,
-                            end = 4.dp,
-                            top = with(localDensity) {
-                                if (hubTitlesTopPx > 0f) hubTitlesTopPx.toDp()
-                                else 260.dp // fallback
+                    localHubOrder.forEachIndexed { index, hubType ->
+                        val key = "hub_$hubType"
+                        ZuneHubTitle(
+                            title = stringResource(hubType.titleRes),
+                            accentColor = if (zuneColors.isDark) Color.White else Color.Black,
+                            verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
+                            onClick = {
+                                if (isFavoritesExpanded) {
+                                    isFavoritesExpanded = false
+                                } else {
+                                    handleLaunch(key) { onHubSelected(hubType) }
+                                }
                             },
-                            bottom = WindowInsets.navigationBars
-                                .asPaddingValues()
-                                .calculateBottomPadding() + 24.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        items(
-                            count = favoriteApps.size,
-                            key = { index -> "c_${favoriteApps[index].appInfo.packageName}" }
-                        ) { index ->
-                            val favApp = favoriteApps[index]
-                            val key = "app_${favApp.appInfo.packageName}"
-                            SmallFavoriteTile(
-                                face = tileFace(favApp.appInfo),
-                                label = favApp.appInfo.label,
-                                // A tap opens the app, like a tap on anything else with an icon
-                                // on it. Widening the strip is what the swipe across is for, and
-                                // a tile that only makes itself bigger is a tile that does
-                                // nothing — the whole point of having favourites in reach.
-                                onClick = {
-                                    handleLaunch(key) { viewModel.launchApp(favApp.appInfo.packageName) }
-                                },
-                                onLongClick = { isFavoritesExpanded = true },
-                                modifier = Modifier
-                                    .w10mStaggeredAnimation(
-                                        { animationProgress.value },
-                                        2 + index,
-                                        clickedItemKey == key
-                                    )
+                            modifier = Modifier.w10mStaggeredAnimation(
+                                progress = { animationProgress.value },
+                                index = 4 + index,
+                                isClicked = clickedItemKey == key
                             )
-                        }
+                        )
                     }
+
+                    RunningHubsSection(
+                        hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
+                        cornerStyle = tileCornerStyle,
+                        onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
+                        onStop = onStopHub,
+                        onPreview = { previewTarget = it },
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
                 }
 
-                // ── Expanded favourites (4-column grid with editing) ──
-                if (isWideScreen || p > 0.3f) {
-                    val expandedAlpha = if (isWideScreen) 1f else lerp(0f, 1f, ((p - 0.3f) / 0.5f).coerceIn(0f, 1f))
+                // ════════════════════════════════════════════════
+                // LAYER 2 — Favorites Section
+                //
+                // Overlays the left portion of the screen.
+                // Width animates from 15 % (collapsed) to 85 % (expanded).
+                // Contains two sub-layers that cross-fade:
+                //   • Collapsed: LazyColumn of small icon tiles
+                //   • Expanded:  LazyVerticalGrid (4 cols) with editing
+                // ════════════════════════════════════════════════
+                Box(
+                    modifier = Modifier
+                        .then(
+                            if (isWideScreen) {
+                                Modifier.fillMaxWidth(0.65f).fillMaxHeight().align(Alignment.CenterEnd)
+                            } else {
+                                Modifier.fillMaxWidth(lerp(0.15f, 0.85f, p)).fillMaxHeight()
+                            }
+                        )
+                ) {
+                    // ── Collapsed favourites (single column, small tiles) ──
+                    if (!isWideScreen && p < 0.7f) {
+                        val collapsedAlpha = lerp(0.6f, 0f, (p / 0.5f).coerceIn(0f, 1f))
 
-                    LazyVerticalGrid(
-                        state = gridState,
-                        columns = GridCells.Fixed(gridColumns),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer { alpha = expandedAlpha }
-                            .clickable(
-                                enabled = isEditMode,
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) {
-                                isEditMode = false
-                            },
-                        contentPadding = PaddingValues(
-                            start = if (isWideScreen) 32.dp else 12.dp,
-                            end = if (isWideScreen) 32.dp else 12.dp,
-                            top = 80.dp,
-                            bottom = WindowInsets.navigationBars
-                                .asPaddingValues()
-                                .calculateBottomPadding() + 24.dp
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(tileSpacing.dp),
-                        verticalArrangement = Arrangement.spacedBy(tileSpacing.dp)
-                    ) {
-                        item(key = "fav_label", span = { GridItemSpan(maxLineSpan) }) {
-                                Text(
-                                    text = stringResource(R.string.people_tab_favorites),
-                                    style = MaterialTheme.typography.displayLarge.copy(
-                                        fontWeight = FontWeight.Light,
-                                        fontSize = 96.sp,
-                                        letterSpacing = (-4).sp,
-                                        lineHeight = 96.sp
-                                    ),
-                                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                                    maxLines = 1,
-                                    softWrap = false,
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { alpha = collapsedAlpha },
+                            contentPadding = PaddingValues(
+                                start = 6.dp,
+                                end = 4.dp,
+                                top = with(localDensity) {
+                                    if (hubTitlesTopPx > 0f) hubTitlesTopPx.toDp()
+                                    else 260.dp // fallback
+                                },
+                                bottom = WindowInsets.navigationBars
+                                    .asPaddingValues()
+                                    .calculateBottomPadding() + 24.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(
+                                count = favoriteApps.size,
+                                key = { index -> "c_${favoriteApps[index].appInfo.packageName}" }
+                            ) { index ->
+                                val favApp = favoriteApps[index]
+                                val key = "app_${favApp.appInfo.packageName}"
+                                SmallFavoriteTile(
+                                    face = tileFace(favApp.appInfo),
+                                    label = favApp.appInfo.label,
+                                    // A tap opens the app, like a tap on anything else with an icon
+                                    // on it. Widening the strip is what the swipe across is for, and
+                                    // a tile that only makes itself bigger is a tile that does
+                                    // nothing — the whole point of having favourites in reach.
+                                    onClick = {
+                                        handleLaunch(key) { viewModel.launchApp(favApp.appInfo.packageName) }
+                                    },
+                                    onLongClick = { isFavoritesExpanded = true },
                                     modifier = Modifier
-                                        .w10mStaggeredAnimation({ animationProgress.value }, 8)
-                                        .graphicsLayer {
-                                            translationY = with(localDensity) { (-24).dp.toPx() }
-                                        }
-                                        .padding(bottom = 4.dp)
-                                )
-                        }
-
-                        if (favoriteApps.isEmpty()) {
-                            item(key = "fav_empty", span = { GridItemSpan(maxLineSpan) }) {
-                                FavoritesEmptyState(
-                                    onOpenAppList = onNavigateToAppsHub,
-                                    modifier = Modifier
-                                        .w10mStaggeredAnimation({ animationProgress.value }, 9)
+                                        .w10mStaggeredAnimation(
+                                            { animationProgress.value },
+                                            2 + index,
+                                            clickedItemKey == key
+                                        )
                                 )
                             }
-                        } else {
-                            favoriteApps.forEachIndexed { favIndex, favApp ->
-                                val absoluteIndex = favIndex + 1 // label is item 0
-                                val isDragging =
-                                    gridDragDropState.draggingItemIndex == absoluteIndex
+                        }
+                    }
 
-                                item(
-                                    key = "fav_${favApp.appInfo.packageName}",
-                                    span = { GridItemSpan(favApp.span) }
+                    // ── Expanded favourites (4-column grid with editing) ──
+                    if (isWideScreen || p > 0.3f) {
+                        val expandedAlpha = if (isWideScreen) 1f else lerp(0f, 1f, ((p - 0.3f) / 0.5f).coerceIn(0f, 1f))
+
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Fixed(gridColumns),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { alpha = expandedAlpha }
+                                .clickable(
+                                    enabled = isEditMode,
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
                                 ) {
-                                    val key = "app_${favApp.appInfo.packageName}"
-
-                                    W10MAppTile(
-                                        label = favApp.appInfo.label,
-                                        face = tileFace(favApp.appInfo),
-                                        onIconClick = { iconTargetApp = favApp.appInfo },
-                                        span = favApp.span.coerceAtMost(gridColumns),
-                                        gridColumns = gridColumns,
-                                        isEditing = isEditMode,
-                                        isDragging = isDragging,
-                                        cornerStyle = tileCornerStyle,
-                                        notificationCount = notificationCounts[favApp.appInfo.packageName] ?: 0,
-                                        notificationTitle = latestMessages[favApp.appInfo.packageName]?.title,
-                                        notificationText = latestMessages[favApp.appInfo.packageName]?.text,
-                                        onClick = {
-                                            handleLaunch(key) {
-                                                viewModel.launchApp(favApp.appInfo.packageName)
-                                            }
-                                        },
-                                        onLongClick = { isEditMode = true },
-                                        onRemoveClick = {
-                                            viewModel.removeFavorite(favApp.appInfo.packageName)
-                                        },
-                                        onResizeClick = {
-                                            resizeTargetId = "app:${favApp.appInfo.packageName}"
-                                        },
+                                    isEditMode = false
+                                },
+                            contentPadding = PaddingValues(
+                                start = if (isWideScreen) 32.dp else 12.dp,
+                                end = if (isWideScreen) 32.dp else 12.dp,
+                                top = 80.dp,
+                                bottom = WindowInsets.navigationBars
+                                    .asPaddingValues()
+                                    .calculateBottomPadding() + 24.dp
+                            ),
+                            horizontalArrangement = Arrangement.spacedBy(tileSpacing.dp),
+                            verticalArrangement = Arrangement.spacedBy(tileSpacing.dp)
+                        ) {
+                            item(key = "fav_label", span = { GridItemSpan(maxLineSpan) }) {
+                                    Text(
+                                        text = stringResource(R.string.people_tab_favorites),
+                                        style = MaterialTheme.typography.displayLarge.copy(
+                                            fontWeight = FontWeight.Light,
+                                            fontSize = 96.sp,
+                                            letterSpacing = (-4).sp,
+                                            lineHeight = 96.sp
+                                        ),
+                                        color = if (zuneColors.isDark) Color.White else Color.Black,
+                                        maxLines = 1,
+                                        softWrap = false,
                                         modifier = Modifier
-                                            .zIndex(if (isDragging) 1f else 0f)
-                                            .then(
-                                                if (!isDragging) {
-                                                    Modifier.animateItem(
-                                                        fadeInSpec = null,
-                                                        fadeOutSpec = null,
-                                                        placementSpec = spring(
-                                                            dampingRatio = Spring.DampingRatioLowBouncy,
-                                                            stiffness = Spring.StiffnessLow
-                                                        )
-                                                    )
-                                                } else Modifier
-                                            )
-                                            .pointerInput(isEditMode) {
-                                                if (!isEditMode) return@pointerInput
-                                                detectDragGesturesAfterLongPress(
-                                                    onDragStart = {
-                                                        gridDragDropState.startDrag(absoluteIndex)
-                                                    },
-                                                    onDrag = { change, dragAmount ->
-                                                        change.consume()
-                                                        gridDragDropState.onDrag(dragAmount)
-                                                    },
-                                                    onDragEnd = {
-                                                        gridDragDropState.onDragInterrupted()
-                                                    },
-                                                    onDragCancel = {
-                                                        gridDragDropState.onDragInterrupted()
-                                                    }
-                                                )
-                                            }
+                                            .w10mStaggeredAnimation({ animationProgress.value }, 8)
                                             .graphicsLayer {
-                                                if (isDragging) {
-                                                    val info = gridState.layoutInfo
-                                                        .visibleItemsInfo
-                                                        .firstOrNull { it.index == absoluteIndex }
-                                                        ?.offset
-                                                    if (info != null) {
-                                                        translationX =
-                                                            gridDragDropState.draggingItemInitialOffset.x +
-                                                                    gridDragDropState.totalDragAmount.x -
-                                                                    info.x
-                                                        translationY =
-                                                            gridDragDropState.draggingItemInitialOffset.y +
-                                                                    gridDragDropState.totalDragAmount.y -
-                                                                    info.y
+                                                translationY = with(localDensity) { (-24).dp.toPx() }
+                                            }
+                                            .padding(bottom = 4.dp)
+                                    )
+                            }
+
+                            if (favoriteApps.isEmpty()) {
+                                item(key = "fav_empty", span = { GridItemSpan(maxLineSpan) }) {
+                                    FavoritesEmptyState(
+                                        onOpenAppList = onNavigateToAppsHub,
+                                        modifier = Modifier
+                                            .w10mStaggeredAnimation({ animationProgress.value }, 9)
+                                    )
+                                }
+                            } else {
+                                favoriteApps.forEachIndexed { favIndex, favApp ->
+                                    val absoluteIndex = favIndex + 1 // label is item 0
+                                    val isDragging =
+                                        gridDragDropState.draggingItemIndex == absoluteIndex
+
+                                    item(
+                                        key = "fav_${favApp.appInfo.packageName}",
+                                        span = { GridItemSpan(favApp.span) }
+                                    ) {
+                                        val key = "app_${favApp.appInfo.packageName}"
+
+                                        W10MAppTile(
+                                            label = favApp.appInfo.label,
+                                            face = tileFace(favApp.appInfo),
+                                            onIconClick = { iconTargetApp = favApp.appInfo },
+                                            span = favApp.span.coerceAtMost(gridColumns),
+                                            gridColumns = gridColumns,
+                                            isEditing = isEditMode,
+                                            isDragging = isDragging,
+                                            cornerStyle = tileCornerStyle,
+                                            notificationCount = notificationCounts[favApp.appInfo.packageName] ?: 0,
+                                            notificationTitle = latestMessages[favApp.appInfo.packageName]?.title,
+                                            notificationText = latestMessages[favApp.appInfo.packageName]?.text,
+                                            onClick = {
+                                                handleLaunch(key) {
+                                                    viewModel.launchApp(favApp.appInfo.packageName)
+                                                }
+                                            },
+                                            onLongClick = { isEditMode = true },
+                                            onRemoveClick = {
+                                                viewModel.removeFavorite(favApp.appInfo.packageName)
+                                            },
+                                            onResizeClick = {
+                                                resizeTargetId = "app:${favApp.appInfo.packageName}"
+                                            },
+                                            modifier = Modifier
+                                                .zIndex(if (isDragging) 1f else 0f)
+                                                .then(
+                                                    if (!isDragging) {
+                                                        Modifier.animateItem(
+                                                            fadeInSpec = null,
+                                                            fadeOutSpec = null,
+                                                            placementSpec = spring(
+                                                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                                                stiffness = Spring.StiffnessLow
+                                                            )
+                                                        )
+                                                    } else Modifier
+                                                )
+                                                .pointerInput(isEditMode) {
+                                                    if (!isEditMode) return@pointerInput
+                                                    detectDragGesturesAfterLongPress(
+                                                        onDragStart = {
+                                                            gridDragDropState.startDrag(absoluteIndex)
+                                                        },
+                                                        onDrag = { change, dragAmount ->
+                                                            change.consume()
+                                                            gridDragDropState.onDrag(dragAmount)
+                                                        },
+                                                        onDragEnd = {
+                                                            gridDragDropState.onDragInterrupted()
+                                                        },
+                                                        onDragCancel = {
+                                                            gridDragDropState.onDragInterrupted()
+                                                        }
+                                                    )
+                                                }
+                                                .graphicsLayer {
+                                                    if (isDragging) {
+                                                        val info = gridState.layoutInfo
+                                                            .visibleItemsInfo
+                                                            .firstOrNull { it.index == absoluteIndex }
+                                                            ?.offset
+                                                        if (info != null) {
+                                                            translationX =
+                                                                gridDragDropState.draggingItemInitialOffset.x +
+                                                                        gridDragDropState.totalDragAmount.x -
+                                                                        info.x
+                                                            translationY =
+                                                                gridDragDropState.draggingItemInitialOffset.y +
+                                                                        gridDragDropState.totalDragAmount.y -
+                                                                        info.y
+                                                        }
                                                     }
                                                 }
-                                            }
-                                            .w10mEditWiggle(
-                                                isEditing = isEditMode,
-                                                isDragging = isDragging,
-                                                index = absoluteIndex
-                                            )
-                                            .w10mStaggeredAnimation(
-                                                { animationProgress.value },
-                                                9 + favIndex,
-                                                clickedItemKey == key
-                                            )
-                                    )
+                                                .w10mEditWiggle(
+                                                    isEditing = isEditMode,
+                                                    isDragging = isDragging,
+                                                    index = absoluteIndex
+                                                )
+                                                .w10mStaggeredAnimation(
+                                                    { animationProgress.value },
+                                                    9 + favIndex,
+                                                    clickedItemKey == key
+                                                )
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            TileSizePopup()
-            TileIconPopup()
+                TileSizePopup()
+                TileIconPopup()
+            }
+        }
+
+        previewTarget?.let { target ->
+            HubPreviewBalloon(
+                target = target,
+                preview = hubPreviews[target.hub],
+                hostOrigin = hostOrigin,
+                onOpen = {
+                    previewTarget = null
+                    handleLaunch("running_${target.hub}") { onHubSelected(target.hub) }
+                },
+                onStop = {
+                    previewTarget = null
+                    onStopHub(target.hub)
+                },
+                onDismiss = { previewTarget = null }
+            )
         }
     }
 }
