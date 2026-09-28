@@ -37,6 +37,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
@@ -233,7 +235,9 @@ internal fun AppLetterHeader(
     letter: Char,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    inline: Boolean = false
+    inline: Boolean = false,
+    /** True while the heading is holding the top of the list with its apps running under it. */
+    pinned: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -248,11 +252,38 @@ internal fun AppLetterHeader(
         return
     }
 
+    // Standing still, the heading needs ground of its own, or the app rows passing behind it are
+    // read straight through the square and the rule. It is the plainest ground there is: the
+    // theme's own black or white, nearly opaque, so the wallpaper still shows at its edges.
+    val ground = if (pinned) {
+        if (zuneColors.isDark) Color.Black else Color.White
+    } else {
+        Color.Transparent
+    }
+
+    val overhang = with(LocalDensity.current) { HEADER_OVERHANG.toPx() }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = ZuneDimens.SpacingLg, bottom = ZuneDimens.SpacingSm)
+            // Drawn a little taller than the heading itself and upwards, so that nothing of the
+            // row running underneath shows in the hair's breadth above it. What goes over the top
+            // of the list is clipped away by the list.
+            .drawBehind {
+                if (ground != Color.Transparent) {
+                    drawRect(
+                        color = ground,
+                        topLeft = Offset(0f, -overhang),
+                        size = Size(size.width, size.height + overhang)
+                    )
+                }
+            }
+            // Held at the top it is a bar, not a heading with air above it, so it draws itself in.
+            .padding(
+                top = if (pinned) ZuneDimens.SpacingSm else ZuneDimens.SpacingLg,
+                bottom = ZuneDimens.SpacingSm
+            )
     ) {
         LetterSquare(letter, interactionSource, onClick, LETTER_SQUARE)
         Spacer(modifier = Modifier.width(12.dp))
@@ -453,6 +484,9 @@ internal fun AppsNotice(
         }
     }
 }
+
+/** How far above itself a held heading paints its ground. */
+private val HEADER_OVERHANG = 14.dp
 
 private val LETTER_SQUARE = 44.dp
 private val MENU_TITLE_HEIGHT = 34.dp

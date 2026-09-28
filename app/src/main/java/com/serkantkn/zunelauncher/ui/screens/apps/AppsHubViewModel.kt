@@ -100,7 +100,7 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
         } else {
             apps.filter { usage.containsKey(it.packageName) }
                 .sortedByDescending { usage[it.packageName] ?: 0L }
-                .take(SECTION_LIMIT)
+                .take(FREQUENT_LIMIT)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -201,5 +201,8 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
     private companion object {
         /** How many apps a section shows before it stops being a shortlist. */
         const val SECTION_LIMIT = 24
+
+        /** How many of the most-used apps ride at the top of the list. */
+        const val FREQUENT_LIMIT = 5
     }
 }

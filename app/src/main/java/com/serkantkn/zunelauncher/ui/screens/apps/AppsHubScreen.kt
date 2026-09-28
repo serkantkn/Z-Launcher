@@ -23,7 +23,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -35,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +83,7 @@ import kotlinx.coroutines.launch
  * The pivot is the Zune part of the idea: the same apps read three ways — all of them, the ones
  * actually opened, and the ones that just arrived.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppsHubScreen(
     isCurrentPage: Boolean = true,
@@ -110,7 +114,6 @@ fun AppsHubScreen(
 
     val tabs = listOf(
         stringResource(R.string.apps_tab_all),
-        stringResource(R.string.apps_tab_frequent),
         stringResource(R.string.apps_tab_new)
     )
     // Not looping: the app list is itself a page of the launcher's own pager, so the pivot has to
@@ -158,12 +161,27 @@ fun AppsHubScreen(
     }
 
     // ── The flat list the "all" page scrolls through ──
-    val flatList = remember(groupedApps) {
+    val flatList = remember(groupedApps, frequentApps, showingHidden) {
         buildList {
+            // The most-used apps sit above the alphabet rather than behind a pivot of their own:
+            // five of them, close enough to the top of the screen to be worth the place.
+            if (frequentApps.isNotEmpty() && !showingHidden) {
+                add(AppsListItem.Frequent)
+                frequentApps.forEach { app -> add(AppsListItem.Often(app)) }
+            }
             groupedApps.forEach { (letter, apps) ->
                 add(AppsListItem.Header(letter))
                 apps.forEach { app -> add(AppsListItem.App(app)) }
             }
+        }
+    }
+    // The pinned one is the last letter at or above the top of the window. A letter only wants a
+    // band behind it while it is standing still over the list; scrolling past, it is a heading
+    // like any other.
+    val pinnedHeaderIndex by remember(flatList) {
+        derivedStateOf {
+            val first = listState.firstVisibleItemIndex
+            (first downTo 0).firstOrNull { flatList.getOrNull(it) is AppsListItem.Header } ?: -1
         }
     }
     val letterIndexMap = remember(flatList) {
@@ -279,7 +297,14 @@ fun AppsHubScreen(
                 ) {
                     itemsIndexed(
                         items = flatList,
-                        key = { _, item -> item.key }
+                        key = { _, item -> item.key },
+                        span = { _, item ->
+                            if (item is AppsListItem.Frequent) {
+                                GridItemSpan(maxLineSpan)
+                            } else {
+                                GridItemSpan(1)
+                            }
+                        }
                     ) { index, item ->
                         when (item) {
                             is AppsListItem.Header -> AppLetterHeader(
@@ -288,6 +313,13 @@ fun AppsHubScreen(
                                 inline = true,
                                 modifier = Modifier.w10mStaggeredAnimation({ animationProgress.value }, index)
                             )
+
+                            is AppsListItem.Frequent -> AppSectionRule(
+                                text = stringResource(R.string.apps_tab_frequent),
+                                modifier = Modifier.w10mStaggeredAnimation({ animationProgress.value }, index)
+                            )
+
+                            is AppsListItem.Often -> AppEntry(item.appInfo, index, inGrid = true)
 
                             is AppsListItem.App -> AppEntry(item.appInfo, index, inGrid = true)
                         }
@@ -299,15 +331,37 @@ fun AppsHubScreen(
                     contentPadding = PaddingValues(bottom = 24.dp, end = ZuneDimens.SpacingLg),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    itemsIndexed(flatList, key = { _, item -> item.key }) { index, item ->
+                    flatList.forEachIndexed { index, item ->
                         when (item) {
-                            is AppsListItem.Header -> AppLetterHeader(
-                                letter = item.letter,
-                                onClick = { jumpListOpen = true },
-                                modifier = Modifier.w10mStaggeredAnimation({ animationProgress.value }, index)
-                            )
+                            // A letter holds the top of the screen while its own apps go past it,
+                            // and is pushed off by the next letter rather than fading.
+                            is AppsListItem.Header -> stickyHeader(key = item.key) {
+                                AppLetterHeader(
+                                    letter = item.letter,
+                                    onClick = { jumpListOpen = true },
+                                    pinned = index <= pinnedHeaderIndex,
+                                    modifier = Modifier.w10mStaggeredAnimation(
+                                        { animationProgress.value },
+                                        index
+                                    )
+                                )
+                            }
 
-                            is AppsListItem.App -> AppEntry(item.appInfo, index, inGrid = false)
+                            is AppsListItem.Frequent -> item(key = item.key) {
+                                AppSectionRule(
+                                    text = stringResource(R.string.apps_tab_frequent),
+                                    modifier = Modifier.w10mStaggeredAnimation(
+                                        { animationProgress.value },
+                                        index
+                                    )
+                                )
+                            }
+
+                            is AppsListItem.Often ->
+                                item(key = item.key) { AppEntry(item.appInfo, index, inGrid = false) }
+
+                            is AppsListItem.App ->
+                                item(key = item.key) { AppEntry(item.appInfo, index, inGrid = false) }
                         }
                     }
                 }
@@ -407,18 +461,6 @@ fun AppsHubScreen(
 
                     else -> ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
                         when (page) {
-                            PAGE_FREQUENT -> ShortListPage(frequentApps) {
-                                if (usageGranted) {
-                                    AppsNotice(message = stringResource(R.string.apps_frequent_empty))
-                                } else {
-                                    AppsNotice(
-                                        message = stringResource(R.string.apps_usage_explain),
-                                        actionLabel = stringResource(R.string.apps_usage_access),
-                                        onAction = { viewModel.openUsageAccessSettings(context) }
-                                    )
-                                }
-                            }
-
                             PAGE_NEW -> ShortListPage(newApps) {
                                 AppsNotice(message = stringResource(R.string.apps_new_empty))
                             }
@@ -521,14 +563,26 @@ private sealed class AppsListItem {
         override val key: String get() = "header_$letter"
     }
 
+    /** The heading over the most-used apps. */
+    data object Frequent : AppsListItem() {
+        override val key: String get() = "rule_frequent"
+    }
+
+    /**
+     * One of the most-used apps, at the top of the list. It is the same app as the one under its
+     * own letter further down, so it needs a key of its own or the list has two of the same.
+     */
+    data class Often(val appInfo: AppInfo) : AppsListItem() {
+        override val key: String get() = "often_${appInfo.packageName}"
+    }
+
     data class App(val appInfo: AppInfo) : AppsListItem() {
         override val key: String get() = "app_${appInfo.packageName}"
     }
 }
 
 private const val PAGE_ALL = 0
-private const val PAGE_FREQUENT = 1
-private const val PAGE_NEW = 2
+private const val PAGE_NEW = 1
 private const val WIDE_COLUMNS = 6
 private const val ENTRANCE_MILLIS = 1200
 private const val EXIT_MILLIS = 800
