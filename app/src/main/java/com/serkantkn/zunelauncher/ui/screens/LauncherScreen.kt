@@ -249,9 +249,22 @@ fun LauncherScreen(
     val homePresses by com.serkantkn.zunelauncher.data.repository.HomeKeyBridge.presses.collectAsState()
     var handledHomePresses by remember { mutableIntStateOf(homePresses) }
     var homeResetSignal by remember { mutableIntStateOf(0) }
+    var lastHomePressAt by remember { mutableLongStateOf(0L) }
+    var switcherOpen by remember { mutableStateOf(false) }
     LaunchedEffect(homePresses) {
         if (homePresses == handledHomePresses) return@LaunchedEffect
         handledHomePresses = homePresses
+
+        // Two quick presses ask for the switcher instead. Windows Phone held Back for this, and
+        // neither a held Back nor a held Home exists to us any more: on gesture navigation there
+        // is no Back button, and Home arrives as an intent with no press length on it.
+        val now = android.os.SystemClock.uptimeMillis()
+        val quick = now - lastHomePressAt < DOUBLE_PRESS_MILLIS
+        lastHomePressAt = now
+        if (quick && navState.backgroundHubs.isNotEmpty()) {
+            switcherOpen = true
+            return@LaunchedEffect
+        }
         // A hub going away must not leave a text field holding the keyboard open behind it —
         // nor an Android view inside it holding the *window* focus. A WebView that keeps focus
         // goes on answering the Back key from behind the Start screen, one page at a time,
@@ -760,6 +773,25 @@ fun LauncherScreen(
 
                 // The tour, and the note about what changed. Over everything, because a first run
                 // that can be swiped away behind the launcher is not a first run.
+                // ── Going straight from one running hub to another ──
+                if (switcherOpen) {
+                    val previews by com.serkantkn.zunelauncher.data.repository.HubPreviewStore
+                        .previews.collectAsState()
+                    // Over the hub layers, which carry a zIndex of their own.
+                    Box(modifier = Modifier.fillMaxSize().zIndex(10f)) {
+                    com.serkantkn.zunelauncher.ui.screens.home.HubSwitcher(
+                        hubs = navState.backgroundHubs,
+                        previews = previews,
+                        onPick = { hub ->
+                            switcherOpen = false
+                            navState.openHub(hub)
+                        },
+                        onStop = { hub -> navState.stopHub(hub) },
+                        onDismiss = { switcherOpen = false }
+                    )
+                    }
+                }
+
                 val onboardingViewModel: OnboardingViewModel = viewModel()
                 val firstRun by onboardingViewModel.screen.collectAsState()
                 when (val screen = firstRun) {
@@ -864,3 +896,6 @@ private const val SCROLL_SLOP_DP = 3f
 
 /** And how far it has to be pulled from a list standing at its top to bring the shade down. */
 private const val SHADE_PULL_DP = 20f
+
+/** Two presses of Home closer together than this ask for the switcher, not for Start. */
+private const val DOUBLE_PRESS_MILLIS = 450L
