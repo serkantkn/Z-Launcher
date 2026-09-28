@@ -242,10 +242,11 @@ fun LauncherScreen(
     val focusManager = LocalFocusManager.current
     val rootView = LocalView.current
 
-    // Which hub the screen is actually showing. A hub reads it to know whether it may still answer
-    // the Back key: one left running behind Start must not, or it walks its own history back a
-    // page at a time while the user is only trying to get out of a folder on Start.
-    val visibleHubState = remember { mutableStateOf<HubType?>(null) }
+    // The hubs the screen is actually showing — two of them in a split. A hub reads this to know
+    // whether it may still answer the Back key: one left running behind Start must not, or it
+    // walks its own history back a page at a time while the user is only trying to get out of a
+    // folder on Start.
+    val liveHubs = remember { mutableStateOf<Set<HubType>>(emptySet()) }
     val homePresses by com.serkantkn.zunelauncher.data.repository.HomeKeyBridge.presses.collectAsState()
     var handledHomePresses by remember { mutableIntStateOf(homePresses) }
     var homeResetSignal by remember { mutableIntStateOf(0) }
@@ -370,6 +371,49 @@ fun LauncherScreen(
     }
 
     // 4-finger swipe gesture detection to trigger split screen mode on Tablet
+    val canSplit = navState.currentHub != null && !navState.isSplitMode
+    // Two fingers drawn up the screen splits it on a phone. Two, not four, because a phone has
+    // no room for four; and counted over the whole gesture rather than one event at a time, so
+    // that a two-fingered scroll does not creep into it.
+    val phoneSplitModifier = if (!isWideScreen && canSplit) {
+        Modifier.pointerInput(Unit) {
+            awaitPointerEventScope {
+                var travelY = 0f
+                var travelX = 0f
+                var fired = false
+                while (true) {
+                    val event = awaitPointerEvent()
+                    // Once it has fired, the rest of the gesture belongs to nobody: the fingers
+                    // are still down and the pane that has just appeared under them would read
+                    // what is left as a press of its own.
+                    if (fired) {
+                        event.changes.forEach { it.consume() }
+                        if (event.changes.none { it.pressed }) {
+                            fired = false
+                            travelY = 0f
+                            travelX = 0f
+                        }
+                        continue
+                    }
+                    if (event.changes.size != 2) {
+                        travelY = 0f
+                        travelX = 0f
+                        continue
+                    }
+                    event.changes.forEach { change ->
+                        travelY += change.position.y - change.previousPosition.y
+                        travelX += change.position.x - change.previousPosition.x
+                    }
+                    if (travelY < -SPLIT_PULL_PX && kotlin.math.abs(travelX) < -travelY) {
+                        event.changes.forEach { it.consume() }
+                        fired = true
+                        navState.enterSplitMode()
+                    }
+                }
+            }
+        }
+    } else Modifier
+
     val multiTouchGestureModifier = if (isWideScreen && navState.currentHub != null && !navState.isSplitMode) {
         Modifier.pointerInput(Unit) {
             awaitPointerEventScope {
@@ -397,6 +441,7 @@ fun LauncherScreen(
         modifier = modifier
             .fillMaxSize()
             .then(multiTouchGestureModifier)
+            .then(phoneSplitModifier)
             .nestedScroll(globalNestedScrollConnection)
     ) {
         ZuneBackground(
@@ -425,7 +470,7 @@ fun LauncherScreen(
                             // through OnBackPressedDispatcher, and a disabled dispatcher passes
                             // nothing to the handlers under it.
                             val backOwner = rememberNavigationEventDispatcherOwner(
-                                enabled = hub == visibleHubState.value
+                                enabled = hub in liveHubs.value
                             )
                             CompositionLocalProvider(
                                 LocalNavigationEventDispatcherOwner provides backOwner
@@ -438,6 +483,47 @@ fun LauncherScreen(
                                     context = context
                                 )
                             }
+                        }
+                    }
+                }
+
+                // The hub the overlay is really drawing, and only while it is drawing it: the
+                // hinge reaches zero a frame before activeHub is cleared, and a hub that belongs
+                // to neither layer for even one pass has its composition thrown away — which is
+                // the one thing "still running" may not do.
+                val visibleHub = activeHub.takeIf { hingeProgress.value > 0f }
+                val shownHubs = if (navState.isSplitMode) {
+                    setOfNotNull(navState.leftHub, navState.rightHub)
+                } else {
+                    setOfNotNull(visibleHub)
+                }
+                SideEffect { liveHubs.value = shownHubs }
+
+                // LAYER 0 — every open hub that is not on screen: composed so it goes on living,
+                // drawn by nobody, and deaf to touch. The pointer events are consumed on the
+                // Initial pass so the hubs below never see them, and the layer sits under
+                // everything else, so an event reaches it only when nothing above wanted it.
+                val hiddenHubs = navState.openHubs.filter { it !in shownHubs }
+                if (hiddenHubs.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(0f)
+                            .drawWithContent { /* nothing: nobody can see these */ }
+                            // Nor should a screen reader find them: without this, TalkBack walks
+                            // straight into a hub that is not on screen.
+                            .clearAndSetSemantics { }
+                            .pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        awaitPointerEvent(PointerEventPass.Initial)
+                                            .changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
+                    ) {
+                        CompositionLocalProvider(LocalScreenAwake provides false) {
+                            hiddenHubs.forEach { hub -> hubContentFor(hub)() }
                         }
                     }
                 }
@@ -491,13 +577,7 @@ fun LauncherScreen(
                                         if (effectiveHubMode != BackgroundMode.SOLID) {
                                             ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
                                         }
-                                        RenderHubScreen(
-                                            hub = navState.leftHub!!,
-                                            navState = navState,
-                                            messagingViewModel = messagingViewModel,
-                                            settingsViewModel = settingsViewModel,
-                                            context = context
-                                        )
+                                        hubContentFor(navState.leftHub!!)()
                                     }
                                 }
 
@@ -570,13 +650,7 @@ fun LauncherScreen(
                                         if (effectiveHubMode != BackgroundMode.SOLID) {
                                             ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
                                         }
-                                        RenderHubScreen(
-                                            hub = navState.rightHub!!,
-                                            navState = navState,
-                                            messagingViewModel = messagingViewModel,
-                                            settingsViewModel = settingsViewModel,
-                                            context = context
-                                        )
+                                        hubContentFor(navState.rightHub!!)()
                                     }
                                 }
 
@@ -617,46 +691,114 @@ fun LauncherScreen(
                             }
                         }
                     }
+                } else if (navState.isSplitMode) {
+                    // ════════════════════════════════════════════════════════
+                    // PHONE SPLIT — the same idea as the tablet's, stacked instead of side by
+                    // side: the hub that was open keeps the top half, and the bottom half is
+                    // where the next one is chosen. What is already running is offered first,
+                    // because that is nearly always what the split is being opened for; Start is
+                    // underneath it for anything else.
+                    // ════════════════════════════════════════════════════════
+                    var offeringRunning by remember(navState.isSplitMode) { mutableStateOf(true) }
+                    val runningChoices = navState.backgroundHubs.filter { it != navState.rightHub }
+                    val previews by com.serkantkn.zunelauncher.data.repository.HubPreviewStore
+                        .previews.collectAsState()
+
+                    Column(modifier = Modifier.fillMaxSize().zIndex(3f)) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .graphicsLayer { alpha = splitAnimProgress.value }
+                        ) {
+                            if (navState.rightHub != null) {
+                                ZuneBackground(
+                                    mode = effectiveHubMode,
+                                    accentColor = zuneColors.accentColor,
+                                    customWallpaperPathOverride = effectiveHubCustomPath,
+                                    forceModeOverride = effectiveHubMode
+                                ) {
+                                    if (effectiveHubMode != BackgroundMode.SOLID) {
+                                        ZuneWallpaperOverlay(
+                                            alpha = hubBackgroundOpacity,
+                                            isHubOverlay = true
+                                        )
+                                    }
+                                    hubContentFor(navState.rightHub!!)()
+                                }
+                                SplitPaneButtons(
+                                    onExpand = { navState.expandRightSplitHubToFullscreen() },
+                                    onClose = { navState.closeRightSplitHub() },
+                                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding()
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .graphicsLayer { alpha = splitAnimProgress.value }
+                        ) {
+                            if (navState.leftHub != null) {
+                                ZuneBackground(
+                                    mode = effectiveHubMode,
+                                    accentColor = zuneColors.accentColor,
+                                    customWallpaperPathOverride = effectiveHubCustomPath,
+                                    forceModeOverride = effectiveHubMode
+                                ) {
+                                    if (effectiveHubMode != BackgroundMode.SOLID) {
+                                        ZuneWallpaperOverlay(
+                                            alpha = hubBackgroundOpacity,
+                                            isHubOverlay = true
+                                        )
+                                    }
+                                    hubContentFor(navState.leftHub!!)()
+                                }
+                                SplitPaneButtons(
+                                    onExpand = { navState.expandLeftSplitHubToFullscreen() },
+                                    onClose = { navState.closeLeftSplitHub() },
+                                    modifier = Modifier.align(Alignment.TopEnd)
+                                )
+                            } else {
+                                HorizontalPager(
+                                    state = pagerState,
+                                    modifier = Modifier.fillMaxSize()
+                                ) { page ->
+                                    when (page) {
+                                        0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
+                                        1 -> HomeHubScreen(
+                                            isHubOpen = false,
+                                            isCurrentPage = pagerState.currentPage == 1,
+                                            onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
+                                            onHubSelected = { hub -> navState.openHub(hub) },
+                                            runningHubs = navState.backgroundHubs,
+                                            onStopHub = { hub -> navState.stopHub(hub) },
+                                            onStopAllHubs = { navState.stopAllHubs() },
+                                            timeFormat = timeFormat,
+                                            dateFormat = dateFormat
+                                        )
+                                        2 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
+                                    }
+                                }
+
+                                if (offeringRunning && runningChoices.isNotEmpty()) {
+                                    com.serkantkn.zunelauncher.ui.screens.home.RunningHubsRow(
+                                        hubs = runningChoices,
+                                        previews = previews,
+                                        onPick = { hub -> navState.openHub(hub) },
+                                        onStop = { hub -> navState.stopHub(hub) },
+                                        onDismiss = { offeringRunning = false },
+                                        modifier = Modifier.align(Alignment.TopCenter)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 } else {
                     // ════════════════════════════════════════════════════════
                     // NORMAL SINGLE HUB LAUNCHER MODE
                     // ════════════════════════════════════════════════════════
-                    // The hub the overlay is really drawing, and only while it is drawing it: the
-                    // hinge reaches zero a frame before activeHub is cleared, and a hub that
-                    // belongs to neither layer for even one pass has its composition thrown away —
-                    // which is the one thing "still running" may not do.
-                    val visibleHub = activeHub.takeIf { hingeProgress.value > 0f }
-                    SideEffect { visibleHubState.value = visibleHub }
-
-                    // LAYER 0 — every open hub except that one: composed so it goes on living,
-                    // drawn by nobody, and deaf to touch. The pointer events are consumed on the
-                    // Initial pass so the hubs below never see them, and the layer sits under the
-                    // pager, so an event reaches it only when nothing above wanted it.
-                    val hiddenHubs = navState.openHubs.filter { it != visibleHub }
-                    if (hiddenHubs.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .zIndex(0f)
-                                .drawWithContent { /* nothing: nobody can see these */ }
-                                // Nor should a screen reader find them: without this, TalkBack
-                                // walks straight into a hub that is not on screen.
-                                .clearAndSetSemantics { }
-                                .pointerInput(Unit) {
-                                    awaitPointerEventScope {
-                                        while (true) {
-                                            awaitPointerEvent(PointerEventPass.Initial)
-                                                .changes.forEach { it.consume() }
-                                        }
-                                    }
-                                }
-                        ) {
-                            CompositionLocalProvider(LocalScreenAwake provides false) {
-                                hiddenHubs.forEach { hub -> hubContentFor(hub)() }
-                            }
-                        }
-                    }
-
                     // LAYER 1 — Main pager (Home + Apps)
                     //
                     // Once the hub in front of it has turned far enough to be opaque, this layer
@@ -899,3 +1041,42 @@ private const val SHADE_PULL_DP = 20f
 
 /** Two presses of Home closer together than this ask for the switcher, not for Start. */
 private const val DOUBLE_PRESS_MILLIS = 450L
+
+/** How far two fingers have to be drawn up a phone before the hub steps into the top half. */
+private const val SPLIT_PULL_PX = 400f
+
+/**
+ * The two buttons a docked hub carries: fill the screen with it, or send it away.
+ */
+@Composable
+private fun SplitPaneButtons(
+    onExpand: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        IconButton(
+            onClick = onExpand,
+            modifier = Modifier.size(36.dp).background(Color.Black.copy(alpha = 0.65f), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Fullscreen,
+                contentDescription = stringResource(R.string.launcher_fullscreen),
+                tint = Color.White
+            )
+        }
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.size(36.dp).background(Color.Black.copy(alpha = 0.65f), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = stringResource(R.string.launcher_close_hub),
+                tint = Color.White
+            )
+        }
+    }
+}

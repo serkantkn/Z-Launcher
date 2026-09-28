@@ -157,6 +157,83 @@ fun HubSwitcher(
     }
 }
 
+/**
+ * The same cards, as a strip that can be dropped into a pane rather than over the whole screen.
+ * The bottom half of a split uses it to offer what is already running before offering Start.
+ */
+@Composable
+fun RunningHubsRow(
+    hubs: List<HubType>,
+    previews: Map<HubType, ImageBitmap>,
+    onPick: (HubType) -> Unit,
+    onStop: (HubType) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (hubs.isEmpty()) return
+    val zuneColors = LocalZuneColors.current
+    val ink = if (zuneColors.isDark) Color.White else Color.Black
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(if (zuneColors.isDark) Color(0xCC0B0B0B) else Color(0xCCF4F4F4))
+            .padding(vertical = 12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, bottom = 10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(width = 22.dp, height = 2.dp)
+                    .background(zuneColors.accentColor)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.home_running_hubs),
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Light,
+                    fontSize = 14.sp,
+                    letterSpacing = 0.5.sp
+                ),
+                color = ink.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            // Out of the way, and what is left underneath is the Start screen.
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.home_running_hub_close),
+                    tint = Color.White,
+                    modifier = Modifier.size(13.dp)
+                )
+            }
+        }
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp)
+        ) {
+            items(items = hubs, key = { it.name }) { hub ->
+                SwitcherCard(
+                    hub = hub,
+                    preview = previews[hub],
+                    onPick = { onPick(hub) },
+                    onStop = { onStop(hub) },
+                    modifier = Modifier.animateItem()
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun SwitcherCard(
     hub: HubType,
