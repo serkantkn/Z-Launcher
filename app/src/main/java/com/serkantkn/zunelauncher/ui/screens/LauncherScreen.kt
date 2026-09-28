@@ -292,14 +292,22 @@ fun LauncherScreen(
         }
     }
 
-    var accumulatedOverscroll by remember { mutableFloatStateOf(0f) }
-    val globalNestedScrollConnection = remember(context) {
+    // ── The pull that opens the notification shade ──
+    // It is a pull, not a scroll: it counts only from a list that is already at its top and
+    // standing still. A drag that moved the list first — or one that caught it while a fling was
+    // still running — is a scroll all the way to the end of the gesture, however far past the top
+    // it goes. Without that, reading a list and carrying on downwards dropped the shade over it.
+    var shadePull by remember { mutableFloatStateOf(0f) }
+    var gestureScrolled by remember { mutableFloatStateOf(0f) }
+    var settled by remember { mutableStateOf(true) }
+    val globalNestedScrollConnection = remember(context, density) {
         object : NestedScrollConnection {
             override fun onPreScroll(
                 available: androidx.compose.ui.geometry.Offset,
                 source: androidx.compose.ui.input.nestedscroll.NestedScrollSource
             ): androidx.compose.ui.geometry.Offset {
-                if (available.y < 0) accumulatedOverscroll = 0f
+                // A push upward is a scroll, and it ends whatever pull was building.
+                if (available.y < 0) shadePull = 0f
                 return androidx.compose.ui.geometry.Offset.Zero
             }
 
@@ -308,17 +316,42 @@ fun LauncherScreen(
                 available: androidx.compose.ui.geometry.Offset,
                 source: androidx.compose.ui.input.nestedscroll.NestedScrollSource
             ): androidx.compose.ui.geometry.Offset {
-                if (source == androidx.compose.ui.input.nestedscroll.NestedScrollSource.UserInput) {
-                    if (available.y > 0 && navState.currentHub == null) {
-                        accumulatedOverscroll += available.y
-                        if (accumulatedOverscroll > 8f) {
-                            expandNotificationPanel(context)
-                            accumulatedOverscroll = 0f
-                        }
-                        return available
-                    }
+                if (source != androidx.compose.ui.input.nestedscroll.NestedScrollSource.UserInput) {
+                    return androidx.compose.ui.geometry.Offset.Zero
                 }
-                return androidx.compose.ui.geometry.Offset.Zero
+                // Whatever the list took for itself, this gesture moved it. A hair is allowed for
+                // the stretch a list shows at its own end, which is not a scroll.
+                gestureScrolled += kotlin.math.abs(consumed.y)
+                val scrolling = gestureScrolled > SCROLL_SLOP_DP * density
+                if (!settled || scrolling || available.y <= 0f || navState.currentHub != null) {
+                    return androidx.compose.ui.geometry.Offset.Zero
+                }
+                shadePull += available.y
+                if (shadePull > SHADE_PULL_DP * density) {
+                    expandNotificationPanel(context)
+                    shadePull = 0f
+                    settled = false
+                }
+                return available
+            }
+
+            override suspend fun onPreFling(
+                available: androidx.compose.ui.unit.Velocity
+            ): androidx.compose.ui.unit.Velocity {
+                // The finger is off; nothing is still until whatever it threw has come to rest.
+                shadePull = 0f
+                settled = false
+                return androidx.compose.ui.unit.Velocity.Zero
+            }
+
+            override suspend fun onPostFling(
+                consumed: androidx.compose.ui.unit.Velocity,
+                available: androidx.compose.ui.unit.Velocity
+            ): androidx.compose.ui.unit.Velocity {
+                gestureScrolled = 0f
+                shadePull = 0f
+                settled = true
+                return androidx.compose.ui.unit.Velocity.Zero
             }
         }
     }
@@ -825,3 +858,9 @@ private fun expandNotificationPanel(context: Context) {
         ZuneLog.e("LauncherScreen", "expandNotificationPanel failed", e)
     }
 }
+
+/** How far a list may move under the finger before the gesture counts as a scroll. */
+private const val SCROLL_SLOP_DP = 3f
+
+/** And how far it has to be pulled from a list standing at its top to bring the shade down. */
+private const val SHADE_PULL_DP = 20f
