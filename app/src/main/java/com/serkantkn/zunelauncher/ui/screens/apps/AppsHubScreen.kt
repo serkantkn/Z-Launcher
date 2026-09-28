@@ -7,7 +7,6 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -37,7 +36,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,11 +60,8 @@ import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
-import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
-import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.components.ZuneSearchBar
-import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -102,7 +97,6 @@ fun AppsHubScreen(
     val showingHidden by viewModel.showingHidden.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
-    val newApps by viewModel.newApps.collectAsState()
     val frequentApps by viewModel.frequentApps.collectAsState()
     val usageGranted by viewModel.usageGranted.collectAsState()
     val iconPackKey by viewModel.iconPackKey.collectAsState()
@@ -112,13 +106,6 @@ fun AppsHubScreen(
     var menuTarget by remember { mutableStateOf<AppInfo?>(null) }
     var menuAnchorY by remember { mutableStateOf(0f) }
 
-    val tabs = listOf(
-        stringResource(R.string.apps_tab_all),
-        stringResource(R.string.apps_tab_new)
-    )
-    // Not looping: the app list is itself a page of the launcher's own pager, so the pivot has to
-    // let go at its ends — left of "tümü" is the Start screen, and right of "yeni" is nothing.
-    val pager = rememberLoopingPagerState(pageCount = tabs.size, looping = false)
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
 
@@ -175,15 +162,6 @@ fun AppsHubScreen(
             }
         }
     }
-    // The pinned one is the last letter at or above the top of the window. A letter only wants a
-    // band behind it while it is standing still over the list; scrolling past, it is a heading
-    // like any other.
-    val pinnedHeaderIndex by remember(flatList) {
-        derivedStateOf {
-            val first = listState.firstVisibleItemIndex
-            (first downTo 0).firstOrNull { flatList.getOrNull(it) is AppsListItem.Header } ?: -1
-        }
-    }
     val letterIndexMap = remember(flatList) {
         buildMap {
             flatList.forEachIndexed { index, item ->
@@ -192,10 +170,7 @@ fun AppsHubScreen(
         }
     }
 
-    val openJumpList: () -> Unit = {
-        coroutineScope.launch { pager.animateScrollToPage(PAGE_ALL) }
-        jumpListOpen = true
-    }
+    val openJumpList: () -> Unit = { jumpListOpen = true }
 
     BackHandler(enabled = jumpListOpen || menuTarget != null || isSearchActive) {
         when {
@@ -226,11 +201,9 @@ fun AppsHubScreen(
                         if (showingHidden) R.string.apps_show_all else R.string.apps_show_hidden
                     )
                 ) {
-                    // The hidden apps are a view of the whole list, not of one pivot, and a
-                    // half-typed search over them would only be in the way.
+                    // A half-typed search over the hidden apps would only be in the way.
                     isSearchActive = false
                     viewModel.clearSearch()
-                    coroutineScope.launch { pager.animateScrollToPage(PAGE_ALL) }
                     viewModel.toggleShowingHidden()
                 }
             )
@@ -339,7 +312,6 @@ fun AppsHubScreen(
                                 AppLetterHeader(
                                     letter = item.letter,
                                     onClick = { jumpListOpen = true },
-                                    pinned = index <= pinnedHeaderIndex,
                                     modifier = Modifier.w10mStaggeredAnimation(
                                         { animationProgress.value },
                                         index
@@ -363,25 +335,6 @@ fun AppsHubScreen(
                             is AppsListItem.App ->
                                 item(key = item.key) { AppEntry(item.appInfo, index, inGrid = false) }
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun ShortListPage(apps: List<AppInfo>, emptyNotice: @Composable () -> Unit) {
-        ZunePageTransition {
-            if (apps.isEmpty()) {
-                emptyNotice()
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp, end = ZuneDimens.SpacingLg),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
-                        AppEntry(app, index, inGrid = false)
                     }
                 }
             }
@@ -413,30 +366,20 @@ fun AppsHubScreen(
                     top = 48.dp
                 )
         ) {
+            // The Zune word-mark, and the whole heading: there is one way to read this list, so
+            // there is nothing for a pivot to do.
             Text(
                 text = stringResource(R.string.apps_hub),
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 18.sp,
-                    letterSpacing = 1.sp
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontWeight = FontWeight.Light,
+                    fontSize = 60.sp,
+                    letterSpacing = (-2).sp,
+                    lineHeight = 66.sp
                 ),
-                color = if (zuneColors.isDark) {
-                    Color.White.copy(alpha = 0.9f)
-                } else {
-                    Color.Black.copy(alpha = 0.85f)
-                },
+                color = if (zuneColors.isDark) Color.White else Color.Black,
                 maxLines = 1,
-                softWrap = false
-            )
-
-            // The Zune word-mark: the section's name, huge and lowercase, the next one bleeding
-            // off the right edge so it is plain there is more than one way to read the list.
-            // The column already carries the screen's margin, so the pivot adds none of its own.
-            ZunePivotTabs(
-                tabs = tabs,
-                state = pager,
-                startPadding = 0.dp,
-                modifier = Modifier.padding(top = 2.dp)
+                softWrap = false,
+                modifier = Modifier.padding(bottom = 6.dp)
             )
 
             AnimatedVisibility(visible = isSearchActive, enter = fadeIn(), exit = fadeOut()) {
@@ -456,19 +399,7 @@ fun AppsHubScreen(
             }
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                when {
-                    isSearchActive && searchQuery.isNotBlank() -> SearchPage()
-
-                    else -> ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
-                        when (page) {
-                            PAGE_NEW -> ShortListPage(newApps) {
-                                AppsNotice(message = stringResource(R.string.apps_new_empty))
-                            }
-
-                            else -> AllPage()
-                        }
-                    }
-                }
+                if (isSearchActive && searchQuery.isNotBlank()) SearchPage() else AllPage()
             }
 
             Spacer(modifier = Modifier.height(bottomBarClearance))
@@ -581,8 +512,6 @@ private sealed class AppsListItem {
     }
 }
 
-private const val PAGE_ALL = 0
-private const val PAGE_NEW = 1
 private const val WIDE_COLUMNS = 6
 private const val ENTRANCE_MILLIS = 1200
 private const val EXIT_MILLIS = 800
