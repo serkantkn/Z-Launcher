@@ -1367,6 +1367,7 @@
     <string name="apps_tab_frequent">most used</string>
     <string name="apps_tab_new">new</string>
     <string name="apps_jump_title">jump to</string>
+    <string name="apps_scroll_top">back to top</string>
     <string name="apps_pin">pin to start</string>
     <string name="apps_unpin">unpin from start</string>
     <string name="apps_hide">hide from the list</string>

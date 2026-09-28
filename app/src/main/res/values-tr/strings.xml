@@ -1367,6 +1367,7 @@
     <string name="apps_tab_frequent">sık kullanılan</string>
     <string name="apps_tab_new">yeni</string>
     <string name="apps_jump_title">harfe git</string>
+    <string name="apps_scroll_top">en başa dön</string>
     <string name="apps_pin">başlangıca sabitle</string>
     <string name="apps_unpin">sabitlemeyi kaldır</string>
     <string name="apps_hide">listeden gizle</string>

@@ -3,6 +3,7 @@ package com.serkantkn.zunelauncher.ui.screens.apps
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -43,6 +44,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -104,7 +109,7 @@ fun AppsHubScreen(
     var isSearchActive by remember { mutableStateOf(false) }
     var jumpListOpen by remember { mutableStateOf(false) }
     var menuTarget by remember { mutableStateOf<AppInfo?>(null) }
-    var menuAnchorY by remember { mutableStateOf(0f) }
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -191,6 +196,11 @@ fun AppsHubScreen(
         },
         WpBarAction(Icons.Default.SortByAlpha, stringResource(R.string.apps_jump_title)) {
             openJumpList()
+        },
+        WpBarAction(Icons.Default.KeyboardArrowUp, stringResource(R.string.apps_scroll_top)) {
+            coroutineScope.launch {
+                if (isWideScreen) gridState.animateScrollToItem(0) else listState.animateScrollToItem(0)
+            }
         }
     )
     val bottomBarMenuItems = buildList {
@@ -224,14 +234,28 @@ fun AppsHubScreen(
         val key = "app_${app.packageName}"
         // Keyed on the pack as well, so changing icon packs redraws the list.
         val icon = remember(app.packageName, iconPackKey) { viewModel.iconFor(app) }
-        val modifier = Modifier.w10mStaggeredAnimation(
-            { animationProgress.value },
-            index,
-            clickedItemKey == key
+        // While one app is being asked about, the rest step back: dimmed and a little smaller, the
+        // same depth the Start screen puts behind a held tile.
+        val held = menuTarget != null && menuTarget?.packageName != app.packageName
+        val back by animateFloatAsState(
+            targetValue = if (held) 1f else 0f,
+            animationSpec = tween(260, easing = FastOutSlowInEasing),
+            label = "apps_step_back"
         )
+        val modifier = Modifier
+            .graphicsLayer {
+                alpha = 1f - 0.62f * back
+                scaleX = 1f - 0.07f * back
+                scaleY = 1f - 0.07f * back
+            }
+            .w10mStaggeredAnimation(
+                { animationProgress.value },
+                index,
+                clickedItemKey == key
+            )
         val onClick = { handleLaunch(key) { viewModel.launchApp(app.packageName) } }
-        val onLongPress: (Float) -> Unit = { y ->
-            menuAnchorY = y
+        val onLongPress: (Offset) -> Unit = { where ->
+            menuAnchor = where
             menuTarget = app
         }
 
@@ -438,9 +462,8 @@ fun AppsHubScreen(
             val chooserTitle = stringResource(R.string.apps_share_chooser)
             val favouritesFull = stringResource(R.string.apps_favorites_limit)
 
-            AppContextMenu(
-                title = app.label,
-                anchorY = menuAnchorY,
+            AppLineMenu(
+                anchor = menuAnchor,
                 onDismiss = { menuTarget = null },
                 items = buildList {
                     add(

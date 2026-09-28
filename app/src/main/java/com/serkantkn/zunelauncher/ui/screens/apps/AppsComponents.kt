@@ -36,6 +36,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
@@ -59,6 +68,7 @@ import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.util.toSquareImageBitmap
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * The pieces the app list is drawn from.
@@ -78,24 +88,35 @@ internal fun AppListRow(
     isPinned: Boolean,
     isHidden: Boolean,
     onClick: () -> Unit,
-    onLongPress: (anchorY: Float) -> Unit,
+    onLongPress: (anchor: Offset) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
     val interactionSource = remember { MutableInteractionSource() }
-    var rowTop by remember { mutableFloatStateOf(0f) }
+    var rowOrigin by remember { mutableStateOf(Offset.Zero) }
+    // Where the finger is, watched on the Initial pass and never consumed, so the row's own click
+    // and long-click still work. The menu's line has to start from the touch, not from the row.
+    var touch by remember { mutableStateOf(Offset.Zero) }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .onGloballyPositioned { rowTop = it.positionInWindow().y }
+            .onGloballyPositioned { rowOrigin = it.positionInWindow() }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.firstOrNull { it.pressed }?.let { touch = it.position }
+                    }
+                }
+            }
             .wpTilt(interactionSource)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
-                onLongClick = { onLongPress(rowTop) }
+                onLongClick = { onLongPress(rowOrigin + touch) }
             )
             .padding(vertical = 7.dp)
     ) {
@@ -141,24 +162,33 @@ internal fun AppGridCell(
     icon: Drawable?,
     isPinned: Boolean,
     onClick: () -> Unit,
-    onLongPress: (anchorY: Float) -> Unit,
+    onLongPress: (anchor: Offset) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
     val interactionSource = remember { MutableInteractionSource() }
-    var cellTop by remember { mutableFloatStateOf(0f) }
+    var cellOrigin by remember { mutableStateOf(Offset.Zero) }
+    var touch by remember { mutableStateOf(Offset.Zero) }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .fillMaxWidth()
-            .onGloballyPositioned { cellTop = it.positionInWindow().y }
+            .onGloballyPositioned { cellOrigin = it.positionInWindow() }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.firstOrNull { it.pressed }?.let { touch = it.position }
+                    }
+                }
+            }
             .wpTilt(interactionSource)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
-                onLongClick = { onLongPress(cellTop) }
+                onLongClick = { onLongPress(cellOrigin + touch) }
             )
             .padding(vertical = 12.dp, horizontal = 4.dp)
     ) {
@@ -333,98 +363,116 @@ internal data class AppMenuItem(
 )
 
 /**
- * What can be done with one app.
+ * What can be done with one app, opened from under the finger.
  *
- * Windows Phone dimmed the whole list and stood the menu where the app was, each line turning in
- * a moment after the one above it. That stagger is the whole character of the thing, so it is kept
- * rather than replaced by a sheet sliding up from the bottom.
+ * Metro never drew a menu as a box that fades in: it drew a line and then let the line become the
+ * thing. So this starts as a white hairline at the touch, runs out to both edges of the screen,
+ * and only then opens downward into a white field with the choices set in thin black. The list
+ * behind it does not black out — the other apps simply dim and step back, which is the same
+ * depth the Start screen uses when a tile is held. Dismissing plays it backwards.
  */
 @Composable
-internal fun AppContextMenu(
-    title: String,
+internal fun AppLineMenu(
     items: List<AppMenuItem>,
-    anchorY: Float,
+    anchor: Offset,
     onDismiss: () -> Unit
 ) {
-    val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
-    val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
-    var appeared by remember { mutableStateOf(false) }
+    val progress = remember { Animatable(0f) }
+    var closing by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { appeared = true }
+    LaunchedEffect(Unit) {
+        progress.animateTo(1f, tween(340, easing = FastOutSlowInEasing))
+    }
+    LaunchedEffect(closing) {
+        if (closing) {
+            progress.animateTo(0f, tween(260, easing = FastOutSlowInEasing))
+            onDismiss()
+        }
+    }
+    BackHandler(enabled = !closing) { closing = true }
 
-    // The menu stands where the app is, but never so low that it runs off the screen.
-    val menuHeight = MENU_TITLE_HEIGHT + MENU_ITEM_HEIGHT * items.size + 16.dp
-    val anchorDp = with(density) { anchorY.toDp() }
-    val topDp = anchorDp.coerceIn(0.dp, (screenHeightDp - menuHeight).coerceAtLeast(0.dp))
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val width = constraints.maxWidth.toFloat()
+        val height = constraints.maxHeight.toFloat()
+        val rowHeight = with(density) { MENU_LINE_HEIGHT.toPx() }
+        val padding = with(density) { MENU_PADDING.toPx() }
+        val hair = with(density) { MENU_HAIRLINE.toPx() }
+        val margin = with(density) { 12.dp.toPx() }
+        val boxHeight = rowHeight * items.size + padding * 2
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.6f))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onDismiss
-            )
-    ) {
-        Column(
+        // The line stands where the finger is, unless the field under it would not fit.
+        val top = anchor.y.coerceIn(margin, (height - boxHeight - margin).coerceAtLeast(margin))
+
+        val p = progress.value
+        val spread = (p / SPREAD_SHARE).coerceIn(0f, 1f)
+        val open = ((p - SPREAD_SHARE) / (1f - SPREAD_SHARE)).coerceIn(0f, 1f)
+        val ink = ((p - INK_START) / (1f - INK_START)).coerceIn(0f, 1f)
+
+        val left = anchor.x * (1f - spread)
+        val right = anchor.x + (width - anchor.x) * spread
+
+        Box(
             modifier = Modifier
-                .padding(top = topDp)
-                .fillMaxWidth()
-                .background(if (zuneColors.isDark) Color(0xFF1B1B1B) else Color(0xFFF2F2F2))
-                .padding(vertical = 8.dp)
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { closing = true }
+                )
+        )
+
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(left.roundToInt(), top.roundToInt()) }
+                .size(
+                    width = with(density) { (right - left).coerceAtLeast(0f).toDp() },
+                    height = with(density) { (hair + (boxHeight - hair) * open).toDp() }
+                )
+                .background(Color.White)
+                .clipToBounds()
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
-                color = zuneColors.textMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
-            )
-            items.forEachIndexed { index, item ->
-                MenuLine(item = item, index = index, visible = appeared)
+            // Laid out at its full size from the start and revealed by the field growing over it,
+            // so the words do not squash their way in.
+            Column(
+                modifier = Modifier
+                    .width(with(density) { width.toDp() })
+                    .padding(vertical = MENU_PADDING)
+                    .graphicsLayer { alpha = ink }
+            ) {
+                items.forEach { item ->
+                    Text(
+                        text = item.label,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Light
+                        ),
+                        color = Color.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(MENU_LINE_HEIGHT)
+                            .clickable(enabled = ink > 0.5f) { item.onClick() }
+                            .padding(horizontal = 24.dp)
+                            .wrapContentHeight()
+                    )
+                }
             }
         }
     }
 }
 
-@Composable
-private fun MenuLine(item: AppMenuItem, index: Int, visible: Boolean) {
-    val density = LocalDensity.current
-    val turn by animateFloatAsState(
-        targetValue = if (visible) 0f else -80f,
-        animationSpec = tween(
-            durationMillis = 220,
-            delayMillis = index * 45,
-            easing = FastOutSlowInEasing
-        ),
-        label = "apps_menu_line"
-    )
-    Text(
-        text = item.label,
-        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
-        color = if (item.destructive) {
-            MaterialTheme.colorScheme.error
-        } else {
-            MaterialTheme.colorScheme.onBackground
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                rotationX = turn
-                transformOrigin = TransformOrigin(0f, 0f)
-                cameraDistance = 14f * density.density
-            }
-            .clickable(onClick = item.onClick)
-            .padding(horizontal = 20.dp, vertical = 11.dp)
-    )
-}
+/** How far into the animation the hairline is still running out to the edges. */
+private const val SPREAD_SHARE = 0.42f
 
-// ── Notices ─────────────────────────────────────────────────────────────────
+/** And where the words start to arrive. */
+private const val INK_START = 0.74f
 
-/** Said once, on the page that needs it, rather than as a dialog nobody asked for. */
+private val MENU_LINE_HEIGHT = 52.dp
+private val MENU_PADDING = 10.dp
+private val MENU_HAIRLINE = 2.dp
+
+/** A quiet line of explanation where a list would be, with an optional thing to do about it. */
 @Composable
 internal fun AppsNotice(
     message: String,
@@ -457,5 +505,3 @@ internal fun AppsNotice(
 }
 
 private val LETTER_SQUARE = 44.dp
-private val MENU_TITLE_HEIGHT = 34.dp
-private val MENU_ITEM_HEIGHT = 46.dp
