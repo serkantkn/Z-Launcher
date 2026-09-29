@@ -69,6 +69,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -444,6 +445,11 @@ private fun HomeHubScreenContent(
     var iconTargetId by remember { mutableStateOf<String?>(null) }
     var pictureTargetId by remember { mutableStateOf<String?>(null) }
     val tileLooks by viewModel.tileLooks.collectAsState()
+
+    // A hub whose tap has been pointed at another app opens that app; the rest open themselves.
+    val hubTargetApps by viewModel.hubTargetApps.collectAsState()
+    var hubTargetPickFor by remember { mutableStateOf<HubType?>(null) }
+    val openHub: (HubType) -> Unit = { hub -> if (!viewModel.openHubTarget(hub)) onHubSelected(hub) }
     var openFolderId by remember { mutableStateOf<String?>(null) }
     val openFolder = localStartTiles.firstOrNull { it.id == openFolderId } as? StartTileUIModel.Folder
 
@@ -669,7 +675,7 @@ private fun HomeHubScreenContent(
                         cornerStyle = tileCornerStyle,
                         timeFormat = timeFormat,
                         alarms = enabledAlarms,
-                        onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
+                        onClick = { handleLaunch(launchKey) { openHub(hubType) } },
                         onLongClick = { isEditMode = true },
                         onRemoveClick = { onRemoveTile(model.id) },
                         onResizeClick = onResize,
@@ -683,7 +689,7 @@ private fun HomeHubScreenContent(
                         isDragging = isDragging,
                         cornerStyle = tileCornerStyle,
                         events = upcomingEvents,
-                        onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
+                        onClick = { handleLaunch(launchKey) { openHub(hubType) } },
                         onLongClick = { isEditMode = true },
                         onRemoveClick = { onRemoveTile(model.id) },
                         onResizeClick = onResize,
@@ -697,7 +703,7 @@ private fun HomeHubScreenContent(
                         isDragging = isDragging,
                         cornerStyle = tileCornerStyle,
                         contacts = peopleFaces,
-                        onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
+                        onClick = { handleLaunch(launchKey) { openHub(hubType) } },
                         onLongClick = { isEditMode = true },
                         onRemoveClick = { onRemoveTile(model.id) },
                         onResizeClick = onResize,
@@ -712,7 +718,7 @@ private fun HomeHubScreenContent(
                         isEditing = isEditMode,
                         isDragging = isDragging,
                         cornerStyle = tileCornerStyle,
-                        onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
+                        onClick = { handleLaunch(launchKey) { openHub(hubType) } },
                         onLongClick = { isEditMode = true },
                         onRemoveClick = { onRemoveTile(model.id) },
                         onResizeClick = onResize,
@@ -728,7 +734,7 @@ private fun HomeHubScreenContent(
                         albumArt = nowPlaying.albumArt,
                         trackTitle = nowPlaying.title,
                         trackArtist = nowPlaying.artist,
-                        onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
+                        onClick = { handleLaunch(launchKey) { openHub(hubType) } },
                         onLongClick = { isEditMode = true },
                         onRemoveClick = { onRemoveTile(model.id) },
                         onResizeClick = onResize,
@@ -767,7 +773,7 @@ private fun HomeHubScreenContent(
                             HubType.EMAIL -> if (look.notifications) emailTilePreview?.second else null
                             else -> null
                         },
-                        onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
+                        onClick = { handleLaunch(launchKey) { openHub(hubType) } },
                         onLongClick = { isEditMode = true },
                         onRemoveClick = { onRemoveTile(model.id) },
                         onResizeClick = onResize,
@@ -946,6 +952,24 @@ private fun HomeHubScreenContent(
         }
     }
 
+    /** The page over the customise page (or the Zune list) choosing what a hub opens. */
+    @Composable
+    fun HubTargetPopup() {
+        val hub = hubTargetPickFor ?: return
+        val apps by viewModel.allApps.collectAsState()
+        HubTargetPicker(
+            hub = hub,
+            apps = apps,
+            current = hubTargetApps[hub],
+            face = tileFace,
+            onPick = { pkg ->
+                viewModel.setHubTargetApp(hub, pkg)
+                hubTargetPickFor = null
+            },
+            onDismiss = { hubTargetPickFor = null }
+        )
+    }
+
     /** The brush button's page: everything one tile can be told to do differently. */
     @Composable
     fun TileLookPopup() {
@@ -968,8 +992,21 @@ private fun HomeHubScreenContent(
                 )
             },
             onClearPicture = { viewModel.clearTileLookPicture(target) },
-            onReset = { viewModel.resetTileLook(target) },
+            onReset = {
+                viewModel.resetTileLook(target)
+                (model as? StartTileUIModel.Hub)?.let { viewModel.setHubTargetApp(it.hubType, null) }
+            },
             onDismiss = { lookTargetId = null },
+            openTargetLabel = (model as? StartTileUIModel.Hub)?.let { hubModel ->
+                hubTargetApps[hubModel.hubType]?.let { pkg ->
+                    favoriteApps.firstOrNull { it.appInfo.packageName == pkg }?.appInfo?.label
+                        ?: viewModel.allApps.value.firstOrNull { it.packageName == pkg }?.label
+                        ?: pkg
+                }
+            },
+            onPickOpenTarget = (model as? StartTileUIModel.Hub)?.let { hubModel ->
+                { hubTargetPickFor = hubModel.hubType }
+            },
             preview = {
                 CompositionLocalProvider(LocalTileIsPreview provides true) {
                     StartTile(model, 0, false, false, Modifier, gridColumns = 4)
@@ -1025,6 +1062,7 @@ private fun HomeHubScreenContent(
                 TileSizePopup()
                 TileLookPopup()
                 TileIconPopup()
+                HubTargetPopup()
 
                 StartFolderPanel(
                     folder = openFolder,
@@ -1157,6 +1195,7 @@ private fun HomeHubScreenContent(
                 TileSizePopup()
                 TileLookPopup()
                 TileIconPopup()
+                HubTargetPopup()
 
                 StartEditBar(
                     visible = isEditMode,
@@ -1221,7 +1260,7 @@ private fun HomeHubScreenContent(
                             if (isFavoritesExpanded) {
                                 isFavoritesExpanded = false
                             } else {
-                                handleLaunch("hub_CLOCK") { onHubSelected(HubType.CLOCK) }
+                                handleLaunch("hub_CLOCK") { openHub(HubType.CLOCK) }
                             }
                         },
                         modifier = Modifier.w10mStaggeredAnimation(
@@ -1236,7 +1275,7 @@ private fun HomeHubScreenContent(
                             if (isFavoritesExpanded) {
                                 isFavoritesExpanded = false
                             } else {
-                                handleLaunch("hub_CALENDAR") { onHubSelected(HubType.CALENDAR) }
+                                handleLaunch("hub_CALENDAR") { openHub(HubType.CALENDAR) }
                             }
                         },
                         modifier = Modifier.w10mStaggeredAnimation(
@@ -1249,7 +1288,7 @@ private fun HomeHubScreenContent(
                         temperature = weatherSnapshot?.let { "${weatherUnit.of(it.now.temperature)}°" },
                         conditionLabel = weatherSnapshot?.let { stringResource(it.now.condition.labelRes) },
                         icon = weatherSnapshot?.let { conditionIcon(it.now.condition, it.now.isDay) },
-                        onClick = { handleLaunch("hub_WEATHER") { onHubSelected(HubType.WEATHER) } },
+                        onClick = { handleLaunch("hub_WEATHER") { openHub(HubType.WEATHER) } },
                         modifier = Modifier
                             .padding(top = ZuneDimens.SpacingSm)
                             .w10mStaggeredAnimation({ animationProgress.value }, 3)
@@ -1284,6 +1323,28 @@ private fun HomeHubScreenContent(
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                // The list has no tile to customise, so what the title opens is
+                                // set from here.
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (hubTargetApps.containsKey(hubType)) zuneColors.accentColor
+                                            else Color.Black.copy(alpha = 0.55f)
+                                        )
+                                        .border(0.5.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                                        .clickable { hubTargetPickFor = hubType },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                        contentDescription = stringResource(R.string.hub_target_title),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
                                 Spacer(modifier = Modifier.width(10.dp))
                             }
                             ZuneHubTitle(
@@ -1296,7 +1357,7 @@ private fun HomeHubScreenContent(
                                     } else if (isEditMode) {
                                         isEditMode = false
                                     } else {
-                                        handleLaunch(key) { onHubSelected(hubType) }
+                                        handleLaunch(key) { openHub(hubType) }
                                     }
                                 },
                                 // The Zune list has no tiles to hold, so its titles are what
@@ -1566,6 +1627,7 @@ private fun HomeHubScreenContent(
                 TileSizePopup()
                 TileLookPopup()
                 TileIconPopup()
+                HubTargetPopup()
             }
         }
 

@@ -1164,6 +1164,11 @@
     <string name="tile_look_notifications_sub">köşedeki sayı ve arka yüzdeki son mesaj</string>
     <string name="tile_look_back_to_setting">ayara dön</string>
     <string name="tile_look_this_tile">bu karo</string>
+    <string name="hub_target_title">dokununca ne açılsın</string>
+    <string name="hub_target_hub">hubın kendisi</string>
+    <string name="hub_target_hub_sub">her zamanki gibi başlatıcının kendi hubı</string>
+    <string name="hub_target_app_sub">hub yerine bu açılır</string>
+    <string name="tile_look_open">dokunma</string>
     <string name="settings_tile_icons">uygulama ikonları</string>
     <string name="settings_tile_icon_wp">windows phone</string>
     <string name="settings_tile_icon_wp_sub">karonun üstünde tek beyaz şekil, arkasında hiçbir şey</string>

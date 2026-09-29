@@ -747,6 +747,33 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         override = overrides[app.packageName] ?: TileIcon.Default
     )
 
+    // ── What a hub's tile or title opens ─────────────────────────────────────────────────────
+
+    /** Every app on the phone, for choosing what a hub opens instead of itself. */
+    val allApps: StateFlow<List<AppInfo>> = _allApps.asStateFlow()
+
+    val hubTargetApps: StateFlow<Map<HubType, String>> = settingsDataStore.hubTargetApps
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    fun setHubTargetApp(hub: HubType, packageName: String?) {
+        viewModelScope.launch { settingsDataStore.setHubTargetApp(hub, packageName) }
+    }
+
+    /**
+     * Opens the app a hub has been pointed at, if any. False when the hub should open itself —
+     * nothing was chosen, or what was chosen is no longer installed, in which case the choice is
+     * forgotten rather than left pointing at nothing.
+     */
+    fun openHubTarget(hub: HubType): Boolean {
+        val packageName = hubTargetApps.value[hub] ?: return false
+        if (appRepository.appInfoFor(packageName) == null) {
+            setHubTargetApp(hub, null)
+            return false
+        }
+        appRepository.launchApp(packageName)
+        return true
+    }
+
     // ── One tile's own look ───────────────────────────────────────────────────────────────────
 
     val tileLooks: StateFlow<Map<String, TileLook>> = settingsDataStore.tileLooks

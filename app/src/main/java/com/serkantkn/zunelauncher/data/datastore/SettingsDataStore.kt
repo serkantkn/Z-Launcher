@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.serkantkn.zunelauncher.data.model.AccentColor
 import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
+import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.model.SocialHubLayout
@@ -84,6 +85,7 @@ class SettingsDataStore(private val context: Context) {
         val ICON_PACK_PACKAGE = stringPreferencesKey("icon_pack_package")
         val TILE_ICON_OVERRIDES = stringPreferencesKey("tile_icon_overrides")
         val TILE_LOOKS = stringPreferencesKey("tile_looks")
+        val HUB_TARGET_APPS = stringPreferencesKey("hub_target_apps")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val SOCIAL_SOURCES = stringPreferencesKey("social_sources")
         val SOCIAL_HUB_LAYOUT = stringPreferencesKey("social_hub_layout")
@@ -132,6 +134,42 @@ class SettingsDataStore(private val context: Context) {
             val current = TileLook.mapFromJson(prefs[TILE_LOOKS]).toMutableMap()
             if (look.isDefault) current.remove(tileId) else current[tileId] = look
             prefs[TILE_LOOKS] = TileLook.mapToJson(current)
+        }
+    }
+
+    /**
+     * Hubs whose tile or title on the home screen opens another app instead — someone who would
+     * rather have Chrome than the browser hub, say. By hub, the app's package name.
+     */
+    val hubTargetApps: Flow<Map<HubType, String>> = context.settingsDataStore.data.map { prefs ->
+        readHubTargets(prefs[HUB_TARGET_APPS])
+    }
+
+    /** Points a hub's tap at [packageName], or back at the hub itself with null. */
+    suspend fun setHubTargetApp(hub: HubType, packageName: String?) {
+        context.settingsDataStore.edit { prefs ->
+            val current = readHubTargets(prefs[HUB_TARGET_APPS]).toMutableMap()
+            if (packageName.isNullOrBlank()) current.remove(hub) else current[hub] = packageName
+            prefs[HUB_TARGET_APPS] = org.json.JSONObject().apply {
+                current.forEach { (h, pkg) -> put(h.name, pkg) }
+            }.toString()
+        }
+    }
+
+    private fun readHubTargets(raw: String?): Map<HubType, String> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(raw)
+            buildMap {
+                obj.keys().forEach { key ->
+                    val hub = runCatching { HubType.valueOf(key) }.getOrNull() ?: return@forEach
+                    val pkg = obj.optString(key)
+                    if (pkg.isNotBlank()) put(hub, pkg)
+                }
+            }
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "hub targets could not be read", e)
+            emptyMap()
         }
     }
 

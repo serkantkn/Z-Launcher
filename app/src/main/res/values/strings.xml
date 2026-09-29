@@ -1164,6 +1164,11 @@
     <string name="tile_look_notifications_sub">the count in the corner and the last message on the back</string>
     <string name="tile_look_back_to_setting">back to the setting</string>
     <string name="tile_look_this_tile">this tile</string>
+    <string name="hub_target_title">what a tap opens</string>
+    <string name="hub_target_hub">the hub itself</string>
+    <string name="hub_target_hub_sub">the launcher\'s own hub, as always</string>
+    <string name="hub_target_app_sub">opens instead of the hub</string>
+    <string name="tile_look_open">tap</string>
     <string name="settings_tile_icons">app icons</string>
     <string name="settings_tile_icon_wp">windows phone</string>
     <string name="settings_tile_icon_wp_sub">one white shape on the tile, nothing behind it</string>

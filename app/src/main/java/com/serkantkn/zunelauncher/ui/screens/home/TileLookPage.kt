@@ -87,6 +87,12 @@ fun TileLookPage(
     onClearPicture: () -> Unit,
     onReset: () -> Unit,
     onDismiss: () -> Unit,
+    /**
+     * Hubs only: what the tile opens — the name of the app it was pointed at, or null for the hub
+     * itself — and the way to change it. Left null for tiles that are not hubs.
+     */
+    openTargetLabel: String? = null,
+    onPickOpenTarget: (() -> Unit)? = null,
     /** The tile as it looks right now; the caller draws it, so it is the real thing. */
     preview: @Composable () -> Unit
 ) {
@@ -150,6 +156,18 @@ fun TileLookPage(
                 // The tile, on its own, the width of a medium tile on the phone board.
                 Box(modifier = Modifier.width(PREVIEW_WIDTH)) { preview() }
                 Spacer(modifier = Modifier.height(28.dp))
+
+                // ── What a tap opens (hubs) ──
+                if (onPickOpenTarget != null) {
+                    SettingGroup(title = stringResource(R.string.tile_look_open)) {
+                        ArrowRow(
+                            title = stringResource(R.string.hub_target_title),
+                            subtitle = openTargetLabel ?: stringResource(R.string.hub_target_hub),
+                            onClick = onPickOpenTarget
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
 
                 // ── Colour ──
                 SettingGroup(title = stringResource(R.string.tile_look_color)) {
@@ -315,7 +333,8 @@ fun TileLookPage(
                 MetroButton(
                     label = stringResource(R.string.common_reset),
                     filled = false,
-                    enabled = !look.isDefault,
+                    // A hub pointed at another app has something to reset too.
+                    enabled = !look.isDefault || openTargetLabel != null,
                     onClick = {
                         nameDraft = ""
                         onReset()
