@@ -6,7 +6,7 @@
 Windows Phone'u özleyenler için sıfırdan yazılmış bir Android başlatıcı: canlı karolar, hub'lar, turnike animasyonları ve Zune'un o ince yazısı.</p>
 
 <p align="center">
-  <a href="#english">English below</a>
+  <a href="https://serkantkn.github.io/Z-Launcher/">tanıtım sitesi</a> · <a href="#english">English below</a>
 </p>
 
 <p align="center">
@@ -101,7 +101,7 @@ beyaz bir çizgi menüye açılır.
 Sunucu yok. Reklam, analiz, kullanıcı hesabı yok. Kişilerin, mesajların ve fotoğrafların telefonda kalır.
 Telefondan yalnızca hava durumu, şarkı sözü ve arama önerisi istekleri çıkar — o da o özelliği kullandığında
 ve kimliğin eklenmeden. E-posta şifreleri ve kilitli notlar cihazda şifrelenir.
-Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md).
+Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md) · [web](https://serkantkn.github.io/Z-Launcher/gizlilik.html).
 
 ## Derlemek
 
