@@ -1,0 +1,155 @@
+Z LAUNCHER KAYNAK GÖRÜNTÜLEME LİSANSI, sürüm 1.0
+Z LAUNCHER SOURCE-VIEWING LICENSE, version 1.0
+
+Telif hakkı (c) 2026 serkantkn (https://github.com/serkantkn)
+Copyright (c) 2026 serkantkn (https://github.com/serkantkn)
+
+Türkçe metin asıldır; İngilizce çeviri kolaylık içindir.
+The Turkish text governs; the English translation is provided for convenience.
+
+═══════════════════════════════════════════════════════════════════════════════
+TÜRKÇE
+═══════════════════════════════════════════════════════════════════════════════
+
+Bu yazılımın ("Yazılım") kaynak kodu, herkesin görebilmesi için açık olarak
+yayımlanmıştır. Yazılımın tüm hakları saklıdır. Aşağıda açıkça verilen izinler
+dışında hiçbir hak devredilmemiştir.
+
+1. İZİN VERİLENLER
+
+   Lisans veren, herkese, ücretsiz olarak ve yalnızca aşağıdaki amaçlarla
+   sınırlı olmak üzere izin verir:
+
+   a) Kaynak kodunu görüntülemek, okumak, incelemek ve ondan öğrenmek.
+   b) Kaynak kodunu, yalnızca kişisel inceleme ve deneme amacıyla, kendi
+      cihazında derlemek ve çalıştırmak.
+   c) Kaynak kodunu, yalnızca (a) ve (b) maddelerindeki amaçlarla, kendi
+      cihazına kopyalamak ya da kaynak kodunun yayımlandığı platformun kendi
+      işleyişinin gerektirdiği biçimde (örneğin çatallamak) çoğaltmak.
+   d) Yazılımın makul uzunlukta alıntılarını, kaynağını belirterek, eleştiri,
+      yorum, eğitim veya haber amacıyla kullanmak.
+
+2. YASAKLANANLAR
+
+   Lisans verenin önceden yazılı izni olmaksızın aşağıdakiler yasaktır:
+
+   a) Yazılımı ya da herhangi bir parçasını değiştirmek, uyarlamak, çevirmek
+      veya Yazılıma dayanan türev bir çalışma oluşturmak ve bunu herhangi bir
+      biçimde başkalarına sunmak.
+   b) Yazılımı ya da herhangi bir parçasını, değiştirerek ya da değiştirmeden,
+      başka bir yazılımda, üründe veya hizmette kullanmak.
+   c) Yazılımı, derlenmiş hâlini ya da türevlerini dağıtmak, yayımlamak,
+      satmak, kiralamak, alt lisanslamak, bir uygulama mağazasına veya
+      indirme sitesine koymak ya da başka bir yolla üçüncü kişilere sunmak.
+   d) Yazılımı ya da herhangi bir parçasını, doğrudan veya dolaylı olarak,
+      gelir veya başka bir ticari fayda elde etmek amacıyla kullanmak.
+   e) Yazılımın adını, simgesini, ekran görüntülerini veya lisans verenin
+      adını, Yazılımı tanıtmak dışında bir amaçla ya da bir onay izlenimi
+      verecek biçimde kullanmak.
+
+3. ÜÇÜNCÜ TARAF BİLEŞENLER
+
+   Yazılımla birlikte gelen üçüncü taraf bileşenler (örneğin third_party/
+   dizinindeki simge seti ve derleme sırasında indirilen kütüphaneler) kendi
+   lisanslarına tabidir. Bu lisans o bileşenlere ilişkin hakları daraltmaz
+   veya genişletmez.
+
+4. KATKILAR
+
+   Yazılıma bir katkı (kod, çeviri, belge, tasarım) gönderen kişi, o katkı
+   üzerindeki telif haklarını lisans verene, süresiz, dünya çapında, geri
+   alınamaz ve bedelsiz olarak kullanma, değiştirme, dağıtma ve alt
+   lisanslama hakkıyla birlikte lisanslamış sayılır; ve katkısının bu lisans
+   koşullarıyla yayımlanmasını kabul eder.
+
+5. GARANTİ VE SORUMLULUK
+
+   YAZILIM "OLDUĞU GİBİ" SUNULMAKTADIR. AÇIK VEYA ZIMNİ HİÇBİR GARANTİ
+   VERİLMEMEKTEDİR; TİCARİ ELVERİŞLİLİK, BELİRLİ BİR AMACA UYGUNLUK VE
+   HAKLARIN İHLAL EDİLMEDİĞİ GARANTİLERİ DE BUNA DAHİLDİR. LİSANS VEREN,
+   YAZILIMDAN VEYA YAZILIMIN KULLANIMINDAN DOĞAN HİÇBİR TALEP, ZARAR YA DA
+   BAŞKA BİR YÜKÜMLÜLÜKTEN SORUMLU TUTULAMAZ.
+
+6. SONA ERME
+
+   Bu koşullardan herhangi birinin ihlali hâlinde, bu lisansla verilen tüm
+   izinler kendiliğinden ve derhal sona erer.
+
+7. AYRI İZİN
+
+   Lisans veren, dilediği kişiye, dilediği koşullarla, bu lisansın dışında
+   ayrı bir yazılı izin verebilir. Böyle bir izin yalnızca yazılı olarak
+   verilmişse geçerlidir.
+
+═══════════════════════════════════════════════════════════════════════════════
+ENGLISH
+═══════════════════════════════════════════════════════════════════════════════
+
+The source code of this software (the "Software") is published so that
+anyone can see it. All rights in the Software are reserved. No rights are
+granted except those expressly stated below.
+
+1. WHAT IS PERMITTED
+
+   The licensor grants everyone, free of charge and solely for the following
+   purposes, permission to:
+
+   a) View, read, study and learn from the source code.
+   b) Compile and run the source code on their own device, solely for
+      personal study and evaluation.
+   c) Copy the source code to their own device solely for the purposes in
+      (a) and (b), or reproduce it in the way the platform the source is
+      published on requires for its own operation (for example, forking).
+   d) Quote reasonable excerpts of the Software, with attribution, for
+      criticism, commentary, teaching or news reporting.
+
+2. WHAT IS PROHIBITED
+
+   Without the licensor's prior written permission, it is prohibited to:
+
+   a) Modify, adapt or translate the Software or any part of it, or create a
+      derivative work based on it, and make that available to others in any
+      form.
+   b) Use the Software or any part of it, modified or not, in any other
+      software, product or service.
+   c) Distribute, publish, sell, rent, sublicense, place in an app store or
+      download site, or otherwise make available to third parties the
+      Software, its compiled form or any derivative of it.
+   d) Use the Software or any part of it, directly or indirectly, to obtain
+      revenue or any other commercial benefit.
+   e) Use the Software's name, icon or screenshots, or the licensor's name,
+      for any purpose other than referring to the Software, or in a way that
+      suggests endorsement.
+
+3. THIRD-PARTY COMPONENTS
+
+   Third-party components shipped with the Software (such as the icon set
+   under third_party/ and the libraries fetched at build time) remain under
+   their own licences. This licence neither narrows nor extends the rights in
+   those components.
+
+4. CONTRIBUTIONS
+
+   Anyone who submits a contribution (code, translation, documentation,
+   design) to the Software is deemed to grant the licensor a perpetual,
+   worldwide, irrevocable, royalty-free licence to use, modify, distribute
+   and sublicense that contribution, and accepts that it will be published
+   under the terms of this licence.
+
+5. NO WARRANTY, NO LIABILITY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+   THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING
+   FROM THE SOFTWARE OR ITS USE.
+
+6. TERMINATION
+
+   Any breach of these terms terminates all permissions granted by this
+   licence automatically and immediately.
+
+7. SEPARATE PERMISSION
+
+   The licensor may grant anyone a separate written permission outside this
+   licence, on any terms. Such permission is valid only if given in writing.

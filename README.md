@@ -128,6 +128,13 @@ altında `data` (model, DataStore, depolar), `ui/screens/<hub>` (her hub kendi e
 `STORE.md` mağaza metinlerini, `store/` görselleri ve tanıtım videosunu, `PLAY.md` Play Console beyanlarını,
 `KEYSTORE.md` imzalama anahtarını anlatır. Gizlilik politikası GitHub Pages'ten yayımlanır: [`docs/`](docs/).
 
+## Lisans
+
+Kaynak kod görülsün, okunsun, öğrenilsin diye açık; kendi cihazında derleyip deneyebilirsin.
+Değiştirip dağıtmak, başka bir yazılımda kullanmak, mağazaya koymak ve gelir elde etmek yazılı izne
+bağlıdır. Tam metin, Türkçe ve İngilizce: [LICENSE](LICENSE). Hata ve öneriler için issue aç;
+kod katkısı göndermeden önce yaz, çünkü katkılar da aynı koşullarla yayımlanır.
+
 ## Teşekkür
 
 Karo glifleri Microsoft'un [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) setinden
@@ -155,5 +162,7 @@ turnstile animations and Zune's thin type, running on today's Android — and se
   ever leave the phone, and only when you use them. See [PRIVACY.en.md](PRIVACY.en.md).
 
 Build with `./gradlew assembleFreeDebug` (flavours `free` and `premium`; minSdk 28). Written in Kotlin,
-all of the UI in Jetpack Compose. Tile glyphs are Microsoft's Fluent UI System Icons (MIT). Windows Phone,
+all of the UI in Jetpack Compose. **Source-viewing licence:** read, study and build it for yourself;
+modifying, redistributing, reusing in other software and commercial use need written permission — see
+[LICENSE](LICENSE). Tile glyphs are Microsoft's Fluent UI System Icons (MIT). Windows Phone,
 Zune and Metro are Microsoft's trademarks; this project is not affiliated with Microsoft.

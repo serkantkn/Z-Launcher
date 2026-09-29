@@ -42,7 +42,7 @@
   a:hover { text-decoration: underline; }
   strong { font-weight: 600; }
   code, pre { font-family: Consolas, "Cascadia Mono", Menlo, monospace; }
-  img { max-width: 100%; display: block; }
+  img { max-width: 100%; height: auto; display: block; }
   .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 
   /* ── Pivot navigation ── */
@@ -76,7 +76,7 @@
     font-size: clamp(20px, 2.6vw, 28px); margin: 22px 0 0; max-width: 640px; color: var(--ink);
   }
   header.panorama .sub { color: var(--dim); font-size: 17px; margin: 10px 0 0; max-width: 640px; }
-  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 48px; align-items: start; margin-top: 36px; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, 480px); gap: 48px; align-items: start; margin-top: 36px; }
   @media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
 
   /* Metro buttons: a rectangle with a border, nothing more */
@@ -93,9 +93,11 @@
 
   /* ── Live tiles ── */
   .tiles {
-    display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 1fr; gap: 8px;
-    aspect-ratio: 1 / 1; perspective: 1400px;
+    display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(5, 1fr);
+    grid-auto-flow: dense; gap: 8px; aspect-ratio: 4 / 5; perspective: 1400px;
+    max-width: 480px; width: 100%; margin: 0 auto;
   }
+  .tile { min-width: 0; min-height: 0; }
   .tile {
     position: relative; background: var(--accent); color: var(--tile-ink);
     transform-style: preserve-3d; border-radius: 6px;
@@ -111,7 +113,7 @@
   .tile .front { display: grid; place-items: center; }
   .tile .front svg { width: 38%; height: 38%; max-width: 64px; max-height: 64px; fill: currentColor; }
   .tile.big .front svg { max-width: 96px; max-height: 96px; }
-  .tile .label { position: absolute; left: 8px; bottom: 5px; font-size: 12px; font-weight: 400; }
+  .tile .label { position: absolute; left: 8px; right: 8px; bottom: 5px; font-size: 12px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tile .count { position: absolute; right: 9px; top: 4px; font-size: 22px; font-weight: 300; }
   .tile .back {
     transform: rotateX(180deg); background: var(--accent); padding: 8px 9px;
@@ -132,23 +134,25 @@
     font-size: clamp(40px, 6vw, 64px); font-weight: 300; letter-spacing: -.03em;
     line-height: 1; margin: 0 0 8px;
   }
-  section h2 + p.tag { color: var(--dim); font-size: 18px; margin: 0 0 36px; max-width: 700px; }
+  section h2 + p.tag { color: var(--dim); font-size: 18px; margin: 6px 0 36px; max-width: 700px; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
   @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
   .prose p { font-size: 17px; margin: 0 0 14px; max-width: 560px; }
 
   /* Feature "tiles" of text: a coloured bar on the left, the way a WP list row had one */
-  .features { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px 28px; margin-top: 24px; }
+  .features { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px 28px; margin-top: 0; }
+  .two .features { grid-template-columns: 1fr; }
   .feature { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; }
   .feature b { display: block; font-weight: 400; font-size: 19px; margin-bottom: 2px; }
   .feature span { color: var(--dim); font-size: 15px; }
 
   /* Phone screenshots */
-  .shots { display: flex; flex-wrap: wrap; gap: 14px; }
-  .shots figure { margin: 0; width: calc(20% - 12px); min-width: 130px; flex-grow: 0; }
-  .shots img { border: 1px solid var(--line); border-radius: 14px; width: 100%; }
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  .shots figure { margin: 0; max-width: 220px; }
+  .shots img { border: 1px solid var(--line); border-radius: 14px; width: 100%; height: auto; }
   .shots figcaption { color: var(--dim); font-size: 13px; margin-top: 6px; }
-  .shots.three figure { width: calc(33.33% - 10px); max-width: 300px; }
+  .shots.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .shots.three figure { max-width: none; }
 
   /* Accent swatches */
   .swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 6px; }
@@ -171,15 +175,15 @@
   .hub .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 6px; }
   .hub .front { display: grid; place-items: center; }
   .hub .front svg { width: 44px; height: 44px; fill: #fff; }
-  .hub .front .label { position: absolute; left: 10px; bottom: 7px; font-size: 14px; font-weight: 400; }
+  .hub .front .label { position: absolute; left: 10px; right: 10px; bottom: 7px; font-size: 14px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hub .back { transform: rotateY(180deg); background: var(--ink); color: var(--bg); padding: 12px; font-size: 13px; line-height: 1.4; display: flex; flex-direction: column; }
   .hub .back b { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
   .hub .back small { margin-top: auto; opacity: .55; font-weight: 400; }
 
   /* Motion */
   .gifs { display: flex; flex-wrap: wrap; gap: 28px; }
-  .gifs figure { margin: 0; width: 280px; }
-  .gifs img { border: 1px solid var(--line); border-radius: 14px; }
+  .gifs figure { margin: 0; width: min(280px, calc(50% - 14px)); }
+  .gifs img { border: 1px solid var(--line); border-radius: 14px; width: 100%; height: auto; }
   .gifs figcaption { color: var(--dim); font-size: 14px; margin-top: 8px; }
 
   /* Code */
@@ -221,10 +225,9 @@
       <div>
         <div class="buttons">
           <a class="btn accent" href="https://github.com/serkantkn/Z-Launcher">GitHub'da kaynak kodu</a>
-          <a class="btn" href="https://github.com/serkantkn/Z-Launcher/releases">sürümler</a>
           <span class="btn dim">Google Play · yakında</span>
         </div>
-        <div class="features" style="margin-top:36px">
+        <div class="features" style="margin-top:36px;grid-template-columns:repeat(2,minmax(0,1fr))">
           <div class="feature"><b>16 hub</b><span>telefondan takvime, hepsi uygulamanın içinde</span></div>
           <div class="feature"><b>canlı karolar</b><span>kendiliğinden dönen, dört boyutta</span></div>
           <div class="feature"><b>üç düzen</b><span>Windows Phone panosu, Zune listesi, Windows 8 panosu</span></div>
@@ -246,6 +249,7 @@
         <div class="tile" style="--slot:9"><div class="face front"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 8.608v8.142c0 1.733-1.357 3.15-3.066 3.245L18.75 20H5.25c-1.733 0-3.15-1.357-3.245-3.066L2 16.75V8.608l9.652 5.056c0.218 0.114 0.478 0.114 0.696 0L22 8.608zM5.25 4h13.5c1.685 0 3.07 1.282 3.234 2.924L12 12.154l-9.984-5.23c0.158-1.581 1.448-2.829 3.048-2.919L5.25 4h13.5-13.5z"/></svg><span class="label">e-posta</span><span class="count">4</span></div><div class="face back"><div><b>Toplantı notları</b>Ekte bulabilirsin…</div><small>4 okunmamış</small></div></div>
         <div class="tile wide" style="--slot:10"><div class="face front"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c0.414 0 0.75 0.336 0.75 0.75v1.5C12.75 4.664 12.414 5 12 5s-0.75-0.336-0.75-0.75v-1.5C11.25 2.336 11.586 2 12 2zm5 10c0 2.761-2.239 5-5 5s-5-2.239-5-5 2.239-5 5-5 5 2.239 5 5zm4.25 0.75c0.414 0 0.75-0.336 0.75-0.75s-0.336-0.75-0.75-0.75h-1.5C19.336 11.25 19 11.586 19 12s0.336 0.75 0.75 0.75h1.5zM12 19c0.414 0 0.75 0.336 0.75 0.75v1.5c0 0.414-0.336 0.75-0.75 0.75s-0.75-0.336-0.75-0.75v-1.5c0-0.414 0.336-0.75 0.75-0.75zm-7.75-6.25C4.664 12.75 5 12.414 5 12s-0.336-0.75-0.75-0.75h-1.5C2.336 11.25 2 11.586 2 12s0.336 0.75 0.75 0.75h1.5zM4.22 4.22c0.293-0.293 0.767-0.293 1.06 0l1.5 1.5c0.293 0.293 0.293 0.768 0 1.06-0.293 0.294-0.767 0.294-1.06 0l-1.5-1.5c-0.293-0.292-0.293-0.767 0-1.06zm1.06 15.56c-0.293 0.294-0.767 0.294-1.06 0-0.293-0.292-0.293-0.767 0-1.06l1.5-1.5c0.293-0.293 0.767-0.293 1.06 0 0.293 0.293 0.293 0.768 0 1.06l-1.5 1.5zm14.5-15.56c-0.293-0.293-0.767-0.293-1.06 0l-1.5 1.5c-0.293 0.293-0.293 0.768 0 1.06 0.293 0.294 0.767 0.294 1.06 0l1.5-1.5c0.293-0.292 0.293-0.767 0-1.06zm-1.06 15.56c0.293 0.294 0.767 0.294 1.06 0 0.293-0.292 0.293-0.767 0-1.06l-1.5-1.5c-0.293-0.293-0.767-0.293-1.06 0-0.293 0.293-0.293 0.768 0 1.06l1.5 1.5z"/></svg><span class="label">hava durumu</span></div><div class="face back"><div><b>13° açık</b>Mountain View</div><small>yarın 29° / 10°</small></div></div>
         <div class="tile" style="--slot:11"><div class="face front"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm9 0c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM4.25 14C3.007 14 2 15.007 2 16.25v0.25S2 21 8 21s6-4.5 6-4.5v-0.25c0-1.243-1.007-2.25-2.25-2.25h-7.5zM17 19.5c-1.171 0-2.068-0.181-2.755-0.458 0.342-0.575 0.527-1.128 0.627-1.558 0.06-0.26 0.092-0.481 0.11-0.649 0.008-0.084 0.012-0.155 0.015-0.211L15 16.55v-0.3c0-0.872-0.343-1.664-0.902-2.248L14.2 14h5.6c1.215 0 2.2 0.985 2.2 2.2 0 0 0 3.3-5 3.3z"/></svg><span class="label">kişiler</span></div><div class="face back"><div><b>Cem Boyner</b>yeni fotoğraf</div><small>son kullanılanlar</small></div></div>
+        <div class="tile" style="--slot:13"><div class="face front"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.25C4 3.455 5.455 2 7.25 2h9.5C18.545 2 20 3.455 20 5.25v13.5c0 1.795-1.455 3.25-3.25 3.25h-9.5C5.455 22 4 20.545 4 18.75V5.25zM9 5C7.895 5 7 5.895 7 7v1c0 1.105 0.895 2 2 2h6c1.105 0 2-0.895 2-2V7c0-1.105-0.895-2-2-2H9zm0.5 8.25C9.5 12.56 8.94 12 8.25 12S7 12.56 7 13.25s0.56 1.25 1.25 1.25 1.25-0.56 1.25-1.25zM8.25 18.5c0.69 0 1.25-0.56 1.25-1.25S8.94 16 8.25 16 7 16.56 7 17.25s0.56 1.25 1.25 1.25zM17 13.25c0-0.69-0.56-1.25-1.25-1.25s-1.25 0.56-1.25 1.25 0.56 1.25 1.25 1.25S17 13.94 17 13.25zm-1.25 5.25c0.69 0 1.25-0.56 1.25-1.25S16.44 16 15.75 16s-1.25 0.56-1.25 1.25 0.56 1.25 1.25 1.25zm-2.5-5.25c0-0.69-0.56-1.25-1.25-1.25s-1.25 0.56-1.25 1.25 0.56 1.25 1.25 1.25 1.25-0.56 1.25-1.25zM12 18.5c0.69 0 1.25-0.56 1.25-1.25S12.69 16 12 16s-1.25 0.56-1.25 1.25 0.56 1.25 1.25 1.25z"/></svg><span class="label">hesap makinesi</span></div><div class="face back"><div><b>1.284,50</b>son sonuç</div><small>hesap makinesi</small></div></div>
         <div class="tile" style="--slot:12"><div class="face front"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8V6.25C2 4.455 3.455 3 5.25 3h2.879c0.596 0 1.169 0.237 1.59 0.659l1.531 1.53L8.659 7.78C8.519 7.921 8.328 8 8.129 8H2zm0 1.5v8.25C2 19.545 3.455 21 5.25 21h13.5c1.795 0 3.25-1.455 3.25-3.25v-9c0-1.795-1.455-3.25-3.25-3.25h-5.69L9.72 8.841C9.298 9.263 8.725 9.5 8.129 9.5H2z"/></svg><span class="label">dosyalar</span></div><div class="face back"><div><b>Download</b>6 öğe</div><small>5,8 GB'ın 5,1 GB'ı dolu</small></div></div>
       </div>
     </div>
@@ -401,6 +405,7 @@
 cd Z-Launcher
 ./gradlew assembleFreeDebug
 ./gradlew testFreeDebugUnitTest</pre>
+        <p><strong>Lisans.</strong> Kaynak görülsün, okunsun, öğrenilsin diye açık; değiştirilip dağıtılması, başka bir yazılımda kullanılması ve gelir elde edilmesi yazılı izne bağlı. Tam metin: <a href="https://github.com/serkantkn/Z-Launcher/blob/main/LICENSE">LICENSE</a>.</p>
         <p>Karo glifleri Microsoft'un <a href="https://github.com/microsoft/fluentui-system-icons">Fluent UI System Icons</a> setinden (MIT). Hava durumu Open-Meteo'dan; şarkı sözleri ve arama önerileri için de tek istek, kimliksiz.</p>
       </div>
       <div class="tree">
