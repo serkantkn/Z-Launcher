@@ -40,6 +40,11 @@ fun MetroSubScreen(
     title: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Headings are lower case like every other large word — except a file's name, which is
+     * somebody's own spelling and, in Turkish, would lose its dots on the way down.
+     */
+    lowercaseTitle: Boolean = true,
     content: @Composable (contentPadding: PaddingValues) -> Unit
 ) {
     BackHandler { onClose() }
@@ -73,7 +78,7 @@ fun MetroSubScreen(
                 )
                 Text(
                     // Lower case, like every other large word in the launcher.
-                    text = title.lowercase(java.util.Locale.getDefault()),
+                    text = if (lowercaseTitle) title.lowercase(java.util.Locale.getDefault()) else title,
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 40.sp

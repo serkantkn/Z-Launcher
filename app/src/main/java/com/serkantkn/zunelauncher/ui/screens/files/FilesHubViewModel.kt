@@ -218,6 +218,17 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun cutSelection() = putOnClipboard(isMove = true)
 
+    /** One item straight onto the clipboard, from its own menu, without a selection first. */
+    fun copyItem(item: FileItemModel) {
+        _clipboard.value = Clipboard(listOf(item.file.absolutePath), isMove = false)
+        clearSelection()
+    }
+
+    fun cutItem(item: FileItemModel) {
+        _clipboard.value = Clipboard(listOf(item.file.absolutePath), isMove = true)
+        clearSelection()
+    }
+
     private fun putOnClipboard(isMove: Boolean) {
         val chosen = selectedItems().ifEmpty { return }
         _clipboard.value = Clipboard(chosen.map { it.file.absolutePath }, isMove)
@@ -236,9 +247,8 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
      * deleted. Names that would collide are given a number rather than overwriting, and a folder
      * cannot be pasted inside itself.
      */
-    fun paste() {
+    fun paste(destination: File = _currentDirectory.value) {
         val board = _clipboard.value ?: return
-        val destination = _currentDirectory.value
         viewModelScope.launch {
             _busyMessage.value = application().localizedString(R.string.files_working)
             val failures = withContext(Dispatchers.IO) {
@@ -361,11 +371,7 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         clearSelection()
         viewModelScope.launch {
             _currentDirectory.value = directory
-            _currentVolume.value = _volumes.value
-                .filter { directory.absolutePath.startsWith(it.root.absolutePath) }
-                .maxByOrNull { it.root.absolutePath.length }
-                ?: _currentVolume.value
-
+            _currentVolume.value = volumeOf(directory)
             if (!directory.exists() || !directory.canRead()) {
                 ZuneLog.w(TAG, "loadDirectory: unreadable ${directory.absolutePath}")
                 _errorMessage.value = application().localizedString(
@@ -376,18 +382,50 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
             }
             _errorMessage.value = null
             _isLoading.value = true
-            val hidden = showHidden.value
-            val order = sort.value
-            val ascending = sortAscending.value
-            val items = withContext(Dispatchers.IO) {
-                val files = directory.listFiles() ?: emptyArray()
-                val visible = files.filter { hidden || !it.isHidden }.map { it.toItem() }
-                sortFiles(visible, order, ascending)
-            }
-            _fileItems.value = items
+            _fileItems.value = readDirectory(directory)
             _isLoading.value = false
         }
     }
+
+    /**
+     * Reads a folder without showing it. The screen uses this to have the folder above ready
+     * before it leaves the one it is in, so the jump back has a row to land on the moment the
+     * page changes rather than a blank while the storage is asked.
+     */
+    suspend fun readDirectory(directory: File): List<FileItemModel> {
+        val hidden = showHidden.value
+        val order = sort.value
+        val ascending = sortAscending.value
+        return withContext(Dispatchers.IO) {
+            val files = runCatching { directory.listFiles() }.getOrNull() ?: emptyArray()
+            val visible = files.filter { hidden || !it.isHidden }.map { it.toItem() }
+            sortFiles(visible, order, ascending)
+        }
+    }
+
+    /** Shows a folder that [readDirectory] has already read, in one step. */
+    fun showDirectory(directory: File, items: List<FileItemModel>) {
+        clearDeepSearch()
+        clearSelection()
+        _errorMessage.value = null
+        _currentDirectory.value = directory
+        _currentVolume.value = volumeOf(directory)
+        _fileItems.value = items
+    }
+
+    /** The folder above, or null when the top of the volume is already open. */
+    fun parentOfCurrent(): File? {
+        val current = _currentDirectory.value
+        val volumeRoot = _currentVolume.value?.root ?: Environment.getExternalStorageDirectory()
+        val parent = current.parentFile ?: return null
+        return if (current.absolutePath != volumeRoot.absolutePath && parent.exists()) parent else null
+    }
+
+    private fun volumeOf(directory: File): StorageVolumeInfo? =
+        _volumes.value
+            .filter { directory.absolutePath.startsWith(it.root.absolutePath) }
+            .maxByOrNull { it.root.absolutePath.length }
+            ?: _currentVolume.value
 
     fun navigateTo(directory: File) {
         if (directory.isDirectory) loadDirectory(directory)
@@ -463,6 +501,24 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
             context.startActivity(intent)
         }.onFailure {
             ZuneLog.e(TAG, "openFile failed", it)
+            _errorMessage.value = application().localizedString(R.string.cloud_error_no_app)
+        }
+    }
+
+    /** The system's own chooser, for a file the hub cannot show or the person wants elsewhere. */
+    fun openWith(context: Context, file: File) {
+        runCatching {
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mimeTypeOf(file) ?: "*/*")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(
+                Intent.createChooser(intent, context.getString(R.string.files_open_with))
+                    .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            )
+        }.onFailure {
+            ZuneLog.e(TAG, "openWith failed", it)
             _errorMessage.value = application().localizedString(R.string.cloud_error_no_app)
         }
     }

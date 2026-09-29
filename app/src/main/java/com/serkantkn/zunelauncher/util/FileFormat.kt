@@ -101,6 +101,33 @@ private val DOCUMENT = setOf(
 private val ARCHIVE = setOf("zip", "rar", "7z", "tar", "gz", "bz2", "xz", "iso")
 private val APP = setOf("apk", "apks", "xapk")
 
+// ── What the hub can show by itself ─────────────────────────────────────────
+
+/** The viewers the Files hub has of its own; [NONE] hands the file to another app. */
+enum class FileViewer { TEXT, IMAGE, AUDIO, VIDEO, PDF, NONE }
+
+/**
+ * Which of the hub's own viewers a file goes to. The kinds are narrower than [categoryOf]: a
+ * .docx is a document, but nothing here can draw one.
+ */
+fun viewerFor(extension: String): FileViewer = when (extension.lowercase(Locale.ROOT)) {
+    "pdf" -> FileViewer.PDF
+    in VIEWABLE_TEXT -> FileViewer.TEXT
+    in VIEWABLE_IMAGE -> FileViewer.IMAGE
+    in PLAYABLE_AUDIO -> FileViewer.AUDIO
+    in PLAYABLE_VIDEO -> FileViewer.VIDEO
+    else -> FileViewer.NONE
+}
+
+private val VIEWABLE_TEXT = setOf(
+    "txt", "md", "json", "xml", "log", "csv", "tsv", "ini", "cfg", "conf", "properties", "yaml",
+    "yml", "kt", "kts", "java", "py", "js", "ts", "html", "htm", "css", "sh", "gradle", "srt",
+    "nfo", "toml", "sql", "c", "h", "cpp", "rs", "go", "swift", "m3u", "vtt", "lrc"
+)
+private val VIEWABLE_IMAGE = setOf("jpg", "jpeg", "png", "gif", "bmp", "webp", "heic", "heif", "avif")
+private val PLAYABLE_AUDIO = setOf("mp3", "wav", "flac", "aac", "ogg", "m4a", "opus", "amr", "mid")
+private val PLAYABLE_VIDEO = setOf("mp4", "mkv", "webm", "3gp", "m4v", "mov", "ts")
+
 // ── Searching ───────────────────────────────────────────────────────────────
 
 /** Whether a name answers to a query, folded so Turkish case works. */

@@ -1576,6 +1576,15 @@
     <string name="files_details_modified">Değiştirilme</string>
     <string name="files_details_kind">Tür</string>
     <string name="files_details_readable">Erişim</string>
+    <string name="files_open">aç</string>
+    <string name="files_open_with">şununla aç…</string>
+    <string name="files_paste_here">buraya yapıştır</string>
+    <string name="files_delete_many_confirm">%1$d öğe kalıcı olarak silinecek. Onaylıyor musunuz?</string>
+    <string name="files_viewer_too_big">tamamını göstermek için fazla büyük; bu, başı</string>
+    <string name="files_viewer_cannot">dosya okunamadı</string>
+    <string name="files_viewer_page">sayfa %1$d / %2$d</string>
+    <string name="files_viewer_play">çal</string>
+    <string name="files_viewer_pause">duraklat</string>
     <string name="files_details_writable">Değiştirilebilir</string>
     <string name="files_details_read_only">Salt okunur</string>
     <string name="files_upload">Buraya dosya gönder</string>

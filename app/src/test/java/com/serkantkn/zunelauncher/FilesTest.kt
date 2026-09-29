@@ -12,6 +12,8 @@ import com.serkantkn.zunelauncher.util.isInsideItself
 import com.serkantkn.zunelauncher.util.matchesFileQuery
 import com.serkantkn.zunelauncher.util.sortFiles
 import com.serkantkn.zunelauncher.util.uniqueFileName
+import com.serkantkn.zunelauncher.util.FileViewer
+import com.serkantkn.zunelauncher.util.viewerFor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -198,4 +200,20 @@ class FilesTest {
         size = 0L,
         lastModified = modified
     )
+
+    // ── What the hub shows by itself ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `plain files go to the hub's own viewers and the rest to another app`() {
+        assertEquals(FileViewer.TEXT, viewerFor("txt"))
+        assertEquals(FileViewer.TEXT, viewerFor("JSON"))
+        assertEquals(FileViewer.IMAGE, viewerFor("jpg"))
+        assertEquals(FileViewer.AUDIO, viewerFor("mp3"))
+        assertEquals(FileViewer.VIDEO, viewerFor("mp4"))
+        assertEquals(FileViewer.PDF, viewerFor("pdf"))
+        // A document the hub cannot draw is not pretended at.
+        assertEquals(FileViewer.NONE, viewerFor("docx"))
+        assertEquals(FileViewer.NONE, viewerFor("zip"))
+        assertEquals(FileViewer.NONE, viewerFor(""))
+    }
 }

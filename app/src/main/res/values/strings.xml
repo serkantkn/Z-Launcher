@@ -1576,6 +1576,15 @@
     <string name="files_details_modified">Changed</string>
     <string name="files_details_kind">Kind</string>
     <string name="files_details_readable">Access</string>
+    <string name="files_open">open</string>
+    <string name="files_open_with">open with…</string>
+    <string name="files_paste_here">paste in here</string>
+    <string name="files_delete_many_confirm">%1$d items will be deleted permanently. Are you sure?</string>
+    <string name="files_viewer_too_big">too big to show whole; this is the beginning</string>
+    <string name="files_viewer_cannot">the file could not be read</string>
+    <string name="files_viewer_page">page %1$d of %2$d</string>
+    <string name="files_viewer_play">play</string>
+    <string name="files_viewer_pause">pause</string>
     <string name="files_details_writable">Can be changed</string>
     <string name="files_details_read_only">Read only</string>
     <string name="files_upload">Send a file here</string>

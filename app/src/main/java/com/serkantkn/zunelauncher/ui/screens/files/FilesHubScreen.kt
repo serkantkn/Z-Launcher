@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
@@ -46,8 +48,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -55,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -65,6 +70,13 @@ import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.animation.ZuneTitleZoomOverlay
 import com.serkantkn.zunelauncher.ui.animation.rememberZuneTitleZoomState
 import com.serkantkn.zunelauncher.ui.animation.rememberZuneZoomAnchor
+import com.serkantkn.zunelauncher.ui.animation.ZuneZoomAnchor
+import com.serkantkn.zunelauncher.ui.animation.zuneZoomAnchor
+import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
+import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
+import com.serkantkn.zunelauncher.util.FileViewer
+import com.serkantkn.zunelauncher.util.viewerFor
 import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
 import com.serkantkn.zunelauncher.ui.components.MetroEmpty
 import com.serkantkn.zunelauncher.ui.components.MetroSubScreen
@@ -86,6 +98,8 @@ import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.util.FileSort
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
@@ -94,12 +108,14 @@ import com.serkantkn.zunelauncher.ui.animation.rememberHingeSpec
 /**
  * The Files hub.
  *
- * Opening a folder is the Zune HD move: the folder's own name lifts off the list, comes toward
- * you, and lands as the word at the top of the page it opened — so the heading of what you are
- * looking at is literally the thing you touched to get here. Going back reverses it.
+ * Opening a folder is the Zune HD move: everything on the page fades, the folder's own name lifts
+ * off the list, comes toward you, and lands as the one large word at the top of the page it opened
+ * — so the heading of what you are looking at is literally the thing you touched to get here.
+ * Inside a folder that word is the whole heading: no hub name, no pivot. Touching it goes back up,
+ * and the word jumps back down onto the row it came from as the list behind it returns.
  *
- * The pivot's first word is therefore not a fixed tab name but wherever you are: at the top of a
- * volume it is the volume, and inside a folder it is the folder.
+ * At the top of a volume the hub is its usual self: the pivot, with the volume's name as its first
+ * word.
  */
 @Composable
 fun FilesHubScreen(
@@ -141,8 +157,17 @@ fun FilesHubScreen(
 
     // ── The flights ────────────────────────────────────────────────────────
     val localZoom = rememberZuneTitleZoomState()
-    val localTitleAnchor = rememberZuneZoomAnchor()
-    localZoom.bindTitle(localTitleAnchor, PIVOT_FONT_SIZE)
+    val animationsEnabled = LocalAnimationsEnabled.current
+    // Where a folder's name lands: the heading of the folder page. It is measured even while the
+    // pivot is showing, by a silent copy of the heading, so the first jump knows where to go.
+    val headingAnchor = rememberZuneZoomAnchor()
+    localZoom.bindTitle(headingAnchor, FOLDER_HEADING_SIZE)
+    // Where each row's name sits, by path, so a word coming back down knows where its row is.
+    val rowAnchors = remember { mutableMapOf<String, ZuneZoomAnchor>() }
+    val listState = rememberLazyListState()
+    // Everything but the word in flight: gone while it jumps, back once it has landed.
+    val contentAlpha = remember { Animatable(1f) }
+    var transitioning by remember { mutableStateOf(false) }
 
     val cloudZoom = rememberZuneTitleZoomState()
     val cloudTitleAnchor = rememberZuneZoomAnchor()
@@ -151,6 +176,8 @@ fun FilesHubScreen(
     // The list settles in behind the word as it lands.
     val listEntry = remember { Animatable(1f) }
     LaunchedEffect(currentDirectory) {
+        // A jump runs its own entrance; this is for the breadcrumb, the categories, quick access.
+        if (transitioning) return@LaunchedEffect
         listEntry.snapTo(0f)
         listEntry.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
     }
@@ -209,6 +236,9 @@ fun FilesHubScreen(
     var showVolumeSheet by remember { mutableStateOf(false) }
     var textPrompt by remember { mutableStateOf<TextPrompt?>(null) }
     var detailsTarget by remember { mutableStateOf<FileItemModel?>(null) }
+    var viewerTarget by remember { mutableStateOf<FileItemModel?>(null) }
+    var deleteTarget by remember { mutableStateOf<FileItemModel?>(null) }
+    var deleteSelectionPending by remember { mutableStateOf(false) }
     val hingeSpec = rememberHingeSpec()
     val subScreenHinge = remember { Animatable(0f) }
 
@@ -240,40 +270,99 @@ fun FilesHubScreen(
     )
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
 
-    /** Opens a folder and sends its name up into the title. */
-    fun enterFolder(item: FileItemModel, boundsProvider: () -> androidx.compose.ui.geometry.Rect?) {
-        val from = boundsProvider()
-        viewModel.navigateTo(item.file)
-        if (from != null) {
-            scope.launch { localZoom.flyToTitle(item.name, from, FileRowNameSize) }
+    // Inside a folder the page is the folder's: one large word and its list. At the top of a
+    // volume it is the pivot.
+    val volumeRootPath = currentVolume?.root?.absolutePath ?: Environment.getExternalStorageDirectory().absolutePath
+    val inFolder = hasPermission && currentDirectory.absolutePath != volumeRootPath
+
+    /**
+     * Opens a folder. The page fades out while the folder's name jumps from its row up to the
+     * heading; the folder's own list comes in behind the word once it has landed.
+     */
+    fun enterFolder(item: FileItemModel, anchor: ZuneZoomAnchor) {
+        if (transitioning) return
+        val from = anchor.bounds
+        if (from == null || headingAnchor.bounds == null || !animationsEnabled) {
+            viewModel.navigateTo(item.file)
+            return
+        }
+        scope.launch {
+            transitioning = true
+            val fade = launch { contentAlpha.animateTo(0f, tween(FADE_MILLIS, easing = FastOutSlowInEasing)) }
+            val flight = launch { localZoom.flyToTitle(item.name, from, FileRowNameSize) }
+            // The old page is gone before the new one is read, so nothing swaps in mid-fade.
+            fade.join()
+            viewModel.navigateTo(item.file)
+            listEntry.snapTo(0f)
+            runCatching { listState.scrollToItem(0) }
+            // The list starts in while the word is still settling, so the two arrive together
+            // rather than the page waiting on a word that is already nearly there.
+            delay(LIST_LEAD_MILLIS)
+            launch { contentAlpha.animateTo(1f, tween(FADE_MILLIS)) }
+            launch { listEntry.animateTo(1f, tween(360, easing = FastOutSlowInEasing)) }
+            flight.join()
+            transitioning = false
         }
     }
 
+    /**
+     * Goes up one folder, the jump played backwards: the list fades, the heading drops down onto
+     * the row it came from in the folder above, and that folder's list returns around it.
+     *
+     * False when there is no folder to leave, which is when the back key leaves the hub.
+     */
     fun leaveFolder(): Boolean {
-        val leaving = browsingLabel
-        val anchorBounds = localTitleAnchor.bounds
-        val moved = viewModel.navigateUp()
-        if (moved && anchorBounds != null) {
-            // The word drops back into the list it came from, roughly where its row will appear.
-            scope.launch {
-                localZoom.flyToRowBounds(
-                    label = leaving,
-                    toBounds = androidx.compose.ui.geometry.Rect(
-                        left = anchorBounds.left,
-                        top = anchorBounds.top + with(density) { 180.dp.toPx() },
-                        right = anchorBounds.right,
-                        bottom = anchorBounds.bottom
-                    ),
-                    toFontSize = FileRowNameSize
-                )
-            }
+        if (!inFolder) return false
+        if (transitioning) return true
+        val leaving = currentDirectory
+        val parent = viewModel.parentOfCurrent() ?: return false
+        val start = headingAnchor.bounds
+        if (start == null || !animationsEnabled) {
+            viewModel.navigateUp()
+            return true
         }
-        return moved
+        scope.launch {
+            transitioning = true
+            // The folder above is read while this one's list is still fading, so the heading
+            // never has to stand over an empty page waiting for the storage.
+            val above = async { viewModel.readDirectory(parent) }
+            contentAlpha.animateTo(0f, tween(FADE_MILLIS, easing = FastOutSlowInEasing))
+            val items = above.await()
+            listEntry.snapTo(1f)
+            viewModel.showDirectory(parent, items)
+            // The row the word lands on is scrolled into view, unseen, and measured there.
+            val path = leaving.absolutePath
+            val index = items.indexOfFirst { it.file.absolutePath == path }
+            if (index >= 0) {
+                // The crumbs sit in the list's first slot, above the rows.
+                runCatching { listState.scrollToItem(index + 1) }
+                withFrameNanos { }
+                withFrameNanos { }
+            }
+            val to = rowAnchors[path]?.bounds
+            if (to != null) localZoom.flyToRowBounds(leaving.name, to, FileRowNameSize)
+            transitioning = false
+            contentAlpha.animateTo(1f, tween(FADE_MILLIS))
+        }
+        return true
+    }
+
+    /** A file: shown here when the hub knows how, handed to another app when it does not. */
+    fun openItem(item: FileItemModel) {
+        if (viewerFor(item.extension) == FileViewer.NONE) {
+            viewModel.openFile(context, item.file)
+        } else {
+            viewerTarget = item
+            openSubScreen()
+        }
     }
 
     BackHandler {
         val browsingCloud = activeCloudAccount != null && pager.currentPage == CLOUD_TAB
         when {
+            deleteTarget != null -> deleteTarget = null
+            deleteSelectionPending -> deleteSelectionPending = false
+            viewerTarget != null -> closeSubScreen { viewerTarget = null }
             detailsTarget != null -> closeSubScreen { detailsTarget = null }
             textPrompt != null -> closeSubScreen { textPrompt = null }
             sheetTarget != null -> sheetTarget = null
@@ -306,6 +395,7 @@ fun FilesHubScreen(
         }
 
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = pagePadding
         ) {
@@ -362,7 +452,7 @@ fun FilesHubScreen(
             }
 
             itemsIndexedFiles(shown) { index, item ->
-                val anchor = rememberZuneZoomAnchor()
+                val anchor = rowAnchors.getOrPut(item.file.absolutePath) { ZuneZoomAnchor() }
                 FileRow(
                     item = item,
                     nameAnchor = anchor,
@@ -378,8 +468,8 @@ fun FilesHubScreen(
                     onClick = {
                         when {
                             selection.isNotEmpty() -> viewModel.toggleSelection(item)
-                            item.isDirectory -> enterFolder(item) { anchor.bounds }
-                            else -> viewModel.openFile(context, item.file)
+                            item.isDirectory -> enterFolder(item, anchor)
+                            else -> openItem(item)
                         }
                     },
                     onLongClick = { sheetTarget = item },
@@ -454,7 +544,7 @@ fun FilesHubScreen(
         selection.isNotEmpty() -> listOf(
             WpBarAction(Icons.Default.ContentCopy, stringResource(R.string.files_copy)) { viewModel.copySelection() },
             WpBarAction(Icons.Default.ContentPaste, stringResource(R.string.files_cut)) { viewModel.cutSelection() },
-            WpBarAction(Icons.Default.Delete, stringResource(R.string.common_delete)) { viewModel.deleteSelection() }
+            WpBarAction(Icons.Default.Delete, stringResource(R.string.common_delete)) { deleteSelectionPending = true }
         )
 
         inCloud && activeCloudAccount != null -> listOf(
@@ -529,39 +619,16 @@ fun FilesHubScreen(
         ) {
             ZuneHubEntranceLayout { bottomBarModifier ->
                 Box(modifier = Modifier.fillMaxSize()) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        if (isWideScreen) {
-                            ZuneWideHubTitle(text = stringResource(R.string.hub_files))
-                        } else {
-                            Text(
-                                text = stringResource(R.string.hub_files),
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 18.sp,
-                                    letterSpacing = 1.sp
-                                ),
-                                color = if (zuneColors.isDark) {
-                                    Color.White.copy(alpha = 0.9f)
-                                } else {
-                                    Color.Black.copy(alpha = 0.85f)
-                                },
-                                maxLines = 1,
-                                modifier = Modifier.padding(
-                                    start = ZuneDimens.ScreenPaddingHorizontal,
-                                    top = 48.dp,
-                                    bottom = 4.dp
-                                )
-                            )
-                        }
+                    // The heading's place, measured whether or not a folder is open.
+                    FolderHeading(
+                        text = browsingLabel,
+                        alpha = 0f,
+                        anchor = headingAnchor,
+                        onClick = null
+                    )
 
-                        ZunePivotTabs(
-                            tabs = tabs,
-                            state = pager,
-                            firstTabAnchor = localTitleAnchor,
-                            firstTabAlpha = localZoom.titleAlpha,
-                            startPadding = if (isWideScreen) 48.dp else ZuneDimens.ScreenPaddingHorizontal
-                        )
-
+                    @Composable
+                    fun SearchField() {
                         AnimatedVisibility(visible = isSearchOpen) {
                             ZuneSearchBar(
                                 query = searchQuery,
@@ -576,36 +643,106 @@ fun FilesHubScreen(
                                 )
                             )
                         }
+                    }
 
-                        transfer?.let { active ->
-                            TransferBar(
-                                transfer = active,
-                                onCancel = { viewModel.cancelTransfer() },
-                                modifier = Modifier.padding(
-                                    horizontal = ZuneDimens.ScreenPaddingHorizontal,
-                                    vertical = 6.dp
-                                )
+                    if (inFolder) {
+                        // ── The folder's page: its name, then its list ──
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            FolderHeading(
+                                text = currentDirectory.name,
+                                alpha = localZoom.titleAlpha,
+                                anchor = headingAnchor,
+                                onClick = { leaveFolder() }
                             )
-                        }
-
-                        ZuneLoopingPager(
-                            state = pager,
-                            modifier = Modifier.weight(1f).fillMaxWidth()
-                        ) { page ->
-                            Box(
+                            Column(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .graphicsLayer { alpha = contentAlpha.value }
                             ) {
-                                PageAt(page)
+                                SearchField()
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                        .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                                ) {
+                                    BrowsePage()
+                                }
+                                Spacer(modifier = Modifier.height(72.dp))
                             }
                         }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { alpha = contentAlpha.value }
+                        ) {
+                            if (isWideScreen) {
+                                ZuneWideHubTitle(text = stringResource(R.string.hub_files))
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.hub_files),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 18.sp,
+                                        letterSpacing = 1.sp
+                                    ),
+                                    color = if (zuneColors.isDark) {
+                                        Color.White.copy(alpha = 0.9f)
+                                    } else {
+                                        Color.Black.copy(alpha = 0.85f)
+                                    },
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(
+                                        start = ZuneDimens.ScreenPaddingHorizontal,
+                                        top = 48.dp,
+                                        bottom = 4.dp
+                                    )
+                                )
+                            }
 
-                        Spacer(modifier = Modifier.height(72.dp))
+                            ZunePivotTabs(
+                                tabs = tabs,
+                                state = pager,
+                                startPadding = if (isWideScreen) 48.dp else ZuneDimens.ScreenPaddingHorizontal
+                            )
+
+                            SearchField()
+
+                            transfer?.let { active ->
+                                TransferBar(
+                                    transfer = active,
+                                    onCancel = { viewModel.cancelTransfer() },
+                                    modifier = Modifier.padding(
+                                        horizontal = ZuneDimens.ScreenPaddingHorizontal,
+                                        vertical = 6.dp
+                                    )
+                                )
+                            }
+
+                            ZuneLoopingPager(
+                                state = pager,
+                                modifier = Modifier.weight(1f).fillMaxWidth()
+                            ) { page ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                                ) {
+                                    PageAt(page)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(72.dp))
+                        }
                     }
 
                     WindowsPhoneBottomBar(
-                        modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .then(bottomBarModifier)
+                            .graphicsLayer { alpha = contentAlpha.value },
                         actions = barActions,
                         menuItems = barMenu
                     )
@@ -619,7 +756,7 @@ fun FilesHubScreen(
 
         // ── Sub-screens on the hinge ──
         val prompt = textPrompt
-        if (prompt != null || subScreenHinge.value > 0f) {
+        if (prompt != null || viewerTarget != null || detailsTarget != null || subScreenHinge.value > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -632,7 +769,16 @@ fun FilesHubScreen(
                     }
             ) {
                 val details = detailsTarget
+                val viewing = viewerTarget
                 when {
+                    viewing != null -> FileViewerScreen(
+                        item = viewing,
+                        viewer = viewerFor(viewing.extension),
+                        onOpenWith = { viewModel.openWith(context, viewing.file) },
+                        onShare = { viewModel.shareFile(context, viewing.file) },
+                        onClose = { closeSubScreen { viewerTarget = null } }
+                    )
+
                     details != null -> FileDetailsScreen(
                         item = details,
                         measure = { viewModel.measure(details) },
@@ -659,9 +805,33 @@ fun FilesHubScreen(
         // ── Long press ──
         sheetTarget?.let { item ->
             MessagingSheet(title = item.name, onDismiss = { sheetTarget = null }) {
+                if (!item.isDirectory) {
+                    SheetAction(label = stringResource(R.string.files_open)) {
+                        sheetTarget = null
+                        openItem(item)
+                    }
+                    SheetAction(label = stringResource(R.string.files_open_with)) {
+                        viewModel.openWith(context, item.file)
+                        sheetTarget = null
+                    }
+                }
                 SheetAction(label = stringResource(R.string.files_select)) {
                     viewModel.toggleSelection(item)
                     sheetTarget = null
+                }
+                SheetAction(label = stringResource(R.string.files_copy)) {
+                    viewModel.copyItem(item)
+                    sheetTarget = null
+                }
+                SheetAction(label = stringResource(R.string.files_cut)) {
+                    viewModel.cutItem(item)
+                    sheetTarget = null
+                }
+                if (clipboard != null && item.isDirectory) {
+                    SheetAction(label = stringResource(R.string.files_paste_here)) {
+                        viewModel.paste(item.file)
+                        sheetTarget = null
+                    }
                 }
                 if (!item.isDirectory) {
                     SheetAction(label = stringResource(R.string.files_share)) {
@@ -683,10 +853,32 @@ fun FilesHubScreen(
                     label = stringResource(R.string.common_delete),
                     color = MaterialTheme.colorScheme.error
                 ) {
-                    viewModel.deleteItem(item)
+                    deleteTarget = item
                     sheetTarget = null
                 }
             }
+        }
+
+        // ── Deleting asks first ──
+        deleteTarget?.let { item ->
+            DeleteConfirmDialog(
+                message = stringResource(R.string.files_delete_confirm, item.name),
+                onConfirm = {
+                    viewModel.deleteItem(item)
+                    deleteTarget = null
+                },
+                onDismiss = { deleteTarget = null }
+            )
+        }
+        if (deleteSelectionPending) {
+            DeleteConfirmDialog(
+                message = stringResource(R.string.files_delete_many_confirm, selection.size),
+                onConfirm = {
+                    viewModel.deleteSelection()
+                    deleteSelectionPending = false
+                },
+                onDismiss = { deleteSelectionPending = false }
+            )
         }
 
         cloudSheetTarget?.let { item ->
@@ -761,6 +953,84 @@ fun FilesHubScreen(
 }
 
 // ── Small pieces ────────────────────────────────────────────────────────────
+
+/**
+ * The one large word at the top of a folder's page — and, drawn at nothing, the place a folder's
+ * name is measured against before its page exists. Both use the same modifiers, so both sit at
+ * the same spot.
+ */
+@Composable
+private fun FolderHeading(
+    text: String,
+    alpha: Float,
+    anchor: ZuneZoomAnchor?,
+    onClick: (() -> Unit)?
+) {
+    val zuneColors = LocalZuneColors.current
+    Text(
+        text = text,
+        style = MaterialTheme.typography.displayLarge.copy(
+            fontWeight = FontWeight.Light,
+            fontSize = FOLDER_HEADING_SIZE,
+            letterSpacing = (-2).sp,
+            lineHeight = 66.sp
+        ),
+        color = if (zuneColors.isDark) Color.White else Color.Black,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .padding(
+                start = ZuneDimens.ScreenPaddingHorizontal,
+                top = 44.dp,
+                end = ZuneDimens.ScreenPaddingHorizontal,
+                bottom = 6.dp
+            )
+            .alpha(alpha)
+            .then(if (anchor != null) Modifier.zuneZoomAnchor(anchor) else Modifier)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = onClick
+                    )
+                } else {
+                    Modifier
+                }
+            )
+    )
+}
+
+/** "Are you sure": the flip dialog, with delete in the warning colour. */
+@Composable
+private fun DeleteConfirmDialog(message: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    ZuneFlipDialog(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.files_delete_title),
+        confirmButton = {
+            ZuneDialogButton(
+                text = stringResource(R.string.files_delete_cap),
+                onClick = { dismissWithAnim { onConfirm() } },
+                borderColor = MaterialTheme.colorScheme.error
+            )
+        },
+        dismissButton = {
+            ZuneDialogButton(
+                text = stringResource(R.string.common_cancel_cap),
+                onClick = { dismissWithAnim { onDismiss() } },
+                borderColor = zuneColors.textMuted
+            )
+        }
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color.White
+        )
+    }
+}
 
 /** What a text-entry sub-screen is being opened for. */
 internal sealed interface TextPrompt {
@@ -893,8 +1163,14 @@ private const val CATEGORIES_TAB = 1
 private const val QUICK_TAB = 2
 private const val CLOUD_TAB = 3
 
-/** The pivot's own size, which is where a folder's name lands. */
-private val PIVOT_FONT_SIZE = 72.sp
+/** The folder page's heading, which is where a folder's name lands. */
+private val FOLDER_HEADING_SIZE = 60.sp
+
+/** How quickly the page goes when a word takes off, and comes back once it has landed. */
+private const val FADE_MILLIS = 160
+
+/** How long after the page changes the new list starts in, while the word is still landing. */
+private const val LIST_LEAD_MILLIS = 120L
 
 /** The cloud page's heading, which is where a drive folder's name lands. */
 internal val CLOUD_TITLE_SIZE = 34.sp
