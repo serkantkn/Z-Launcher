@@ -16,3 +16,8 @@ local.properties
 /keystore.properties
 *.jks
 *.keystore
+
+# Editor and tool droppings: nothing here builds the app.
+/.artifacts/
+/.kotlin/
+/.vscode/

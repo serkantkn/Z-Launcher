@@ -5,7 +5,7 @@
 | `feature-graphic.png` | Öne çıkan görsel, 1024 × 500 | Hazır (Türkçe alt satır) |
 | `feature-graphic-en.png` | Aynısı, İngilizce alt satır | Hazır |
 | `screenshots/*.png` | Telefon ekran görüntüleri, 1080 × 2400 | **Taslak** |
-| `../play_store_icon.png` | Uygulama ikonu, 512 × 512 | Hazır |
+| `play_store_icon.png` | Uygulama ikonu, 512 × 512 | Hazır |
 | `tanitim-videosu.mp4` | Tanıtım videosu, 1920 × 1080 (16:9), 2 dk 24 sn | Hazır (emülatör çekimi, Pro sürüm) |
 
 Metinler (uygulama adı, kısa ve tam açıklama, iki dilde) `../STORE.md` dosyasında.

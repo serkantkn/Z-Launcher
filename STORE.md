@@ -126,7 +126,7 @@ Privacy policy: <put the privacy policy address here>
 
 | Ne | Boyut | Durum |
 |---|---|---|
-| Uygulama ikonu | 512 × 512 PNG | `play_store_icon.png` hazır |
+| Uygulama ikonu | 512 × 512 PNG | `store/play_store_icon.png` hazır |
 | Öne çıkan görsel | 1024 × 500 PNG | `store/feature-graphic.png` hazır |
 | Telefon ekran görüntüsü | en az 2, en fazla 8 | `store/screenshots/` taslak |
 | 7" tablet | isteğe bağlı | yok |

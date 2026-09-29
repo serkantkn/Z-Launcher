@@ -9,7 +9,6 @@
     <string name="settings_hub">settings</string>
     <string name="search_apps">search apps</string>
     <string name="recent_apps">recent</string>
-    <string name="favorite_apps">favorites</string>
     <string name="home_favorites_empty_line">this is where the apps you reach for live — one tap, without leaving the start screen. you haven’t pinned any yet.</string>
     <string name="home_favorites_empty_action">open the app list</string>
     <string name="home_favorites_empty_hint">press and hold an app, then choose \"pin to start\"</string>
@@ -20,18 +19,13 @@
     <string name="home_running_hubs_stop_all">close all</string>
     <string name="home_add_hub">add a hub</string>
     <string name="home_add_hub_title">add a hub to start</string>
-    <string name="coming_soon">coming soon</string>
     <string name="theme_setting">theme</string>
     <string name="theme_light">light</string>
     <string name="theme_dark">dark</string>
     <string name="theme_system">system</string>
     <string name="font_scale">font size</string>
-    <string name="animations">animations</string>
     <string name="about">about</string>
     <string name="version">version</string>
-    <string name="weather_placeholder">18°</string>
-    <string name="usage_permission_title">Usage Access Required</string>
-    <string name="usage_permission_message">Z Launcher needs usage access permission to show your recent apps.</string>
     <string name="grant_permission">grant permission</string>
     <string name="all_apps">all apps</string>
     <string name="storage_permission_title">Storage Permission Required</string>
@@ -51,8 +45,6 @@
     <string name="notification_permission_title">Notification Access Required</string>
     <string name="notification_permission_message">To show and reply to notifications in Social Hub, you need to give Z Launcher notification access.</string>
     <string name="open_settings">open settings</string>
-    <string name="no_notifications">no new messages</string>
-    <string name="reply">reply</string>
     <string name="type_message">type a message...</string>
     <string name="send">send</string>
     <string name="accessibility_service_description">Captures the volume keys to show the Windows Phone volume bar on top of other apps. Screen content is never read.</string>
@@ -96,23 +88,18 @@
     <string name="common_search">search</string>
     <string name="common_share">share</string>
     <string name="common_edit">edit</string>
-    <string name="common_rename">rename</string>
     <string name="common_add">add</string>
     <string name="common_close">close</string>
     <string name="common_yes">yes</string>
     <string name="common_no">no</string>
     <string name="common_settings">settings</string>
     <string name="common_loading">loading...</string>
-    <string name="common_retry">retry</string>
     <string name="common_copy">copy</string>
     <string name="common_select_all">select all</string>
     <string name="common_all">all</string>
-    <string name="common_open">open</string>
     <string name="common_remove">remove</string>
     <string name="common_clear">clear</string>
     <string name="common_apply">apply</string>
-    <string name="common_pin_to_start">pin to start</string>
-    <string name="common_unpin">unpin from start</string>
     <string name="common_favorite">favorite</string>
     <string name="common_on">on</string>
     <string name="common_off">off</string>
@@ -120,12 +107,9 @@
     <string name="common_select">select</string>
     <string name="common_new">new</string>
     <string name="common_refresh">refresh</string>
-    <string name="common_permission_grant">grant permission</string>
     <string name="common_history">history</string>
     <string name="common_clear_all">clear all</string>
-    <string name="common_continue">continue</string>
     <string name="common_today">today</string>
-    <string name="common_unknown">unknown</string>
     <string name="notes_sort_menu">sort: %1$s</string>
     <string name="settings_wallpaper">wallpaper</string>
     <string name="settings_wallpaper_system_sub">system wallpaper</string>
@@ -175,14 +159,11 @@
     <string name="settings_direct_call_on">on (call immediately)</string>
     <string name="settings_direct_call_off">off (copy to dialer)</string>
     <string name="settings_group_internet">internet hub</string>
-    <string name="settings_clear_history">clear history</string>
-    <string name="settings_clear_history_sub">deletes the browser history</string>
     <string name="settings_hub_order">start screen hub order</string>
     <string name="settings_hub_order_help">change the order of the hub titles on the start screen with the up/down buttons:</string>
     <string name="settings_move_up">Move Up</string>
     <string name="settings_move_down">Move Down</string>
     <string name="settings_reset_default">reset to default</string>
-    <string name="settings_notification_filter">notification filtering</string>
     <string name="settings_notification_style">notification style</string>
     <string name="settings_notification_wp_sub">card sliding from the top + quick reply on pull down</string>
     <string name="settings_notification_system_sub">system notifications are used</string>
@@ -259,8 +240,6 @@
     <string name="settings_date_fmt_3">day month year</string>
     <string name="settings_date_fmt_3_sub">12 august 2026</string>
     <string name="settings_date_fmt_numeric">numeric</string>
-    <string name="settings_notification_permissions">notification permissions</string>
-    <string name="settings_notification_permissions_help">choose the apps that may send notifications</string>
     <string name="settings_wallpaper_preview">Wallpaper Preview</string>
     <string name="settings_image_loading">Loading Image...</string>
     <string name="notes_untitled_note">note</string>
@@ -398,12 +377,9 @@
     <string name="files_internal_storage">Internal Storage</string>
     <string name="files_folder">folder</string>
     <string name="files_new_folder">new folder</string>
-    <string name="files_go_root">go to root</string>
     <string name="files_permission_title">All Files Access Required</string>
     <string name="files_permission_message">Grant file access to browse the folders and files on your device Zune style.</string>
     <string name="files_permission_button">Grant Access</string>
-    <string name="files_folder_name">folder name</string>
-    <string name="files_new_name">new name</string>
     <string name="files_delete_title">delete file</string>
     <string name="files_parent_dir">Parent Folder</string>
     <string name="files_empty_folder">folder is empty</string>
@@ -411,15 +387,7 @@
     <string name="files_cat_downloads">Downloads</string>
     <string name="files_cat_pictures">Pictures</string>
     <string name="files_cat_music">Music</string>
-    <string name="files_cat_movies">Videos</string>
     <string name="files_cat_documents">Documents</string>
-    <string name="files_quick_camera">Camera Photos</string>
-    <string name="files_quick_downloads">Downloads</string>
-    <string name="files_quick_whatsapp">WhatsApp Media</string>
-    <string name="files_quick_music">Music Library</string>
-    <string name="files_open_cap">Open</string>
-    <string name="files_share_cap">Share</string>
-    <string name="files_rename_cap">Rename</string>
     <string name="files_delete_cap">Delete</string>
     <string name="files_search_hint">search files...</string>
     <string name="files_tab_categories">categories</string>
@@ -482,7 +450,6 @@
     <string name="country_italy">Italy</string>
     <string name="clock_add_city">add city</string>
     <string name="clock_add_alarm">add alarm</string>
-    <string name="common_stop">stop</string>
     <string name="common_start">start</string>
     <string name="clock_lap">lap</string>
     <string name="common_reset">reset</string>
@@ -511,7 +478,6 @@
     <string name="call_add">add call</string>
     <string name="call_add_toast">Add call</string>
     <string name="call_hold">hold</string>
-    <string name="call_bluetooth_toast">Bluetooth audio</string>
     <string name="call_hang_up">end</string>
     <string name="call_reply_message">reply with message</string>
     <string name="call_quick_1">I can\'t talk right now, I\'ll call you later.</string>
@@ -534,13 +500,10 @@
     <string name="cal_tab_agenda">agenda</string>
     <string name="cal_tab_month">month</string>
     <string name="cal_tab_day">day</string>
-    <string name="cal_tab_events">events</string>
     <string name="msg_new">new message</string>
     <string name="msg_pick_conversation">pick a conversation</string>
-    <string name="msg_conversations">conversations</string>
     <string name="msg_search_hint">search conversations...</string>
     <string name="msg_history_empty">no message history</string>
-    <string name="msg_pick_contact">pick a contact</string>
     <string name="msg_no_messages">no messages yet, start a conversation</string>
     <string name="msg_type_hint">type a message...</string>
     <string name="msg_send_cap">Send</string>
@@ -558,7 +521,6 @@
     <string name="browser_fav_add_pro">Adding sites to favorites is only available in Z Launcher Pro.</string>
     <string name="browser_fav_edit_pro">Editing favorites is only available in Z Launcher Pro.</string>
     <string name="browser_history_empty">your history is empty</string>
-    <string name="browser_what_to_do">what would you like to do?</string>
     <string name="browser_edit_favorite">edit favorite</string>
     <string name="browser_add_favorite">add favorite</string>
     <string name="browser_title_label">title</string>
@@ -603,12 +565,9 @@
     <string name="editor_reset_all">reset all</string>
     <string name="editor_cancel">cancel</string>
     <string name="music_album_art">Album Art</string>
-    <string name="music_no_media">No Media</string>
     <string name="music_unknown_song">Unknown Song</string>
     <string name="music_unknown_artist">Unknown Artist</string>
     <string name="music_play_pause">Play/Pause</string>
-    <string name="music_albums_wip">Albums (Coming Soon)</string>
-    <string name="music_artists_wip">Artists (Coming Soon)</string>
     <string name="music_not_found">No music found</string>
     <string name="music_tab_now_playing">now playing</string>
     <string name="music_tab_artists">artists</string>
@@ -621,8 +580,6 @@
     <string name="social_test_reply_sent">Test reply sent: \"%1$s\"</string>
     <string name="notes_locked_note">locked note</string>
     <string name="apps_favorites_limit">The free version allows up to 10 favorite apps. Upgrade to Z Launcher Pro to remove the limit.</string>
-    <string name="apps_remove_favorite">remove from favorites</string>
-    <string name="apps_add_favorite">add to favorites</string>
     <string name="launcher_fullscreen">Enter Full Screen</string>
     <string name="launcher_close_hub">Close Hub</string>
     <string name="toast_quick_reply">quick reply:</string>
@@ -637,7 +594,6 @@
         <item quantity="other">%1$d missed calls</item>
     </plurals>
     <string name="tile_favorite_photo">Favorite Photo</string>
-    <string name="tile_new_notifications">%1$d new notifications</string>
     <string name="editor_ratio_9_16">9:16</string>
     <string name="common_ok_cap">OK</string>
     <string name="common_apply_cap">Apply</string>
@@ -949,7 +905,6 @@
     <string name="keyboard_data_group">dictionary and clipboard</string>
     <string name="keyboard_learned_title">learned words</string>
     <string name="keyboard_learned_sub">%1$d words picked up while typing</string>
-    <string name="keyboard_learned_clear">forget all of them</string>
     <string name="keyboard_clipboard_history_title">clipboard history</string>
     <string name="keyboard_clipboard_history_sub">%1$d clips kept for the keyboard</string>
     <string name="keyboard_shortcuts_group">text shortcuts</string>
@@ -987,20 +942,11 @@
     <string name="keyboard_bottom_padding_large">large</string>
     <!-- Files hub: cloud storage through the Storage Access Framework -->
     <string name="files_tab_cloud">cloud</string>
-    <string name="files_cloud_action_failed">the service refused that</string>
     <string name="files_cloud_loading">loading…</string>
-    <string name="files_cloud_copy">save to the device</string>
-    <string name="files_cloud_copied">saved to Downloads: %1$s</string>
     <!-- Files hub: cloud services over their own web APIs -->
     <string name="cloud_service_google">Google Drive</string>
     <string name="files_cloud_accounts">accounts</string>
-    <string name="files_cloud_add_account">add an account</string>
-    <string name="files_cloud_none_connected">no account connected yet</string>
-    <string name="files_cloud_hint">sign in once and the drive opens here, whether or not the service\'s app is installed on this phone</string>
-    <string name="files_cloud_sign_in_google">sign in with Google</string>
     <string name="files_cloud_sign_out">sign out</string>
-    <string name="files_cloud_signing_in">signing in…</string>
-    <string name="files_cloud_save_to_device">save to the device</string>
     <string name="files_cloud_saved">saved to Downloads: %1$s</string>
     <string name="cloud_error_network">no connection to the service</string>
     <string name="cloud_error_service">the service refused that</string>
@@ -1009,7 +955,6 @@
     <string name="cloud_error_google_config">the Google sign-in is not set up for this build (OAuth client / Drive API)</string>
     <string name="cloud_error_save_failed">the file could not be saved</string>
     <string name="cloud_error_no_app">no app can open this file</string>
-    <string name="cloud_error_no_browser">no browser to sign in with</string>
     <string name="cloud_error_google_identity">the Google account could not be read; make sure the Drive API is enabled for this OAuth project</string>
     <string name="cloud_error_google_api_off">the Drive API is not enabled for this project yet</string>
 
@@ -1053,7 +998,6 @@
     <string name="weather_uv">uv index</string>
     <string name="weather_sunrise">sunrise</string>
     <string name="weather_sunset">sunset</string>
-    <string name="weather_precip_chance">chance of rain</string>
     <string name="weather_precip_sum">precipitation</string>
     <string name="weather_percent">%1$d%%</string>
     <string name="weather_now">now</string>
@@ -1108,7 +1052,6 @@
     <string name="weather_animated_sky_turn_on">turn the moving sky on</string>
     <string name="weather_animated_sky">animated sky</string>
     <string name="weather_animated_sky_sub">the background moves with the weather</string>
-    <string name="weather_units">units</string>
     <string name="weather_source">weather data by Open-Meteo.com</string>
 
     <string name="weather_error_service">the weather service could not be reached</string>
@@ -1121,10 +1064,8 @@
     <string name="start_folder_default_name">folder</string>
     <string name="start_edit_hint">drag to move · drop on a tile to make a folder</string>
     <string name="start_edit_done">done</string>
-    <string name="start_folder_rename">rename folder</string>
     <string name="start_folder_name_hint">folder name</string>
     <string name="start_folder_take_out">take out of the folder</string>
-    <string name="start_folder_dissolve">empty the folder</string>
     <string name="start_folder_close">close</string>
 
     <!-- Tile icons -->
@@ -1133,7 +1074,6 @@
     <string name="tile_icon_gallery">choose a picture</string>
     <string name="tile_icon_pack_section">from the icon pack</string>
     <string name="tile_icon_glyph_section">windows phone glyphs</string>
-    <string name="tile_icon_search">search</string>
     <string name="tile_icon_group_communication">talking</string>
     <string name="tile_icon_group_media">media</string>
     <string name="tile_icon_group_places">places</string>
@@ -1228,7 +1168,6 @@
     <!-- Voicemail, blocked numbers, the SIM a call goes out on, and real quick replies -->
     <string name="phone_voicemail">voicemail</string>
     <string name="phone_voicemail_waiting">%1$d messages waiting</string>
-    <string name="phone_voicemail_call">call voicemail</string>
     <string name="phone_voicemail_none">This phone has not been told a voicemail number.</string>
     <string name="phone_voicemail_hint">hold 1</string>
     <string name="phone_block">block</string>
@@ -1246,7 +1185,6 @@
     <string name="phone_sim_remember">always use this SIM</string>
     <string name="call_reply_sent">Message sent to %1$s</string>
     <string name="call_reply_failed">The message could not be sent.</string>
-    <string name="call_reply_no_permission">Z Launcher has not been allowed to send messages.</string>
 
     <!-- The look tab, split into a page per heading -->
     <string name="settings_breadcrumb_look">settings &gt; look</string>
@@ -1275,7 +1213,6 @@
     <string name="browser_reading_view_off">leave reading view</string>
     <string name="browser_new_private_tab">new private tab</string>
     <string name="browser_private">private</string>
-    <string name="browser_private_note">Private tabs are kept out of your history. Cookies are shared with the other tabs, because Android gives the whole app one cookie store.</string>
     <string name="settings_search_engine">search engine</string>
     <string name="settings_search_engine_lucky">has "I\'m feeling lucky"</string>
     <string name="settings_search_suggestions">search suggestions</string>
@@ -1303,8 +1240,6 @@
     <string name="people_pin_to_start">pin to start</string>
     <string name="people_unpin_from_start">unpin from start</string>
     <string name="people_share_contact">share contact</string>
-    <string name="people_pinned">Pinned to the start screen.</string>
-    <string name="people_unpinned">Taken off the start screen.</string>
     <string name="people_address">address</string>
     <string name="people_add_address">add an address</string>
     <string name="people_birthday">birthday</string>
@@ -1317,10 +1252,7 @@
     <string name="people_new_group">new group</string>
     <string name="people_group_name">group name</string>
     <string name="people_group_empty">Nobody is in this group yet.</string>
-    <string name="people_delete_group">delete group</string>
-    <string name="people_delete_group_confirm">"%1$s" will be removed. The people in it stay where they are.</string>
     <string name="people_in_groups">groups</string>
-    <string name="people_edit_groups">groups</string>
     <string name="people_link_duplicate">link a duplicate</string>
     <string name="people_unlink">split this contact</string>
     <string name="people_linked">Made up of %1$d records.</string>
@@ -1334,8 +1266,6 @@
     <string name="people_photo_take">take a picture</string>
     <string name="people_photo_remove">remove the photo</string>
     <string name="people_photo_crop_help">pinch and drag to frame the face</string>
-    <string name="people_photo_saved">Photo saved.</string>
-    <string name="people_photo_failed">The photo could not be saved.</string>
     <string name="people_photo_camera_denied">Z Launcher has not been allowed to use the camera.</string>
 
     <!-- Messaging hub -->
@@ -1359,7 +1289,6 @@
     <string name="msg_unblocked">the number is no longer blocked</string>
     <string name="msg_block_failed">the number could not be blocked</string>
     <string name="msg_block_number">block the number</string>
-    <string name="msg_unblock_number">unblock the number</string>
     <string name="msg_blocked_banner">messages from this number are blocked</string>
     <string name="msg_delete_conversation">delete the conversation</string>
     <string name="msg_delete_conversation_message">%1$s and every message in it will be deleted.</string>
@@ -1382,9 +1311,7 @@
     <string name="msg_recipient_hint">name or number</string>
     <string name="msg_start_conversation">write to this number</string>
     <string name="msg_results_in_messages">in messages</string>
-    <string name="msg_open_contact">open the contact</string>
     <string name="msg_sim_choose">send from</string>
-    <string name="msg_unread_count">%1$d unread</string>
     <string name="msg_copied">copied</string>
     <string name="msg_group_conversation">group conversation</string>
     <string name="msg_me">me</string>
@@ -1392,9 +1319,7 @@
     <string name="msg_details_length">%1$d characters, %2$d message(s)</string>
 
     <!-- App list -->
-    <string name="apps_tab_all">all</string>
     <string name="apps_tab_frequent">most used</string>
-    <string name="apps_tab_new">new</string>
     <string name="apps_jump_title">jump to</string>
     <string name="apps_scroll_top">back to top</string>
     <string name="apps_pin">pin to start</string>
@@ -1408,9 +1333,6 @@
     <string name="apps_uninstall">uninstall</string>
     <string name="apps_share_chooser">Share app</string>
     <string name="apps_search_empty">nothing here answers to \u201c%1$s\u201d</string>
-    <string name="apps_new_empty">nothing has arrived lately</string>
-    <string name="apps_frequent_empty">nothing has been opened yet</string>
-    <string name="apps_usage_explain">to know which apps you actually open, the phone has to be told to let the launcher see it. nothing leaves the phone.</string>
     <string name="apps_usage_access">allow usage access</string>
 
     <!-- Social hub -->
@@ -1627,7 +1549,6 @@
     <string name="pics_action_select">select</string>
     <string name="pics_action_search">search</string>
     <string name="pics_action_refresh">refresh</string>
-    <string name="pics_action_camera">camera</string>
     <string name="pics_action_share">share</string>
     <string name="pics_action_delete">delete</string>
     <string name="pics_action_favorite">favorite</string>
@@ -1643,13 +1564,9 @@
     <string name="pics_columns_value">%1$d across</string>
     <string name="pics_selected_count">%1$d selected</string>
     <string name="pics_search_hint">picture or folder name</string>
-    <string name="pics_filter_all">all</string>
-    <string name="pics_filter_photos">photos</string>
-    <string name="pics_filter_videos">videos</string>
     <string name="pics_video_badge">video</string>
     <string name="pics_today">today</string>
     <string name="pics_yesterday">yesterday</string>
-    <string name="pics_pinned_album">“%1$s” pinned to start</string>
     <string name="pics_details_title">details</string>
     <string name="pics_details_name">name</string>
     <string name="pics_details_folder">folder</string>
@@ -1658,7 +1575,6 @@
     <string name="pics_details_dimensions">dimensions</string>
     <string name="pics_details_duration">length</string>
     <string name="pics_details_type">type</string>
-    <string name="pics_details_path">path</string>
     <string name="pics_menu_unpin_album">unpin album from start</string>
     <string name="pics_details_camera">camera</string>
     <string name="pics_details_lens">lens</string>
@@ -1715,9 +1631,6 @@
     <string name="music_playlist_name">playlist name</string>
     <string name="music_add_to_playlist">add to playlist</string>
     <string name="music_create">create</string>
-    <string name="music_rename">rename</string>
-    <string name="music_delete_playlist">delete playlist</string>
-    <string name="music_added_to_playlist">added to “%1$s”</string>
     <string name="music_sleep_timer">sleep timer</string>
     <string name="music_sleep_minutes">%1$d minutes</string>
     <string name="music_sleep_cancel">cancel (%1$d min left)</string>
@@ -1751,7 +1664,6 @@
     <string name="onboarding_default_done">already the default</string>
     <string name="onboarding_permissions_title">a few things</string>
     <string name="onboarding_permissions_line">only what the start screen needs. each hub asks for its own when you open it.</string>
-    <string name="onboarding_gestures_title">how it works</string>
     <string name="onboarding_done_title">that is all</string>
     <string name="onboarding_done_line">everything here can be changed in settings, and this tour is there too if you want it again.</string>
     <string name="settings_replay_onboarding">show the tour again</string>
@@ -1777,7 +1689,6 @@
     <string name="onboarding_perm_granted">given</string>
     <string name="onboarding_swipe_title">three screens</string>
     <string name="onboarding_swipe_line">start is in the middle. swipe it sideways and the other two are there. try it below.</string>
-    <string name="onboarding_swipe_start">start</string>
     <string name="onboarding_swipe_left">swipe right</string>
     <string name="onboarding_swipe_right">swipe left</string>
     <string name="onboarding_tile_title">moving a tile</string>

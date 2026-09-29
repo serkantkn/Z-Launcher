@@ -1,4 +1,0 @@
-- [x] Update `gradle.properties` with escaped paths and `android.jdk.home`
-- [x] Stop Gradle Daemons
-- [x] Clear Gradle toolchain metadata
-- [x] Verify build passes

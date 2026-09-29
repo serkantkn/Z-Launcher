@@ -9,7 +9,6 @@
     <string name="settings_hub">ayarlar</string>
     <string name="search_apps">uygulama ara</string>
     <string name="recent_apps">son kullanılanlar</string>
-    <string name="favorite_apps">sık kullanılanlar</string>
     <string name="home_favorites_empty_line">burası en sık açtığın uygulamaların yeri — başlangıç ekranından çıkmadan, tek dokunuşla. henüz hiçbirini sabitlemedin.</string>
     <string name="home_favorites_empty_action">uygulama listesini aç</string>
     <string name="home_favorites_empty_hint">bir uygulamaya basılı tut, \"başlangıca sabitle\" de</string>
@@ -20,18 +19,13 @@
     <string name="home_running_hubs_stop_all">tümünü kapat</string>
     <string name="home_add_hub">hub ekle</string>
     <string name="home_add_hub_title">başlangıca hub ekle</string>
-    <string name="coming_soon">yakında</string>
     <string name="theme_setting">tema</string>
     <string name="theme_light">açık</string>
     <string name="theme_dark">koyu</string>
     <string name="theme_system">sistem</string>
     <string name="font_scale">yazı boyutu</string>
-    <string name="animations">animasyonlar</string>
     <string name="about">hakkında</string>
     <string name="version">sürüm</string>
-    <string name="weather_placeholder">18°</string>
-    <string name="usage_permission_title">Kullanım Erişimi Gerekli</string>
-    <string name="usage_permission_message">Z Launcher son kullandığın uygulamaları gösterebilmek için kullanım erişimi iznine ihtiyaç duyar.</string>
     <string name="grant_permission">izin ver</string>
     <string name="all_apps">tüm uygulamalar</string>
     <string name="storage_permission_title">Depolama İzni Gerekli</string>
@@ -51,8 +45,6 @@
     <string name="notification_permission_title">Bildirim İzni Gerekli</string>
     <string name="notification_permission_message">Social Hub\'ın bildirimlerini gösterebilmesi ve yanıtlayabilmen için Z Launcher\'a bildirim erişimi vermelisin.</string>
     <string name="open_settings">ayarları aç</string>
-    <string name="no_notifications">yeni mesaj yok</string>
-    <string name="reply">cevapla</string>
     <string name="type_message">mesaj yaz...</string>
     <string name="send">gönder</string>
     <string name="accessibility_service_description">Ses tuşlarını yakalayarak Windows Phone ses barını diğer uygulamaların üstünde gösterir. Ekran içeriği okunmaz.</string>
@@ -96,23 +88,18 @@
     <string name="common_search">ara</string>
     <string name="common_share">paylaş</string>
     <string name="common_edit">düzenle</string>
-    <string name="common_rename">yeniden adlandır</string>
     <string name="common_add">ekle</string>
     <string name="common_close">kapat</string>
     <string name="common_yes">evet</string>
     <string name="common_no">hayır</string>
     <string name="common_settings">ayarlar</string>
     <string name="common_loading">yükleniyor...</string>
-    <string name="common_retry">tekrar dene</string>
     <string name="common_copy">kopyala</string>
     <string name="common_select_all">tümünü seç</string>
     <string name="common_all">tümü</string>
-    <string name="common_open">aç</string>
     <string name="common_remove">kaldır</string>
     <string name="common_clear">temizle</string>
     <string name="common_apply">uygula</string>
-    <string name="common_pin_to_start">başlangıca sabitle</string>
-    <string name="common_unpin">sabitlemeyi kaldır</string>
     <string name="common_favorite">favori</string>
     <string name="common_on">açık</string>
     <string name="common_off">kapalı</string>
@@ -120,12 +107,9 @@
     <string name="common_select">seç</string>
     <string name="common_new">yeni</string>
     <string name="common_refresh">yenile</string>
-    <string name="common_permission_grant">izin ver</string>
     <string name="common_history">geçmiş</string>
     <string name="common_clear_all">tümünü temizle</string>
-    <string name="common_continue">devam</string>
     <string name="common_today">bugün</string>
-    <string name="common_unknown">bilinmiyor</string>
     <string name="notes_sort_menu">sırala: %1$s</string>
     <string name="settings_wallpaper">duvar kağıdı</string>
     <string name="settings_wallpaper_system_sub">sistem duvar kağıdı</string>
@@ -175,14 +159,11 @@
     <string name="settings_direct_call_on">açık (hemen ara)</string>
     <string name="settings_direct_call_off">kapalı (çeviriciye kopyala)</string>
     <string name="settings_group_internet">internet hub</string>
-    <string name="settings_clear_history">geçmişi temizle</string>
-    <string name="settings_clear_history_sub">tarayıcı geçmişini siler</string>
     <string name="settings_hub_order">ana ekran hub sırası</string>
     <string name="settings_hub_order_help">ana ekrandaki hub başlıklarının sıralamasını yukarı/aşağı butonları ile değiştirin:</string>
     <string name="settings_move_up">Yukarı Taşımak</string>
     <string name="settings_move_down">Aşağı Taşımak</string>
     <string name="settings_reset_default">varsayılana sıfırla</string>
-    <string name="settings_notification_filter">bildirim filtreleme</string>
     <string name="settings_notification_style">bildirim stili</string>
     <string name="settings_notification_wp_sub">üstten kayan kart + aşağı çekince hızlı yanıt</string>
     <string name="settings_notification_system_sub">sistem bildirimleri kullanılır</string>
@@ -259,8 +240,6 @@
     <string name="settings_date_fmt_3">gün ay yıl</string>
     <string name="settings_date_fmt_3_sub">12 ağustos 2026</string>
     <string name="settings_date_fmt_numeric">sayısal</string>
-    <string name="settings_notification_permissions">bildirim izinleri</string>
-    <string name="settings_notification_permissions_help">bildirim vermesini istediğiniz uygulamaları seçin</string>
     <string name="settings_wallpaper_preview">Duvar Kağıdı Önizleme</string>
     <string name="settings_image_loading">Resim Yükleniyor...</string>
     <string name="notes_untitled_note">not</string>
@@ -398,12 +377,9 @@
     <string name="files_internal_storage">Dahili Depolama</string>
     <string name="files_folder">klasör</string>
     <string name="files_new_folder">yeni klasör</string>
-    <string name="files_go_root">ana dizine git</string>
     <string name="files_permission_title">Tüm Dosyalara Erişim İzni Gerekli</string>
     <string name="files_permission_message">Cihazınızdaki klasör ve dosyaları Zune tarzında gezebilmek için dosya erişim izni verin.</string>
     <string name="files_permission_button">İzin Ver</string>
-    <string name="files_folder_name">klasör adı</string>
-    <string name="files_new_name">yeni ad</string>
     <string name="files_delete_title">dosyayı sil</string>
     <string name="files_parent_dir">Yukarı Dizin</string>
     <string name="files_empty_folder">klasör boş</string>
@@ -411,15 +387,7 @@
     <string name="files_cat_downloads">İndirilenler</string>
     <string name="files_cat_pictures">Resimler</string>
     <string name="files_cat_music">Müzikler</string>
-    <string name="files_cat_movies">Videolar</string>
     <string name="files_cat_documents">Belgeler</string>
-    <string name="files_quick_camera">Kamera Fotoğrafları</string>
-    <string name="files_quick_downloads">İndirmeler</string>
-    <string name="files_quick_whatsapp">WhatsApp Medya</string>
-    <string name="files_quick_music">Müzik Arşivi</string>
-    <string name="files_open_cap">Aç</string>
-    <string name="files_share_cap">Paylaş</string>
-    <string name="files_rename_cap">Yeniden Adlandır</string>
     <string name="files_delete_cap">Sil</string>
     <string name="files_search_hint">dosyalarda ara...</string>
     <string name="files_tab_categories">kategoriler</string>
@@ -482,7 +450,6 @@
     <string name="country_italy">İtalya</string>
     <string name="clock_add_city">şehir ekle</string>
     <string name="clock_add_alarm">alarm ekle</string>
-    <string name="common_stop">durdur</string>
     <string name="common_start">başlat</string>
     <string name="clock_lap">tur</string>
     <string name="common_reset">sıfırla</string>
@@ -511,7 +478,6 @@
     <string name="call_add">çağrı ekle</string>
     <string name="call_add_toast">Çağrı ekleme</string>
     <string name="call_hold">beklet</string>
-    <string name="call_bluetooth_toast">Bluetooth ses</string>
     <string name="call_hang_up">kapat</string>
     <string name="call_reply_message">mesajla yanıtla</string>
     <string name="call_quick_1">Şu an konuşamıyorum, sonra arayacağım.</string>
@@ -534,13 +500,10 @@
     <string name="cal_tab_agenda">ajanda</string>
     <string name="cal_tab_month">ay</string>
     <string name="cal_tab_day">gün</string>
-    <string name="cal_tab_events">etkinlikler</string>
     <string name="msg_new">yeni mesaj</string>
     <string name="msg_pick_conversation">sohbet seçin</string>
-    <string name="msg_conversations">sohbetler</string>
     <string name="msg_search_hint">sohbetlerde ara...</string>
     <string name="msg_history_empty">mesaj geçmişi boş</string>
-    <string name="msg_pick_contact">kişi seçin</string>
     <string name="msg_no_messages">henüz mesaj yok, sohbet başlatın</string>
     <string name="msg_type_hint">mesaj yazın...</string>
     <string name="msg_send_cap">Gönder</string>
@@ -558,7 +521,6 @@
     <string name="browser_fav_add_pro">Sık kullanılanlara site ekleme özelliği sadece Z Launcher Pro\'da geçerlidir.</string>
     <string name="browser_fav_edit_pro">Sık kullanılanları düzenleme özelliği sadece Z Launcher Pro\'da geçerlidir.</string>
     <string name="browser_history_empty">geçmişiniz boş</string>
-    <string name="browser_what_to_do">ne yapmak istersiniz?</string>
     <string name="browser_edit_favorite">sık kullanılanı düzenle</string>
     <string name="browser_add_favorite">sık kullanılan ekle</string>
     <string name="browser_title_label">başlık</string>
@@ -603,12 +565,9 @@
     <string name="editor_reset_all">tümünü sıfırla</string>
     <string name="editor_cancel">iptal et</string>
     <string name="music_album_art">Albüm Kapağı</string>
-    <string name="music_no_media">Medya Yok</string>
     <string name="music_unknown_song">Bilinmeyen Şarkı</string>
     <string name="music_unknown_artist">Bilinmeyen Sanatçı</string>
     <string name="music_play_pause">Oynat/Duraklat</string>
-    <string name="music_albums_wip">Albümler (Yapım Aşamasında)</string>
-    <string name="music_artists_wip">Sanatçılar (Yapım Aşamasında)</string>
     <string name="music_not_found">Müzik bulunamadı</string>
     <string name="music_tab_now_playing">oynatılıyor</string>
     <string name="music_tab_artists">sanatçılar</string>
@@ -621,8 +580,6 @@
     <string name="social_test_reply_sent">Test yanıtı gönderildi: \"%1$s\"</string>
     <string name="notes_locked_note">kilitli not</string>
     <string name="apps_favorites_limit">Ücretsiz sürümde en fazla 10 favori uygulama ekleyebilirsiniz. Sınırı kaldırmak için Z Launcher Pro\'ya geçin.</string>
-    <string name="apps_remove_favorite">favorilerden kaldır</string>
-    <string name="apps_add_favorite">favorilere ekle</string>
     <string name="launcher_fullscreen">Tam Ekran Yap</string>
     <string name="launcher_close_hub">Hubı Kapat</string>
     <string name="toast_quick_reply">hızlı yanıt ver:</string>
@@ -637,7 +594,6 @@
         <item quantity="other">%1$d cevapsız arama</item>
     </plurals>
     <string name="tile_favorite_photo">Favori Fotoğraf</string>
-    <string name="tile_new_notifications">%1$d yeni bildirim</string>
     <string name="editor_ratio_9_16">9:16</string>
     <string name="common_ok_cap">Tamam</string>
     <string name="common_apply_cap">Uygula</string>
@@ -949,7 +905,6 @@
     <string name="keyboard_data_group">sözlük ve pano</string>
     <string name="keyboard_learned_title">öğrenilen kelimeler</string>
     <string name="keyboard_learned_sub">yazarken öğrenilen %1$d kelime</string>
-    <string name="keyboard_learned_clear">hepsini unut</string>
     <string name="keyboard_clipboard_history_title">pano geçmişi</string>
     <string name="keyboard_clipboard_history_sub">klavye için saklanan %1$d kayıt</string>
     <string name="keyboard_shortcuts_group">metin kısayolları</string>
@@ -987,20 +942,11 @@
     <string name="keyboard_bottom_padding_large">çok</string>
     <!-- Dosyalar hubı: Storage Access Framework üzerinden bulut depolama -->
     <string name="files_tab_cloud">bulut</string>
-    <string name="files_cloud_action_failed">servis bu işlemi kabul etmedi</string>
     <string name="files_cloud_loading">yükleniyor…</string>
-    <string name="files_cloud_copy">cihaza kaydet</string>
-    <string name="files_cloud_copied">İndirilenler klasörüne kaydedildi: %1$s</string>
     <!-- Dosyalar hubı: bulut servisleri kendi web API uçlarıyla -->
     <string name="cloud_service_google">Google Drive</string>
     <string name="files_cloud_accounts">hesaplar</string>
-    <string name="files_cloud_add_account">hesap ekle</string>
-    <string name="files_cloud_none_connected">henüz bağlı hesap yok</string>
-    <string name="files_cloud_hint">bir kez oturum aç, sürücü burada açılsın; servisin uygulaması bu telefonda yüklü olmasa da çalışır</string>
-    <string name="files_cloud_sign_in_google">Google ile oturum aç</string>
     <string name="files_cloud_sign_out">çıkış yap</string>
-    <string name="files_cloud_signing_in">oturum açılıyor…</string>
-    <string name="files_cloud_save_to_device">cihaza kaydet</string>
     <string name="files_cloud_saved">İndirilenler klasörüne kaydedildi: %1$s</string>
     <string name="cloud_error_network">servise bağlanılamadı</string>
     <string name="cloud_error_service">servis bu işlemi kabul etmedi</string>
@@ -1009,7 +955,6 @@
     <string name="cloud_error_google_config">bu sürüm için Google oturum açma ayarlı değil (OAuth istemcisi / Drive API)</string>
     <string name="cloud_error_save_failed">dosya kaydedilemedi</string>
     <string name="cloud_error_no_app">bu dosyayı açabilecek uygulama yok</string>
-    <string name="cloud_error_no_browser">oturum açmak için tarayıcı bulunamadı</string>
     <string name="cloud_error_google_identity">Google hesabı okunamadı; bu OAuth projesinde Drive API açık mı kontrol et</string>
     <string name="cloud_error_google_api_off">bu proje için Drive API henüz açık değil</string>
 
@@ -1053,7 +998,6 @@
     <string name="weather_uv">uv indeksi</string>
     <string name="weather_sunrise">gün doğumu</string>
     <string name="weather_sunset">gün batımı</string>
-    <string name="weather_precip_chance">yağış olasılığı</string>
     <string name="weather_precip_sum">yağış</string>
     <string name="weather_percent">%%%1$d</string>
     <string name="weather_now">şimdi</string>
@@ -1108,7 +1052,6 @@
     <string name="weather_animated_sky_turn_on">hareketli gökyüzünü aç</string>
     <string name="weather_animated_sky">hareketli gökyüzü</string>
     <string name="weather_animated_sky_sub">arka plan hava durumuyla birlikte hareket eder</string>
-    <string name="weather_units">birimler</string>
     <string name="weather_source">hava durumu verileri Open-Meteo.com</string>
 
     <string name="weather_error_service">hava durumu servisine ulaşılamadı</string>
@@ -1121,10 +1064,8 @@
     <string name="start_folder_default_name">klasör</string>
     <string name="start_edit_hint">taşımak için sürükle · klasör için karonun üstüne bırak</string>
     <string name="start_edit_done">bitti</string>
-    <string name="start_folder_rename">klasörü adlandır</string>
     <string name="start_folder_name_hint">klasör adı</string>
     <string name="start_folder_take_out">klasörden çıkar</string>
-    <string name="start_folder_dissolve">klasörü boşalt</string>
     <string name="start_folder_close">kapat</string>
 
     <!-- Karo ikonları -->
@@ -1133,7 +1074,6 @@
     <string name="tile_icon_gallery">resim seç</string>
     <string name="tile_icon_pack_section">ikon paketinden</string>
     <string name="tile_icon_glyph_section">windows phone simgeleri</string>
-    <string name="tile_icon_search">ara</string>
     <string name="tile_icon_group_communication">iletişim</string>
     <string name="tile_icon_group_media">medya</string>
     <string name="tile_icon_group_places">yerler</string>
@@ -1228,7 +1168,6 @@
     <!-- Telesekreter, engellenen numaralar, aramanın çıkacağı SIM ve gerçek hızlı yanıtlar -->
     <string name="phone_voicemail">telesekreter</string>
     <string name="phone_voicemail_waiting">%1$d mesaj bekliyor</string>
-    <string name="phone_voicemail_call">telesekreteri ara</string>
     <string name="phone_voicemail_none">Bu telefona telesekreter numarası tanımlanmamış.</string>
     <string name="phone_voicemail_hint">1\'e basılı tut</string>
     <string name="phone_block">engelle</string>
@@ -1246,7 +1185,6 @@
     <string name="phone_sim_remember">her zaman bu SIM\'i kullan</string>
     <string name="call_reply_sent">%1$s kişisine mesaj gönderildi</string>
     <string name="call_reply_failed">Mesaj gönderilemedi.</string>
-    <string name="call_reply_no_permission">Z Launcher\'ın mesaj gönderme izni yok.</string>
 
     <!-- Görünüm sekmesi, her başlık ayrı sayfa -->
     <string name="settings_breadcrumb_look">ayarlar &gt; görünüm</string>
@@ -1275,7 +1213,6 @@
     <string name="browser_reading_view_off">okuma görünümünden çık</string>
     <string name="browser_new_private_tab">yeni gizli sekme</string>
     <string name="browser_private">gizli</string>
-    <string name="browser_private_note">Gizli sekmeler geçmişe yazılmaz. Çerezler diğer sekmelerle ortaktır, çünkü Android tüm uygulamaya tek bir çerez deposu verir.</string>
     <string name="settings_search_engine">arama motoru</string>
     <string name="settings_search_engine_lucky">"kendimi şanslı hissediyorum" var</string>
     <string name="settings_search_suggestions">arama önerileri</string>
@@ -1303,8 +1240,6 @@
     <string name="people_pin_to_start">başlangıca sabitle</string>
     <string name="people_unpin_from_start">başlangıçtan kaldır</string>
     <string name="people_share_contact">kişiyi paylaş</string>
-    <string name="people_pinned">Başlangıç ekranına eklendi.</string>
-    <string name="people_unpinned">Başlangıç ekranından kaldırıldı.</string>
     <string name="people_address">adres</string>
     <string name="people_add_address">adres ekle</string>
     <string name="people_birthday">doğum günü</string>
@@ -1317,10 +1252,7 @@
     <string name="people_new_group">yeni grup</string>
     <string name="people_group_name">grup adı</string>
     <string name="people_group_empty">Bu grupta henüz kimse yok.</string>
-    <string name="people_delete_group">grubu sil</string>
-    <string name="people_delete_group_confirm">"%1$s" kaldırılacak. İçindeki kişiler yerinde kalır.</string>
     <string name="people_in_groups">gruplar</string>
-    <string name="people_edit_groups">gruplar</string>
     <string name="people_link_duplicate">mükerrer kaydı bağla</string>
     <string name="people_unlink">kişiyi ayır</string>
     <string name="people_linked">%1$d kayıttan oluşuyor.</string>
@@ -1334,8 +1266,6 @@
     <string name="people_photo_take">fotoğraf çek</string>
     <string name="people_photo_remove">fotoğrafı kaldır</string>
     <string name="people_photo_crop_help">yüzü çerçevelemek için kaydır ve yakınlaştır</string>
-    <string name="people_photo_saved">Fotoğraf kaydedildi.</string>
-    <string name="people_photo_failed">Fotoğraf kaydedilemedi.</string>
     <string name="people_photo_camera_denied">Z Launcher\'ın kamera izni yok.</string>
 
     <!-- Mesajlar hubı -->
@@ -1359,7 +1289,6 @@
     <string name="msg_unblocked">numaranın engeli kaldırıldı</string>
     <string name="msg_block_failed">numara engellenemedi</string>
     <string name="msg_block_number">numarayı engelle</string>
-    <string name="msg_unblock_number">engeli kaldır</string>
     <string name="msg_blocked_banner">bu numaradan gelen mesajlar engelli</string>
     <string name="msg_delete_conversation">konuşmayı sil</string>
     <string name="msg_delete_conversation_message">%1$s ve içindeki bütün mesajlar silinecek.</string>
@@ -1382,9 +1311,7 @@
     <string name="msg_recipient_hint">ad veya numara</string>
     <string name="msg_start_conversation">bu numaraya yaz</string>
     <string name="msg_results_in_messages">mesajlarda</string>
-    <string name="msg_open_contact">kişiyi aç</string>
     <string name="msg_sim_choose">şuradan gönder</string>
-    <string name="msg_unread_count">%1$d okunmamış</string>
     <string name="msg_copied">kopyalandı</string>
     <string name="msg_group_conversation">grup konuşması</string>
     <string name="msg_me">ben</string>
@@ -1392,9 +1319,7 @@
     <string name="msg_details_length">%1$d karakter, %2$d mesaj</string>
 
     <!-- Uygulama listesi -->
-    <string name="apps_tab_all">tümü</string>
     <string name="apps_tab_frequent">sık kullanılan</string>
-    <string name="apps_tab_new">yeni</string>
     <string name="apps_jump_title">harfe git</string>
     <string name="apps_scroll_top">en başa dön</string>
     <string name="apps_pin">başlangıca sabitle</string>
@@ -1408,9 +1333,6 @@
     <string name="apps_uninstall">kaldır</string>
     <string name="apps_share_chooser">Uygulamayı paylaş</string>
     <string name="apps_search_empty">\u201c%1$s\u201d ile eşleşen bir şey yok</string>
-    <string name="apps_new_empty">son zamanlarda gelen bir şey yok</string>
-    <string name="apps_frequent_empty">henüz açılan bir şey yok</string>
-    <string name="apps_usage_explain">hangi uygulamaları gerçekten açtığınızı bilmek için telefonun başlatıcıya izin vermesi gerekiyor. hiçbir şey telefondan çıkmıyor.</string>
     <string name="apps_usage_access">kullanım erişimine izin ver</string>
 
     <!-- Sosyal hub -->
@@ -1627,7 +1549,6 @@
     <string name="pics_action_select">seç</string>
     <string name="pics_action_search">ara</string>
     <string name="pics_action_refresh">yenile</string>
-    <string name="pics_action_camera">kamera</string>
     <string name="pics_action_share">paylaş</string>
     <string name="pics_action_delete">sil</string>
     <string name="pics_action_favorite">favori</string>
@@ -1643,13 +1564,9 @@
     <string name="pics_columns_value">%1$d sütun</string>
     <string name="pics_selected_count">%1$d seçili</string>
     <string name="pics_search_hint">fotoğraf ya da klasör adı</string>
-    <string name="pics_filter_all">tümü</string>
-    <string name="pics_filter_photos">fotoğraflar</string>
-    <string name="pics_filter_videos">videolar</string>
     <string name="pics_video_badge">video</string>
     <string name="pics_today">bugün</string>
     <string name="pics_yesterday">dün</string>
-    <string name="pics_pinned_album">“%1$s” başlangıca sabitlendi</string>
     <string name="pics_details_title">ayrıntılar</string>
     <string name="pics_details_name">ad</string>
     <string name="pics_details_folder">klasör</string>
@@ -1658,7 +1575,6 @@
     <string name="pics_details_dimensions">ölçüler</string>
     <string name="pics_details_duration">süre</string>
     <string name="pics_details_type">tür</string>
-    <string name="pics_details_path">yol</string>
     <string name="pics_menu_unpin_album">albümü başlangıçtan kaldır</string>
     <string name="pics_details_camera">kamera</string>
     <string name="pics_details_lens">objektif</string>
@@ -1715,9 +1631,6 @@
     <string name="music_playlist_name">liste adı</string>
     <string name="music_add_to_playlist">çalma listesine ekle</string>
     <string name="music_create">oluştur</string>
-    <string name="music_rename">yeniden adlandır</string>
-    <string name="music_delete_playlist">listeyi sil</string>
-    <string name="music_added_to_playlist">“%1$s” listesine eklendi</string>
     <string name="music_sleep_timer">uyku zamanlayıcısı</string>
     <string name="music_sleep_minutes">%1$d dakika</string>
     <string name="music_sleep_cancel">iptal et (%1$d dk kaldı)</string>
@@ -1751,7 +1664,6 @@
     <string name="onboarding_default_done">zaten varsayılan</string>
     <string name="onboarding_permissions_title">birkaç şey</string>
     <string name="onboarding_permissions_line">yalnızca başlangıç ekranının gerektirdikleri. her hub kendi iznini açıldığında ister.</string>
-    <string name="onboarding_gestures_title">nasıl kullanılır</string>
     <string name="onboarding_done_title">hepsi bu</string>
     <string name="onboarding_done_line">buradaki her şey ayarlardan değiştirilebilir, bu tanıtım da orada duruyor.</string>
     <string name="settings_replay_onboarding">tanıtımı yeniden göster</string>
@@ -1777,7 +1689,6 @@
     <string name="onboarding_perm_granted">verildi</string>
     <string name="onboarding_swipe_title">üç ekran</string>
     <string name="onboarding_swipe_line">başlangıç ortada. yana kaydırınca diğer ikisi çıkar. aşağıda dene.</string>
-    <string name="onboarding_swipe_start">başlangıç</string>
     <string name="onboarding_swipe_left">sağa kaydır</string>
     <string name="onboarding_swipe_right">sola kaydır</string>
     <string name="onboarding_tile_title">karo taşımak</string>
