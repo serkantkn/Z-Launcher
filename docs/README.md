@@ -12,3 +12,6 @@ Adres şu olur:
 
 Play Console'da "Gizlilik Politikası" alanına bu adresi yaz. Yayımlamadan önce her iki
 dosyadaki **iletişim e-posta adresi** yer tutucusunu doldurmayı unutma.
+
+`img/` klasöründeki ekran görüntüleri ve GIF'ler kökteki `README.md` içindir; emülatörde,
+örnek içerikle alındı. Yenilemek gerekirse aynı adlarla üzerine yazmak yeter.
