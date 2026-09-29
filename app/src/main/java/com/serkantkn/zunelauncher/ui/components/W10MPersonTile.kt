@@ -89,7 +89,7 @@ fun W10MPersonTile(
                 )
             }
 
-            if (isEditing) {
+            if (isEditing && !LocalTileIsPreview.current) {
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
             }
 
@@ -103,8 +103,9 @@ fun W10MPersonTile(
                     )
                 }
             } else {
-                Text(
-                    text = label.lowercase(),
+                val shownLabel = tileLabelText(label)
+                if (shownLabel != null) Text(
+                    text = shownLabel.lowercase(),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Normal

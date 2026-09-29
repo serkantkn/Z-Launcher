@@ -63,21 +63,25 @@ fun W10MThreadTile(
         modifier = modifier,
         front = {
             val fg = tileForegroundColor(zuneColors.accentColor)
-            if (isEditing) {
+            if (isEditing && !LocalTileIsPreview.current) {
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Chat,
-                contentDescription = null,
-                tint = fg,
-                modifier = Modifier
+            val face = customTileFace()
+            val shownLabel = tileLabelText(label)
+            if (!tileHasPicture()) {
+                val iconModifier = Modifier
                     .align(if (span == 1) Alignment.Center else Alignment.TopStart)
                     .padding(if (span == 1) 0.dp else 10.dp)
-                    .size(iconSize)
-            )
-            if (span > 1) {
+                    .size(iconSize * tileIconScale())
+                if (face != null) {
+                    TileIconImage(face = face, size = iconSize * tileIconScale(), ink = fg, contentDescription = null, modifier = iconModifier)
+                } else {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = fg, modifier = iconModifier)
+                }
+            }
+            if (span > 1 && shownLabel != null) {
                 Text(
-                    text = label.lowercase(),
+                    text = shownLabel.lowercase(),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Normal

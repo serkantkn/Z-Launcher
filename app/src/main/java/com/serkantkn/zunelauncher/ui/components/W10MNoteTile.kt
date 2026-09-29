@@ -121,7 +121,7 @@ fun W10MNoteTile(
         } else null,
         front = {
             val fg = tileForegroundColor(tileColor)
-            if (isEditing) {
+            if (isEditing && !LocalTileIsPreview.current) {
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
             }
             Icon(

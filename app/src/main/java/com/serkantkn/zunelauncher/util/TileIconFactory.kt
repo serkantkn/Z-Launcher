@@ -72,6 +72,31 @@ class TileIconFactory(
         return face
     }
 
+    /**
+     * An icon a tile was given directly — a glyph, a pack drawable or a picture — with no app
+     * behind it. Null when there is nothing to draw, in which case the tile draws its own.
+     */
+    fun faceOf(icon: TileIcon, style: TileIconStyle): TileIconFace? {
+        if (icon == TileIcon.Default) return null
+        val key = "look|${style.name}|${icon.store()}"
+        cache.get(key)?.let { return it }
+        val face: TileIconFace? = when (icon) {
+            is TileIcon.Picture -> loadFile(icon.path)?.let { TileIconFace.Picture(it) }
+            is TileIcon.Glyph -> glyphDrawable(icon.name)?.let { silhouette(it) }?.let { TileIconFace.Glyph(it) }
+            is TileIcon.Pack -> iconPacks.drawableByName(icon.pack, icon.drawable)?.let { drawable ->
+                if (style == TileIconStyle.ORIGINAL) {
+                    render(drawable, ICON_PX)?.let { TileIconFace.Picture(it.asImageBitmap()) }
+                } else {
+                    silhouette(drawable)?.let { TileIconFace.Glyph(it) }
+                        ?: render(drawable, ICON_PX)?.let { TileIconFace.Picture(it.asImageBitmap()) }
+                }
+            }
+            TileIcon.Default -> null
+        }
+        if (face != null) cache.put(key, face)
+        return face
+    }
+
     /** One icon-pack drawable, drawn as the pack drew it, for picking by eye. */
     fun previewOfPack(packPackage: String, name: String): ImageBitmap? {
         val key = "$packPackage/$name"

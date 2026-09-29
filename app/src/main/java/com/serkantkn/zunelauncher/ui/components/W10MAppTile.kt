@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
-import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.util.TileIconFace
 
 /**
@@ -46,7 +45,6 @@ fun W10MAppTile(
     onRemoveClick: () -> Unit,
     onResizeClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onIconClick: (() -> Unit)? = null,
     tileKey: String = label,
     notificationCount: Int = 0,
     notificationTitle: String? = null,
@@ -55,8 +53,12 @@ fun W10MAppTile(
     gridColumns: Int = 4,
     spacing: Dp = 8.dp
 ) {
-    val zuneColors = LocalZuneColors.current
-    val hasNotifications = notificationCount > 0 &&
+    val look = LocalTileLook.current
+    val preview = LocalTileIsPreview.current
+    // An icon the tile was given wins over the one the app (or the icon pack) brought.
+    val face = customTileFace() ?: face
+    val label = look.name?.takeIf { it.isNotBlank() } ?: label
+    val hasNotifications = look.notifications && notificationCount > 0 &&
         (!notificationTitle.isNullOrBlank() || !notificationText.isNullOrBlank())
 
     W10MTileSurface(
@@ -73,7 +75,6 @@ fun W10MAppTile(
         onRemoveClick = onRemoveClick,
         onResizeClick = onResizeClick,
         modifier = modifier,
-        onIconClick = onIconClick,
         back = if (hasNotifications) {
             {
                 val fg = tileForegroundColor()
@@ -135,7 +136,7 @@ fun W10MAppTile(
         } else null,
         front = {
             val fg = tileForegroundColor()
-            if (isEditing) {
+            if (isEditing && !preview) {
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
             }
             val iconSize = when {
@@ -143,14 +144,16 @@ fun W10MAppTile(
                 span == 2 -> if (gridColumns >= 8) 36.dp else 46.dp
                 span == 4 -> if (gridColumns >= 8) 46.dp else 56.dp
                 else -> 62.dp
+            } * tileIconScale()
+            if (!tileHasPicture()) {
+                TileIconImage(
+                    face = face,
+                    size = iconSize,
+                    ink = fg,
+                    contentDescription = label,
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
-            TileIconImage(
-                face = face,
-                size = iconSize,
-                ink = fg,
-                contentDescription = label,
-                modifier = Modifier.align(Alignment.Center)
-            )
             TileBadge(notificationCount, span, gridColumns, fg)
             TileLabel(label, span, gridColumns, fg)
         }

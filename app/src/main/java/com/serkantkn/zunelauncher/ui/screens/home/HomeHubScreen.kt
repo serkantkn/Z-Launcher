@@ -92,6 +92,11 @@ import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.components.W10MAppTile
 import com.serkantkn.zunelauncher.ui.components.LocalTileStyle
+import com.serkantkn.zunelauncher.ui.components.LocalTileLook
+import com.serkantkn.zunelauncher.ui.components.LocalTileCustomize
+import com.serkantkn.zunelauncher.ui.components.LocalTileIconResolver
+import com.serkantkn.zunelauncher.ui.components.LocalTileIsPreview
+import com.serkantkn.zunelauncher.data.model.TileLook
 import com.serkantkn.zunelauncher.ui.components.TileStyle
 import com.serkantkn.zunelauncher.ui.components.W10MFolderTile
 import com.serkantkn.zunelauncher.ui.components.W10MHubTile
@@ -433,7 +438,12 @@ private fun HomeHubScreenContent(
 
     // ── Shared Start-tile plumbing for both Metro boards (phone grid + Windows 8 board) ──
     var resizeTargetId by remember { mutableStateOf<String?>(null) }
-    var iconTargetApp by remember { mutableStateOf<AppInfo?>(null) }
+    // The tile whose own settings page is open, the one whose icon is being picked (over that
+    // page), and the one a picture is being fetched for.
+    var lookTargetId by remember { mutableStateOf<String?>(null) }
+    var iconTargetId by remember { mutableStateOf<String?>(null) }
+    var pictureTargetId by remember { mutableStateOf<String?>(null) }
+    val tileLooks by viewModel.tileLooks.collectAsState()
     var openFolderId by remember { mutableStateOf<String?>(null) }
     val openFolder = localStartTiles.firstOrNull { it.id == openFolderId } as? StartTileUIModel.Folder
 
@@ -530,36 +540,68 @@ private fun HomeHubScreenContent(
     val tileIconPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        val target = iconTargetApp
-        if (uri != null && target != null) viewModel.setTileIconPicture(target.packageName, uri)
-        iconTargetApp = null
+        val target = iconTargetId
+        if (uri != null && target != null) viewModel.setTileLookIconPicture(target, uri)
+        iconTargetId = null
+    }
+    val tilePicturePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        val target = pictureTargetId
+        if (uri != null && target != null) viewModel.setTileLookPicture(target, uri)
+        pictureTargetId = null
     }
 
-    /** The brush button's page: the glyph, icon-pack drawable or picture this app's tile shows. */
+    /** What a tile is called, for the heading of the pages that are about it. */
+    @Composable
+    fun tileSubject(model: StartTileUIModel): String = when (model) {
+        is StartTileUIModel.Hub -> stringResource(model.hubType.titleRes)
+        is StartTileUIModel.App -> model.appInfo.label
+        is StartTileUIModel.NoteTile -> model.note.title.ifBlank { stringResource(HubType.NOTES.titleRes) }
+        is StartTileUIModel.QuickNote -> stringResource(R.string.notes_quick_note)
+        is StartTileUIModel.Web -> model.label
+        is StartTileUIModel.Album -> model.name.ifBlank { stringResource(R.string.pics_unsorted_album) }
+        is StartTileUIModel.MusicAlbum -> model.name.ifBlank { stringResource(R.string.music_unknown_album) }
+        is StartTileUIModel.Person -> model.label
+        is StartTileUIModel.Thread -> model.label
+        is StartTileUIModel.Folder -> model.name.ifBlank { stringResource(R.string.start_folder_default_name) }
+    }
+
+    /** A tile by id, wherever it lives: on the board, inside a folder, or in the favourites strip. */
+    fun tileModel(id: String): StartTileUIModel? =
+        localStartTiles.firstOrNull { it.id == id }
+            ?: localStartTiles.filterIsInstance<StartTileUIModel.Folder>()
+                .flatMap { it.children }.firstOrNull { it.id == id }
+            ?: favoriteApps.firstOrNull { "app:${it.appInfo.packageName}" == id }
+                ?.let { StartTileUIModel.App(it.appInfo, it.span) }
+
+    /** The page over the customise page: the glyph, icon-pack drawable or picture this tile shows. */
     @Composable
     fun TileIconPopup() {
-        val target = iconTargetApp ?: return
+        val target = iconTargetId ?: return
+        val model = tileModel(target)
         val packDrawables = remember(tileIconPack) {
             tileIconPack?.let { viewModel.iconPackDrawables(it) }.orEmpty()
         }
+        val look = tileLooks[target] ?: TileLook.DEFAULT
         TileIconPicker(
-            app = target,
-            current = tileIconOverrides[target.packageName] ?: TileIcon.Default,
+            subject = model?.let { tileSubject(it) } ?: "",
+            current = look.icon,
             packPackage = tileIconPack,
             packDrawables = packDrawables,
             packPreview = { name ->
                 tileIconPack?.let { viewModel.iconPackPreview(it, name) }
             },
             onPick = { icon ->
-                viewModel.setTileIcon(target.packageName, icon)
-                iconTargetApp = null
+                viewModel.setTileLook(target, look.copy(icon = icon))
+                iconTargetId = null
             },
             onPickPicture = {
                 tileIconPicker.launch(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                 )
             },
-            onDismiss = { iconTargetApp = null }
+            onDismiss = { iconTargetId = null }
         )
     }
 
@@ -607,6 +649,13 @@ private fun HomeHubScreenContent(
             isClicked = clickedItemKey == launchKey
         )
         val onResize = { resizeTargetId = model.id }
+        val look = tileLooks[model.id] ?: TileLook.DEFAULT
+        val preview = LocalTileIsPreview.current
+        CompositionLocalProvider(
+            LocalTileLook provides look,
+            // The preview on the customise page is not a way into another customise page.
+            LocalTileCustomize provides if (preview) null else ({ lookTargetId = model.id })
+        ) {
         when (model) {
             is StartTileUIModel.Hub -> {
                 val hubType = model.hubType
@@ -694,26 +743,28 @@ private fun HomeHubScreenContent(
                         isEditing = isEditMode,
                         isDragging = isDragging,
                         cornerStyle = tileCornerStyle,
-                        badgeCount = when (hubType) {
+                        badgeCount = if (!look.notifications) 0 else when (hubType) {
                             HubType.MESSAGING -> maxOf(unreadMessages.size, notificationCounts["com.google.android.apps.messaging"] ?: 0)
                             HubType.PHONE -> maxOf(missedCalls, notificationCounts["com.google.android.dialer"] ?: 0)
                             HubType.NOTES -> pinnedNotesCount
                             HubType.EMAIL -> emailUnreadCount
                             else -> 0
                         },
-                        liveTitle = when (hubType) {
+                        liveTitle = if (!look.notifications) null else when (hubType) {
                             HubType.MESSAGING -> unreadMessages.firstOrNull()?.let { it.contactName.ifBlank { it.address } }
                             HubType.PHONE -> lastMissedCaller
                             HubType.EMAIL -> emailTilePreview?.first
                             else -> null
                         },
+                        // Notes and the calculator are the tile's own words, not notifications,
+                        // so they stay when notifications are switched off for the tile.
                         liveSubtitle = when (hubType) {
                             HubType.NOTES -> notesTileSubtitle
                             HubType.CALCULATOR -> calculatorTileSubtitle
-                            HubType.MESSAGING -> unreadMessages.firstOrNull()?.snippet
-                            HubType.PHONE -> missedCalls.takeIf { it > 0 }
-                                ?.let { pluralStringResource(R.plurals.tile_missed_calls, it, it) }
-                            HubType.EMAIL -> emailTilePreview?.second
+                            HubType.MESSAGING -> if (look.notifications) unreadMessages.firstOrNull()?.snippet else null
+                            HubType.PHONE -> if (look.notifications) missedCalls.takeIf { it > 0 }
+                                ?.let { pluralStringResource(R.plurals.tile_missed_calls, it, it) } else null
+                            HubType.EMAIL -> if (look.notifications) emailTilePreview?.second else null
                             else -> null
                         },
                         onClick = { handleLaunch(launchKey) { onHubSelected(hubType) } },
@@ -728,7 +779,6 @@ private fun HomeHubScreenContent(
                 label = model.appInfo.label,
                 tileKey = model.appInfo.packageName,
                 face = tileFace(model.appInfo),
-                onIconClick = { iconTargetApp = model.appInfo },
                 span = model.span,
                 gridColumns = gridColumns,
                 spacing = tileSpacing.dp,
@@ -893,10 +943,49 @@ private fun HomeHubScreenContent(
                 )
             }
         }
+        }
+    }
+
+    /** The brush button's page: everything one tile can be told to do differently. */
+    @Composable
+    fun TileLookPopup() {
+        val target = lookTargetId ?: return
+        val model = tileModel(target) ?: run {
+            lookTargetId = null
+            return
+        }
+        val look = tileLooks[target] ?: TileLook.DEFAULT
+        TileLookPage(
+            subject = tileSubject(model),
+            look = look,
+            boardOpacity = (LocalTileStyle.current.opacity * 100).toInt(),
+            onChange = { viewModel.setTileLook(target, it) },
+            onPickIcon = { iconTargetId = target },
+            onPickPicture = {
+                pictureTargetId = target
+                tilePicturePicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onClearPicture = { viewModel.clearTileLookPicture(target) },
+            onReset = { viewModel.resetTileLook(target) },
+            onDismiss = { lookTargetId = null },
+            preview = {
+                CompositionLocalProvider(LocalTileIsPreview provides true) {
+                    StartTile(model, 0, false, false, Modifier, gridColumns = 4)
+                }
+            }
+        )
+    }
+
+    // Any icon a tile was given is turned into a face here, once, for every tile on the screen.
+    val iconResolver: (TileIcon) -> TileIconFace? = remember(tileIconStyle) {
+        { icon -> viewModel.customIconFace(icon, tileIconStyle) }
     }
 
     // One box over all three Start layouts, so the preview balloon has a single place to live
     // and a single origin to measure the held tile against.
+    CompositionLocalProvider(LocalTileIconResolver provides iconResolver) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -934,6 +1023,7 @@ private fun HomeHubScreenContent(
                 )
 
                 TileSizePopup()
+                TileLookPopup()
                 TileIconPopup()
 
                 StartFolderPanel(
@@ -1065,6 +1155,7 @@ private fun HomeHubScreenContent(
                 )
 
                 TileSizePopup()
+                TileLookPopup()
                 TileIconPopup()
 
                 StartEditBar(
@@ -1281,9 +1372,12 @@ private fun HomeHubScreenContent(
                             ) { index ->
                                 val favApp = favoriteApps[index]
                                 val key = "app_${favApp.appInfo.packageName}"
+                                val favLook = tileLooks["app:${favApp.appInfo.packageName}"] ?: TileLook.DEFAULT
                                 SmallFavoriteTile(
-                                    face = tileFace(favApp.appInfo),
-                                    label = favApp.appInfo.label,
+                                    // The icon the big tile was given is the icon the small one shows.
+                                    face = favLook.icon.takeIf { it != TileIcon.Default }?.let(iconResolver)
+                                        ?: tileFace(favApp.appInfo),
+                                    label = favLook.name?.takeIf { it.isNotBlank() } ?: favApp.appInfo.label,
                                     // A tap opens the app, like a tap on anything else with an icon
                                     // on it. Widening the strip is what the swipe across is for, and
                                     // a tile that only makes itself bigger is a tile that does
@@ -1372,10 +1466,14 @@ private fun HomeHubScreenContent(
                                     ) {
                                         val key = "app_${favApp.appInfo.packageName}"
 
+                                        val favId = "app:${favApp.appInfo.packageName}"
+                                        CompositionLocalProvider(
+                                            LocalTileLook provides (tileLooks[favId] ?: TileLook.DEFAULT),
+                                            LocalTileCustomize provides { lookTargetId = favId }
+                                        ) {
                                         W10MAppTile(
                                             label = favApp.appInfo.label,
                                             face = tileFace(favApp.appInfo),
-                                            onIconClick = { iconTargetApp = favApp.appInfo },
                                             span = favApp.span.coerceAtMost(gridColumns),
                                             gridColumns = gridColumns,
                                             isEditing = isEditMode,
@@ -1457,6 +1555,7 @@ private fun HomeHubScreenContent(
                                                     clickedItemKey == key
                                                 )
                                         )
+                                        }
                                     }
                                 }
                             }
@@ -1465,6 +1564,7 @@ private fun HomeHubScreenContent(
                 }
 
                 TileSizePopup()
+                TileLookPopup()
                 TileIconPopup()
             }
         }
@@ -1496,6 +1596,7 @@ private fun HomeHubScreenContent(
                 onDismiss = { previewTarget = null }
             )
         }
+    }
     }
 }
 

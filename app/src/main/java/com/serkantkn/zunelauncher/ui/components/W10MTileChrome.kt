@@ -15,6 +15,8 @@ import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,10 +39,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -47,7 +52,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.serkantkn.zunelauncher.R
+import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.data.model.TileAnimation
+import com.serkantkn.zunelauncher.data.model.TileIcon
+import com.serkantkn.zunelauncher.data.model.TileLook
+import com.serkantkn.zunelauncher.util.TileIconFace
+import java.io.File
 import com.serkantkn.zunelauncher.data.model.TileInk
 import com.serkantkn.zunelauncher.data.model.tileInkIsDark
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
@@ -76,6 +86,56 @@ data class TileStyle(
 )
 
 val LocalTileStyle = staticCompositionLocalOf { TileStyle() }
+
+// ════════════════════════════════════════════════════════════
+// ONE TILE'S OWN LOOK
+// ════════════════════════════════════════════════════════════
+
+/**
+ * What this one tile has been told to do differently: its colour, name, icon, picture and the
+ * rest of [TileLook]. Provided around each tile by the board; the tile pieces below read it, so
+ * a tile composable does not have to be told about any of it.
+ */
+val LocalTileLook = compositionLocalOf { TileLook.DEFAULT }
+
+/**
+ * Opens the tile's own settings page. Provided per tile; null where a tile cannot be customised
+ * (the settings preview, the running-hubs strip), and the edit button is simply not drawn.
+ */
+val LocalTileCustomize = staticCompositionLocalOf<(() -> Unit)?> { null }
+
+/** Turns a [TileIcon] a tile was given into something drawable; null when it cannot be. */
+val LocalTileIconResolver = staticCompositionLocalOf<(TileIcon) -> TileIconFace?> { { null } }
+
+/**
+ * True inside the customise page's preview: the tile is drawn with its look but without its edit
+ * buttons, its press handling, or the dimming a board in edit mode puts over it.
+ */
+val LocalTileIsPreview = staticCompositionLocalOf { false }
+
+/** The icon a tile was given, ready to draw, or null when it should draw its own. */
+@Composable
+fun customTileFace(): TileIconFace? {
+    val icon = LocalTileLook.current.icon
+    if (icon == TileIcon.Default) return null
+    return LocalTileIconResolver.current(icon)
+}
+
+/** How much larger or smaller than usual this tile's icon is drawn. */
+@Composable
+fun tileIconScale(): Float = LocalTileLook.current.iconScale
+
+/** True when the tile shows a picture instead of its icon, so the icon should step aside. */
+@Composable
+fun tileHasPicture(): Boolean = LocalTileLook.current.picture != null
+
+/** The name this tile's corner should carry, or null when the corner was told to stay empty. */
+@Composable
+fun tileLabelText(default: String): String? {
+    val look = LocalTileLook.current
+    if (!look.showLabel) return null
+    return look.name?.takeIf { it.isNotBlank() } ?: default
+}
 
 // ════════════════════════════════════════════════════════════
 // LIVE HEARTBEAT
@@ -163,18 +223,30 @@ fun W10MTileSurface(
     highlighted: Boolean = false,
     /** Folders answer a tap while the board is being edited; everything else waits its turn. */
     clickableWhileEditing: Boolean = false,
-    /** Tiles that can be given a different picture get a third edit button for it. */
-    onIconClick: (() -> Unit)? = null,
     back: (@Composable BoxScope.() -> Unit)? = null,
     front: @Composable BoxScope.() -> Unit
 ) {
     val style = LocalTileStyle.current
+    val look = LocalTileLook.current
+    val preview = LocalTileIsPreview.current
+    val customize = LocalTileCustomize.current
     val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
     val interactionSource = remember { MutableInteractionSource() }
 
-    val animation = animationOverride ?: style.animation
-    val fillOpacity = (opacity ?: style.opacity).coerceIn(0f, 1f)
+    // The preview on the customise page is a tile with none of the board's business: no edit
+    // buttons, no dimming, and nothing happens when it is touched.
+    val isEditing = isEditing && !preview
+
+    val animation = animationOverride ?: look.animation ?: style.animation
+    // A picture fills the tile, so it is drawn solid whatever the board's transparency says.
+    val fillOpacity = (
+        opacity
+            ?: look.picture?.let { 1f }
+            ?: look.opacity?.let { it / 100f }
+            ?: style.opacity
+        ).coerceIn(0f, 1f)
+    val fillColor = look.color?.let { Color(it) } ?: tileColor ?: zuneColors.accentColor
     val showBack = rememberShowBack(liveKey, back != null, isEditing, animation)
     val turn by animateFloatAsState(
         targetValue = if (showBack) 1f else 0f,
@@ -230,6 +302,7 @@ fun W10MTileSurface(
                 cameraDistance = 12f * density.density
             }
             .combinedClickable(
+                enabled = !preview,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = { if (!isEditing || clickableWhileEditing) onClick() },
@@ -240,9 +313,13 @@ fun W10MTileSurface(
             modifier = Modifier
                 .matchParentSize()
                 .clip(tileShape)
-                .background((tileColor ?: zuneColors.accentColor).copy(alpha = fillOpacity))
+                .background(fillColor.copy(alpha = fillOpacity))
                 .border(if (highlighted) 2.dp else 0.5.dp, strokeColor, tileShape)
         ) {
+            val picture = look.picture
+            if (picture != null) {
+                TilePicture(path = picture, shadeBottom = look.showLabel)
+            }
             TileFaces(animation = animation, turn = turn, front = front, back = back)
         }
 
@@ -283,7 +360,7 @@ fun W10MTileSurface(
                 )
             }
 
-            if (onIconClick != null) {
+            if (customize != null) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -292,12 +369,12 @@ fun W10MTileSurface(
                         .clip(CircleShape)
                         .border(1.dp, Color.White, CircleShape)
                         .background(Color.Black.copy(alpha = 0.5f))
-                        .clickable(onClick = onIconClick),
+                        .clickable(onClick = customize),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Brush,
-                        contentDescription = stringResource(R.string.tile_icon_title),
+                        contentDescription = stringResource(R.string.tile_look_title),
                         tint = Color.White,
                         modifier = Modifier.size(14.dp)
                     )
@@ -316,14 +393,41 @@ fun W10MTileSurface(
 fun tileForegroundColor(tileColor: Color? = null): Color {
     val zuneColors = LocalZuneColors.current
     val style = LocalTileStyle.current
-    val fill = tileColor ?: zuneColors.accentColor
+    val look = LocalTileLook.current
+    val fill = look.color?.let { Color(it) } ?: tileColor ?: zuneColors.accentColor
+    // Over a picture the name sits on a dark shade along the bottom, so white reads — unless the
+    // tile was told in so many words to write in black.
+    if (look.picture != null && look.ink != TileInk.DARK) return Color.White
     val dark = tileInkIsDark(
-        ink = style.ink,
+        ink = look.ink ?: style.ink,
         isDarkTheme = zuneColors.isDark,
-        opacity = style.opacity,
+        opacity = look.opacity?.let { it / 100f } ?: style.opacity,
         fillLuminance = fill.luminance()
     )
     return if (dark) Color.Black else Color.White
+}
+
+/**
+ * A picture the user gave the tile, filling it edge to edge, with the same shade along the bottom
+ * the photo tiles carry so a name can still be read across it.
+ */
+@Composable
+private fun BoxScope.TilePicture(path: String, shadeBottom: Boolean) {
+    AsyncImage(
+        model = remember(path) { File(path) },
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.matchParentSize()
+    )
+    if (shadeBottom) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(36.dp)
+                .align(Alignment.BottomCenter)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))))
+        )
+    }
 }
 
 /**

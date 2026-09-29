@@ -62,6 +62,7 @@ import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
+import com.serkantkn.zunelauncher.util.TileIconFace
 import kotlinx.coroutines.delay
 
 internal fun getHubIcon(hubType: HubType): ImageVector {
@@ -114,8 +115,10 @@ fun W10MHubTile(
     spacing: Dp = 8.dp
 ) {
     val icon = remember(hubType) { getHubIcon(hubType) }
-    val title = stringResource(hubType.titleRes)
-    val isPicturesLive = hubType == HubType.PICTURES && photoUris.isNotEmpty()
+    val look = LocalTileLook.current
+    val title = look.name?.takeIf { it.isNotBlank() } ?: stringResource(hubType.titleRes)
+    val customFace = customTileFace()
+    val isPicturesLive = hubType == HubType.PICTURES && photoUris.isNotEmpty() && look.picture == null
     val hasBack = !isPicturesLive && (badgeCount > 0 || !liveSubtitle.isNullOrBlank() || !liveTitle.isNullOrBlank())
 
     W10MTileSurface(
@@ -156,7 +159,8 @@ fun W10MHubTile(
                     title = title,
                     badgeCount = badgeCount,
                     span = span,
-                    gridColumns = gridColumns
+                    gridColumns = gridColumns,
+                    face = customFace
                 )
             }
         }
@@ -167,14 +171,18 @@ fun W10MHubTile(
 // FACES
 // ════════════════════════════════════════════════════════════
 
-/** Front of a plain tile: glyph, name, count. */
+/**
+ * Front of a plain tile: glyph, name, count. A [face] the tile was given stands in for the hub's
+ * own glyph; a picture the tile was given leaves no room for either.
+ */
 @Composable
 internal fun BoxScope.HubGlyphFace(
     icon: ImageVector,
     title: String,
     badgeCount: Int,
     span: Int,
-    gridColumns: Int
+    gridColumns: Int,
+    face: TileIconFace? = null
 ) {
     val fg = tileForegroundColor()
     val compact = isCompactTile(span, gridColumns)
@@ -183,18 +191,20 @@ internal fun BoxScope.HubGlyphFace(
         span == 2 -> if (compact) 34.dp else 46.dp
         span == 4 -> if (compact) 44.dp else 54.dp
         else -> 62.dp
-    }
+    } * tileIconScale()
 
-    Icon(
-        imageVector = icon,
-        contentDescription = title,
-        tint = fg,
-        modifier = Modifier
+    if (!tileHasPicture()) {
+        val iconModifier = Modifier
             .align(Alignment.Center)
             // Windows Phone sat the glyph a touch above the middle to leave the name room.
             .offset(y = if (span > 1) (-5).dp else 0.dp)
             .size(iconSize)
-    )
+        if (face != null) {
+            TileIconImage(face = face, size = iconSize, ink = fg, contentDescription = title, modifier = iconModifier)
+        } else {
+            Icon(imageVector = icon, contentDescription = title, tint = fg, modifier = iconModifier)
+        }
+    }
 
     TileBadge(badgeCount, span, gridColumns, fg)
     TileLabel(title, span, gridColumns, fg)
@@ -423,12 +433,16 @@ private const val PHOTO_PAN_ZOOM = 1.06f
 internal fun isCompactTile(span: Int, gridColumns: Int): Boolean =
     span == 1 || (span == 2 && gridColumns >= 8)
 
-/** Hub or app name in the bottom-left corner. Small tiles carry no name, as on Windows Phone. */
+/**
+ * Hub or app name in the bottom-left corner. Small tiles carry no name, as on Windows Phone, and
+ * neither does a tile whose name was switched off; one given another name shows that.
+ */
 @Composable
 internal fun BoxScope.TileLabel(text: String, span: Int, gridColumns: Int, color: Color) {
     if (span <= 1) return
+    val shown = tileLabelText(text) ?: return
     Text(
-        text = text,
+        text = shown,
         style = MaterialTheme.typography.labelSmall.copy(
             fontSize = if (isCompactTile(span, gridColumns)) 9.sp else 12.sp,
             fontWeight = FontWeight.Normal
@@ -445,7 +459,7 @@ internal fun BoxScope.TileLabel(text: String, span: Int, gridColumns: Int, color
 /** The count, in the top-right corner where a Windows Phone flip tile kept it. */
 @Composable
 internal fun BoxScope.TileBadge(count: Int, span: Int, gridColumns: Int, color: Color) {
-    if (count <= 0) return
+    if (count <= 0 || !LocalTileLook.current.notifications) return
     Text(
         text = if (count > 99) "99+" else count.toString(),
         style = MaterialTheme.typography.titleMedium.copy(

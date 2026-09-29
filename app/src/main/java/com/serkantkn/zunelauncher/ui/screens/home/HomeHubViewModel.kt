@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.serkantkn.zunelauncher.data.model.TileIcon
 import com.serkantkn.zunelauncher.data.model.TileIconStyle
+import com.serkantkn.zunelauncher.data.model.TileLook
 import com.serkantkn.zunelauncher.data.repository.IconPackInfo
 import com.serkantkn.zunelauncher.util.TileIconFace
 import androidx.compose.ui.graphics.ImageBitmap
@@ -746,29 +747,114 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         override = overrides[app.packageName] ?: TileIcon.Default
     )
 
-    fun setTileIcon(packageName: String, icon: TileIcon) {
-        viewModelScope.launch {
-            settingsDataStore.setTileIconOverride(packageName, icon)
+    // ── One tile's own look ───────────────────────────────────────────────────────────────────
+
+    val tileLooks: StateFlow<Map<String, TileLook>> = settingsDataStore.tileLooks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    fun setTileLook(tileId: String, look: TileLook) {
+        viewModelScope.launch { settingsDataStore.setTileLook(tileId, look) }
+    }
+
+    /** Back to the board's own look; the pictures copied for this tile go with it. */
+    fun resetTileLook(tileId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val current = settingsDataStore.tileLooks.first()[tileId]
+            settingsDataStore.setTileLook(tileId, TileLook.DEFAULT)
+            current?.picture?.let { deleteOwnFile(it) }
+            (current?.icon as? TileIcon.Picture)?.path?.let { deleteOwnFile(it) }
             tileIconFactory.invalidate()
         }
     }
 
-    /** Copies a picture the user chose into the launcher's own files and pins it to an app. */
-    fun setTileIconPicture(packageName: String, uri: android.net.Uri) {
+    /** An icon a tile was given, ready to draw; the factory keeps it once drawn. */
+    fun customIconFace(icon: TileIcon, style: TileIconStyle): TileIconFace? =
+        tileIconFactory.faceOf(icon, style)
+
+    /** Copies a picture the user chose into the launcher's own files and makes it the tile's icon. */
+    fun setTileLookIconPicture(tileId: String, uri: android.net.Uri) {
         viewModelScope.launch(Dispatchers.IO) {
-            val context = getApplication<Application>()
-            val safeName = packageName.replace(Regex("[^A-Za-z0-9]"), "_")
-            val file = java.io.File(context.filesDir, "tile_icon_$safeName.png")
+            val file = ownFileFor("tile_icon", tileId, "png")
             try {
-                context.contentResolver.openInputStream(uri)?.use { input ->
+                getApplication<Application>().contentResolver.openInputStream(uri)?.use { input ->
                     file.outputStream().use { output -> input.copyTo(output) }
                 }
-                settingsDataStore.setTileIconOverride(packageName, TileIcon.Picture(file.absolutePath))
+                val look = settingsDataStore.tileLooks.first()[tileId] ?: TileLook.DEFAULT
+                (look.icon as? TileIcon.Picture)?.path?.let { deleteOwnFile(it) }
+                settingsDataStore.setTileLook(tileId, look.copy(icon = TileIcon.Picture(file.absolutePath)))
                 tileIconFactory.invalidate()
             } catch (e: Exception) {
-                ZuneLog.w("HomeHubViewModel", "custom tile icon could not be saved", e)
+                ZuneLog.w("HomeHubViewModel", "tile icon picture could not be saved", e)
             }
         }
+    }
+
+    /**
+     * Copies a picture the user chose into the launcher's own files, no larger than a tile could
+     * ever need, and lays it across the tile.
+     */
+    fun setTileLookPicture(tileId: String, uri: android.net.Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val context = getApplication<Application>()
+            val file = ownFileFor("tile_picture", tileId, "jpg")
+            try {
+                val bitmap = decodeScaled(context, uri, TILE_PICTURE_MAX_PX) ?: return@launch
+                file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
+                val look = settingsDataStore.tileLooks.first()[tileId] ?: TileLook.DEFAULT
+                look.picture?.let { deleteOwnFile(it) }
+                settingsDataStore.setTileLook(tileId, look.copy(picture = file.absolutePath))
+            } catch (e: Exception) {
+                ZuneLog.w("HomeHubViewModel", "tile picture could not be saved", e)
+            }
+        }
+    }
+
+    fun clearTileLookPicture(tileId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val look = settingsDataStore.tileLooks.first()[tileId] ?: return@launch
+            settingsDataStore.setTileLook(tileId, look.copy(picture = null))
+            look.picture?.let { deleteOwnFile(it) }
+        }
+    }
+
+    /**
+     * A fresh file every time: the same name would be served from the image cache with the old
+     * picture in it.
+     */
+    private fun ownFileFor(prefix: String, tileId: String, extension: String): java.io.File {
+        val safeId = tileId.replace(Regex("[^A-Za-z0-9]"), "_").take(60)
+        return java.io.File(getApplication<Application>().filesDir, "${prefix}_${safeId}_${System.currentTimeMillis()}.$extension")
+    }
+
+    private fun deleteOwnFile(path: String) {
+        val file = java.io.File(path)
+        if (file.parentFile == getApplication<Application>().filesDir) file.delete()
+    }
+
+    private fun decodeScaled(context: android.content.Context, uri: android.net.Uri, maxPx: Int): android.graphics.Bitmap? {
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= maxPx && bounds.outHeight / (sample * 2) >= maxPx) sample *= 2
+        val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+        val decoded = context.contentResolver.openInputStream(uri)?.use {
+            android.graphics.BitmapFactory.decodeStream(it, null, options)
+        } ?: return null
+        // The picture may carry an orientation the decoder does not apply.
+        val rotation = context.contentResolver.openInputStream(uri)?.use { stream ->
+            when (android.media.ExifInterface(stream).getAttributeInt(
+                android.media.ExifInterface.TAG_ORIENTATION,
+                android.media.ExifInterface.ORIENTATION_NORMAL
+            )) {
+                android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+        } ?: 0f
+        if (rotation == 0f) return decoded
+        val matrix = android.graphics.Matrix().apply { postRotate(rotation) }
+        return android.graphics.Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
     }
 
     fun installedIconPacks(): List<IconPackInfo> = iconPackRepository.installedPacks()
@@ -818,6 +904,8 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             // Both lists fill themselves in with whatever hub they are missing, so a hub has to
             // be remembered as taken off or it comes straight back on the next read.
             StartTileItem(id).hubType?.let { settingsDataStore.setHubRemoved(it, true) }
+            // A tile that has gone takes its own look with it: pinned again, it starts plain.
+            if (settingsDataStore.tileLooks.first().containsKey(id)) resetTileLook(id)
         }
     }
 
@@ -875,6 +963,9 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     }
 
 }
+
+/** A tile is never wider than a phone, so a picture this big is already more than it can show. */
+private const val TILE_PICTURE_MAX_PX = 1024
 
 /** How far ahead the Start tile looks: a fortnight is more than it can ever show. */
 private const val TILE_HORIZON_MS = 14 * 24 * 60 * 60 * 1000L

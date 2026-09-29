@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.data.model.AppInfo
 import com.serkantkn.zunelauncher.data.model.TileIcon
 import com.serkantkn.zunelauncher.data.model.WpGlyphs
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
@@ -50,15 +49,16 @@ import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import androidx.compose.ui.graphics.ImageBitmap
 
 /**
- * Picking the picture one app's tile shows: the launcher's own Windows Phone glyphs, anything in
- * the icon pack the user has chosen, a picture out of the gallery, or back to the app's own icon.
+ * Picking the picture one tile shows: the launcher's own Windows Phone glyphs, anything in the
+ * icon pack the user has chosen, a picture out of the gallery, or back to the tile's own icon.
  *
  * Laid out as a full page rather than a dialog, the way Windows Phone's own choosers were — there
  * are a few hundred things to look through and a small box is no way to do it.
  */
 @Composable
 fun TileIconPicker(
-    app: AppInfo,
+    /** Whose icon is being chosen — the tile's name, under the heading. */
+    subject: String,
     current: TileIcon,
     packPackage: String?,
     packDrawables: List<String>,
@@ -106,7 +106,7 @@ fun TileIconPicker(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = app.label,
+                    text = subject,
                     style = MaterialTheme.typography.bodyMedium,
                     color = zuneColors.textMuted,
                     maxLines = 1,

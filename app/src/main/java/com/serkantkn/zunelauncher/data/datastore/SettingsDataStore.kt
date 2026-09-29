@@ -19,6 +19,7 @@ import com.serkantkn.zunelauncher.data.model.TileIcon
 import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import com.serkantkn.zunelauncher.data.model.TileAnimation
 import com.serkantkn.zunelauncher.data.model.TileInk
+import com.serkantkn.zunelauncher.data.model.TileLook
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.looksLikeJsonArray
 import com.serkantkn.zunelauncher.data.model.parseJsonObjectList
@@ -82,6 +83,7 @@ class SettingsDataStore(private val context: Context) {
         val TILE_ICON_STYLE = stringPreferencesKey("tile_icon_style")
         val ICON_PACK_PACKAGE = stringPreferencesKey("icon_pack_package")
         val TILE_ICON_OVERRIDES = stringPreferencesKey("tile_icon_overrides")
+        val TILE_LOOKS = stringPreferencesKey("tile_looks")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val SOCIAL_SOURCES = stringPreferencesKey("social_sources")
         val SOCIAL_HUB_LAYOUT = stringPreferencesKey("social_hub_layout")
@@ -117,6 +119,20 @@ class SettingsDataStore(private val context: Context) {
     /** Icons the user picked by hand, by package name. */
     val tileIconOverrides: Flow<Map<String, TileIcon>> = context.settingsDataStore.data.map { prefs ->
         TileIcon.mapFromJson(prefs[TILE_ICON_OVERRIDES])
+    }
+
+    /** What single tiles have been told to look like, by tile id. Tiles left alone are absent. */
+    val tileLooks: Flow<Map<String, TileLook>> = context.settingsDataStore.data.map { prefs ->
+        TileLook.mapFromJson(prefs[TILE_LOOKS])
+    }
+
+    /** Stores one tile's look; a default look drops the entry, which is what a reset is. */
+    suspend fun setTileLook(tileId: String, look: TileLook) {
+        context.settingsDataStore.edit { prefs ->
+            val current = TileLook.mapFromJson(prefs[TILE_LOOKS]).toMutableMap()
+            if (look.isDefault) current.remove(tileId) else current[tileId] = look
+            prefs[TILE_LOOKS] = TileLook.mapToJson(current)
+        }
     }
 
     // ── The app list ──
