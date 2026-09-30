@@ -446,7 +446,8 @@ fun LauncherScreen(
     ) {
         ZuneBackground(
             mode = if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER,
-            accentColor = accentColor
+            accentColor = accentColor,
+            followsStart = true
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (!solidBackgroundEnabled) {

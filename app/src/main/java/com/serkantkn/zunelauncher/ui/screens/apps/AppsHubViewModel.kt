@@ -147,6 +147,7 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
 
     fun launchApp(packageName: String) {
         appRepository.launchApp(packageName)
+        viewModelScope.launch { settingsDataStore.noteAppLaunched(packageName) }
     }
 
     fun toggleFavorite(packageName: String) {

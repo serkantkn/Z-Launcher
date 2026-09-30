@@ -21,6 +21,10 @@ import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import com.serkantkn.zunelauncher.data.model.TileAnimation
 import com.serkantkn.zunelauncher.data.model.TileInk
 import com.serkantkn.zunelauncher.data.model.TileLook
+import com.serkantkn.zunelauncher.data.model.RecentAlbum
+import com.serkantkn.zunelauncher.data.model.RECENT_ALBUMS_LIMIT
+import com.serkantkn.zunelauncher.data.model.RECENT_APPS_LIMIT
+import com.serkantkn.zunelauncher.data.model.mostRecentFirst
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.looksLikeJsonArray
 import com.serkantkn.zunelauncher.data.model.parseJsonObjectList
@@ -86,6 +90,8 @@ class SettingsDataStore(private val context: Context) {
         val TILE_ICON_OVERRIDES = stringPreferencesKey("tile_icon_overrides")
         val TILE_LOOKS = stringPreferencesKey("tile_looks")
         val HUB_TARGET_APPS = stringPreferencesKey("hub_target_apps")
+        val RECENT_APPS = stringPreferencesKey("recent_apps")
+        val RECENT_ALBUMS = stringPreferencesKey("recent_albums")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val SOCIAL_SOURCES = stringPreferencesKey("social_sources")
         val SOCIAL_HUB_LAYOUT = stringPreferencesKey("social_hub_layout")
@@ -170,6 +176,36 @@ class SettingsDataStore(private val context: Context) {
         } catch (e: Exception) {
             ZuneLog.w(TAG, "hub targets could not be read", e)
             emptyMap()
+        }
+    }
+
+    // ── Lately: what the Zune list's quickplay shows ──
+
+    /** Apps the launcher itself opened, newest first. Written here, so no usage permission is needed. */
+    val recentApps: Flow<List<String>> = context.settingsDataStore.data.map { prefs ->
+        val raw = prefs[RECENT_APPS]
+        if (raw.isNullOrBlank()) emptyList() else parseJsonStringList(raw, TAG).filter { it.isNotBlank() }
+    }
+
+    suspend fun noteAppLaunched(packageName: String) {
+        if (packageName.isBlank()) return
+        context.settingsDataStore.edit { prefs ->
+            val current = prefs[RECENT_APPS]?.takeIf { it.isNotBlank() }?.let { parseJsonStringList(it, TAG) } ?: emptyList()
+            prefs[RECENT_APPS] = mostRecentFirst(current, packageName, RECENT_APPS_LIMIT) { a, b -> a == b }.toJsonStringArray()
+        }
+    }
+
+    /** Records the music hub started, newest first. */
+    val recentAlbums: Flow<List<RecentAlbum>> = context.settingsDataStore.data.map { prefs ->
+        RecentAlbum.listFromJson(prefs[RECENT_ALBUMS])
+    }
+
+    suspend fun noteAlbumPlayed(album: RecentAlbum) {
+        context.settingsDataStore.edit { prefs ->
+            val current = RecentAlbum.listFromJson(prefs[RECENT_ALBUMS])
+            prefs[RECENT_ALBUMS] = RecentAlbum.listToJson(
+                mostRecentFirst(current, album, RECENT_ALBUMS_LIMIT) { a, b -> a.id == b.id }
+            )
         }
     }
 

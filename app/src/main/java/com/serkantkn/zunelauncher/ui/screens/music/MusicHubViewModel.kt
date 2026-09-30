@@ -522,6 +522,7 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
     fun playSongs(songs: List<SongModel>, index: Int) {
         if (songs.isEmpty() || index !in songs.indices) return
         localMediaController.playMediaItems(songs.map(::mediaItemOf), index)
+        rememberPlayed(songs[index])
     }
 
     /** Plays everything in the list in a random order, starting from a random track. */
@@ -529,10 +530,26 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
         if (songs.isEmpty()) return
         val start = songs.indices.random()
         localMediaController.playMediaItems(songs.map(::mediaItemOf), start)
+        rememberPlayed(songs[start])
         if (!localMediaController.state.value.shuffleEnabled) localMediaController.toggleShuffle()
     }
 
     fun playNext(song: SongModel) = localMediaController.playNext(mediaItemOf(song))
+
+    /** The record this track is on goes to the front of the Zune list's quickplay. */
+    private fun rememberPlayed(song: SongModel) {
+        if (song.albumId == 0L) return
+        viewModelScope.launch {
+            settingsDataStore.noteAlbumPlayed(
+                com.serkantkn.zunelauncher.data.model.RecentAlbum(
+                    id = song.albumId,
+                    title = song.album,
+                    artist = song.artist,
+                    artUri = song.albumArtUri?.toString()
+                )
+            )
+        }
+    }
 
     fun addToQueue(songs: List<SongModel>) = localMediaController.addToQueue(songs.map(::mediaItemOf))
 

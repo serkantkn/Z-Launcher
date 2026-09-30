@@ -1109,6 +1109,16 @@
     <string name="hub_target_hub_sub">the launcher\'s own hub, as always</string>
     <string name="hub_target_app_sub">opens instead of the hub</string>
     <string name="tile_look_open">tap</string>
+    <string name="zune_quickplay">quickplay</string>
+    <string name="zune_last_played">last played</string>
+    <string name="zune_last_photo">last picture</string>
+    <string name="zune_last_note">last note</string>
+    <string name="zune_recent_apps">lately opened</string>
+    <string name="zune_line_playing">playing</string>
+    <string name="zune_line_alarm">alarm %1$s</string>
+    <string name="zune_line_missed">missed call</string>
+    <string name="zune_line_pinned_notes">%1$d pinned</string>
+    <plurals name="zune_line_new_photos"><item quantity="one">%d new today</item><item quantity="other">%d new today</item></plurals>
     <string name="settings_tile_icons">app icons</string>
     <string name="settings_tile_icon_wp">windows phone</string>
     <string name="settings_tile_icon_wp_sub">one white shape on the tile, nothing behind it</string>

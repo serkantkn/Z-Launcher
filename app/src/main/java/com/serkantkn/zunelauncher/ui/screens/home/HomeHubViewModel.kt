@@ -53,6 +53,7 @@ import kotlinx.coroutines.launch
 import com.serkantkn.zunelauncher.data.model.TileIcon
 import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import com.serkantkn.zunelauncher.data.model.TileLook
+import com.serkantkn.zunelauncher.data.model.Quickplay
 import com.serkantkn.zunelauncher.data.repository.IconPackInfo
 import com.serkantkn.zunelauncher.util.TileIconFace
 import androidx.compose.ui.graphics.ImageBitmap
@@ -714,6 +715,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
 
     fun launchApp(packageName: String) {
         appRepository.launchApp(packageName)
+        viewModelScope.launch { settingsDataStore.noteAppLaunched(packageName) }
     }
 
     fun getAppIcon(packageName: String): Drawable? = appRepository.getAppIcon(packageName)
@@ -747,6 +749,29 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         override = overrides[app.packageName] ?: TileIcon.Default
     )
 
+    // ── Quickplay: the Zune list's "lately" ────────────────────────────────────────────────────
+
+    /** Everything in the gallery, newest first, so the list can say how many came in today. */
+    val allImages: StateFlow<List<MediaImage>> = _allImages.asStateFlow()
+
+    val quickplay: StateFlow<Quickplay> = combine(
+        settingsDataStore.recentAlbums,
+        _allImages,
+        notesDataStore.notesFlow,
+        settingsDataStore.recentApps,
+        _allApps
+    ) { albums, images, notes, recentPackages, apps ->
+        val byPackage = apps.associateBy { it.packageName }
+        Quickplay(
+            lastAlbum = albums.firstOrNull(),
+            lastPhoto = images.firstOrNull { !it.isVideo } ?: images.firstOrNull(),
+            // A locked note keeps its title to itself, and a deleted or archived one is not "lately".
+            lastNote = notes.filter { it.deletedAt == null && !it.isArchived && !it.isLocked }
+                .maxByOrNull { it.updatedAt },
+            recentApps = recentPackages.mapNotNull { byPackage[it] }.take(QUICKPLAY_APPS)
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Quickplay())
+
     // ── What a hub's tile or title opens ─────────────────────────────────────────────────────
 
     /** Every app on the phone, for choosing what a hub opens instead of itself. */
@@ -771,6 +796,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             return false
         }
         appRepository.launchApp(packageName)
+        viewModelScope.launch { settingsDataStore.noteAppLaunched(packageName) }
         return true
     }
 
@@ -990,6 +1016,9 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     }
 
 }
+
+/** Four small squares in a row: as many recent apps as the Zune list's quickplay shows. */
+private const val QUICKPLAY_APPS = 4
 
 /** A tile is never wider than a phone, so a picture this big is already more than it can show. */
 private const val TILE_PICTURE_MAX_PX = 1024

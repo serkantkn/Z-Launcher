@@ -98,6 +98,8 @@ import com.serkantkn.zunelauncher.ui.components.LocalTileCustomize
 import com.serkantkn.zunelauncher.ui.components.LocalTileIconResolver
 import com.serkantkn.zunelauncher.ui.components.LocalTileIsPreview
 import com.serkantkn.zunelauncher.data.model.TileLook
+import com.serkantkn.zunelauncher.data.repository.StartParallax
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 import com.serkantkn.zunelauncher.ui.components.TileStyle
 import com.serkantkn.zunelauncher.ui.components.W10MFolderTile
 import com.serkantkn.zunelauncher.ui.components.W10MHubTile
@@ -448,6 +450,87 @@ private fun HomeHubScreenContent(
 
     // A hub whose tap has been pointed at another app opens that app; the rest open themselves.
     val hubTargetApps by viewModel.hubTargetApps.collectAsState()
+    val quickplay by viewModel.quickplay.collectAsState()
+    val allImages by viewModel.allImages.collectAsState()
+    val animationsOn = LocalAnimationsEnabled.current
+
+    // The Zune list's wallpaper drifts a little behind the list, and only there.
+    LaunchedEffect(homeScreenLayout, isWideScreen, animationsOn) {
+        if (homeScreenLayout == HomeScreenLayout.ZUNE && !isWideScreen && animationsOn) {
+            snapshotFlow { zuneScrollState.value }.collect { StartParallax.set(it * StartParallax.FACTOR) }
+        } else {
+            StartParallax.set(0f)
+        }
+    }
+
+    /**
+     * What a hub says under its name in the Zune list — the same facts its tile turns over to
+     * show, in a line of words. A hub whose tile was told to keep quiet keeps quiet here too.
+     */
+    @Composable
+    fun liveLineFor(hub: HubType): HubLiveLine {
+        val look = tileLooks["hub:${hub.name}"] ?: TileLook.DEFAULT
+        val quiet = !look.notifications
+        return when (hub) {
+            HubType.MESSAGING -> {
+                val first = unreadMessages.firstOrNull()
+                val count = maxOf(unreadMessages.size, notificationCounts["com.google.android.apps.messaging"] ?: 0)
+                if (quiet) HubLiveLine.NONE else HubLiveLine(
+                    text = first?.let { "${it.contactName.ifBlank { it.address }}: ${it.snippet}" },
+                    count = count
+                )
+            }
+            HubType.PHONE -> if (quiet) HubLiveLine.NONE else HubLiveLine(
+                text = lastMissedCaller?.let { "$it · ${stringResource(R.string.zune_line_missed)}" },
+                count = maxOf(missedCalls, notificationCounts["com.google.android.dialer"] ?: 0)
+            )
+            HubType.EMAIL -> if (quiet) HubLiveLine.NONE else HubLiveLine(
+                text = emailTilePreview?.let { (from, subject) -> if (subject.isBlank()) from else "$from: $subject" },
+                count = emailUnreadCount
+            )
+            HubType.MUSIC -> HubLiveLine(
+                text = nowPlaying.takeIf { it.isPlaying && it.title.isNotBlank() }?.let {
+                    "${it.title}${if (it.artist.isNotBlank()) " — ${it.artist}" else ""} · ${stringResource(R.string.zune_line_playing)}"
+                }
+            )
+            HubType.CALENDAR -> HubLiveLine(
+                text = upcomingEvents.firstOrNull()?.let { "${it.formattedTime} ${it.title}" }
+            )
+            HubType.CLOCK -> {
+                val now = System.currentTimeMillis()
+                val next = enabledAlarms.map { it.nextTriggerMillis(now) }.filter { it > now }.minOrNull()
+                HubLiveLine(
+                    text = next?.let {
+                        stringResource(
+                            R.string.zune_line_alarm,
+                            java.text.SimpleDateFormat(
+                                if (timeFormat.contains("H")) "HH:mm" else "h:mm a", java.util.Locale.getDefault()
+                            ).format(java.util.Date(it))
+                        )
+                    }
+                )
+            }
+            HubType.WEATHER -> HubLiveLine(
+                text = weatherSnapshot?.let {
+                    "${weatherUnit.of(it.now.temperature)}° ${stringResource(it.now.condition.labelRes)} · ${it.place.name}"
+                }
+            )
+            HubType.NOTES -> HubLiveLine(
+                text = notesTileSubtitle,
+                count = if (quiet) 0 else pinnedNotesCount
+            )
+            HubType.PICTURES -> {
+                val dayStart = remember { java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+                }.timeInMillis }
+                // The store keeps DATE_ADDED in seconds.
+                val today = allImages.count { it.dateAdded * 1000L >= dayStart }
+                HubLiveLine(text = if (today > 0) pluralStringResource(R.plurals.zune_line_new_photos, today, today) else null)
+            }
+            else -> HubLiveLine.NONE
+        }
+    }
     var hubTargetPickFor by remember { mutableStateOf<HubType?>(null) }
     val openHub: (HubType) -> Unit = { hub -> if (!viewModel.openHubTarget(hub)) onHubSelected(hub) }
     var openFolderId by remember { mutableStateOf<String?>(null) }
@@ -1347,28 +1430,40 @@ private fun HomeHubScreenContent(
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                             }
-                            ZuneHubTitle(
-                                title = stringResource(hubType.titleRes),
-                                accentColor = if (zuneColors.isDark) Color.White else Color.Black,
-                                verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
-                                onClick = {
-                                    if (isFavoritesExpanded) {
-                                        isFavoritesExpanded = false
-                                    } else if (isEditMode) {
-                                        isEditMode = false
-                                    } else {
-                                        handleLaunch(key) { openHub(hubType) }
-                                    }
-                                },
-                                // The Zune list has no tiles to hold, so its titles are what
-                                // opens editing.
-                                onLongClick = { isEditMode = true },
+                            val line = liveLineFor(hubType)
+                            val ink = if (zuneColors.isDark) Color.White else Color.Black
+                            Column(
                                 modifier = Modifier.w10mStaggeredAnimation(
                                     progress = { animationProgress.value },
                                     index = 4 + index,
                                     isClicked = clickedItemKey == key
                                 )
-                            )
+                            ) {
+                                Row(verticalAlignment = Alignment.Top) {
+                                    ZuneHubTitle(
+                                        title = stringResource(hubType.titleRes),
+                                        accentColor = rememberHubNameColour(line.hasNews, ink),
+                                        verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
+                                        onClick = {
+                                            if (isFavoritesExpanded) {
+                                                isFavoritesExpanded = false
+                                            } else if (isEditMode) {
+                                                isEditMode = false
+                                            } else {
+                                                handleLaunch(key) { openHub(hubType) }
+                                            }
+                                        },
+                                        // The Zune list has no tiles to hold, so its titles are what
+                                        // opens editing.
+                                        onLongClick = { isEditMode = true }
+                                    )
+                                    if (!isEditMode) {
+                                        ZuneHubCount(line.count, modifier = Modifier.padding(start = 6.dp, top = 12.dp))
+                                    }
+                                }
+                                // Editing wants a plain list; the lines come back when it is done.
+                                if (!isEditMode) ZuneHubLiveLine(line.text)
+                            }
                         }
                     }
 
@@ -1385,6 +1480,47 @@ private fun HomeHubScreenContent(
                         onPreview = { previewTarget = it },
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
+
+                    if (!isEditMode) {
+                        ZuneQuickplay(
+                            state = quickplay,
+                            cornerStyle = tileCornerStyle,
+                            face = tileFace,
+                            onOpenAlbum = {
+                                quickplay.lastAlbum?.let { album ->
+                                    handleLaunch("qp_album") {
+                                        MusicBridge.playAlbum(album.id)
+                                        onHubSelected(HubType.MUSIC)
+                                    }
+                                }
+                            },
+                            onOpenPhoto = {
+                                quickplay.lastPhoto?.let { photo ->
+                                    handleLaunch("qp_photo") {
+                                        PicturesBridge.openPhoto(photo.uri)
+                                        onHubSelected(HubType.PICTURES)
+                                    }
+                                }
+                            },
+                            onOpenNote = {
+                                quickplay.lastNote?.let { note ->
+                                    handleLaunch("qp_note") {
+                                        NotesBridge.open(note.id)
+                                        onHubSelected(HubType.NOTES)
+                                    }
+                                }
+                            },
+                            onOpenApp = { app -> handleLaunch("qp_${app.packageName}") { viewModel.launchApp(app.packageName) } },
+                            modifier = Modifier
+                                .padding(bottom = 28.dp)
+                                .w10mStaggeredAnimation({ animationProgress.value }, 4 + localHubOrder.size)
+                        )
+                        ZuneListEnd(
+                            onApps = onNavigateToAppsHub,
+                            onSettings = { handleLaunch("hub_SETTINGS") { openHub(HubType.SETTINGS) } },
+                            modifier = Modifier.padding(bottom = 32.dp)
+                        )
+                    }
                 }
 
                 // ════════════════════════════════════════════════

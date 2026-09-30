@@ -56,9 +56,16 @@ fun ZuneBackground(
     customWallpaperPathOverride: String? = null,
     forceModeOverride: BackgroundMode? = null,
     modifier: Modifier = Modifier,
+    /** True for the background under Start: it drifts a little as the Zune list scrolls. */
+    followsStart: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
+    val parallaxPx by if (followsStart) {
+        com.serkantkn.zunelauncher.data.repository.StartParallax.shiftPx.collectAsState()
+    } else {
+        remember { mutableStateOf(0f) }
+    }
     var wallpaperBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var blurredWallpaperBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
@@ -109,7 +116,15 @@ fun ZuneBackground(
         Crossfade(
             targetState = forceModeOverride ?: if (solidBackgroundEnabled) BackgroundMode.SOLID else mode,
             modifier = Modifier
-                .fillMaxSize(),
+                .fillMaxSize()
+                .graphicsLayer {
+                    // Drawn a touch larger than the screen so the drift never shows an edge.
+                    if (parallaxPx != 0f) {
+                        scaleX = PARALLAX_ZOOM
+                        scaleY = PARALLAX_ZOOM
+                        translationY = -parallaxPx.coerceIn(0f, size.height * (PARALLAX_ZOOM - 1f) / 2f)
+                    }
+                },
             label = "background_transition"
         ) { currentMode ->
             when (currentMode) {
@@ -128,6 +143,9 @@ fun ZuneBackground(
         content()
     }
 }
+
+/** Room for the wallpaper to drift: three percent of its height either way. */
+private const val PARALLAX_ZOOM = 1.06f
 
 object ZuneWallpaperManager {
     var lastInternalWallpaperChangeTime: Long = 0L
