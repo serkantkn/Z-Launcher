@@ -1517,6 +1517,7 @@
     <string name="files_viewer_page">sayfa %1$d / %2$d</string>
     <string name="files_viewer_play">çal</string>
     <string name="files_viewer_pause">duraklat</string>
+    <string name="files_install_permission">Buradan uygulama yüklemek için açılan ayarda Z Launcher\'a izin ver, sonra dosyaya yeniden dokun.</string>
     <string name="files_details_writable">Değiştirilebilir</string>
     <string name="files_details_read_only">Salt okunur</string>
     <string name="files_upload">Buraya dosya gönder</string>

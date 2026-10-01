@@ -18,6 +18,8 @@ import com.serkantkn.zunelauncher.data.model.SearchEngine
 import com.serkantkn.zunelauncher.data.model.parseJsonObjectList
 import com.serkantkn.zunelauncher.data.model.toJsonArrayString
 import android.app.DownloadManager
+import androidx.core.content.FileProvider
+import com.serkantkn.zunelauncher.util.PackageInstall
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -361,11 +363,35 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         startDownload(download.url, null, null, download.mimeType, download.totalBytes)
     }
 
+    /**
+     * Opens a finished download in whatever handles it.
+     *
+     * The download manager names the file by a file:// address, which no other app may be handed
+     * since Android 7 — the tap used to end in an exception and nothing on screen. So the file is
+     * offered through the launcher's own provider; an .apk goes to the installer, which has its
+     * own asking to do; and a server that called the file "octet-stream" is overruled by the name
+     * the file actually has.
+     */
     fun openDownloadedFile(context: Context, download: BrowserDownload) {
         try {
-            val uri = download.localUri?.let { Uri.parse(it) } ?: Uri.parse(download.url)
+            val local = download.localUri?.let { Uri.parse(it) }
+            val uri: Uri = when {
+                local?.scheme == "file" && local.path != null ->
+                    FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", java.io.File(local.path!!))
+                local != null -> local
+                else -> (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager)
+                    .getUriForDownloadedFile(download.id) ?: Uri.parse(download.url)
+            }
+            if (PackageInstall.isApk(download.fileName)) {
+                PackageInstall.open(context, uri)
+                return
+            }
+            val extension = download.fileName.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT)
+            val mime = download.mimeType?.takeIf { it.isNotBlank() && it != "application/octet-stream" }
+                ?: android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+                ?: "*/*"
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, download.mimeType ?: "*/*")
+                setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)

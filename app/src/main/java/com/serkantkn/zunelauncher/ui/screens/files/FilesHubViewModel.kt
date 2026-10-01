@@ -24,6 +24,7 @@ import com.serkantkn.zunelauncher.data.model.FileItemModel
 import com.serkantkn.zunelauncher.data.model.StorageVolumeInfo
 import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.FileSort
+import com.serkantkn.zunelauncher.util.PackageInstall
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.isInsideItself
 import com.serkantkn.zunelauncher.util.localizedString
@@ -493,6 +494,11 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     fun openFile(context: Context, file: File) {
         runCatching {
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            // An .apk goes to the installer, which has to be asked for by name.
+            if (PackageInstall.isApk(file.name)) {
+                PackageInstall.open(context, uri)
+                return
+            }
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mimeTypeOf(file) ?: "*/*")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

@@ -79,6 +79,7 @@ varsayılan telefon uygulaması yapma → çağrı ekranı → çağrı kaydı.
 | `SYSTEM_ALERT_WINDOW` | WP ses çubuğu ve bildirim şeridi, diğer uygulamaların üstünde gösterilir. |
 | Bildirim dinleyicisi | Canlı kutucuklardaki bildirim sayıları ve önizlemeleri. Hiçbir bildirim diske yazılmaz. |
 | `SCHEDULE_EXACT_ALARM` | Saat hub'ındaki alarmlar ve zamanlayıcı — dakikası dakikasına çalması gerekir. |
+| `REQUEST_INSTALL_PACKAGES` | Dosyalar hub'ı bir dosya yöneticisidir ve .apk dosyalarını sistem yükleyicisine verir; İnternet hub'ı da kendi indirdiği .apk'yı açar. Bu izin olmadan yükleyici hiç açılmaz. Kullanıcı yine de ayarlardan "bilinmeyen uygulama" izni verir ve her yüklemeyi kendisi onaylar; uygulama kendi başına hiçbir şey yüklemez. Play bu izni "dosya yöneticisi / tarayıcı" gerekçesiyle kabul eder, beyanda bu gerekçe seçilmeli. |
 
 ---
 
