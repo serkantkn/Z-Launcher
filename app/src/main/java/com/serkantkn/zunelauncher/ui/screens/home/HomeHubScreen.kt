@@ -1380,9 +1380,12 @@ private fun HomeHubScreenContent(
                     Spacer(modifier = Modifier
                         .height(ZuneDimens.SpacingLg)
                         .onGloballyPositioned { coordinates ->
-                            // Bottom of this spacer = top of hub titles
+                            // Bottom of this spacer = top of hub titles, as it stands with the
+                            // list at rest. The scroll is added back so the favourites strip,
+                            // which lines up with this, stays put while the list moves: the two
+                            // scroll on their own, as on the Zune.
                             hubTitlesTopPx = coordinates.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y +
-                                    coordinates.size.height.toFloat()
+                                    coordinates.size.height.toFloat() + zuneScrollState.value
                         }
                     )
 
