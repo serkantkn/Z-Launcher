@@ -14,6 +14,9 @@ import com.serkantkn.zunelauncher.util.AppIconCache
 import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import com.serkantkn.zunelauncher.data.model.FavoriteAppItem
@@ -27,7 +30,30 @@ class AppRepository(private val context: Context) {
     /**
      * Queries all installed apps with a launcher intent and emits them sorted alphabetically.
      */
-    fun getInstalledApps(): Flow<List<AppInfo>> = flow {
+    fun getInstalledApps(): Flow<List<AppInfo>> = callbackFlow {
+        // The list is read once at the start and again whenever the phone says a package came,
+        // went or changed — so an app removed from the list leaves it at once, and one just
+        // installed appears without the launcher being restarted.
+        launch(Dispatchers.IO) { send(queryInstalledApps()) }
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                launch(Dispatchers.IO) { send(queryInstalledApps()) }
+            }
+        }
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addDataScheme("package")
+        }
+        // Package broadcasts come from the system alone, which is what the plain registration
+        // is still for.
+        context.registerReceiver(receiver, filter)
+        awaitClose { runCatching { context.unregisterReceiver(receiver) } }
+    }
+
+    private fun queryInstalledApps(): List<AppInfo> {
         val intent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
         }
@@ -41,7 +67,7 @@ class AppRepository(private val context: Context) {
 
         val installedAt = installTimes()
 
-        val apps = resolveInfos
+        return resolveInfos
             .filter { it.activityInfo.packageName != context.packageName }
             .map { resolveInfo ->
                 val packageName = resolveInfo.activityInfo.packageName
@@ -54,9 +80,7 @@ class AppRepository(private val context: Context) {
             }
             .sortedBy { it.label.lowercase() }
             .distinctBy { it.packageName }
-
-        emit(apps)
-    }.flowOn(Dispatchers.IO)
+    }
 
     /**
      * When each installed package arrived, asked once for the whole phone rather than once per

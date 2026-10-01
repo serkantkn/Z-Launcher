@@ -16,6 +16,9 @@
          this the system installer does not even appear. The person still allows the launcher as
          an unknown source in settings, and still confirms every install. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- "Kaldır" in the app list opens the system's own uninstall dialog; since Android 9 that
+         dialog does not open for an app without this. The person still confirms every removal. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
