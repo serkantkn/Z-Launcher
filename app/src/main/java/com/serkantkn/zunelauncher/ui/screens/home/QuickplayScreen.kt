@@ -86,6 +86,8 @@ import java.util.Locale
 @Composable
 fun QuickplayScreen(
     isCurrentPage: Boolean,
+    /** True while a hub stands over the pager; its closing is what brings the page back in. */
+    isHubOpen: Boolean,
     onHubSelected: (HubType) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeHubViewModel = viewModel()
@@ -121,11 +123,12 @@ fun QuickplayScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(isCurrentPage) {
+    LaunchedEffect(isCurrentPage, isHubOpen) {
         if (!isCurrentPage) {
             entrance.snapTo(1f)
-        } else if (entrance.value > 1f) {
-            // Something was opened from here and has now closed over it.
+        } else if (!isHubOpen && entrance.value > 1f) {
+            // A hub was opened from here and has now closed over it: the page turned away to
+            // open it, so it comes back the same way.
             entrance.snapTo(0f)
             entrance.animateTo(1f, tween(ENTRANCE_MILLIS, easing = LinearEasing))
         }

@@ -572,6 +572,7 @@ fun LauncherScreen(
                                             2 -> if (hasQuickplay) {
                                                 QuickplayScreen(
                                                     isCurrentPage = pagerState.currentPage == 2,
+                                                    isHubOpen = false,
                                                     onHubSelected = { hub -> navState.openHub(hub) }
                                                 )
                                             } else {
@@ -797,6 +798,7 @@ fun LauncherScreen(
                                         2 -> if (hasQuickplay) {
                                             QuickplayScreen(
                                                 isCurrentPage = pagerState.currentPage == 2,
+                                                isHubOpen = false,
                                                 onHubSelected = { hub -> navState.openHub(hub) }
                                             )
                                         } else {
@@ -889,6 +891,7 @@ fun LauncherScreen(
                                 2 -> if (hasQuickplay) {
                                     QuickplayScreen(
                                         isCurrentPage = pagerState.currentPage == 2,
+                                        isHubOpen = isHubOpen,
                                         onHubSelected = { hub ->
                                             if (hub != HubType.HOME) navState.openHub(hub)
                                         }
