@@ -34,6 +34,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -95,12 +102,40 @@ fun QuickplayScreen(
     val shape = if (cornerStyle == TileCornerStyle.ROUNDED) RoundedCornerShape(6.dp) else RoundedCornerShape(0.dp)
     val ink = if (zuneColors.isDark) Color.White else Color.Black
 
-    // The page comes in the way the others do: everything staggers up as it is swiped to.
+    // Swiping between pages moves nothing here: the page is simply there, as a page of the Zune
+    // was. The stagger is for coming *back* — from an app this page opened, or from a hub it
+    // opened — the way Start comes back after a hub.
     val entrance = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentlyShown by rememberUpdatedState(isCurrentPage)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && currentlyShown) {
+                scope.launch {
+                    entrance.snapTo(0f)
+                    entrance.animateTo(1f, tween(ENTRANCE_MILLIS, easing = LinearEasing))
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(isCurrentPage) {
-        if (isCurrentPage) {
+        if (!isCurrentPage) {
+            entrance.snapTo(1f)
+        } else if (entrance.value > 1f) {
+            // Something was opened from here and has now closed over it.
             entrance.snapTo(0f)
             entrance.animateTo(1f, tween(ENTRANCE_MILLIS, easing = LinearEasing))
+        }
+    }
+
+    /** Opens something from the page: the page turns away first, and comes back staggered. */
+    fun leaveFor(action: () -> Unit) {
+        scope.launch {
+            entrance.animateTo(2f, tween(EXIT_MILLIS, easing = LinearEasing))
+            action()
         }
     }
 
@@ -150,7 +185,7 @@ fun QuickplayScreen(
                     .w10mStaggeredAnimation({ entrance.value }, slot++),
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                AlbumSquare(first, shape, size = BigSquare) { playAlbum(first, onHubSelected) }
+                AlbumSquare(first, shape, size = BigSquare) { leaveFor { playAlbum(first, onHubSelected) } }
                 Column(modifier = Modifier.weight(1f).padding(top = 4.dp)) {
                     Text(
                         text = first.title,
@@ -167,7 +202,7 @@ fun QuickplayScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                     ActionWord(stringResource(R.string.files_viewer_play), Modifier.padding(top = 10.dp)) {
-                        playAlbum(first, onHubSelected)
+                        leaveFor { playAlbum(first, onHubSelected) }
                     }
                 }
             }
@@ -179,7 +214,7 @@ fun QuickplayScreen(
                         .padding(top = Gap)
                         .w10mStaggeredAnimation({ entrance.value }, slot++)
                 ) {
-                    rest.forEach { album -> AlbumSquare(album, shape, size = SmallSquare) { playAlbum(album, onHubSelected) } }
+                    rest.forEach { album -> AlbumSquare(album, shape, size = SmallSquare) { leaveFor { playAlbum(album, onHubSelected) } } }
                 }
             }
             Spacer(modifier = Modifier.height(SectionGap))
@@ -201,8 +236,10 @@ fun QuickplayScreen(
                             modifier = Modifier.weight(1f).aspectRatio(1f),
                             shape = shape,
                             onClick = {
-                                PicturesBridge.openPhoto(photo.uri)
-                                onHubSelected(HubType.PICTURES)
+                                leaveFor {
+                                    PicturesBridge.openPhoto(photo.uri)
+                                    onHubSelected(HubType.PICTURES)
+                                }
                             }
                         ) {
                             AsyncImage(
@@ -230,8 +267,10 @@ fun QuickplayScreen(
                         .padding(bottom = Gap)
                         .w10mStaggeredAnimation({ entrance.value }, slot++)
                 ) {
-                    NotesBridge.open(note.id)
-                    onHubSelected(HubType.NOTES)
+                    leaveFor {
+                        NotesBridge.open(note.id)
+                        onHubSelected(HubType.NOTES)
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(SectionGap - Gap))
@@ -253,7 +292,7 @@ fun QuickplayScreen(
                             Square(
                                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                                 shape = shape,
-                                onClick = { viewModel.launchApp(app.packageName) }
+                                onClick = { leaveFor { viewModel.launchApp(app.packageName) } }
                             ) {
                                 TileIconImage(
                                     face = face(app),
@@ -411,3 +450,4 @@ private val SmallSquare = 72.dp
 private val Gap = 8.dp
 private val SectionGap = 28.dp
 private const val ENTRANCE_MILLIS = 700
+private const val EXIT_MILLIS = 500
