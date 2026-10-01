@@ -1,7 +1,11 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +37,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -43,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -53,19 +59,27 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.compose.ui.zIndex
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.util.DeviceOwner
 import kotlinx.coroutines.launch
 
 // ════════════════════════════════════════════════════════════
@@ -104,6 +118,12 @@ private val GroupHeaderHeight = 34.dp
  * number of rows, medium/wide tiles snap to the medium grid and small tiles fill the quadrants.
  * Pinching zooms out to the semantic-zoom group overview; a tap on a group zooms back into it.
  * Long-pressing a tile enters edit mode and drags it to a new position.
+ *
+ * The board is the only thing that scrolls sideways: it takes the whole of every sideways drag,
+ * so the pager it sits in never creeps under it. The social hub to its left is reached instead
+ * by pulling the board past its beginning — it gives a little under the finger, and lets go of
+ * the page when pulled far enough — and the app list, which on a tablet rises from below, is
+ * not to its right at all.
  */
 @Composable
 fun Windows8StartScreen(
@@ -115,6 +135,12 @@ fun Windows8StartScreen(
     onOpenApps: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The board pulled past its start: the page to the left is wanted. */
+    onPullToSocial: () -> Unit = {},
+    /** The search ring in the header. The app list, with its search box open, by default. */
+    onSearch: () -> Unit = onOpenApps,
+    /** The owner's name and picture in the corner. */
+    onOpenUser: () -> Unit = {},
     onMergeTiles: (sourceId: String, targetId: String) -> Unit = { _, _ -> },
     canMerge: (sourceId: String, targetId: String) -> Boolean = { _, _ -> false },
     /** Hoisted so the Home key can take the board back to its first group. */
@@ -129,6 +155,7 @@ fun Windows8StartScreen(
 ) {
     val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val fg = if (zuneColors.isDark) Color.White else Color.Black
 
@@ -138,6 +165,10 @@ fun Windows8StartScreen(
     val currentTiles by rememberUpdatedState(tiles)
     val currentCanMerge by rememberUpdatedState(canMerge)
     val currentOnMove by rememberUpdatedState(onMoveTile)
+    val currentOnPull by rememberUpdatedState(onPullToSocial)
+
+    // Whose tablet this is, for the corner. Read once; the profile does not change under us.
+    val owner by produceState(DeviceOwner.NONE, context) { value = DeviceOwner.load(context) }
 
     // Tiles are grouped by kind, keeping the user's order inside each group.
     val groupedTiles = remember(tiles) {
@@ -145,6 +176,49 @@ fun Windows8StartScreen(
         order.mapNotNull { kind ->
             val members = tiles.filter { kindOf(it) == kind }
             if (members.isEmpty()) null else kind to members
+        }
+    }
+
+    // ── The pull past the beginning ──
+    // Whatever the board cannot scroll is kept here rather than passed up to the pager: a drag
+    // rightwards from the first group stretches this, and letting go past the mark asks for the
+    // social page. A drag leftwards at the far end is swallowed too — there is no page there.
+    val pull = remember { Animatable(0f) }
+    val pullThresholdPx = with(density) { SOCIAL_PULL_DP.dp.toPx() }
+    val pullConnection = remember(pullThresholdPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Coming back from a pull, the stretch is taken in before the board moves.
+                if (source != NestedScrollSource.UserInput || available.x >= 0f || pull.value <= 0f) return Offset.Zero
+                val take = available.x.coerceAtLeast(-pull.value)
+                scope.launch { pull.snapTo(pull.value + take) }
+                return Offset(take, 0f)
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput || available.x == 0f) return Offset.Zero
+                if (available.x > 0f) scope.launch { pull.snapTo(pull.value + available.x) }
+                return Offset(available.x, 0f)
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                // A pull that reached the mark is answered once the board has finished with the
+                // gesture, below; one that did not simply springs back.
+                if (pull.value in 0.01f..pullThresholdPx) {
+                    scope.launch { pull.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow)) }
+                }
+                return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (pull.value >= pullThresholdPx) {
+                    scope.launch { pull.snapTo(0f) }
+                    currentOnPull()
+                }
+                // Whatever is left of the throw is taken: the pager under the board must not
+                // be flung by it, least of all while it is being asked for the social page.
+                return available
+            }
         }
     }
 
@@ -216,7 +290,7 @@ fun Windows8StartScreen(
         )
 
         Column(modifier = Modifier.fillMaxSize().padding(top = statusTop, bottom = navBottom)) {
-            // ── Header: "başlangıç" + search / settings, like the Windows 8 Start header ──
+            // ── Header: "başlangıç" on the left; the owner, search and settings on the right ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -235,9 +309,11 @@ fun Windows8StartScreen(
                             interactionSource = remember { MutableInteractionSource() }
                         ) { zoomedOut = !zoomedOut }
                 )
-                HeaderIcon(Icons.Default.Search, stringResource(R.string.common_search), fg, onOpenApps)
-                Spacer(modifier = Modifier.width(18.dp))
-                HeaderIcon(Icons.Default.Settings, stringResource(R.string.common_settings), fg, onOpenSettings)
+                UserTile(owner, fg, zuneColors.accentColor, onOpenUser)
+                Spacer(modifier = Modifier.width(22.dp))
+                Win8CircleButton(Icons.Default.Search, stringResource(R.string.common_search), fg, onSearch)
+                Spacer(modifier = Modifier.width(14.dp))
+                Win8CircleButton(Icons.Default.Settings, stringResource(R.string.common_settings), fg, onOpenSettings)
             }
 
             // ── Board ──
@@ -245,6 +321,7 @@ fun Windows8StartScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .nestedScroll(pullConnection)
                     .horizontalScroll(scrollState, enabled = !zoomedOut)
                     .win8PinchZoom(
                         onZoomOut = { if (!zoomedOut) { zoomedOut = true; scope.launch { scrollState.animateScrollTo(0) } } },
@@ -260,6 +337,7 @@ fun Windows8StartScreen(
                             scaleX = scale
                             scaleY = scale
                             transformOrigin = TransformOrigin(0f, 0.5f)
+                            translationX = pull.value * PULL_GIVE
                         }
                 ) {
                     layouts.forEachIndexed { groupIndex, layout ->
@@ -377,25 +455,17 @@ fun Windows8StartScreen(
                 }
             }
 
-            // ── Footer: scroll indicator, all-apps arrow, semantic zoom button ──
-            Column(modifier = Modifier.fillMaxWidth().height(footerHeight)) {
-                Win8ScrollBar(
-                    scroll = scrollState.value.toFloat(),
-                    maxScroll = scrollState.maxValue.toFloat(),
-                    color = fg,
-                    modifier = Modifier.padding(horizontal = sidePadding, vertical = 6.dp)
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = sidePadding),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    CircleButton(Icons.Default.KeyboardArrowDown, stringResource(R.string.all_apps), fg, onOpenApps)
-                    CircleButton(Icons.Default.Remove, stringResource(R.string.win8_zoom_out), fg) { zoomedOut = !zoomedOut }
-                }
+            // ── Footer: the all-apps arrow at the left, semantic zoom at the right ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(footerHeight)
+                    .padding(horizontal = sidePadding),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Win8CircleButton(Icons.Default.KeyboardArrowDown, stringResource(R.string.all_apps), fg, onOpenApps)
+                Win8CircleButton(Icons.Default.Remove, stringResource(R.string.win8_zoom_out), fg) { zoomedOut = !zoomedOut }
             }
         }
     }
@@ -418,24 +488,63 @@ private fun titleResOf(kind: Win8GroupKind): Int = when (kind) {
     Win8GroupKind.NOTES -> R.string.hub_notes
 }
 
+/**
+ * The owner's name beside a square of their picture, top-right, as Windows 8 kept its account
+ * tile. Without a picture the square is the accent with a plain person on it.
+ */
 @Composable
-private fun HeaderIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit) {
-    Icon(
-        imageVector = icon,
-        contentDescription = label,
-        tint = tint.copy(alpha = 0.85f),
-        modifier = Modifier
-            .size(26.dp)
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = onClick
+private fun UserTile(owner: DeviceOwner, fg: Color, accent: Color, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable(
+            indication = null,
+            interactionSource = remember { MutableInteractionSource() },
+            onClick = onClick
+        )
+    ) {
+        owner.name?.let { name ->
+            Text(
+                text = name,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 20.sp),
+                color = fg,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(end = 12.dp).width(220.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.End
             )
-    )
+        }
+        Box(
+            modifier = Modifier.size(44.dp).background(accent),
+            contentAlignment = Alignment.Center
+        ) {
+            val photo = owner.photo
+            if (photo != null) {
+                Image(
+                    bitmap = photo.asImageBitmap(),
+                    contentDescription = owner.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = owner.name,
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+    }
 }
 
+/** A glyph in a thin ring: the Windows 8 button, used for the header and the footer here and in the app list. */
 @Composable
-private fun CircleButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit) {
+internal fun Win8CircleButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .size(34.dp)
@@ -451,28 +560,11 @@ private fun CircleButton(icon: androidx.compose.ui.graphics.vector.ImageVector, 
     }
 }
 
-/** Thin Windows 8 style scroll indicator; hidden when everything fits. */
-@Composable
-private fun Win8ScrollBar(scroll: Float, maxScroll: Float, color: Color, modifier: Modifier = Modifier) {
-    if (maxScroll <= 0f) {
-        Spacer(modifier = modifier.fillMaxWidth().height(3.dp))
-        return
-    }
-    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(3.dp)) {
-        val track = maxWidth
-        val fraction = (track / (track + with(LocalDensity.current) { maxScroll.toDp() })).coerceIn(0.08f, 1f)
-        val thumb = track * fraction
-        val offset = (track - thumb) * (scroll / maxScroll).coerceIn(0f, 1f)
-        Box(modifier = Modifier.fillMaxWidth().height(2.dp).background(color.copy(alpha = 0.12f)).align(Alignment.Center))
-        Box(modifier = Modifier.offset(x = offset).width(thumb).height(3.dp).background(color.copy(alpha = 0.55f)))
-    }
-}
-
 /**
  * Two-finger pinch for semantic zoom. Single-finger events are left untouched so the board keeps
  * scrolling normally.
  */
-private fun Modifier.win8PinchZoom(onZoomOut: () -> Unit, onZoomIn: () -> Unit): Modifier = pointerInput(Unit) {
+internal fun Modifier.win8PinchZoom(onZoomOut: () -> Unit, onZoomIn: () -> Unit): Modifier = pointerInput(Unit) {
     awaitEachGesture {
         awaitFirstDown(requireUnconsumed = false)
         var zoom = 1f
@@ -489,3 +581,9 @@ private fun Modifier.win8PinchZoom(onZoomOut: () -> Unit, onZoomIn: () -> Unit):
         }
     }
 }
+
+/** How far the board has to be pulled past its first group before the social page is wanted. */
+private const val SOCIAL_PULL_DP = 64f
+
+/** How much of the pull the board actually moves by: it gives, it does not follow. */
+private const val PULL_GIVE = 0.4f

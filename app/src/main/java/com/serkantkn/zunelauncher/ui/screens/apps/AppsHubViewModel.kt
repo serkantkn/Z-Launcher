@@ -90,6 +90,7 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
 
     /** Time in front, by package, or empty until the phone is allowed to say. */
     private val _usage = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val usage: StateFlow<Map<String, Long>> = _usage.asStateFlow()
 
     private val _usageGranted = MutableStateFlow(false)
     val usageGranted: StateFlow<Boolean> = _usageGranted.asStateFlow()

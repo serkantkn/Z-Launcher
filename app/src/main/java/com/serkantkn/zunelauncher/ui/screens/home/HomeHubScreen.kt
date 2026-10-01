@@ -5,6 +5,11 @@ import androidx.compose.ui.res.stringResource
 import android.graphics.drawable.Drawable
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import com.serkantkn.zunelauncher.ui.screens.expandNotificationPanel
+import com.serkantkn.zunelauncher.ui.screens.apps.Windows8AppsScreen
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
@@ -459,6 +464,28 @@ private fun HomeHubScreenContent(
     val allImages by viewModel.allImages.collectAsState()
     val animationsOn = LocalAnimationsEnabled.current
 
+    // Tablet: Start and the app list are one tall page. This is how far the list has risen over
+    // Start (0 = Start, 1 = the list) and whether it is meant to stay up; the counter asks the
+    // list to arrive with its search box open.
+    val appsReveal = remember { Animatable(0f) }
+    var appsOpen by remember { mutableStateOf(false) }
+    var appsSearchRequests by remember { mutableIntStateOf(0) }
+    fun openApps(withSearch: Boolean) {
+        if (withSearch) appsSearchRequests++
+        appsOpen = true
+        coroutineScope.launch {
+            if (animationsOn) appsReveal.animateTo(1f, tween(REVEAL_MILLIS, easing = FastOutSlowInEasing))
+            else appsReveal.snapTo(1f)
+        }
+    }
+    fun closeApps() {
+        coroutineScope.launch {
+            if (animationsOn) appsReveal.animateTo(0f, tween(REVEAL_MILLIS, easing = FastOutSlowInEasing))
+            else appsReveal.snapTo(0f)
+            appsOpen = false
+        }
+    }
+
     // The Zune list's wallpaper drifts a little behind the list, and only there.
     LaunchedEffect(homeScreenLayout, isWideScreen, animationsOn) {
         if (homeScreenLayout == HomeScreenLayout.ZUNE && !isWideScreen && animationsOn) {
@@ -556,6 +583,7 @@ private fun HomeHubScreenContent(
         launch { zuneScrollState.animateScrollTo(0) }
         launch { win8ScrollState.animateScrollTo(0) }
         launch { gridState.animateScrollToItem(0) }
+        if (appsOpen) closeApps()
     }
 
     // A folder that has been emptied (or whose last tile was taken out) closes itself.
@@ -1120,9 +1148,19 @@ private fun HomeHubScreenContent(
             // ═══════════════════════════════════════════════
             // TABLET — Windows 8 full-screen Start menu
             // ═══════════════════════════════════════════════
+            // Start and the app list are one tall page, as on Windows 8.1: a swipe up, or the
+            // arrow in the corner, slides Start off the top while the list comes up from below;
+            // a swipe down, the arrow, or Back brings Start back. Nothing is to the right of
+            // Start here, and the social hub on its left is reached by pulling the board past
+            // its first group.
+            var stackHeightPx by remember { mutableFloatStateOf(0f) }
+            val launcherContext = LocalContext.current
+            val appsShown = appsOpen || appsReveal.value > 0f
+
             Box(
                 modifier = modifier
                     .fillMaxSize()
+                    .onSizeChanged { stackHeightPx = it.height.toFloat() }
                     .clickable(
                         enabled = isEditMode,
                         indication = null,
@@ -1131,21 +1169,93 @@ private fun HomeHubScreenContent(
                         isEditMode = false
                     }
             ) {
-                Windows8StartScreen(
-                    tiles = localStartTiles,
-                    tileSpacing = tileSpacing.dp,
-                    isEditMode = isEditMode,
-                    scrollState = win8ScrollState,
-                    onEnterEditMode = { isEditMode = true },
-                    onMoveTile = { from, to -> moveStartTile(from, to) },
-                    onOpenApps = onNavigateToAppsHub,
-                    onOpenSettings = { handleLaunch("hub_SETTINGS") { onHubSelected(HubType.SETTINGS) } },
-                    onMergeTiles = onMergeTiles,
-                    canMerge = canMerge,
-                    tile = { model, index, isDragging, isMergeTarget, tileModifier ->
-                        StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = 4)
+                // Start, sliding up and away as the list is revealed
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { translationY = -stackHeightPx * appsReveal.value }
+                        .win8SwipeReveal(
+                            reveal = appsReveal,
+                            heightPx = { stackHeightPx },
+                            opening = true,
+                            enabled = !isEditMode && openFolder == null,
+                            animate = animationsOn,
+                            onSettled = { open -> appsOpen = open },
+                            onPullDown = { expandNotificationPanel(launcherContext) }
+                        )
+                ) {
+                    Windows8StartScreen(
+                        tiles = localStartTiles,
+                        tileSpacing = tileSpacing.dp,
+                        isEditMode = isEditMode,
+                        scrollState = win8ScrollState,
+                        onEnterEditMode = { isEditMode = true },
+                        onMoveTile = { from, to -> moveStartTile(from, to) },
+                        onOpenApps = { openApps(withSearch = false) },
+                        onSearch = { openApps(withSearch = true) },
+                        onPullToSocial = onNavigateToSocialHub,
+                        onOpenUser = { handleLaunch("hub_PEOPLE") { onHubSelected(HubType.PEOPLE) } },
+                        onOpenSettings = { handleLaunch("hub_SETTINGS") { onHubSelected(HubType.SETTINGS) } },
+                        onMergeTiles = onMergeTiles,
+                        canMerge = canMerge,
+                        tile = { model, index, isDragging, isMergeTarget, tileModifier ->
+                            StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = 4)
+                        }
+                    )
+
+                    // The tablet board scrolls sideways, so the strip and the add button are laid
+                    // over its bottom-left corner — to the right of the all-apps arrow — rather
+                    // than under the last row.
+                    if (isEditMode) {
+                        AddHubButton(
+                            missing = hubsOffHome,
+                            onClick = { addingHub = true },
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(start = 40.dp, bottom = 150.dp)
+                        )
                     }
-                )
+                    RunningHubsSection(
+                        hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
+                        cornerStyle = tileCornerStyle,
+                        onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
+                        onStop = onStopHub,
+                        onStopAll = onStopAllHubs,
+                        onPreview = { previewTarget = it },
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 104.dp, bottom = 16.dp)
+                            .width(320.dp)
+                    )
+
+                    StartEditBar(
+                        visible = isEditMode && openFolder == null,
+                        onDone = { isEditMode = false },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
+
+                // The app list, coming up from under Start
+                if (appsShown) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer { translationY = stackHeightPx * (1f - appsReveal.value) }
+                            .win8SwipeReveal(
+                                reveal = appsReveal,
+                                heightPx = { stackHeightPx },
+                                opening = false,
+                                enabled = true,
+                                animate = animationsOn,
+                                onSettled = { open -> appsOpen = open }
+                            )
+                    ) {
+                        Windows8AppsScreen(
+                            searchRequests = appsSearchRequests,
+                            onBackToStart = { closeApps() }
+                        )
+                    }
+                }
 
                 TileSizePopup()
                 TileLookPopup()
@@ -1170,37 +1280,6 @@ private fun HomeHubScreenContent(
                         StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = FOLDER_COLUMNS)
                     }
                 )
-
-                // The tablet board scrolls sideways, so the strip and the add button are laid
-                // over its bottom-left corner rather than under the last row.
-                if (isEditMode) {
-                    AddHubButton(
-                        missing = hubsOffHome,
-                        onClick = { addingHub = true },
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 32.dp, bottom = 150.dp)
-                    )
-                }
-                RunningHubsSection(
-                    hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
-                    cornerStyle = tileCornerStyle,
-                    onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
-                    onStop = onStopHub,
-                    onStopAll = onStopAllHubs,
-                    onPreview = { previewTarget = it },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 32.dp, bottom = 24.dp)
-                        .width(320.dp)
-                )
-
-                StartEditBar(
-                    visible = isEditMode && openFolder == null,
-                    onDone = { isEditMode = false },
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-
             }
         } else if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE) {
             val swipeGestureModifierWp = Modifier.pointerInput(isEditMode) {

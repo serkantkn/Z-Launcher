@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.ui.components.wpTilt
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import java.text.Collator
@@ -95,8 +96,11 @@ internal fun AppsJumpList(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
+            // Four squares across fill a phone; on a tablet the same four would be the size of
+            // a hand, so the alphabet is set the way Windows 8's semantic zoom set it: wide.
+            val columns = if (LocalIsWideScreen.current) WIDE_COLUMNS else COLUMNS
             LazyVerticalGrid(
-                columns = GridCells.Fixed(COLUMNS),
+                columns = GridCells.Fixed(columns),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize()
@@ -104,7 +108,7 @@ internal fun AppsJumpList(
                 itemsIndexed(letters, key = { _, letter -> letter }) { index, letter ->
                     val available = letter in availableLetters
                     // The wave runs diagonally, as the platform's own tile entrance does.
-                    val step = (index % COLUMNS) + (index / COLUMNS)
+                    val step = (index % columns) + (index / columns)
                     val turn by animateFloatAsState(
                         targetValue = if (appeared) 0f else -90f,
                         animationSpec = tween(
@@ -185,3 +189,4 @@ private val TURKISH_ALPHABET =
         'O', 'Ö', 'P', 'R', 'S', 'Ş', 'T', 'U', 'Ü', 'V', 'Y', 'Z')
 
 private const val COLUMNS = 4
+private const val WIDE_COLUMNS = 9

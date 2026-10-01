@@ -846,6 +846,17 @@
     <string name="win8_start_title">start</string>
     <string name="win8_group_hubs">hubs</string>
     <string name="win8_zoom_out">show groups</string>
+    <string name="win8_back_to_start">back to start</string>
+    <string name="win8_apps_by_name">by name</string>
+    <string name="win8_apps_by_date">by date installed</string>
+    <string name="win8_apps_by_usage">by most used</string>
+    <string name="win8_apps_today">today</string>
+    <string name="win8_apps_this_week">this week</string>
+    <string name="win8_apps_this_month">this month</string>
+    <string name="win8_apps_earlier">earlier</string>
+    <string name="win8_apps_most_used">most used</string>
+    <string name="win8_apps_others">the rest</string>
+    <string name="win8_search_results">results</string>
     <string name="settings_layout_win8">windows 8</string>
     <string name="settings_layout_win8_sub">full-screen start, grouped tiles</string>
     <string name="settings_task_switcher">task switcher</string>

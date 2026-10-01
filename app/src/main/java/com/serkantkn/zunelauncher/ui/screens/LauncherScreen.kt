@@ -1072,7 +1072,7 @@ private fun RenderHubScreen(
     }
 }
 
-private fun expandNotificationPanel(context: Context) {
+internal fun expandNotificationPanel(context: Context) {
     try {
         val statusBarService = context.getSystemService("statusbar")
         val statusBarManager = Class.forName("android.app.StatusBarManager")
