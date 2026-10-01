@@ -89,12 +89,32 @@ beyaz bir çizgi menüye açılır.
   <img src="docs/img/dosyalar.png" width="180" alt="Dosyalar hub'ında bir klasör">
 </p>
 
+## Tablet
+
+Geniş ekranda başlangıç, Windows 8'in başlangıcıdır: tam ekran, gruplu karolar, yana doğru akan bir pano.
+Uygulama listesi onun altında durur — yukarı kaydır ya da sol alttaki oka dokun, karolar ekranın üstünden
+çıkarken liste alttan gelir; aşağı kaydır, geri döner. Liste harflere göre gruplu, sütunlar önce aşağı sonra
+yana okunur, yana kayar; başlığın yanındaki menü ada, yüklenme tarihine ya da kullanıma göre sıralar. Basılı
+tutunca Windows 8'in uygulama çubuğu alttan gelir. Panoyu ilk grubun ötesine çekince sosyal hub açılır.
+
+<p align="center">
+  <img src="docs/img/tablet.gif" width="480" alt="Karolar yukarı çıkarken uygulama listesi alttan gelir">
+</p>
+<p align="center">
+  <img src="docs/img/tablet-baslangic.jpg" width="320" alt="Tablette başlangıç">
+  <img src="docs/img/tablet-uygulamalar.jpg" width="320" alt="Harflere göre gruplu uygulama listesi">
+</p>
+<p align="center">
+  <img src="docs/img/tablet-cubuk.jpg" width="320" alt="Uygulama çubuğu">
+  <img src="docs/img/tablet-tarih.jpg" width="320" alt="Yüklenme tarihine göre">
+</p>
+
 ## Ayrıca
 
 - Windows Phone klavyesi ve tahmin çubuğu *(Pro)*
 - Ses çubuğundan bildirim şeridine kadar WP arayüzü
 - Türkçe ve İngilizce
-- Tablet düzeni ve bölünmüş ekran
+- Bölünmüş ekran: tablette dört, telefonda iki parmakla
 
 ## Gizlilik
 
@@ -152,6 +172,9 @@ turnstile animations and Zune's thin type, running on today's Android — and se
   people, conversations, albums, records, notes and web pages. Every tile can be given its own colour, name,
   icon, picture, animation, transparency and ink, and reset with one tap. Any hub's tile can open another
   app instead. Three layouts: the Windows Phone board, a Zune-style list, the Windows 8 board on tablets.
+- **Tablet.** Windows 8's Start, full screen and grouped; a swipe up slides it off while the app list rises from
+  below — apps under their letters in columns, scrolling sideways, ordered by name, install date or use, with
+  the Windows 8 app bar on a hold. Pulling the board past its first group opens the social hub.
 - **Hubs, all in-app.** Phone, Messaging, People, Pictures, Music, Internet, Email, Notes, Files (copy, cut,
   paste, rename, delete, details; opens text, pictures, sound, video and PDF itself; cloud drives), Social,
   Clock, Calendar, Weather, Calculator, Camera. Hubs left with Home keep running and come back from the

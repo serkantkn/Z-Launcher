@@ -186,6 +186,10 @@
   .shots figcaption { color: var(--dim); font-size: 13px; margin-top: 6px; }
   .shots.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .shots.three figure { max-width: none; }
+  .shots.wide { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .shots.wide figure { max-width: none; }
+  .gifs.wide figure { width: min(720px, 100%); }
+  @media (max-width: 640px) { .shots.wide { grid-template-columns: 1fr; } }
 
   /* Accent swatches */
   .swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 6px; }
@@ -240,6 +244,7 @@
     <a class="tab active" href="#baslangic">başlangıç</a>
     <a class="tab" href="#hublar">hub'lar</a>
     <a class="tab" href="#hareket">hareket</a>
+    <a class="tab" href="#tablet">tablet</a>
     <a class="tab" href="#kisisel">kişisel</a>
     <a class="tab" href="#gizlilik">gizlilik</a>
     <a class="tab" href="#kaynak">kaynak</a>
@@ -421,6 +426,30 @@
           <div class="feature"><b>istersen kapat</b><span>hareketi azaltma ayarı her şeyi durdurur, hiçbir şeyi bozmaz</span></div>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="tablet">
+  <div class="wrap">
+    <h2>tablette</h2>
+    <p class="tag">Geniş ekranda başlangıç, Windows 8'in başlangıcıdır: tam ekran, gruplu karolar, yana doğru akan bir pano. Uygulama listesi onun altında durur.</p>
+    <div class="gifs wide">
+      <figure><img src="img/tablet.gif" alt="Karolar yukarı çıkarken uygulama listesi alttan gelir" width="720" height="432" loading="lazy"><figcaption><b>alttan gelen liste.</b> Yukarı kaydır ya da sol alttaki oka dokun: karolar ekranın üstünden çıkar, uygulama listesi alttan gelir. Aşağı kaydır, geri döner.</figcaption></figure>
+    </div>
+    <div class="shots wide" style="margin-top:28px">
+      <figure><img src="img/tablet-baslangic.jpg" alt="Tablette başlangıç ekranı" width="1000" height="600" loading="lazy"><figcaption>başlangıç: gruplar, sağ üstte hesap karosu, sol altta tüm uygulamalar oku</figcaption></figure>
+      <figure><img src="img/tablet-uygulamalar.jpg" alt="Harflere göre gruplu uygulama listesi" width="1000" height="600" loading="lazy"><figcaption>uygulamalar: harfler, önce aşağı sonra yana okunan sütunlar, yana kayan liste</figcaption></figure>
+      <figure><img src="img/tablet-cubuk.jpg" alt="Basılı tutunca gelen uygulama çubuğu" width="1000" height="600" loading="lazy"><figcaption>basılı tut: uygulama çubuğu alttan gelir — sabitle, gizle, paylaş, bilgi, kaldır</figcaption></figure>
+      <figure><img src="img/tablet-tarih.jpg" alt="Yüklenme tarihine göre sıralı liste" width="1000" height="600" loading="lazy"><figcaption>başlığın yanındaki menü: ada, yüklenme tarihine ya da kullanıma göre</figcaption></figure>
+    </div>
+    <div class="features" style="margin-top:32px">
+      <div class="feature"><b>gruplar</b><span>hub'lar, uygulamalar, notlar; karolar sütun sütun dolar, küçükler boşlukları alır</span></div>
+      <div class="feature"><b>anlamsal yakınlaştırma</b><span>iki parmakla sıkıştır, gruplar küçülür; birine dokun, yerine dön</span></div>
+      <div class="feature"><b>sosyal hub solda</b><span>panoyu ilk grubun ötesine çek: biraz esner, bırakınca sosyal sayfa gelir</span></div>
+      <div class="feature"><b>alfabe</b><span>harfe dokun ya da listeyi sıkıştır, dokuz sütunluk alfabeden atla</span></div>
+      <div class="feature"><b>bölünmüş ekran</b><span>bir hub'dayken dört parmakla çek, iki hub yan yana</span></div>
+      <div class="feature"><b>panorama</b><span>hub'lar tablette yan yana, tek başlık altında</span></div>
     </div>
   </div>
 </section>
