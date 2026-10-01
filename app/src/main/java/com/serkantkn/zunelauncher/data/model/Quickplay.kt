@@ -66,13 +66,22 @@ fun <T> mostRecentFirst(current: List<T>, item: T, limit: Int, sameAs: (T, T) ->
 const val RECENT_APPS_LIMIT = 8
 const val RECENT_ALBUMS_LIMIT = 8
 
-/** What the Zune list's quickplay has to offer right now; every part is optional. */
+/** What the quickplay page has to offer right now, newest first; every part may be empty. */
 data class Quickplay(
-    val lastAlbum: RecentAlbum? = null,
-    val lastPhoto: MediaImage? = null,
-    val lastNote: Note? = null,
+    val recentAlbums: List<RecentAlbum> = emptyList(),
+    val recentPhotos: List<MediaImage> = emptyList(),
+    val recentNotes: List<Note> = emptyList(),
     val recentApps: List<AppInfo> = emptyList()
 ) {
+    val lastAlbum: RecentAlbum? get() = recentAlbums.firstOrNull()
+    val lastPhoto: MediaImage? get() = recentPhotos.firstOrNull()
+    val lastNote: Note? get() = recentNotes.firstOrNull()
     val isEmpty: Boolean
-        get() = lastAlbum == null && lastPhoto == null && lastNote == null && recentApps.isEmpty()
+        get() = recentAlbums.isEmpty() && recentPhotos.isEmpty() && recentNotes.isEmpty() && recentApps.isEmpty()
 }
+
+/** How much of each the page shows. */
+const val QUICKPLAY_ALBUMS = 4
+const val QUICKPLAY_PHOTOS = 6
+const val QUICKPLAY_NOTES = 3
+const val QUICKPLAY_APPS = 8

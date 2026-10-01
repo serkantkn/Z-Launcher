@@ -43,7 +43,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
+import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubType
+import com.serkantkn.zunelauncher.ui.screens.home.QuickplayScreen
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
@@ -101,9 +103,14 @@ fun LauncherScreen(
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val navState = rememberZuneNavigationState()
+    // Social, Start, the app list — and, in the Zune layout, quickplay between Start and the
+    // apps, as on the Zune HD. The app list is the last page either way.
+    val homeScreenLayout by settingsViewModel.homeScreenLayout.collectAsState()
+    val hasQuickplay = homeScreenLayout == HomeScreenLayout.ZUNE
+    val appsPage = if (hasQuickplay) 3 else 2
     val pagerState = rememberPagerState(
         initialPage = 1,
-        pageCount = { 3 }
+        pageCount = { if (homeScreenLayout == HomeScreenLayout.ZUNE) 4 else 3 }
     )
 
     val notificationStyle by settingsViewModel.notificationStyle.collectAsState()
@@ -562,7 +569,15 @@ fun LauncherScreen(
                                                 timeFormat = timeFormat,
                                                 dateFormat = dateFormat
                                             )
-                                            2 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
+                                            2 -> if (hasQuickplay) {
+                                                QuickplayScreen(
+                                                    isCurrentPage = pagerState.currentPage == 2,
+                                                    onHubSelected = { hub -> navState.openHub(hub) }
+                                                )
+                                            } else {
+                                                AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
+                                            }
+                                            3 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 3)
                                         }
                                     }
                                 }
@@ -779,7 +794,15 @@ fun LauncherScreen(
                                             timeFormat = timeFormat,
                                             dateFormat = dateFormat
                                         )
-                                        2 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
+                                        2 -> if (hasQuickplay) {
+                                            QuickplayScreen(
+                                                isCurrentPage = pagerState.currentPage == 2,
+                                                onHubSelected = { hub -> navState.openHub(hub) }
+                                            )
+                                        } else {
+                                            AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
+                                        }
+                                        3 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 3)
                                     }
                                 }
 
@@ -842,6 +865,11 @@ fun LauncherScreen(
                                     },
                                     onNavigateToAppsHub = {
                                         coroutineScope.launch {
+                                            pagerState.animateScrollToPage(appsPage)
+                                        }
+                                    },
+                                    onNavigateNext = {
+                                        coroutineScope.launch {
                                             pagerState.animateScrollToPage(2)
                                         }
                                     },
@@ -858,9 +886,17 @@ fun LauncherScreen(
                                     timeFormat = timeFormat,
                                     dateFormat = dateFormat
                                 )
-                                2 -> AppsHubScreen(
-                                    isCurrentPage = pagerState.currentPage == 2
-                                )
+                                2 -> if (hasQuickplay) {
+                                    QuickplayScreen(
+                                        isCurrentPage = pagerState.currentPage == 2,
+                                        onHubSelected = { hub ->
+                                            if (hub != HubType.HOME) navState.openHub(hub)
+                                        }
+                                    )
+                                } else {
+                                    AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
+                                }
+                                3 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 3)
                             }
                         }
                     }

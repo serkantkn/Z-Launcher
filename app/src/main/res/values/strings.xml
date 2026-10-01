@@ -1117,6 +1117,10 @@
     <string name="zune_line_playing">playing</string>
     <string name="zune_line_alarm">alarm %1$s</string>
     <string name="zune_line_missed">missed call</string>
+    <string name="quickplay_photos">recent pictures</string>
+    <string name="quickplay_notes">recent notes</string>
+    <string name="quickplay_empty">nothing yet. what you play, take, write and open gathers here.</string>
+    <string name="quickplay_hint">swipe on for the app list</string>
     <string name="zune_line_pinned_notes">%1$d pinned</string>
     <plurals name="zune_line_new_photos"><item quantity="one">%d new today</item><item quantity="other">%d new today</item></plurals>
     <string name="settings_tile_icons">app icons</string>

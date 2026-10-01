@@ -161,6 +161,8 @@ fun HomeHubScreen(
     onHubSelected: (HubType) -> Unit,
     onNavigateToSocialHub: () -> Unit = {},
     onNavigateToAppsHub: () -> Unit = {},
+    /** The page to the right of Start: quickplay in the Zune layout, the app list otherwise. */
+    onNavigateNext: () -> Unit = onNavigateToAppsHub,
     onExpandProgressChange: (Float) -> Unit = {},
     /** Bumped when the Home key is pressed while Start is already in front. */
     homeResetSignal: Int = 0,
@@ -188,6 +190,7 @@ fun HomeHubScreen(
             onHubSelected = onHubSelected,
             onNavigateToSocialHub = onNavigateToSocialHub,
             onNavigateToAppsHub = onNavigateToAppsHub,
+            onNavigateNext = onNavigateNext,
             onExpandProgressChange = onExpandProgressChange,
             homeResetSignal = homeResetSignal,
             runningHubs = runningHubs,
@@ -209,6 +212,7 @@ private fun HomeHubScreenContent(
     onHubSelected: (HubType) -> Unit,
     onNavigateToSocialHub: () -> Unit,
     onNavigateToAppsHub: () -> Unit,
+    onNavigateNext: () -> Unit,
     onExpandProgressChange: (Float) -> Unit,
     homeResetSignal: Int,
     runningHubs: List<HubType>,
@@ -417,8 +421,9 @@ private fun HomeHubScreenContent(
                         // First swipe right on main screen (finger left -> right) -> expand favorites!
                         isFavoritesExpanded = true
                     } else if (totalDragX < -40f) {
-                        // Swipe left on main screen (finger right -> left) -> open Apps Hub (Page 2)!
-                        onNavigateToAppsHub()
+                        // Swipe left on main screen (finger right -> left) -> the next page, which
+                        // in the Zune layout is quickplay, with the app list beyond it.
+                        onNavigateNext()
                     }
                 } else {
                     if (totalDragX > 40f) {
@@ -1485,45 +1490,19 @@ private fun HomeHubScreenContent(
                     )
 
                     if (!isEditMode) {
-                        ZuneQuickplay(
-                            state = quickplay,
-                            cornerStyle = tileCornerStyle,
-                            face = tileFace,
-                            onOpenAlbum = {
-                                quickplay.lastAlbum?.let { album ->
-                                    handleLaunch("qp_album") {
-                                        MusicBridge.playAlbum(album.id)
-                                        onHubSelected(HubType.MUSIC)
-                                    }
-                                }
-                            },
-                            onOpenPhoto = {
-                                quickplay.lastPhoto?.let { photo ->
-                                    handleLaunch("qp_photo") {
-                                        PicturesBridge.openPhoto(photo.uri)
-                                        onHubSelected(HubType.PICTURES)
-                                    }
-                                }
-                            },
-                            onOpenNote = {
-                                quickplay.lastNote?.let { note ->
-                                    handleLaunch("qp_note") {
-                                        NotesBridge.open(note.id)
-                                        onHubSelected(HubType.NOTES)
-                                    }
-                                }
-                            },
-                            onOpenApp = { app -> handleLaunch("qp_${app.packageName}") { viewModel.launchApp(app.packageName) } },
-                            modifier = Modifier
-                                .padding(bottom = 28.dp)
-                                .w10mStaggeredAnimation({ animationProgress.value }, 4 + localHubOrder.size)
-                        )
                         ZuneListEnd(
                             onApps = onNavigateToAppsHub,
                             onSettings = { handleLaunch("hub_SETTINGS") { openHub(HubType.SETTINGS) } },
-                            modifier = Modifier.padding(bottom = 32.dp)
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
                     }
+                    // The last hub used to end under the navigation bar, where it could not be
+                    // reached; the list now ends clear of it.
+                    Spacer(
+                        modifier = Modifier.height(
+                            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 32.dp
+                        )
+                    )
                 }
 
                 // ════════════════════════════════════════════════

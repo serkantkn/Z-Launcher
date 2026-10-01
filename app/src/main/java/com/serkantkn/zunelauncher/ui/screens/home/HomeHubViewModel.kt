@@ -54,6 +54,10 @@ import com.serkantkn.zunelauncher.data.model.TileIcon
 import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import com.serkantkn.zunelauncher.data.model.TileLook
 import com.serkantkn.zunelauncher.data.model.Quickplay
+import com.serkantkn.zunelauncher.data.model.QUICKPLAY_ALBUMS
+import com.serkantkn.zunelauncher.data.model.QUICKPLAY_APPS
+import com.serkantkn.zunelauncher.data.model.QUICKPLAY_NOTES
+import com.serkantkn.zunelauncher.data.model.QUICKPLAY_PHOTOS
 import com.serkantkn.zunelauncher.data.repository.IconPackInfo
 import com.serkantkn.zunelauncher.util.TileIconFace
 import androidx.compose.ui.graphics.ImageBitmap
@@ -763,11 +767,11 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     ) { albums, images, notes, recentPackages, apps ->
         val byPackage = apps.associateBy { it.packageName }
         Quickplay(
-            lastAlbum = albums.firstOrNull(),
-            lastPhoto = images.firstOrNull { !it.isVideo } ?: images.firstOrNull(),
+            recentAlbums = albums.take(QUICKPLAY_ALBUMS),
+            recentPhotos = images.filter { !it.isVideo }.take(QUICKPLAY_PHOTOS),
             // A locked note keeps its title to itself, and a deleted or archived one is not "lately".
-            lastNote = notes.filter { it.deletedAt == null && !it.isArchived && !it.isLocked }
-                .maxByOrNull { it.updatedAt },
+            recentNotes = notes.filter { it.deletedAt == null && !it.isArchived && !it.isLocked }
+                .sortedByDescending { it.updatedAt }.take(QUICKPLAY_NOTES),
             recentApps = recentPackages.mapNotNull { byPackage[it] }.take(QUICKPLAY_APPS)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Quickplay())
@@ -1016,9 +1020,6 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     }
 
 }
-
-/** Four small squares in a row: as many recent apps as the Zune list's quickplay shows. */
-private const val QUICKPLAY_APPS = 4
 
 /** A tile is never wider than a phone, so a picture this big is already more than it can show. */
 private const val TILE_PICTURE_MAX_PX = 1024

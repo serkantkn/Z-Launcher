@@ -1117,6 +1117,10 @@
     <string name="zune_line_playing">çalıyor</string>
     <string name="zune_line_alarm">alarm %1$s</string>
     <string name="zune_line_missed">cevapsız arama</string>
+    <string name="quickplay_photos">son fotoğraflar</string>
+    <string name="quickplay_notes">son notlar</string>
+    <string name="quickplay_empty">henüz bir şey yok. çaldığın, çektiğin, yazdığın ve açtığın burada birikir.</string>
+    <string name="quickplay_hint">uygulama listesi için kaydırmaya devam et</string>
     <string name="zune_line_pinned_notes">%1$d sabitli</string>
     <plurals name="zune_line_new_photos"><item quantity="one">bugün %d yeni</item><item quantity="other">bugün %d yeni</item></plurals>
     <string name="settings_tile_icons">uygulama ikonları</string>
