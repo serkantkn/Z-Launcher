@@ -936,22 +936,28 @@ fun LauncherScreen(
                     }
                 }
 
-                // Windows Phone Toast Notification Banner
-                if (notificationStyle == NotificationStyle.WINDOWS_PHONE) {
-                    WpToastNotification(
-                        message = latestNotification,
-                        onDismiss = { SocialRepository.clearToast() }
-                    )
-                }
+                // The banners: over Start and over any hub. Start and the hubs carry z-indices of
+                // their own (1 and 2) so that a hub kept running behind Start stays behind it, and
+                // anything left at zero — which these were — went under the lot: the volume bar
+                // and a notification were sliding in beneath the hub names.
+                Box(modifier = Modifier.fillMaxSize().zIndex(BANNER_Z)) {
+                    // Windows Phone Toast Notification Banner
+                    if (notificationStyle == NotificationStyle.WINDOWS_PHONE) {
+                        WpToastNotification(
+                            message = latestNotification,
+                            onDismiss = { SocialRepository.clearToast() }
+                        )
+                    }
 
-                // Windows Phone Call Screen Overlay
-                val callStatus by com.serkantkn.zunelauncher.data.service.CallManager.callStatus.collectAsState()
-                if (callStatus != com.serkantkn.zunelauncher.data.service.CallStatus.IDLE) {
-                    com.serkantkn.zunelauncher.ui.screens.phone.WpCallScreen()
-                }
+                    // Windows Phone Call Screen Overlay
+                    val callStatus by com.serkantkn.zunelauncher.data.service.CallManager.callStatus.collectAsState()
+                    if (callStatus != com.serkantkn.zunelauncher.data.service.CallStatus.IDLE) {
+                        com.serkantkn.zunelauncher.ui.screens.phone.WpCallScreen()
+                    }
 
-                // Windows Phone Style Volume Control Banner
-                WpVolumeControl()
+                    // Windows Phone Style Volume Control Banner
+                    WpVolumeControl()
+                }
 
                 // The tour, and the note about what changed. Over everything, because a first run
                 // that can be swiped away behind the launcher is not a first run.
@@ -976,6 +982,7 @@ fun LauncherScreen(
 
                 val onboardingViewModel: OnboardingViewModel = viewModel()
                 val firstRun by onboardingViewModel.screen.collectAsState()
+                if (firstRun != FirstRunScreen.None) Box(modifier = Modifier.fillMaxSize().zIndex(FIRST_RUN_Z)) {
                 when (val screen = firstRun) {
                     is FirstRunScreen.Tour -> OnboardingScreen(
                         tour = screen,
@@ -992,10 +999,17 @@ fun LauncherScreen(
 
                     FirstRunScreen.None -> Unit
                 }
+                }
             }
         }
     }
 }
+
+/** Above Start (1), the hubs (2) and the hub switcher (10): nothing on screen may cover a banner. */
+private const val BANNER_Z = 20f
+
+/** The first-run tour and the what's-new note, over everything including the banners. */
+private const val FIRST_RUN_Z = 30f
 
 @Composable
 private fun RenderHubScreen(
