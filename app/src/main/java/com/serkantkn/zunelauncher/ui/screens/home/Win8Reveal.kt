@@ -98,10 +98,10 @@ internal const val REVEAL_MILLIS = 340
 private const val SHADE_PULL_PX = 48f
 
 /** Faster than this, in dp per second, and the direction of the throw wins over the distance. */
-private const val FLING_PX_S = 900f
+private const val FLING_PX_S = 400f
 
 /** Past this much of the screen the list keeps rising; before it, Start comes back. */
-private const val OPEN_PAST = 0.28f
+private const val OPEN_PAST = 0.12f
 
 /** Below this much the list keeps going down; above it, it comes back up. */
-private const val CLOSE_PAST = 0.72f
+private const val CLOSE_PAST = 0.88f

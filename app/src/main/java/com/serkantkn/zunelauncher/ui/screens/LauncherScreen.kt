@@ -12,6 +12,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -849,10 +850,17 @@ fun LauncherScreen(
                                 if ((1f - hingeProgress.value * 1.5f) > 0f) drawContent()
                             }
                     ) {
+                        // On a tablet a page is a long way across: the pager's own rule — half
+                        // the page, or a throw — asks for a drag the width of a hand. There a
+                        // sixth of the page is enough to turn it.
                         HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.weight(1f),
-                            userScrollEnabled = navState.currentHub == null
+                            userScrollEnabled = navState.currentHub == null,
+                            flingBehavior = PagerDefaults.flingBehavior(
+                                state = pagerState,
+                                snapPositionalThreshold = if (isWideScreen) TABLET_PAGE_TURN else 0.5f
+                            )
                         ) { page ->
                             when (page) {
                                 0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
@@ -1006,6 +1014,9 @@ fun LauncherScreen(
 }
 
 /** Above Start (1), the hubs (2) and the hub switcher (10): nothing on screen may cover a banner. */
+/** How much of a page a tablet has to be dragged before letting go turns it. */
+private const val TABLET_PAGE_TURN = 0.15f
+
 private const val BANNER_Z = 20f
 
 /** The first-run tour and the what's-new note, over everything including the banners. */

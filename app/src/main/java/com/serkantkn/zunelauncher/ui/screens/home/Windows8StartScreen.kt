@@ -583,7 +583,7 @@ internal fun Modifier.win8PinchZoom(onZoomOut: () -> Unit, onZoomIn: () -> Unit)
 }
 
 /** How far the board has to be pulled past its first group before the social page is wanted. */
-private const val SOCIAL_PULL_DP = 64f
+private const val SOCIAL_PULL_DP = 36f
 
 /** How much of the pull the board actually moves by: it gives, it does not follow. */
-private const val PULL_GIVE = 0.4f
+private const val PULL_GIVE = 0.5f
