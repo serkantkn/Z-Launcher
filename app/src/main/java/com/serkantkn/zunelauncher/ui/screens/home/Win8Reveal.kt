@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -39,15 +40,18 @@ internal fun Modifier.win8SwipeReveal(
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             velocity.resetTracking()
-            velocity.addPosition(down.uptimeMillis, down.position)
+            velocity.addPosition(down.uptimeMillis, Offset.Zero)
             var travel = 0f
             var shadePulled = false
             val startedAt = reveal.value
 
             fun follow(change: PointerInputChange, dy: Float) {
                 change.consume()
-                velocity.addPosition(change.uptimeMillis, change.position)
                 travel += dy
+                // The throw is measured along the distance travelled, not where the finger is:
+                // the page slides with the finger, so in the page's own coordinates the finger
+                // hardly moves at all and a flick would read as standing still.
+                velocity.addPosition(change.uptimeMillis, Offset(0f, travel))
                 val height = heightPx().takeIf { it > 0f } ?: return
                 if (opening) {
                     if (travel > 0f && startedAt == 0f) {
