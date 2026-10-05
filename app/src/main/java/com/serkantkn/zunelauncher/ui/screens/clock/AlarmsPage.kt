@@ -68,23 +68,16 @@ internal fun AlarmsPage(
             .minByOrNull { it.second }
     }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = contentPadding
-    ) {
-        if (!canScheduleExact) {
-            item {
-                MetroNotice(
-                    message = stringResource(R.string.clock_exact_alarm_warning),
-                    actionLabel = stringResource(R.string.open_settings),
-                    onAction = onFixExactPermission,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-            }
-        }
-
-        item {
+    ClockSplit(contentPadding = contentPadding, modifier = modifier, head = {
             Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                if (!canScheduleExact) {
+                    MetroNotice(
+                        message = stringResource(R.string.clock_exact_alarm_warning),
+                        actionLabel = stringResource(R.string.open_settings),
+                        onAction = onFixExactPermission,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
                 Text(
                     text = stringResource(R.string.clock_next_alarm).lowercase(Locale.getDefault()),
                     style = MaterialTheme.typography.labelLarge,
@@ -109,8 +102,7 @@ internal fun AlarmsPage(
                     )
                 }
             }
-        }
-
+    }) {
         item {
             MetroRule(
                 title = stringResource(R.string.clock_tab_alarms),

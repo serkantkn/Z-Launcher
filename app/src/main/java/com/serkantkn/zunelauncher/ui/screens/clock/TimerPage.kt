@@ -65,11 +65,7 @@ internal fun TimerPage(
     }
     val finished = state.totalMillis > 0L && remainingMillis <= 0L && !state.isRunning
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = contentPadding
-    ) {
-        item {
+    ClockSplit(contentPadding = contentPadding, modifier = modifier, head = {
             Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                 if (state.label.isNotBlank()) {
                     Text(
@@ -102,8 +98,7 @@ internal fun TimerPage(
                     color = zuneColors.textMuted
                 )
             }
-        }
-
+    }) {
         if (!state.isRunning) {
             item {
                 MetroRule(

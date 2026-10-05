@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -72,85 +75,81 @@ internal fun MonthPage(
 
     // The month is turned with the chevrons, not by swiping: a sideways swipe inside a hub belongs
     // to the pivot, and a page that takes it for itself means you can never leave that page.
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = contentPadding
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Chevron(text = "‹", onClick = onPreviousMonth)
+    @Composable
+    fun MonthHeading() {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Chevron(text = "‹", onClick = onPreviousMonth)
+            Text(
+                text = formatMonthYear(monthMillis),
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light),
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier.weight(1f)
+            )
+            Chevron(text = "›", onClick = onNextMonth)
+        }
+    }
+
+    @Composable
+    fun DayNames() {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            dayNames.forEach { name ->
                 Text(
-                    text = formatMonthYear(monthMillis),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light),
-                    color = MaterialTheme.colorScheme.onBackground,
+                    text = name,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = zuneColors.textDim,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     modifier = Modifier.weight(1f)
                 )
-                Chevron(text = "›", onClick = onNextMonth)
             }
         }
+        Spacer(modifier = Modifier.padding(top = 4.dp))
+    }
 
-        item {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                dayNames.forEach { name ->
-                    Text(
-                        text = name,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = zuneColors.textDim,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f)
+    @Composable
+    fun WeekRow(week: List<Long?>, square: Boolean, rowModifier: Modifier) {
+        Row(
+            modifier = rowModifier.fillMaxWidth().padding(bottom = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            repeat(7) { column ->
+                val day = week.getOrNull(column)
+                if (day == null) {
+                    Box(modifier = Modifier.weight(1f))
+                } else {
+                    val dayEvents = remember(events, day) { eventsOn(events, day) }
+                    val dayNumber = Calendar.getInstance()
+                        .apply { timeInMillis = day }
+                        .get(Calendar.DAY_OF_MONTH)
+                    MonthDayCell(
+                        dayNumber = dayNumber,
+                        isToday = isSameDay(day, now),
+                        isSelected = isSameDay(day, selectedDayMillis),
+                        isOtherMonth = Calendar.getInstance()
+                            .apply { timeInMillis = day }
+                            .get(Calendar.MONTH) != monthOfSelected,
+                        markColors = dayEvents.map { parseColor(it.colorHex, zuneColors.accentColor) },
+                        onClick = { onSelectDay(day) },
+                        modifier = Modifier.weight(1f),
+                        square = square
                     )
                 }
             }
-            Spacer(modifier = Modifier.padding(top = 4.dp))
         }
+    }
 
-        // Six rows of seven; a LazyColumn cannot hold a grid, and a month is never longer than this.
-        grid.chunked(7).forEachIndexed { rowIndex, week ->
-            item(key = "week_${monthMillis}_$rowIndex") {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    repeat(7) { column ->
-                        val day = week.getOrNull(column)
-                        if (day == null) {
-                            Box(modifier = Modifier.weight(1f).aspectRatio(1f))
-                        } else {
-                            val dayEvents = remember(events, day) { eventsOn(events, day) }
-                            val dayNumber = Calendar.getInstance()
-                                .apply { timeInMillis = day }
-                                .get(Calendar.DAY_OF_MONTH)
-                            MonthDayCell(
-                                dayNumber = dayNumber,
-                                isToday = isSameDay(day, now),
-                                isSelected = isSameDay(day, selectedDayMillis),
-                                isOtherMonth = Calendar.getInstance()
-                                    .apply { timeInMillis = day }
-                                    .get(Calendar.MONTH) != monthOfSelected,
-                                markColors = dayEvents.map { parseColor(it.colorHex, zuneColors.accentColor) },
-                                onClick = { onSelectDay(day) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
+    fun LazyListScope.dayEvents() {
         item {
             DayHeading(dayMillis = selectedDayMillis, nowMillis = now, count = selectedEvents.size)
         }
-
         if (selectedEvents.isEmpty()) {
             item { MetroEmpty(message = stringResource(R.string.cal_no_events_day)) }
         }
-
         selectedEvents.forEach { event ->
             item(key = event.id) {
                 EventRow(
@@ -161,7 +160,52 @@ internal fun MonthPage(
             }
         }
     }
+
+    if (LocalIsWideScreen.current) {
+        // On a tablet the month is a wall calendar: the whole grid at once, its rows sharing
+        // the height so that six weeks fit without scrolling, and the chosen day's diary
+        // beside it rather than somewhere below the fold.
+        val weeks = grid.chunked(7)
+        Row(modifier = modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .weight(WIDE_GRID_SHARE)
+                    .fillMaxHeight()
+                    .padding(top = contentPadding.calculateTopPadding(), bottom = 8.dp)
+            ) {
+                MonthHeading()
+                DayNames()
+                weeks.forEach { week -> WeekRow(week, square = false, rowModifier = Modifier.weight(1f)) }
+            }
+            Spacer(modifier = Modifier.width(40.dp))
+            LazyColumn(
+                modifier = Modifier.weight(1f - WIDE_GRID_SHARE).fillMaxHeight(),
+                contentPadding = contentPadding
+            ) { dayEvents() }
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = contentPadding
+    ) {
+        item { MonthHeading() }
+        item { DayNames() }
+
+        // Six rows of seven; a LazyColumn cannot hold a grid, and a month is never longer than this.
+        grid.chunked(7).forEachIndexed { rowIndex, week ->
+            item(key = "week_${monthMillis}_$rowIndex") {
+                WeekRow(week, square = true, rowModifier = Modifier)
+            }
+        }
+
+        dayEvents()
+    }
 }
+
+/** How much of the page the grid takes on a wide screen; the day's diary has the rest. */
+private const val WIDE_GRID_SHARE = 0.62f
 
 @Composable
 private fun Chevron(text: String, onClick: () -> Unit) {

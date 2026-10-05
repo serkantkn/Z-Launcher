@@ -57,8 +57,7 @@ import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
-import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.screens.messaging.MessagingSheet
 import com.serkantkn.zunelauncher.ui.screens.messaging.SheetAction
@@ -287,10 +286,10 @@ fun CalendarHubScreen(
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (isWideScreen) {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            ZuneWideHubTitle(text = stringResource(R.string.hub_calendar))
-                            ZuneWidePanorama(
+                            ZuneWideNavHub(
+                                title = stringResource(R.string.hub_calendar),
                                 tabs = tabs,
-                                fillPageHeight = true,
+                                state = pager,
                                 modifier = Modifier.weight(1f)
                             ) { index -> Page(index) }
                             Spacer(modifier = Modifier.height(72.dp))

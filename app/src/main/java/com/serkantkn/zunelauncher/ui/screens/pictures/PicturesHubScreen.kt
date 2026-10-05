@@ -16,6 +16,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -79,8 +82,7 @@ import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
-import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.screens.messaging.MessagingSheet
 import com.serkantkn.zunelauncher.ui.screens.messaging.SheetAction
@@ -311,7 +313,9 @@ fun PicturesHubScreen(
             val isWideScreen = LocalIsWideScreen.current
 
             val columnsFor: (Int) -> Int = { count ->
-                if (storedColumns > 0) storedColumns else defaultGridColumns(count)
+                // The same grid with twice the room: on a tablet a row holds twice as many.
+                val phone = if (storedColumns > 0) storedColumns else defaultGridColumns(count)
+                if (isWideScreen) phone * 2 else phone
             }
 
             val renderPage: @Composable (Int) -> Unit = { tabIndex ->
@@ -388,10 +392,12 @@ fun PicturesHubScreen(
                 }
             }
 
+            // On a wide screen the hub's name heads the column of headings; it is only drawn
+            // here when that column is not — while asking for permission, searching, loading.
+            val showsWideNav = isWideScreen && hasPermission && !isSearchOpen &&
+                !(isLoading && allImages.isEmpty())
             Column(modifier = Modifier.fillMaxSize()) {
-                if (isWideScreen) {
-                    ZuneWideHubTitle(text = stringResource(R.string.pictures_hub))
-                } else {
+                if (!showsWideNav) {
                     Text(
                         text = stringResource(R.string.pictures_hub),
                         style = MaterialTheme.typography.titleMedium.copy(
@@ -435,7 +441,47 @@ fun PicturesHubScreen(
                         CircularProgressIndicator(color = zuneColors.accentColor)
                     }
                 } else if (isWideScreen) {
-                    ZuneWidePanorama(tabs = tabs, fillPageHeight = true) { index -> renderPage(index) }
+                    // Headings down the left with the albums listed under them like folders;
+                    // the grid has the rest of the screen.
+                    ZuneWideNavHub(
+                        title = stringResource(R.string.pictures_hub),
+                        tabs = listOf(tabs[0], albumsLabel, tabs[2]),
+                        state = pager,
+                        onSelected = {
+                            if (selectedAlbum != null) viewModel.selectAlbum(null)
+                            viewModel.clearSelection()
+                        },
+                        navExtra = {
+                            if (albums.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(28.dp))
+                                albums.forEach { album ->
+                                    val chosen = selectedAlbum?.bucketId == album.bucketId &&
+                                        pager.currentPage == ALBUMS_TAB
+                                    Text(
+                                        text = album.bucketName.ifBlank { unsortedLabel }.lowercase(Locale.getDefault()),
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Light,
+                                            fontSize = 19.sp
+                                        ),
+                                        color = if (chosen) zuneColors.accentColor else zuneColors.textMuted,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable(
+                                                indication = null,
+                                                interactionSource = remember { MutableInteractionSource() }
+                                            ) {
+                                                viewModel.clearSelection()
+                                                viewModel.selectAlbum(album)
+                                                scope.launch { pager.scrollToPage(ALBUMS_TAB) }
+                                            }
+                                            .padding(vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    ) { index -> renderPage(index) }
                 } else {
                     ZunePivotTabs(
                         tabs = tabs,
@@ -686,7 +732,7 @@ private fun AlbumsGrid(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Fixed(if (LocalIsWideScreen.current) 4 else 2),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
         contentPadding = PaddingValues(bottom = 96.dp),

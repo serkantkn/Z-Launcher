@@ -72,11 +72,7 @@ internal fun WorldClockPage(
     }
     val dateFormat = remember { SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()) }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = contentPadding
-    ) {
-        item {
+    ClockSplit(contentPadding = contentPadding, modifier = modifier, head = {
             Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
                 Text(
                     text = stringResource(R.string.clock_local_time).lowercase(Locale.getDefault()),
@@ -93,8 +89,7 @@ internal fun WorldClockPage(
                     color = zuneColors.textMuted
                 )
             }
-        }
-
+    }) {
         item {
             MetroRule(
                 title = stringResource(R.string.clock_cities),

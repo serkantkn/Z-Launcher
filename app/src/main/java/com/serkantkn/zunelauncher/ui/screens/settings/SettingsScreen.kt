@@ -9,6 +9,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -35,8 +37,7 @@ import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
-import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
@@ -210,29 +211,38 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     if (isWideScreen) {
-                        ZuneWideHubTitle(text = stringResource(R.string.common_settings))
-
-                        ZuneWidePanorama(tabs = tabs.map { stringResource(it.titleRes) }) { index ->
-                            when (tabs[index]) {
-                                SettingsTab.LOOK -> LookSettingsPage(
-                                    viewModel = viewModel,
-                                    themeMode = themeMode,
-                                    accentColor = accentColor,
-                                    onOpenPage = { openLookSettings(it) }
-                                )
-                                SettingsTab.HUBS -> HubSettingsPage(
-                                    viewModel = viewModel,
-                                    directCallEnabled = directCallEnabled,
-                                    onDirectCallChanged = viewModel::setDirectCallEnabled,
-                                    onOpenSocialSources = { openSocialSources() },
-                                    onOpenCalendars = { openCalendars() }
-                                )
-                                SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(viewModel = viewModel)
-                                SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
-                                SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
-                                SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
-                                SettingsTab.SYSTEM -> SystemSettingsPage(viewModel = viewModel)
-                                SettingsTab.ABOUT -> AboutSettingsPage()
+                        ZuneWideNavHub(
+                            title = stringResource(R.string.common_settings),
+                            tabs = tabs.map { stringResource(it.titleRes) },
+                            state = pager
+                        ) { index ->
+                            // A settings page is a list of lines; across a whole tablet they
+                            // would be too long to read, so the page keeps to a column.
+                            Box(modifier = Modifier.widthIn(max = 720.dp).fillMaxHeight()) {
+                                when (tabs[index]) {
+                                    SettingsTab.LOOK -> LookSettingsPage(
+                                        viewModel = viewModel,
+                                        themeMode = themeMode,
+                                        accentColor = accentColor,
+                                        onOpenPage = { openLookSettings(it) }
+                                    )
+                                    SettingsTab.HUBS -> HubSettingsPage(
+                                        viewModel = viewModel,
+                                        directCallEnabled = directCallEnabled,
+                                        onDirectCallChanged = viewModel::setDirectCallEnabled,
+                                        onOpenSocialSources = { openSocialSources() },
+                                        onOpenCalendars = { openCalendars() }
+                                    )
+                                    SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(viewModel = viewModel)
+                                    SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
+                                    SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
+                                    SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
+                                    SettingsTab.SYSTEM -> SystemSettingsPage(
+                                        viewModel = viewModel,
+                                        onOpenDateTimeSettings = { openDateTimeSettings() }
+                                    )
+                                    SettingsTab.ABOUT -> AboutSettingsPage()
+                                }
                             }
                         }
                     } else {

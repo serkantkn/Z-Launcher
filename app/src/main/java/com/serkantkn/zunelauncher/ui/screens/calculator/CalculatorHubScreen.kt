@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -56,8 +58,8 @@ import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
 import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
-import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavLabel
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.screens.notes.NotesEmptyState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
@@ -126,7 +128,11 @@ fun CalculatorHubScreen(
         )
         else -> listOf(
             WpBarAction(Icons.Default.ContentCopy, stringResource(R.string.common_copy)) { viewModel.copyResult() },
-            WpBarAction(Icons.Default.History, stringResource(R.string.calc_tab_history)) { coroutineScope.launch { pager.animateScrollToPage(PAGE_HISTORY) } }
+            if (isWideScreen) {
+                WpBarAction(Icons.Default.DeleteSweep, stringResource(R.string.calc_clear_history)) { if (history.isNotEmpty()) showClearHistoryDialog = true }
+            } else {
+                WpBarAction(Icons.Default.History, stringResource(R.string.calc_tab_history)) { coroutineScope.launch { pager.animateScrollToPage(PAGE_HISTORY) } }
+            }
         )
     }
     val bottomBarMenuItems: List<WpBarMenuItem> = buildList {
@@ -178,7 +184,8 @@ fun CalculatorHubScreen(
                             entry = entry,
                             onClick = {
                                 viewModel.useHistoryEntry(entry)
-                                coroutineScope.launch { pager.animateScrollToPage(PAGE_STANDARD) }
+                                // On a tablet the history is beside the keypad already.
+                                if (!isWideScreen) coroutineScope.launch { pager.animateScrollToPage(PAGE_STANDARD) }
                             },
                             onLongClick = { viewModel.removeHistoryEntry(entry.id) }
                         )
@@ -201,9 +208,33 @@ fun CalculatorHubScreen(
     Box(modifier = modifier.fillMaxSize()) {
         ZuneHubEntranceLayout { bottomBarModifier ->
             if (isWideScreen) {
+                // The history is not a page here: it stays open down the right, beside
+                // whichever keypad is in use, the way a paper roll sits beside a machine.
                 Column(modifier = Modifier.fillMaxSize()) {
-                    ZuneWideHubTitle(text = stringResource(R.string.hub_calculator))
-                    ZuneWidePanorama(tabs = tabs, modifier = Modifier.weight(1f).fillMaxWidth(), fillPageHeight = true) { index -> PageFor(index, compact = false) }
+                    ZuneWideNavHub(
+                        title = stringResource(R.string.hub_calculator),
+                        tabs = tabs,
+                        state = pager,
+                        hiddenTabs = setOf(PAGE_HISTORY),
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        sidePane = {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                ZuneWideNavLabel(
+                                    text = stringResource(R.string.calc_tab_history),
+                                    modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, bottom = 12.dp)
+                                )
+                                HistoryPage()
+                            }
+                        }
+                    ) { index ->
+                        // A keypad the width of a tablet is a wall of keys; it keeps to a
+                        // comfortable hand's width in the middle of its pane.
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                            Box(modifier = Modifier.widthIn(max = 560.dp).fillMaxHeight()) {
+                                PageFor(if (index == PAGE_HISTORY) PAGE_STANDARD else index, compact = false)
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(bottomBarClearance))
                 }
             } else {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -201,14 +202,16 @@ internal fun MonthDayCell(
     isOtherMonth: Boolean,
     markColors: List<Color>,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** False where the row decides the height, as in the month that fills a tablet. */
+    square: Boolean = true
 ) {
     val zuneColors = LocalZuneColors.current
     val interactionSource = remember { MutableInteractionSource() }
 
     Box(
         modifier = modifier
-            .aspectRatio(1f)
+            .then(if (square) Modifier.aspectRatio(1f) else Modifier.fillMaxHeight())
             .wpTilt(interactionSource, maxDegrees = 6f)
             .then(
                 when {

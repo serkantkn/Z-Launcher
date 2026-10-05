@@ -55,11 +55,7 @@ internal fun StopwatchPage(
     val fastest = remember(splits) { fastestLapIndex(splits) }
     val slowest = remember(splits) { slowestLapIndex(splits) }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = contentPadding
-    ) {
-        item {
+    ClockSplit(contentPadding = contentPadding, modifier = modifier, head = {
             Box(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 20.dp),
                 contentAlignment = Alignment.CenterStart
@@ -69,8 +65,7 @@ internal fun StopwatchPage(
                     fontSize = if (readingMillis >= 3_600_000L) 56.sp else 72.sp
                 )
             }
-        }
-
+    }) {
         item {
             MetroRule(
                 title = stringResource(R.string.clock_laps),
