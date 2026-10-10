@@ -187,7 +187,7 @@ fun MessagingHubScreen(
         val people = conversation.recipients.filter { it.isNotBlank() }
         when {
             people.size > 1 -> callChooser = conversation
-            else -> PhoneCaller.call(context, conversation.address, conversation.title)
+            else -> PhoneCaller.tap(context, conversation.address, conversation.title)
         }
     }
 
@@ -742,7 +742,7 @@ fun MessagingHubScreen(
                 val name = remember(number) { com.serkantkn.zunelauncher.data.repository.SmsRepository.contactNameFor(context, number) }
                 SheetAction(if (name == number) number else "$name · $number") {
                     callChooser = null
-                    PhoneCaller.call(context, number, name)
+                    PhoneCaller.tap(context, number, name)
                 }
             }
         }

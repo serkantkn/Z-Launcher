@@ -177,6 +177,17 @@
         </service>
 
         <!-- Answering and turning down a call from its notification. -->
+        <!-- A clock that moved — a new time zone, a set clock, an update — re-books every alarm. -->
+        <receiver
+            android:name=".data.service.TimeChangeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".data.service.CallActionReceiver"
             android:exported="false">
@@ -389,6 +400,7 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:taskAffinity=""
+            android:launchMode="singleTop"
             android:excludeFromRecents="true"
             android:theme="@style/Theme.ZuneLauncher"
             android:exported="false"

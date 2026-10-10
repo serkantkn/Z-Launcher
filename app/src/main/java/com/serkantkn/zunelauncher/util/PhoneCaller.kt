@@ -1,5 +1,11 @@
 package com.serkantkn.zunelauncher.util
 
+import com.serkantkn.zunelauncher.data.model.HubType
+import com.serkantkn.zunelauncher.data.repository.HubBridge
+import com.serkantkn.zunelauncher.data.repository.PhoneBridge
+import com.serkantkn.zunelauncher.di.appContainer
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.first
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Context
@@ -105,6 +111,30 @@ object PhoneCaller {
             }
         }
         return handOver(context, uri)
+    }
+
+    /**
+     * A tap on a number somewhere other than the keypad — a contact's card, a conversation. The
+     * "direct call" setting decides what it means: on, the number rings at once; off, it is
+     * copied to the keypad in the Phone hub to be looked at first, which is what Windows Phone
+     * did by default.
+     */
+    fun tap(
+        context: Context,
+        number: String,
+        name: String = "",
+        photo: String? = null
+    ) {
+        val store = context.applicationContext.appContainer.settingsDataStore
+        MainScope().launch {
+            val direct = runCatching { store.directCallEnabled.first() }.getOrDefault(false)
+            if (direct) {
+                call(context, number, name, photo)
+            } else {
+                PhoneBridge.dial(number)
+                HubBridge.open(HubType.PHONE)
+            }
+        }
     }
 
     /** Telecom is told which SIM to use the same way the system dialler tells it. */

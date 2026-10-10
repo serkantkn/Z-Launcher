@@ -570,7 +570,7 @@ private fun ContactDetailContent(
                             accentColor = zuneColors.accentColor,
                             modifier = Modifier.weight(1f),
                             onClick = {
-                                com.serkantkn.zunelauncher.util.PhoneCaller.call(
+                                com.serkantkn.zunelauncher.util.PhoneCaller.tap(
                                     context = context,
                                     number = primaryNumber,
                                     name = displayDetail.contact.name,
@@ -667,7 +667,7 @@ private fun ContactDetailContent(
                             value = entry.number,
                             icon = Icons.Default.Call,
                             onClick = {
-                                com.serkantkn.zunelauncher.util.PhoneCaller.call(
+                                com.serkantkn.zunelauncher.util.PhoneCaller.tap(
                                     context = context,
                                     number = entry.number,
                                     name = displayDetail.contact.name,
@@ -820,7 +820,7 @@ private fun ContactDetailContent(
                             ContactCallLogItem(
                                 call = call,
                                 onClick = {
-                                    com.serkantkn.zunelauncher.util.PhoneCaller.call(
+                                    com.serkantkn.zunelauncher.util.PhoneCaller.tap(
                                         context = context,
                                         number = call.number,
                                         name = displayDetail.contact.name,
