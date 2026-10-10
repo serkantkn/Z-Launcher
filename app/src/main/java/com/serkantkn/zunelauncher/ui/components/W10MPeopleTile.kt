@@ -39,6 +39,7 @@ import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
+import com.serkantkn.zunelauncher.ui.theme.LocalScreenAwake
 import kotlinx.coroutines.delay
 
 /**
@@ -75,8 +76,10 @@ fun W10MPeopleTile(
     var assignments by remember(contacts, cellCount) {
         mutableStateOf(List(cellCount) { index -> if (contacts.isEmpty()) 0 else index % contacts.size })
     }
-    LaunchedEffect(contacts, cellCount, isEditing) {
-        if (isEditing || contacts.size <= cellCount) return@LaunchedEffect
+    // Behind an opaque hub the faces stop changing: nobody can see them change.
+    val awake = LocalScreenAwake.current
+    LaunchedEffect(contacts, cellCount, isEditing, awake) {
+        if (isEditing || !awake || contacts.size <= cellCount) return@LaunchedEffect
         var cell = 0
         while (true) {
             delay(FACE_SWAP_MILLIS)

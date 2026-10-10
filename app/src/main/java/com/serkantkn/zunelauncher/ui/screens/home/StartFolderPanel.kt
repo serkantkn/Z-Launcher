@@ -19,21 +19,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DriveFileMove
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import com.serkantkn.zunelauncher.ui.components.LocalTileTakeOut
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -77,6 +78,10 @@ fun StartFolderPanel(
     ) -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
+    // The band is the theme's ground, not black: on the light theme a black band with white
+    // writing stood out like a hole in the screen.
+    val bandColor = if (zuneColors.isDark) Color(0xFF0B0B0B) else Color(0xFFF2F2F2)
+    val ink = if (zuneColors.isDark) Color.White else Color.Black
 
     AnimatedVisibility(
         visible = folder != null,
@@ -105,7 +110,7 @@ fun StartFolderPanel(
                     modifier = Modifier
                         .fillMaxWidth()
                         // The open folder is a band of its own, not tiles floating over the board.
-                        .background(Color(0xFF0B0B0B))
+                        .background(bandColor)
                         .statusBarsPadding()
                         .padding(top = 20.dp, bottom = 16.dp)
                         // Taps inside the panel must not reach the scrim behind it.
@@ -118,6 +123,7 @@ fun StartFolderPanel(
                     FolderHeaderBar(
                         folderId = open.id,
                         name = open.name,
+                        ink = ink,
                         onRename = onRename
                     )
 
@@ -136,26 +142,10 @@ fun StartFolderPanel(
                             onEnterEditMode = onEnterEditMode,
                             onMoveTile = onMoveChild,
                             tile = { model, index, isDragging, isMergeTarget, tileModifier ->
-                                Box {
+                                // The take-out button is one of the tile's own edit buttons,
+                                // so it stands with them instead of over the tile's corner.
+                                CompositionLocalProvider(LocalTileTakeOut provides { onTakeOut(model.id) }) {
                                     tile(model, index, isDragging, isMergeTarget, tileModifier)
-                                    if (isEditMode) {
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.TopStart)
-                                                .padding(4.dp)
-                                                .size(24.dp)
-                                                .background(zuneColors.accentColor)
-                                                .clickable { onTakeOut(model.id) },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.DriveFileMove,
-                                                contentDescription = stringResource(R.string.start_folder_take_out),
-                                                tint = Color.White,
-                                                modifier = Modifier.size(15.dp)
-                                            )
-                                        }
-                                    }
                                 }
                             }
                         )
@@ -179,7 +169,9 @@ internal val FolderHeaderHeight = 46.dp
 internal fun FolderHeaderBar(
     folderId: String,
     name: String,
-    onRename: (String) -> Unit
+    onRename: (String) -> Unit,
+    /** The colour of the name: the panel's ink, or the theme's where the band shows the wallpaper. */
+    ink: Color = Color.White
 ) {
     val zuneColors = LocalZuneColors.current
     // Keyed by the folder, not by its name: keying by the name would hand the stored value back
@@ -191,6 +183,14 @@ internal fun FolderHeaderBar(
         if (editing == name) return@LaunchedEffect
         delay(RENAME_SETTLE_MILLIS)
         onRename(editing)
+    }
+    // And when the folder closes before the typing has stopped: the last letters typed were
+    // lost with it, because the settle above never got its moment.
+    val latestName by rememberUpdatedState(editing)
+    val storedName by rememberUpdatedState(name)
+    val currentOnRename by rememberUpdatedState(onRename)
+    DisposableEffect(folderId) {
+        onDispose { if (latestName != storedName) currentOnRename(latestName) }
     }
 
     Row(
@@ -205,7 +205,7 @@ internal fun FolderHeaderBar(
             onValueChange = { editing = it.take(40) },
             singleLine = true,
             textStyle = TextStyle(
-                color = Color.White,
+                color = ink,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Light
             ),
@@ -218,7 +218,7 @@ internal fun FolderHeaderBar(
                             fontSize = 30.sp,
                             fontWeight = FontWeight.Light
                         ),
-                        color = Color.White.copy(alpha = 0.4f),
+                        color = ink.copy(alpha = 0.4f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -246,6 +246,8 @@ fun StartEditBar(visible: Boolean, onDone: () -> Unit, modifier: Modifier = Modi
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.Black.copy(alpha = 0.82f))
+                // The bar used to end under the navigation bar, with "done" half hidden by it.
+                .navigationBarsPadding()
                 .padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 12.dp, top = 12.dp, bottom = 12.dp)
         ) {
             Text(

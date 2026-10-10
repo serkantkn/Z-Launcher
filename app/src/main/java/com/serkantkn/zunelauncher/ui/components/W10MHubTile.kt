@@ -6,6 +6,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.ui.graphics.graphicsLayer
 import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
+import com.serkantkn.zunelauncher.ui.theme.LocalScreenAwake
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -119,7 +120,10 @@ fun W10MHubTile(
     val title = look.name?.takeIf { it.isNotBlank() } ?: stringResource(hubType.titleRes)
     val customFace = customTileFace()
     val isPicturesLive = hubType == HubType.PICTURES && photoUris.isNotEmpty() && look.picture == null
-    val hasBack = !isPicturesLive && (badgeCount > 0 || !liveSubtitle.isNullOrBlank() || !liveTitle.isNullOrBlank())
+    // A small tile's back holds nothing but the count, so without one it has no back to turn
+    // to: it used to flip over to a blank face every twenty seconds.
+    val hasBack = !isPicturesLive && if (span == 1) badgeCount > 0
+        else (badgeCount > 0 || !liveSubtitle.isNullOrBlank() || !liveTitle.isNullOrBlank())
 
     W10MTileSurface(
         liveKey = "hub:${hubType.name}",
@@ -364,8 +368,10 @@ internal fun BoxScope.PhotoCycleFace(
     isEditing: Boolean
 ) {
     var index by remember(photoUris) { mutableIntStateOf(0) }
-    LaunchedEffect(photoUris, isEditing) {
-        if (isEditing || photoUris.size <= 1) return@LaunchedEffect
+    // Behind an opaque hub the pictures stop changing: nobody can see them change.
+    val awake = LocalScreenAwake.current
+    LaunchedEffect(photoUris, isEditing, awake) {
+        if (isEditing || !awake || photoUris.size <= 1) return@LaunchedEffect
         while (true) {
             delay(PHOTO_CYCLE_MILLIS)
             index = (index + 1) % photoUris.size

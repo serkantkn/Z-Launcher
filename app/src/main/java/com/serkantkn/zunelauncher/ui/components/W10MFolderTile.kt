@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -125,6 +126,7 @@ fun W10MFolderTile(
                             child = child,
                             appFace = appFace,
                             foreground = fg,
+                            small = span == 1,
                             modifier = Modifier.weight(1f).fillMaxSize()
                         )
                     }
@@ -140,40 +142,49 @@ fun W10MFolderTile(
     }
 }
 
-/** One tile shrunk onto the folder's face: an app's icon, a hub's glyph, or a note. */
+/**
+ * One tile shrunk onto the folder's face: an app's icon, a hub's glyph, or a note. On a small
+ * tile the chips are a few pixels across, so what is on them is drawn smaller and clipped: a
+ * 20dp icon used to spill over the edges of a 14dp chip.
+ */
 @Composable
 private fun FolderChip(
     child: StartTileUIModel,
     appFace: (AppInfo) -> TileIconFace,
     foreground: Color,
+    small: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val iconSize = if (small) 11.dp else 20.dp
+    val glyphPad = if (small) 2.dp else 4.dp
     Box(
-        modifier = modifier.background(Color.White.copy(alpha = 0.14f)),
+        modifier = modifier
+            .clipToBounds()
+            .background(Color.White.copy(alpha = 0.14f)),
         contentAlignment = Alignment.Center
     ) {
         when (child) {
             is StartTileUIModel.App -> TileIconImage(
                 face = appFace(child.appInfo),
-                size = 20.dp,
+                size = iconSize,
                 ink = foreground,
                 contentDescription = child.appInfo.label
             )
 
-            is StartTileUIModel.Hub -> ChipGlyphOf(child.hubType, foreground)
+            is StartTileUIModel.Hub -> ChipGlyphOf(child.hubType, foreground, glyphPad)
 
             is StartTileUIModel.Person -> Icon(
                 imageVector = Icons.Default.Person,
                 contentDescription = null,
                 tint = foreground,
-                modifier = Modifier.fillMaxSize().padding(4.dp)
+                modifier = Modifier.fillMaxSize().padding(glyphPad)
             )
 
             is StartTileUIModel.Thread -> Icon(
                 imageVector = Icons.AutoMirrored.Filled.Chat,
                 contentDescription = null,
                 tint = foreground,
-                modifier = Modifier.fillMaxSize().padding(4.dp)
+                modifier = Modifier.fillMaxSize().padding(glyphPad)
             )
 
             // A pinned record inside a folder shows its cover.
@@ -191,7 +202,7 @@ private fun FolderChip(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = null,
                         tint = foreground,
-                        modifier = Modifier.fillMaxSize().padding(4.dp)
+                        modifier = Modifier.fillMaxSize().padding(glyphPad)
                     )
                 }
             }
@@ -211,7 +222,7 @@ private fun FolderChip(
                         imageVector = Icons.Default.Image,
                         contentDescription = null,
                         tint = foreground,
-                        modifier = Modifier.fillMaxSize().padding(4.dp)
+                        modifier = Modifier.fillMaxSize().padding(glyphPad)
                     )
                 }
             }
@@ -220,14 +231,14 @@ private fun FolderChip(
                 imageVector = Icons.Default.Language,
                 contentDescription = null,
                 tint = foreground,
-                modifier = Modifier.fillMaxSize().padding(4.dp)
+                modifier = Modifier.fillMaxSize().padding(glyphPad)
             )
 
             is StartTileUIModel.NoteTile, is StartTileUIModel.QuickNote -> Icon(
                 imageVector = Icons.Default.StickyNote2,
                 contentDescription = null,
                 tint = foreground,
-                modifier = Modifier.fillMaxSize().padding(4.dp)
+                modifier = Modifier.fillMaxSize().padding(glyphPad)
             )
 
             // Folders never nest, so this cannot happen; drawing nothing is the safe answer.
@@ -237,12 +248,12 @@ private fun FolderChip(
 }
 
 @Composable
-private fun ChipGlyphOf(hubType: HubType, foreground: Color) {
+private fun ChipGlyphOf(hubType: HubType, foreground: Color, pad: Dp) {
     Icon(
         imageVector = getHubIcon(hubType),
         contentDescription = null,
         tint = foreground,
-        modifier = Modifier.fillMaxSize().padding(4.dp)
+        modifier = Modifier.fillMaxSize().padding(pad)
     )
 }
 
