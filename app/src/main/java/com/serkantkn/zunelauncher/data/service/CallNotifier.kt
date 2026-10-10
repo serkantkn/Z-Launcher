@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import com.serkantkn.zunelauncher.MainActivity
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.util.localizedString
 
 /**
  * The way back to a call the launcher is not currently showing.
@@ -113,10 +114,10 @@ object CallNotifier {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                context.getString(R.string.call_channel_name),
+                context.localizedString(R.string.call_channel_name),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = context.getString(R.string.call_channel_description)
+                description = context.localizedString(R.string.call_channel_description)
                 setShowBadge(false)
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
             }
@@ -127,6 +128,8 @@ object CallNotifier {
         val intent = Intent(context, MainActivity::class.java)
             .setAction(Intent.ACTION_MAIN)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            // The screen may have been put away with Back; the tap is what brings it back.
+            .putExtra(MainActivity.EXTRA_OPEN_CALL, true)
         return PendingIntent.getActivity(
             context,
             0,

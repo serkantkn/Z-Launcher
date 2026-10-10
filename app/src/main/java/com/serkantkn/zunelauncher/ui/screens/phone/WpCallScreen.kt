@@ -7,6 +7,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -50,8 +52,11 @@ import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SwapCalls
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,6 +64,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -82,9 +88,13 @@ import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.data.service.CallAudioRoute
 import com.serkantkn.zunelauncher.data.service.CallManager
 import com.serkantkn.zunelauncher.data.service.CallStatus
+import com.serkantkn.zunelauncher.util.PhoneCaller
 import com.serkantkn.zunelauncher.util.QuickReply
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -115,26 +125,38 @@ fun WpCallScreen(
     val canHold by CallManager.canHold.collectAsState()
     val audioRoute by CallManager.audioRoute.collectAsState()
     val simLabel by CallManager.simLabel.collectAsState()
+    val numberLabel by CallManager.numberLabel.collectAsState()
+    val callCount by CallManager.callCount.collectAsState()
+    val screenHidden by CallManager.screenHidden.collectAsState()
 
     // Without permission to send one, offering to reply with a message would be offering nothing.
     val canReplyWithMessage = remember { QuickReply.canSend(context) }
 
     var isQuickSmsOpen by remember { mutableStateOf(false) }
+    var isAddCallOpen by remember { mutableStateOf(false) }
     var inCallDialedDigits by remember { mutableStateOf("") }
 
-    BackHandler(enabled = callStatus != CallStatus.IDLE) {
-        if (isQuickSmsOpen) {
-            isQuickSmsOpen = false
-        } else if (isKeypadOpen) {
-            CallManager.setKeypadOpen(false)
-        } else if (callStatus == CallStatus.INCOMING) {
-            CallManager.declineCall()
-        } else {
-            CallManager.endCall()
+    // Back closes whatever sheet is open; failing that it puts the screen away. It never ends or
+    // turns down a call: on a phone, Back is the way out of a screen, not the way out of a call.
+    BackHandler(enabled = callStatus != CallStatus.IDLE && !screenHidden) {
+        when {
+            isQuickSmsOpen -> isQuickSmsOpen = false
+            isAddCallOpen -> isAddCallOpen = false
+            isKeypadOpen -> CallManager.setKeypadOpen(false)
+            else -> CallManager.setScreenHidden(true)
         }
     }
 
     if (callStatus == CallStatus.IDLE) return
+    if (screenHidden) {
+        // The call goes on behind a thin strip: one tap brings the screen back.
+        HiddenCallBanner(
+            statusText = if (callStatus == CallStatus.ACTIVE) CallManager.formatDuration(callDurationSeconds) else "",
+            who = contactName.ifBlank { phoneNumber },
+            modifier = modifier
+        )
+        return
+    }
 
     val statusText = when (callStatus) {
         CallStatus.INCOMING -> stringResource(R.string.call_incoming_ellipsis)
@@ -144,9 +166,18 @@ fun WpCallScreen(
         CallStatus.IDLE -> ""
     }
 
-    val currentTime = remember {
-        SimpleDateFormat("H:mm", Locale.getDefault()).format(Date())
+    // The clock in the corner has to keep time: a call can outlast the minute it started in.
+    val currentTime by produceState(initialValue = formatClock()) {
+        while (true) {
+            value = formatClock()
+            delay(60_000L - System.currentTimeMillis() % 60_000L)
+        }
     }
+
+    // "mobile: 0555…" when the address book knows what kind of line it is; just the number when not.
+    val numberLine = numberLabel?.let { label ->
+        stringResource(R.string.call_number_line, label.lowercase(Locale.getDefault()), phoneNumber)
+    } ?: phoneNumber
 
     val density = LocalDensity.current.density
     val flipAnim = remember { Animatable(0f) }
@@ -182,6 +213,7 @@ fun WpCallScreen(
             WpIncomingCallSwipeScreen(
                 contactName = contactName,
                 phoneNumber = phoneNumber,
+                numberLine = numberLine,
                 photoUri = photoUri,
                 currentTime = currentTime,
                 simLabel = simLabel,
@@ -198,7 +230,7 @@ fun WpCallScreen(
                         .weight(2.0f)
                         .fillMaxWidth()
                 ) {
-                    val bitmap = remember(photoUri) { loadPhotoBitmap(context, photoUri) }
+                    val bitmap = rememberContactPhoto(photoUri)
                     if (bitmap != null) {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
@@ -293,7 +325,7 @@ fun WpCallScreen(
 
                         if (phoneNumber.isNotBlank()) {
                             Text(
-                                text = stringResource(R.string.call_mobile_number, phoneNumber),
+                                text = numberLine,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Normal,
                                     fontSize = 20.sp
@@ -328,6 +360,9 @@ fun WpCallScreen(
                         verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         // Row 1: speaker, mute, add call
+                        // Speaker and mute are wanted while the far end is still ringing too —
+                        // a call put on speaker as it is dialled is the commonest case of all.
+                        val isLive = callStatus == CallStatus.ACTIVE || callStatus == CallStatus.OUTGOING
                         Row(
                             modifier = Modifier
                                 .weight(1f)
@@ -338,7 +373,7 @@ fun WpCallScreen(
                                 title = stringResource(R.string.call_speaker),
                                 icon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                                 isActive = isSpeakerOn,
-                                enabled = callStatus == CallStatus.ACTIVE,
+                                enabled = isLive,
                                 onClick = { CallManager.toggleSpeaker() },
                                 modifier = Modifier.weight(1f)
                             )
@@ -346,18 +381,17 @@ fun WpCallScreen(
                                 title = stringResource(R.string.call_mute),
                                 icon = if (isMuted) Icons.Default.MicOff else Icons.Default.Mic,
                                 isActive = isMuted,
-                                enabled = callStatus == CallStatus.ACTIVE,
+                                enabled = isLive,
                                 onClick = { CallManager.toggleMute() },
                                 modifier = Modifier.weight(1f)
                             )
                             WpGridSquareTile(
                                 title = stringResource(R.string.call_add),
                                 icon = Icons.Default.PersonAdd,
-                                isActive = false,
-                                enabled = callStatus == CallStatus.ACTIVE,
-                                onClick = {
-                                    Toast.makeText(context, context.getString(R.string.call_add_toast), Toast.LENGTH_SHORT).show()
-                                },
+                                isActive = isAddCallOpen,
+                                // Telecom parks the first call itself when the second is placed.
+                                enabled = callStatus == CallStatus.ACTIVE && callCount < 2,
+                                onClick = { isAddCallOpen = true },
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -387,10 +421,10 @@ fun WpCallScreen(
                                 modifier = Modifier.weight(1f)
                             )
                             WpGridSquareTile(
-                                title = "bluetooth",
+                                title = stringResource(R.string.call_bluetooth),
                                 icon = Icons.Default.Bluetooth,
                                 isActive = audioRoute == CallAudioRoute.BLUETOOTH,
-                                enabled = callStatus == CallStatus.ACTIVE,
+                                enabled = isLive,
                                 onClick = {
                                     // Telecom decides whether there is a headset to route to; if
                                     // there is not, the route simply stays where it was.
@@ -406,7 +440,7 @@ fun WpCallScreen(
                             )
                         }
 
-                        // Row 3: end call (kapat - 2/3 width), dialpad toggle (1/3 width)
+                        // Row 3: end call (2/3 width), swap (1/3 width, alive with a second call)
                         Row(
                             modifier = Modifier
                                 .weight(1f)
@@ -436,11 +470,11 @@ fun WpCallScreen(
                             }
 
                             WpGridSquareTile(
-                                title = "",
-                                icon = Icons.Default.Dialpad,
-                                isActive = isKeypadOpen,
-                                enabled = callStatus == CallStatus.ACTIVE,
-                                onClick = { CallManager.toggleKeypad() },
+                                title = stringResource(R.string.call_swap),
+                                icon = Icons.Default.SwapCalls,
+                                isActive = false,
+                                enabled = callCount > 1,
+                                onClick = { CallManager.swapCalls() },
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
@@ -480,7 +514,7 @@ fun WpCallScreen(
                             color = Color.White
                         )
                         Text(
-                            text = stringResource(R.string.call_hang_up),
+                            text = stringResource(R.string.common_close),
                             style = MaterialTheme.typography.titleMedium,
                             color = zuneColors.accentColor,
                             modifier = Modifier.clickable { CallManager.setKeypadOpen(false) }
@@ -569,6 +603,23 @@ fun WpCallScreen(
             }
         }
 
+        // ─── 3b. A second call: the keypad again, but this one dials ───
+        AnimatedVisibility(
+            visible = isAddCallOpen && callStatus == CallStatus.ACTIVE,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+        ) {
+            AddCallPane(
+                onClose = { isAddCallOpen = false },
+                onDial = { number ->
+                    isAddCallOpen = false
+                    // Goes through Telecom like any other call; the first call is held by the
+                    // system as the second one connects, and the screen moves to the new one.
+                    PhoneCaller.call(context, number)
+                }
+            )
+        }
+
         // ─── 4. Quick SMS Reply Dialog ───
         if (isQuickSmsOpen) {
             Surface(
@@ -604,6 +655,25 @@ fun WpCallScreen(
                                 stringResource(R.string.call_quick_4)
                             )
 
+                            // The caller is told off the line first; the message itself is sent
+                            // by CallManager, which outlives this screen, and says afterwards
+                            // whether it went.
+                            val replyWith: (String) -> Unit = { msg ->
+                                isQuickSmsOpen = false
+                                val who = contactName.ifBlank { phoneNumber }
+                                CallManager.declineWithMessage(context, msg) { sent ->
+                                    Toast.makeText(
+                                        context,
+                                        if (sent) {
+                                            context.getString(R.string.call_reply_sent, who)
+                                        } else {
+                                            context.getString(R.string.call_reply_failed)
+                                        },
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+
                             messages.forEach { msg ->
                                 Text(
                                     text = msg,
@@ -611,27 +681,44 @@ fun WpCallScreen(
                                     color = Color.White,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable {
-                                            isQuickSmsOpen = false
-                                            // The caller is told off the line first; the message
-                                            // itself is sent by CallManager, which outlives this
-                                            // screen, and says afterwards whether it went.
-                                            val who = contactName.ifBlank { phoneNumber }
-                                            CallManager.declineWithMessage(context, msg) { sent ->
-                                                Toast.makeText(
-                                                    context,
-                                                    if (sent) {
-                                                        context.getString(R.string.call_reply_sent, who)
-                                                    } else {
-                                                        context.getString(R.string.call_reply_failed)
-                                                    },
-                                                    Toast.LENGTH_LONG
-                                                ).show()
-                                            }
-                                        }
+                                        .clickable { replyWith(msg) }
                                         .padding(vertical = 12.dp)
                                 )
                                 Spacer(modifier = Modifier.height(1.dp).fillMaxWidth().background(Color.White.copy(alpha = 0.1f)))
+                            }
+
+                            // None of the four fits every caller; a line of one's own is offered too.
+                            var customReply by remember { mutableStateOf("") }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = customReply,
+                                    onValueChange = { customReply = it },
+                                    placeholder = {
+                                        Text(stringResource(R.string.call_quick_custom_hint), color = Color.White.copy(alpha = 0.5f))
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(2.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = zuneColors.accentColor,
+                                        unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        cursorColor = zuneColors.accentColor
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.call_quick_send),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (customReply.isBlank()) Color.White.copy(alpha = 0.35f) else zuneColors.accentColor,
+                                    modifier = Modifier
+                                        .clickable(enabled = customReply.isNotBlank()) { replyWith(customReply.trim()) }
+                                        .padding(8.dp)
+                                )
                             }
                         }
                     }
@@ -646,10 +733,12 @@ fun WpCallScreen(
  * Swipe UP -> Accept call
  * Swipe DOWN -> Decline call
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun WpIncomingCallSwipeScreen(
     contactName: String,
     phoneNumber: String,
+    numberLine: String,
     photoUri: String?,
     currentTime: String,
     simLabel: String?,
@@ -682,12 +771,20 @@ private fun WpIncomingCallSwipeScreen(
     ) {
         // ─── UNDERNEATH LAYER: Revealed when photo bounces or is dragged ───
 
-        // 1. Revealed at Top (Decline call action when dragged DOWN)
+        // 1. Revealed at Top (Decline call action when dragged DOWN). Holding it does the same,
+        //    for anyone who cannot make the swipe.
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
-                .padding(top = 16.dp),
+                .padding(top = 16.dp)
+                .combinedClickable(
+                    onClick = {
+                        Toast.makeText(context, R.string.call_ignore_hint, Toast.LENGTH_SHORT).show()
+                    },
+                    onLongClick = { CallManager.declineCall() }
+                )
+                .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -705,12 +802,20 @@ private fun WpIncomingCallSwipeScreen(
             )
         }
 
-        // 2. Revealed at Bottom (Accept call action when bounced UP or dragged UP)
+        // 2. Revealed at Bottom (Accept call action when bounced UP or dragged UP). Holding it
+        //    answers too.
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 28.dp),
+                .padding(bottom = 28.dp)
+                .combinedClickable(
+                    onClick = {
+                        Toast.makeText(context, R.string.call_answer_hint, Toast.LENGTH_SHORT).show()
+                    },
+                    onLongClick = { CallManager.answerCall() }
+                )
+                .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -761,7 +866,7 @@ private fun WpIncomingCallSwipeScreen(
                     )
                 }
         ) {
-            val bitmap = remember(photoUri) { loadPhotoBitmap(context, photoUri) }
+            val bitmap = rememberContactPhoto(photoUri)
             if (bitmap != null) {
                 Image(
                     bitmap = bitmap.asImageBitmap(),
@@ -859,7 +964,7 @@ private fun WpIncomingCallSwipeScreen(
 
                 if (phoneNumber.isNotBlank()) {
                     Text(
-                        text = stringResource(R.string.call_mobile_number, phoneNumber),
+                        text = numberLine,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Normal,
                             fontSize = 20.sp
@@ -968,8 +1073,198 @@ private fun WpGridSquareTile(
     }
 }
 
+/**
+ * The strip left behind when the call screen is put away with Back: the call is still up, and
+ * this is the shortest way back to it from inside the launcher.
+ */
+@Composable
+private fun HiddenCallBanner(statusText: String, who: String, modifier: Modifier = Modifier) {
+    val zuneColors = LocalZuneColors.current
+    Box(modifier = modifier.fillMaxSize()) {
+        Surface(
+            color = zuneColors.accentColor,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .clickable { CallManager.setScreenHidden(false) }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Call,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = listOf(who, statusText).filter { it.isNotBlank() }.joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = stringResource(R.string.call_hidden_banner),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            }
+        }
+    }
+}
+
+/** The keypad for a second call: the same keys as the tone pad, ending in "call" instead of a tone. */
+@Composable
+private fun AddCallPane(onClose: () -> Unit, onDial: (String) -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    var number by remember { mutableStateOf("") }
+
+    Surface(color = Color(0xFF141414), modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.call_add),
+                    style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Light),
+                    color = Color.White
+                )
+                Text(
+                    text = stringResource(R.string.common_close),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = zuneColors.accentColor,
+                    modifier = Modifier.clickable(onClick = onClose)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = number,
+                style = MaterialTheme.typography.displayMedium.copy(
+                    fontWeight = FontWeight.Light,
+                    letterSpacing = 2.sp
+                ),
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.height(48.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val keys = listOf(
+                listOf("1", "2", "3"),
+                listOf("4", "5", "6"),
+                listOf("7", "8", "9"),
+                listOf("*", "0", "#")
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                keys.forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        row.forEach { digit ->
+                            Surface(
+                                color = Color(0xFF242424),
+                                shape = RoundedCornerShape(2.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(64.dp)
+                                    .clickable { number += digit }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = digit,
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontWeight = FontWeight.Normal,
+                                            fontSize = 26.sp
+                                        ),
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    color = if (number.isBlank()) Color(0xFF1E1E1E) else zuneColors.accentColor,
+                    modifier = Modifier
+                        .weight(2f)
+                        .height(56.dp)
+                        .clickable(enabled = number.isNotBlank()) { onDial(number) }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = stringResource(R.string.call),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White
+                        )
+                    }
+                }
+                Surface(
+                    color = Color(0xFF333333),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .clickable { number = number.dropLast(1) }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = stringResource(R.string.common_delete),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatClock(): String = SimpleDateFormat("H:mm", Locale.getDefault()).format(Date())
+
+/**
+ * The caller's picture, decoded off the main thread. A full-size contact photo is a few
+ * megabytes to decode, and a call screen that stalls while it does so misses its own flip-in.
+ */
+@Composable
+private fun rememberContactPhoto(uriString: String?): android.graphics.Bitmap? {
+    val context = LocalContext.current
+    val photo by produceState<android.graphics.Bitmap?>(initialValue = null, key1 = uriString) {
+        value = withContext(Dispatchers.IO) { loadPhotoBitmap(context, uriString) }
+    }
+    return photo
+}
+
 private fun loadPhotoBitmap(context: Context, uriString: String?): android.graphics.Bitmap? {
-    if (uriString.isNull_or_blank()) return null
+    if (uriString.isNullOrBlank()) return null
     return try {
         val uri = Uri.parse(uriString)
         context.contentResolver.openInputStream(uri)?.use { stream ->
@@ -978,8 +1273,4 @@ private fun loadPhotoBitmap(context: Context, uriString: String?): android.graph
     } catch (e: Exception) {
         null
     }
-}
-
-private fun String?.isNull_or_blank(): Boolean {
-    return this == null || this.trim().isEmpty()
 }

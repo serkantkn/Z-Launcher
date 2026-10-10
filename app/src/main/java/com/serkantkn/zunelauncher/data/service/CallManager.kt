@@ -75,11 +75,29 @@ object CallManager {
     private val _simLabel = MutableStateFlow<String?>(null)
     val simLabel: StateFlow<String?> = _simLabel.asStateFlow()
 
+    /** What kind of number this is in the address book — "mobile", "work" — or null if unknown. */
+    private val _numberLabel = MutableStateFlow<String?>(null)
+    val numberLabel: StateFlow<String?> = _numberLabel.asStateFlow()
+
+    /** How many calls Telecom is holding for us; two is what makes "swap" mean something. */
+    private val _callCount = MutableStateFlow(0)
+    val callCount: StateFlow<Int> = _callCount.asStateFlow()
+
+    /**
+     * Put away with Back. The call goes on, the notification stays as the way back, and the
+     * overlay keeps out of the way until the notification is tapped or the call changes state.
+     */
+    private val _screenHidden = MutableStateFlow(false)
+    val screenHidden: StateFlow<Boolean> = _screenHidden.asStateFlow()
+
     /** The service that owns the call, while one is bound. */
     private var host: CallHost? = null
 
     /** The call on show. There can be others; this is the one the screen is about. */
     private var current: Call? = null
+
+    /** Every call Telecom has handed over and not yet taken back, in the order they came. */
+    private val calls = mutableListOf<Call>()
 
     /** The SIM the call on show is using, so a reply goes back out on the same line. */
     val currentLine: android.telecom.PhoneAccountHandle?
@@ -92,7 +110,7 @@ object CallManager {
     interface CallHost {
         fun setCallMuted(muted: Boolean)
         fun setAudioRoute(route: CallAudioRoute)
-        fun lookUpCaller(number: String, onFound: (name: String?, photoUri: String?) -> Unit)
+        fun lookUpCaller(number: String, onFound: (name: String?, photoUri: String?, label: String?) -> Unit)
         fun labelOfLine(handle: android.telecom.PhoneAccountHandle?): String?
         fun onCallVisible(status: CallStatus, name: String, number: String)
         fun onCallGone()
@@ -112,7 +130,19 @@ object CallManager {
 
     /** A call has arrived or been placed. */
     fun onCallAdded(call: Call) {
+        if (call !in calls) calls += call
+        _callCount.value = calls.size
+        // A new call is news, whatever the screen was doing.
+        _screenHidden.value = false
+        showCall(call)
+    }
+
+    /** Makes [call] the one on screen; the others, if any, wait behind it. */
+    private fun showCall(call: Call) {
         endedResetJob?.cancel()
+        // The clock belongs to the call it was started for; a second call starts its own.
+        durationTimerJob?.cancel()
+        _callDurationSeconds.value = 0
         current?.unregisterCallback(callback)
         current = call
         call.registerCallback(callback)
@@ -121,15 +151,17 @@ object CallManager {
         _phoneNumber.value = number
         _contactName.value = call.details?.callerDisplayName?.takeIf { it.isNotBlank() } ?: number
         _photoUri.value = null
+        _numberLabel.value = null
         _isKeypadOpen.value = false
         _isOnHold.value = false
         _simLabel.value = host?.labelOfLine(call.details?.accountHandle)
 
         if (number.isNotBlank()) {
-            host?.lookUpCaller(number) { name, photo ->
+            host?.lookUpCaller(number) { name, photo, label ->
                 if (current !== call) return@lookUpCaller
                 if (!name.isNullOrBlank()) _contactName.value = name
                 _photoUri.value = photo
+                _numberLabel.value = label
                 announce()
             }
         }
@@ -138,10 +170,19 @@ object CallManager {
 
     /** Telecom has taken the call away: it is over, however it ended. */
     fun onCallRemoved(call: Call) {
+        calls -= call
+        _callCount.value = calls.size
         if (current !== call) return
         call.unregisterCallback(callback)
         current = null
-        finishOnScreen()
+        // Another call may still be up — the one that was waiting — and the screen moves to it
+        // rather than saying "call ended" over a call that has not.
+        val remaining = calls.lastOrNull()
+        if (remaining != null) {
+            showCall(remaining)
+        } else {
+            finishOnScreen()
+        }
     }
 
     fun onAudioStateChanged(state: CallAudioState) {
@@ -176,6 +217,8 @@ object CallManager {
             finishOnScreen()
             return
         }
+        // Ringing, connecting or answered: any of these is reason to put the screen back.
+        if (status != _callStatus.value) _screenHidden.value = false
         _callStatus.value = status
 
         if (status == CallStatus.ACTIVE || state == Call.STATE_HOLDING) {
@@ -192,7 +235,16 @@ object CallManager {
      */
     fun setScreenVisible(visible: Boolean) {
         screenVisible = visible
-        if (visible) host?.onCallGone() else announce()
+        announce()
+    }
+
+    /**
+     * Back on the call screen puts it away rather than ending the call. The notification goes
+     * up in its place, since the screen is no longer the way to the call.
+     */
+    fun setScreenHidden(hidden: Boolean) {
+        _screenHidden.value = hidden
+        announce()
     }
 
     private var screenVisible = false
@@ -200,7 +252,7 @@ object CallManager {
     private fun announce() {
         val status = _callStatus.value
         if (status == CallStatus.IDLE || status == CallStatus.ENDED) return
-        if (screenVisible) {
+        if (screenVisible && !_screenHidden.value) {
             host?.onCallGone()
             return
         }
@@ -209,6 +261,7 @@ object CallManager {
 
     private fun finishOnScreen() {
         durationTimerJob?.cancel()
+        _screenHidden.value = false
         host?.onCallGone()
         if (_callStatus.value == CallStatus.IDLE) return
         _callStatus.value = CallStatus.ENDED
@@ -287,6 +340,16 @@ object CallManager {
         }
     }
 
+    /**
+     * With two calls up, brings the waiting one forward. Telecom parks the active call by itself
+     * when the held one is taken off hold, so one call is all that needs asking.
+     */
+    fun swapCalls() {
+        val other = calls.firstOrNull { it !== current } ?: return
+        if (other.state == Call.STATE_HOLDING) other.unhold()
+        showCall(other)
+    }
+
     fun toggleKeypad() {
         _isKeypadOpen.value = !_isKeypadOpen.value
     }
@@ -302,7 +365,8 @@ object CallManager {
             call.playDtmfTone(digit)
             call.stopDtmfTone()
         } catch (e: Exception) {
-            ZuneLog.w(TAG, "tone $digit went nowhere", e)
+            // The digit itself is somebody's PIN or extension; it stays out of the log.
+            ZuneLog.w(TAG, "a keypad tone went nowhere", e)
         }
     }
 
@@ -352,6 +416,8 @@ object CallManager {
         _contactName.value = ""
         _phoneNumber.value = ""
         _photoUri.value = null
+        _numberLabel.value = null
+        _screenHidden.value = false
         _callDurationSeconds.value = 0
         _isMuted.value = false
         _isSpeakerOn.value = false
