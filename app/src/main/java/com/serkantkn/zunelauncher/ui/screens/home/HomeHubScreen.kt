@@ -580,6 +580,21 @@ private fun HomeHubScreenContent(
     }
     var hubTargetPickFor by remember { mutableStateOf<HubType?>(null) }
     val openHub: (HubType) -> Unit = { hub -> if (!viewModel.openHubTarget(hub)) onHubSelected(hub) }
+
+    // A held app tile offers the app's shortcuts, with editing Start among them. An app with
+    // none, or a board already being edited, goes straight to editing as before.
+    val shortcutsContext = LocalContext.current
+    var shortcutApp by remember { mutableStateOf<AppInfo?>(null) }
+    var shortcutList by remember { mutableStateOf<List<android.content.pm.ShortcutInfo>>(emptyList()) }
+    val holdApp: (AppInfo) -> Unit = { app ->
+        val found = if (isEditMode) emptyList() else com.serkantkn.zunelauncher.util.AppShortcuts.of(shortcutsContext, app.packageName)
+        if (found.isEmpty()) {
+            isEditMode = true
+        } else {
+            shortcutApp = app
+            shortcutList = found
+        }
+    }
     val openFolder = localStartTiles.firstOrNull { it.id == openFolderId } as? StartTileUIModel.Folder
 
     LaunchedEffect(runningHubs) {
@@ -924,7 +939,7 @@ private fun HomeHubScreenContent(
                 notificationTitle = latestMessages[model.appInfo.packageName]?.title,
                 notificationText = latestMessages[model.appInfo.packageName]?.text,
                 onClick = { handleLaunch(launchKey) { viewModel.launchApp(model.appInfo.packageName) } },
-                onLongClick = { isEditMode = true },
+                onLongClick = { holdApp(model.appInfo) },
                 onRemoveClick = { onRemoveTile(model.id) },
                 onResizeClick = onResize,
                 modifier = animated
@@ -1806,7 +1821,7 @@ private fun HomeHubScreenContent(
                                                     viewModel.launchApp(favApp.appInfo.packageName)
                                                 }
                                             },
-                                            onLongClick = { isEditMode = true },
+                                            onLongClick = { holdApp(favApp.appInfo) },
                                             onRemoveClick = {
                                                 viewModel.removeFavorite(favApp.appInfo.packageName)
                                             },
@@ -1913,6 +1928,24 @@ private fun HomeHubScreenContent(
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }
+        }
+
+        shortcutApp?.let { app ->
+            AppShortcutsDialog(
+                appLabel = app.label,
+                shortcuts = shortcutList,
+                onPick = { shortcut ->
+                    shortcutApp = null
+                    if (!com.serkantkn.zunelauncher.util.AppShortcuts.start(shortcutsContext, shortcut)) {
+                        viewModel.launchApp(app.packageName)
+                    }
+                },
+                onEdit = {
+                    shortcutApp = null
+                    isEditMode = true
+                },
+                onDismiss = { shortcutApp = null }
+            )
         }
 
         if (addingHub) {
