@@ -6,7 +6,10 @@
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Replaced by the READ_MEDIA_* permissions from Android 13 on. -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
@@ -28,7 +31,10 @@
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Exact alarms: the user-granted one on Android 12, the alarm-clock one from 13 on. -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
@@ -45,21 +51,24 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <!-- Android only offers the messaging role to an app that can take delivery of picture
+         messages too, so these three stay even though the launcher only files a picture message
+         and does not fetch it. WRITE_SMS is what lets the inbox be written at all. -->
     <uses-permission android:name="android.permission.RECEIVE_MMS" />
     <uses-permission android:name="android.permission.RECEIVE_WAP_PUSH" />
     <uses-permission android:name="android.permission.WRITE_SMS" />
-    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <!-- A ringing call has to come up over whatever is on screen, and over the lock screen. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <!-- A call in progress has to be a foreground service: Android refuses a CallStyle
          notification that belongs to neither a foreground service nor a full screen intent. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- The volume bar's silent mode is a do-not-disturb change, which Android only allows an app
+         the user has let into its notification policy. Without it the bar stops at vibrate. -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
-    <!-- Camera hub -->
+    <!-- Camera hub, and the keyboard's dictation -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Before Android 10 a picture has to be written to shared storage by hand. -->
@@ -133,9 +142,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="tel" />
             </intent-filter>
+            <!-- VIEW only: an exported screen must not place a call (CALL) on another app's
+                 say-so. A tel: link opens the keypad with the number typed in. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.intent.action.CALL" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="tel" />
@@ -145,16 +155,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <!-- Default SMS App -->
-            <intent-filter>
-                <action android:name="android.intent.action.SENDTO" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="sms" />
-                <data android:scheme="smsto" />
-                <data android:scheme="mms" />
-                <data android:scheme="mmsto" />
-            </intent-filter>
+            <!-- sms: links are ComposeSmsActivity's; it hands them to the Messaging hub. -->
 
             <!-- Default Browser App -->
             <intent-filter>
@@ -167,7 +168,7 @@
         </activity>
 
         <service android:name=".data.service.SocialNotificationListener"
-            android:label="Zune Social Hub"
+            android:label="@string/label_social_listener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="true">
             <intent-filter>
@@ -182,6 +183,15 @@
             <intent-filter>
                 <action android:name="com.serkantkn.zunelauncher.CALL_ANSWER" />
                 <action android:name="com.serkantkn.zunelauncher.CALL_DECLINE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Telecom tells the phone app, and nobody else, how many calls went unanswered. -->
+        <receiver
+            android:name=".data.service.MissedCallReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.action.SHOW_MISSED_CALLS_NOTIFICATION" />
             </intent-filter>
         </receiver>
 
@@ -213,7 +223,7 @@
             android:name=".data.service.ZuneKeyAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true"
-            android:label="Z Launcher ses tuşları">
+            android:label="@string/label_key_service">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
@@ -294,7 +304,7 @@
         <activity
             android:name=".ui.screens.notes.ReceiveNoteActivity"
             android:exported="true"
-            android:label="Notlar"
+            android:label="@string/label_notes_share"
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
@@ -338,7 +348,7 @@
         <activity
             android:name=".ui.screens.messaging.ComposeSmsActivity"
             android:exported="true"
-            android:label="Zune SMS"
+            android:label="@string/label_sms_compose"
             android:theme="@style/Theme.ZuneLauncher">
             <intent-filter>
                 <action android:name="android.intent.action.SENDTO" />
@@ -349,20 +359,12 @@
                 <data android:scheme="mms" />
                 <data android:scheme="mmsto" />
             </intent-filter>
+            <!-- Text only: the launcher cannot send a picture message, so it does not offer to
+                 take a picture from the share sheet and then drop it. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEND_MULTIPLE" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
 
@@ -380,10 +382,14 @@
             </intent-filter>
         </service>
 
+        <!-- Its own task and no entry in recents: an alarm that rang an hour ago must not sit in
+             the app switcher, nor be brought back when the launcher's task is. -->
         <activity
             android:name=".ui.screens.clock.AlarmActivity"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
             android:theme="@style/Theme.ZuneLauncher"
             android:exported="false"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|fontScale|layoutDirection|keyboard|keyboardHidden" />
