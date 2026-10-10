@@ -13,6 +13,18 @@ data class ContactModel(
 )
 
 /**
+ * One number of one person, for lists that are about numbers rather than people: the dialler's
+ * matches, the speed dial picker, the new-message picker. Somebody with a home and a work line
+ * is two rows here, each saying which is which.
+ */
+data class ContactPhone(
+    val contact: ContactModel,
+    val number: String,
+    /** "mobile", "work", or a custom label — as the phone's own settings would name it. */
+    val typeLabel: String = ""
+)
+
+/**
  * One of a person's numbers.
  *
  * [rowId] is what makes an edit land on the right line: rewriting a contact by matching only the
@@ -47,10 +59,30 @@ data class ContactGroup(
     val memberCount: Int = 0
 )
 
+/**
+ * A name as the address book keeps it: in parts, not as one string. "Dr Ayşe Nur Kaya" is a
+ * prefix, a given name, a middle name and a family name, and editing it by splitting the display
+ * name on the first space would have made "Ayşe" the whole first name and "Nur Kaya" the last.
+ */
+data class StructuredName(
+    val given: String = "",
+    val family: String = "",
+    val middle: String = "",
+    val prefix: String = "",
+    val suffix: String = ""
+) {
+    val isEmpty: Boolean get() = given.isBlank() && family.isBlank() && middle.isBlank() && prefix.isBlank() && suffix.isBlank()
+}
+
 /** Everything an edit can change about a person, gathered so the call is not ten arguments long. */
 data class ContactEdit(
     val firstName: String,
     val lastName: String,
+    /**
+     * The name in full, or null when the name was not touched — in which case nothing about it
+     * is written back, and a middle name or a title the editor never showed is left as it was.
+     */
+    val name: StructuredName? = StructuredName(given = firstName, family = lastName),
     val numbers: List<ContactNumber> = emptyList(),
     val emails: List<ContactEmail> = emptyList(),
     val addresses: List<ContactAddress> = emptyList(),
@@ -62,6 +94,8 @@ data class ContactEdit(
 
 data class ContactDetailModel(
     val contact: ContactModel,
+    /** The name in its parts, for the editor; empty when the record has no structured name row. */
+    val name: StructuredName = StructuredName(),
     val numbers: List<ContactNumber> = emptyList(),
     val emails: List<ContactEmail> = emptyList(),
     val addresses: List<ContactAddress> = emptyList(),

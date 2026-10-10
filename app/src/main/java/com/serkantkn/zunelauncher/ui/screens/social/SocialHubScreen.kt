@@ -140,9 +140,9 @@ fun SocialHubScreen(
                 !BuildConfig.IS_PREMIUM -> ProOnly()
 
                 !hasPermission -> ZunePermissionRequest(
-                    title = stringResource(R.string.notification_permission_title).lowercase(),
+                    title = stringResource(R.string.notification_permission_title).lowercase(java.util.Locale.getDefault()),
                     message = stringResource(R.string.notification_permission_message),
-                    buttonLabel = stringResource(R.string.open_settings).lowercase(),
+                    buttonLabel = stringResource(R.string.open_settings).lowercase(java.util.Locale.getDefault()),
                     onRequest = { viewModel.openNotificationSettings() }
                 )
 

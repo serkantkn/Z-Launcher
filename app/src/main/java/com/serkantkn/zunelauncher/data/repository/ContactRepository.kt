@@ -11,6 +11,7 @@ import com.serkantkn.zunelauncher.data.model.ContactEdit
 import com.serkantkn.zunelauncher.data.model.ContactGroup
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.data.model.ContactNumber
+import com.serkantkn.zunelauncher.data.model.ContactPhone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -366,7 +367,7 @@ class ContactRepository(private val context: Context) {
             buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) }
         }.orEmpty()
     } catch (e: Exception) {
-        ZuneLog.w("ContactRepository", "no records for $contactId", e)
+        ZuneLog.w("ContactRepository", "no records for the contact", e)
         emptyList()
     }
 
@@ -494,14 +495,23 @@ class ContactRepository(private val context: Context) {
         byContact
     }
 
-    suspend fun getContactsWithNumbers(): List<Pair<ContactModel, String>> = withContext(Dispatchers.IO) {
-        val contactsWithNumbers = mutableListOf<Pair<ContactModel, String>>()
+    /**
+     * Every number in the phone book, one row each, with the person it belongs to.
+     *
+     * All of them, not the first per person: the one that used to be kept was whichever the
+     * provider happened to list first, which left a work line unreachable from the keypad and
+     * the message picker both. The same number written twice for one person is one row.
+     */
+    suspend fun getContactsWithNumbers(): List<ContactPhone> = withContext(Dispatchers.IO) {
+        val rows = mutableListOf<ContactPhone>()
         val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY,
             ContactsContract.CommonDataKinds.Phone.PHOTO_URI,
-            ContactsContract.CommonDataKinds.Phone.NUMBER
+            ContactsContract.CommonDataKinds.Phone.NUMBER,
+            ContactsContract.CommonDataKinds.Phone.TYPE,
+            ContactsContract.CommonDataKinds.Phone.LABEL
         )
         val sortOrder = "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY} ASC"
 
@@ -510,29 +520,40 @@ class ContactRepository(private val context: Context) {
             val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY)
             val photoIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
             val numberIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            val typeIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.TYPE)
+            val labelIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.LABEL)
 
             while (cursor.moveToNext()) {
-                val id = cursor.getString(idIndex)
+                val id = cursor.getString(idIndex) ?: continue
                 val name = cursor.getString(nameIndex)
                 val photoStr = cursor.getString(photoIndex)
                 val number = cursor.getString(numberIndex)
+                if (name.isNullOrBlank() || number.isNullOrBlank()) continue
 
-                if (!name.isNullOrBlank() && !number.isNullOrBlank()) {
-                    val model = ContactModel(
+                val typeLabel = runCatching {
+                    ContactsContract.CommonDataKinds.Phone.getTypeLabel(
+                        context.resources,
+                        cursor.getInt(typeIndex),
+                        cursor.getString(labelIndex).orEmpty()
+                    ).toString()
+                }.getOrDefault("")
+
+                rows += ContactPhone(
+                    contact = ContactModel(
                         id = id,
                         name = name,
                         photoUri = if (photoStr != null) Uri.parse(photoStr) else null,
                         isFavorite = false,
                         lastTimeContacted = 0,
                         hasPhoneNumber = true
-                    )
-                    contactsWithNumbers.add(model to number)
-                }
+                    ),
+                    number = number,
+                    typeLabel = typeLabel
+                )
             }
         }
-        
-        // Return unique contacts (first number found)
-        contactsWithNumbers.distinctBy { it.first.id }
+
+        rows.distinctBy { it.contact.id to com.serkantkn.zunelauncher.util.PhoneNumbers.matchKey(it.number) }
     }
 
     suspend fun saveContact(
@@ -641,19 +662,28 @@ class ContactRepository(private val context: Context) {
             val numbers = edit.numbers
             val emails = edit.emails
             val ops = ArrayList<android.content.ContentProviderOperation>()
-            val fullName = "$firstName $lastName".trim()
 
-            ops.add(
-                android.content.ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
-                    .withSelection(
-                        "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
-                        arrayOf(contactId, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-                    )
-                    .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, firstName)
-                    .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, lastName)
-                    .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, fullName)
-                    .build()
-            )
+            // The name is written only when the editor changed it, and then in all its parts:
+            // a record with a middle name or a title must not lose them to an edit of the surname.
+            edit.name?.let { name ->
+                val fullName = listOf(name.prefix, name.given, name.middle, name.family, name.suffix)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+                ops.add(
+                    android.content.ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                        .withSelection(
+                            "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                            arrayOf(contactId, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                        )
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, name.given)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, name.family)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.MIDDLE_NAME, name.middle)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.PREFIX, name.prefix)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.SUFFIX, name.suffix)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, fullName)
+                        .build()
+                )
+            }
 
             val rawContactId = rawContactIdOf(contactId)
 
@@ -848,7 +878,7 @@ class ContactRepository(private val context: Context) {
             null
         )?.use { if (it.moveToFirst()) it.getString(0) else null }
     } catch (e: Exception) {
-        ZuneLog.w("ContactRepository", "no raw contact for $contactId", e)
+        ZuneLog.w("ContactRepository", "no raw contact for the contact", e)
         null
     }
 

@@ -191,8 +191,9 @@ fun SocialDetailScreen(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = displayMessage.title.uppercase(Locale.getDefault()),
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
+                            // Lowercase, as every other heading in the launcher: Metro shouts at nobody.
+                            text = displayMessage.title.lowercase(Locale.getDefault()),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Light, letterSpacing = 0.5.sp),
                             color = MaterialTheme.colorScheme.onBackground
                         )
                     }

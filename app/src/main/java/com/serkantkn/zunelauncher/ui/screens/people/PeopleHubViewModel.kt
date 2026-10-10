@@ -18,6 +18,9 @@ import com.serkantkn.zunelauncher.data.model.StartFolders
 import com.serkantkn.zunelauncher.data.model.StartTileItem
 import com.serkantkn.zunelauncher.util.ContactTouch
 import com.serkantkn.zunelauncher.util.recentContacts
+import com.serkantkn.zunelauncher.util.sectionLetterOf
+import java.text.Collator
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -110,6 +113,16 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    /**
+     * On the way back into the hub: the permission may have been taken away in settings, or
+     * granted there, and the address book may have changed under another app.
+     */
+    fun refreshOnResume() {
+        val granted = checkPermission()
+        _hasPermission.value = granted
+        if (granted) loadContacts()
+    }
+
     private fun checkPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             getApplication(),
@@ -191,11 +204,15 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
 
-        val grouped = filtered.groupBy { contact ->
-            val firstChar = contact.name.firstOrNull()?.uppercaseChar() ?: '#'
-            if (firstChar.isLetter()) firstChar else '#'
-        }.toSortedMap()
-        
+        // Grouped and ordered the way the language reads: Ç after C and Ş after S in Turkish,
+        // rather than after Z where their code points would put them. Same rule as the app list.
+        val locale = Locale.getDefault()
+        val collator = Collator.getInstance(locale)
+        val grouped = filtered
+            .sortedWith(compareBy(collator) { it.name })
+            .groupBy { sectionLetterOf(it.name, locale) }
+            .toSortedMap(compareBy(collator) { it.toString() })
+
         _groupedContacts.value = grouped
     }
 
@@ -303,10 +320,11 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
         val before = _allContacts.value.firstOrNull { it.id == contactId }?.photoUri
 
         var contacts = emptyList<ContactModel>()
-        repeat(PHOTO_READ_ATTEMPTS) { attempt ->
+        for (attempt in 0 until PHOTO_READ_ATTEMPTS) {
             contacts = runCatching { contactRepository.getContacts() }.getOrDefault(emptyList())
             val now = contacts.firstOrNull { it.id == contactId }?.photoUri
-            if (!expectPhotoChange || now != before) return@repeat
+            // Changed, or never expected to: the read is good and the waiting stops here.
+            if (!expectPhotoChange || now != before) break
             if (attempt < PHOTO_READ_ATTEMPTS - 1) kotlinx.coroutines.delay(PHOTO_READ_WAIT_MILLIS)
         }
 

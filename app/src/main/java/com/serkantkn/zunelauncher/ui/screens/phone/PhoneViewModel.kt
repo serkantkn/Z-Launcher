@@ -7,7 +7,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.model.CallLogModel
-import com.serkantkn.zunelauncher.data.model.ContactModel
+import com.serkantkn.zunelauncher.data.model.ContactPhone
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,9 +45,9 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
     private val _dialedNumber = MutableStateFlow("")
     val dialedNumber: StateFlow<String> = _dialedNumber.asStateFlow()
 
-    private val _allContacts = MutableStateFlow<List<Pair<ContactModel, String>>>(emptyList())
-    /** Every contact with a number, for the speed dial picker. */
-    val allContacts: StateFlow<List<Pair<ContactModel, String>>> = _allContacts.asStateFlow()
+    private val _allContacts = MutableStateFlow<List<ContactPhone>>(emptyList())
+    /** Every number in the phone book with its person, for the speed dial picker. */
+    val allContacts: StateFlow<List<ContactPhone>> = _allContacts.asStateFlow()
 
     private val _missedOnly = MutableStateFlow(false)
     val missedOnly: StateFlow<Boolean> = _missedOnly.asStateFlow()
@@ -169,8 +169,8 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     
-    private val _matchingContacts = MutableStateFlow<List<Pair<ContactModel, String>>>(emptyList())
-    val matchingContacts: StateFlow<List<Pair<ContactModel, String>>> = _matchingContacts.asStateFlow()
+    private val _matchingContacts = MutableStateFlow<List<ContactPhone>>(emptyList())
+    val matchingContacts: StateFlow<List<ContactPhone>> = _matchingContacts.asStateFlow()
 
     fun loadRecentCalls() {
         viewModelScope.launch {
@@ -182,6 +182,11 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
                 _errorMessage.value = e.toUserMessage(getApplication())
             }
         }
+    }
+
+    /** The history has been looked at: the phone's own "new missed call" marks come off. */
+    fun markMissedCallsSeen() {
+        viewModelScope.launch { callLogRepository.markMissedCallsRead() }
     }
 
     fun loadContacts() {
@@ -196,6 +201,12 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
 
     fun appendDigit(digit: String) {
         _dialedNumber.value += digit
+        updateMatchingContacts()
+    }
+
+    /** Puts a whole number on the keypad: a tel: link from outside, or a paste. */
+    fun setDialedNumber(number: String) {
+        _dialedNumber.value = PhoneNumbers.toDialable(number)
         updateMatchingContacts()
     }
 
@@ -218,9 +229,9 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val matches = _allContacts.value.filter { (contact, number) ->
-            val cleanNumber = number.replace(Regex("[^0-9+]"), "")
-            cleanNumber.contains(query) || matchesT9(contact.name, query)
+        val matches = _allContacts.value.filter { entry ->
+            val cleanNumber = entry.number.replace(Regex("[^0-9+]"), "")
+            cleanNumber.contains(query) || matchesT9(entry.contact.name, query)
         }
         
         _matchingContacts.value = matches.take(5) // Limit to 5 results
@@ -242,7 +253,7 @@ class PhoneViewModel(application: Application) : AndroidViewModel(application) {
             'ö' to '6', 'ş' to '7', 'ü' to '8'
         )
 
-        val nameT9 = name.lowercase().mapNotNull { t9Map[it] }.joinToString("")
+        val nameT9 = name.lowercase(java.util.Locale.getDefault()).mapNotNull { t9Map[it] }.joinToString("")
         return nameT9.contains(query)
     }
 }
