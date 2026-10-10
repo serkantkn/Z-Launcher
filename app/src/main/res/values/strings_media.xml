@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings for the Internet, Files, Notes, Pictures, Music and Camera hubs added by the audit fixes. -->
+<resources>
+    <!-- Internet hub -->
+    <string name="browser_download_blob">this link cannot be downloaded</string>
+    <string name="browser_page_crashed">the page crashed</string>
+    <string name="browser_page_reload">reload</string>
+    <string name="browser_permission_title">site permission</string>
+    <string name="browser_permission_body">%1$s wants to use your %2$s.</string>
+    <string name="browser_permission_camera">camera</string>
+    <string name="browser_permission_microphone">microphone</string>
+    <string name="browser_permission_location">location</string>
+    <string name="browser_permission_allow">allow</string>
+    <string name="browser_permission_deny">deny</string>
+
+    <!-- Files hub -->
+    <string name="files_already_here">already here</string>
+    <string name="files_paste_progress">%1$d / %2$d · %3$s</string>
+    <string name="files_paste_cancelled">paste cancelled</string>
+    <string name="files_folder_failed">the folder could not be made</string>
+    <string name="files_delete_failed">%1$s could not be deleted</string>
+    <string name="files_rename_failed">%1$s could not be renamed</string>
+
+    <!-- Pictures hub -->
+    <string name="pics_save_failed">the picture could not be saved</string>
+    <string name="editor_load_failed">the picture would not open</string>
+    <string name="editor_save_failed">the picture could not be saved; try a smaller crop</string>
+
+    <!-- Music hub -->
+    <string name="music_sleep_other_app">the sleep timer could not pause the other app</string>
+</resources>

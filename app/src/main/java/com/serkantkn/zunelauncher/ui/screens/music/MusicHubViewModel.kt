@@ -33,6 +33,9 @@ import androidx.media3.common.Player
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
+import com.serkantkn.zunelauncher.R
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -78,9 +81,18 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
         if (granted) loadLocalSongs()
     }
 
+    /**
+     * Called on every resume. The library is read again only when the answer changed or the
+     * media store said something did; reading it on every return made the hub stutter each
+     * time a dialog closed over it.
+     */
     fun refreshPermissionState() {
         val granted = checkAudioPermission()
-        if (granted != _hasPermission.value) onPermissionResult(granted) else if (granted) loadLocalSongs()
+        if (granted != _hasPermission.value) {
+            onPermissionResult(granted)
+        } else if (granted && (libraryDirty || _localSongs.value.isEmpty())) {
+            loadLocalSongs()
+        }
     }
 
     private fun checkAudioPermission(): Boolean {
@@ -202,13 +214,49 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
         }
 
         
-        // The accent follows whatever is playing, from either player.
+        // The accent follows whatever is playing, from either player — and only when the cover
+        // changes. The playback state ticks twice a second for the position, and each tick used
+        // to decode the cover and run the palette again for the same answer.
         viewModelScope.launch {
-            playback.collect { state ->
-                val art = state.externalArt ?: state.artworkUri?.let { loadArtwork(it) }
-                extractDominantColor(art)
+            playback
+                .map { it.externalArt to it.artworkUri }
+                .distinctUntilChanged()
+                .collect { (externalArt, artworkUri) ->
+                    val art = externalArt ?: artworkUri?.let { loadArtwork(it) }
+                    extractDominantColor(art)
+                }
+        }
+        watchLibrary()
+    }
+
+    // ── Noticing the library change ─────────────────────────────────────────
+
+    /** Set by the media store's observer; a resume reads the library again only when it is. */
+    private var libraryDirty = false
+
+    private var observerDebounce: Job? = null
+
+    private val libraryObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+            super.onChange(selfChange, uri)
+            libraryDirty = true
+            if (!_hasPermission.value) return
+            observerDebounce?.cancel()
+            observerDebounce = viewModelScope.launch {
+                kotlinx.coroutines.delay(LIBRARY_DEBOUNCE_MS)
+                loadLocalSongs()
             }
         }
+    }
+
+    private fun watchLibrary() {
+        runCatching {
+            getApplication<Application>().contentResolver.registerContentObserver(
+                android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                true,
+                libraryObserver
+            )
+        }.onFailure { ZuneLog.w("MusicHubViewModel", "the media store would not be watched", it) }
     }
 
     // ── What the pages are looking at ───────────────────────────────────────
@@ -348,14 +396,24 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
      * One album at a time and off the main thread, updating the lists as each answer arrives, so
      * a library with a hundred records fills in gradually rather than making everybody wait.
      */
+    private var artworkJob: Job? = null
+
     private fun resolveArtwork() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        // A rescan while the last pass is still fetching would have two passes writing the
+        // lists over each other; the earlier one is stopped first.
+        artworkJob?.cancel()
+        artworkJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val allowNetwork = mayFetchOnline()
             _albums.value.forEach { album ->
+                ensureActive()
                 val sample = _localSongs.value.firstOrNull { it.albumId == album.id }
-                val cover = runCatching {
+                val cover = try {
                     artworkRepository.coverFor(album, sample, allowNetwork)
-                }.getOrNull() ?: return@forEach
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                } ?: return@forEach
 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     _albums.value = _albums.value.map {
@@ -403,8 +461,26 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
                 left--
                 _sleepMinutesLeft.value = left
             }
-            if (localMediaController.state.value.isPlaying) localMediaController.playPause()
+            when (playback.value.source) {
+                PlaybackSource.LOCAL ->
+                    if (localMediaController.state.value.isPlaying) localMediaController.playPause()
+                PlaybackSource.EXTERNAL ->
+                    // Another app's music can be paused through its session, when the system
+                    // lets us at it; when it does not, the honest thing is to say so.
+                    if (!globalMediaController.pauseIfPlaying()) {
+                        _statusMessage.value = getApplication<Application>().getString(R.string.music_sleep_other_app)
+                    }
+                else -> Unit
+            }
         }
+    }
+
+    /** A one-line message for the person, shown once and cleared. */
+    private val _statusMessage = MutableStateFlow<String?>(null)
+    val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
+
+    fun clearStatus() {
+        _statusMessage.value = null
     }
 
     fun cancelSleepTimer() {
@@ -497,8 +573,12 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
         _searchQuery.value = query
     }
 
+    private var loadJob: Job? = null
+
     fun loadLocalSongs() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        libraryDirty = false
+        loadJob = viewModelScope.launch {
             _isLoading.value = true
             try {
                 val songs = musicRepository.getLocalSongs()
@@ -507,6 +587,8 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
                 _artists.value = musicRepository.artistsOf(songs)
                 _errorMessage.value = null
                 resolveArtwork()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ZuneLog.e("MusicHubViewModel", "loadLocalSongs failed", e)
                 _errorMessage.value = e.toUserMessage(getApplication())
@@ -518,11 +600,19 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
 
     fun playLocalSong(index: Int) = playSongs(_localSongs.value, index)
 
-    /** Plays a list of tracks from one of them — a whole album, an artist, a search result. */
+    /**
+     * Plays a list of tracks from one of them — a whole album, an artist, a search result.
+     *
+     * The player connects in the background and a tap can land before it has; a tap that did
+     * nothing was the result. The play now waits, briefly, for the connection.
+     */
     fun playSongs(songs: List<SongModel>, index: Int) {
         if (songs.isEmpty() || index !in songs.indices) return
-        localMediaController.playMediaItems(songs.map(::mediaItemOf), index)
-        rememberPlayed(songs[index])
+        viewModelScope.launch {
+            kotlinx.coroutines.withTimeoutOrNull(RESTORE_TIMEOUT_MS) { localMediaController.isReady.first { it } }
+            localMediaController.playMediaItems(songs.map(::mediaItemOf), index)
+            rememberPlayed(songs[index])
+        }
     }
 
     /** Plays everything in the list in a random order, starting from a random track. */
@@ -656,6 +746,7 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
             .build()
 
     override fun onCleared() {
+        runCatching { getApplication<Application>().contentResolver.unregisterContentObserver(libraryObserver) }
         globalMediaController.stopListening()
         localMediaController.onPlaybackMoved = null
         localMediaController.stop()
@@ -677,6 +768,9 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
     private companion object {
         const val RESTORE_TIMEOUT_MS = 5_000L
         const val RESTORE_POLL_MS = 100L
+
+        /** How long the media store's changes are gathered before the library is read again. */
+        const val LIBRARY_DEBOUNCE_MS = 500L
     }
 }
 

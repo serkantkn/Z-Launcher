@@ -17,6 +17,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -29,7 +30,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreateNewFolder
@@ -413,12 +414,25 @@ fun FilesHubScreen(
                         )
                     }
                     if (busyMessage != null) {
-                        Text(
-                            text = busyMessage.orEmpty(),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = zuneColors.accentColor,
-                            modifier = Modifier.padding(vertical = 6.dp)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = busyMessage.orEmpty(),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = zuneColors.accentColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f).padding(vertical = 6.dp)
+                            )
+                            // A long copy can be stopped; what was finished before stays.
+                            Text(
+                                text = stringResource(R.string.common_cancel),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = zuneColors.textMuted,
+                                modifier = Modifier
+                                    .clickable { viewModel.cancelPaste() }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                            )
+                        }
                     }
                     if (isSearching) {
                         Text(
@@ -543,7 +557,7 @@ fun FilesHubScreen(
     val barActions = when {
         selection.isNotEmpty() -> listOf(
             WpBarAction(Icons.Default.ContentCopy, stringResource(R.string.files_copy)) { viewModel.copySelection() },
-            WpBarAction(Icons.Default.ContentPaste, stringResource(R.string.files_cut)) { viewModel.cutSelection() },
+            WpBarAction(Icons.Default.ContentCut, stringResource(R.string.files_cut)) { viewModel.cutSelection() },
             WpBarAction(Icons.Default.Delete, stringResource(R.string.common_delete)) { deleteSelectionPending = true }
         )
 
@@ -573,7 +587,7 @@ fun FilesHubScreen(
             },
             WpBarAction(Icons.Default.Sort, stringResource(R.string.files_sort)) { showSortSheet = true }
         ) + if (clipboard != null) {
-            listOf(WpBarAction(Icons.Default.Check, stringResource(R.string.files_paste)) { viewModel.paste() })
+            listOf(WpBarAction(Icons.Default.ContentPaste, stringResource(R.string.files_paste)) { viewModel.paste() })
         } else {
             emptyList()
         }

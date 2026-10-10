@@ -32,11 +32,14 @@ class ArtworkRepository(
         File(context.cacheDir, "albumart").apply { mkdirs() }
     }
 
+    // Both sets are touched from whichever IO thread the lookup lands on, several at once when
+    // the library is rescanned mid-run; a plain set corrupts quietly under that.
+
     /** Albums already looked at, so the work is not repeated within one run. */
-    private val checked = mutableSetOf<Long>()
+    private val checked: MutableSet<Long> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     /** Albums nobody has a picture of; remembered so the network is asked once, not always. */
-    private val missing = mutableSetOf<Long>()
+    private val missing: MutableSet<Long> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     /**
      * A cover for [album], or null when there is none to be had.

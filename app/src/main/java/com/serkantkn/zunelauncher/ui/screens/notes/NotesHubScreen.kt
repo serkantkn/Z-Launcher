@@ -307,7 +307,20 @@ fun NotesHubScreen(
         buildList {
             if (selectedIds.size == 1) {
                 add(WpBarMenuItem(stringResource(R.string.common_copy)) {
-                    visibleList.firstOrNull { it.id == selectedIds.first() }?.let { viewModel.copyToClipboard(it) }
+                    visibleList.firstOrNull { it.id == selectedIds.first() }?.let { note ->
+                        // The clipboard is open to every app; a locked note is not handed to
+                        // it without the same unlock that opening the note asks for.
+                        if (note.isLocked) {
+                            authenticateForNote(
+                                context = context,
+                                title = note.displayTitle,
+                                onSuccess = { viewModel.copyToClipboard(note) },
+                                onFailure = { reason -> localStatus = reason }
+                            )
+                        } else {
+                            viewModel.copyToClipboard(note)
+                        }
+                    }
                     viewModel.exitSelectionMode()
                 })
             }
@@ -320,7 +333,7 @@ fun NotesHubScreen(
                     add(WpBarMenuItem(stringResource(R.string.notes_new_list)) { openEditor(Note(isList = true), isNew = true) })
                     add(WpBarMenuItem(stringResource(R.string.notes_backup)) {
                         val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
-                        createBackup.launch("zune-notlar-$stamp.json")
+                        createBackup.launch("z-launcher-notes-$stamp.json")
                     })
                     add(WpBarMenuItem(stringResource(R.string.notes_restore_backup)) { restoreBackup.launch(arrayOf("application/json", "text/plain", "*/*")) })
                     add(WpBarMenuItem(if (isQuickNoteTileOnStart) stringResource(R.string.notes_quick_tile_remove) else stringResource(R.string.notes_quick_tile_add)) {

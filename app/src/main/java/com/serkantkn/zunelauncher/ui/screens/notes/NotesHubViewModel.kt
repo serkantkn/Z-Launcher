@@ -24,6 +24,7 @@ import com.serkantkn.zunelauncher.data.model.Alarm
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.data.model.Note
+import com.serkantkn.zunelauncher.data.model.StartFolders
 import com.serkantkn.zunelauncher.data.model.StartTileItem
 import com.serkantkn.zunelauncher.data.repository.NotesBridge
 import com.serkantkn.zunelauncher.di.appContainer
@@ -109,10 +110,13 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
     private val filtered: StateFlow<List<Note>> = combine(allNotes, _searchQuery, _sortMode) { notes, query, sort ->
         val q = query.trim().lowercase()
         val base = if (q.isEmpty()) notes else notes.filter { note ->
-            note.title.lowercase().contains(q) ||
+            // A locked note's words are behind the lock; only its title is searched, or the
+            // search box becomes a way to read it one guessed word at a time.
+            note.title.lowercase().contains(q) || (!note.isLocked && (
                 note.content.lowercase().contains(q) ||
-                note.tags.any { it.lowercase().contains(q) } ||
-                note.items.any { it.text.lowercase().contains(q) }
+                    note.tags.any { it.lowercase().contains(q) } ||
+                    note.items.any { it.text.lowercase().contains(q) }
+                ))
         }
         sortNotes(base, sort)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -258,32 +262,37 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
      */
     fun saveNote(note: Note, onSaved: () -> Unit = {}) {
         viewModelScope.launch {
-            val current = notesDataStore.notesFlow.first()
             val cleanedItems = note.items.filter { it.text.isNotBlank() }
             val cleaned = note.copy(items = cleanedItems, tags = note.tags.map { it.trim() }.filter { it.isNotEmpty() }.distinct())
-            val updated = if (cleaned.isBlank) {
-                current.filter { it.id != note.id }
-            } else {
-                val stamped = cleaned.copy(updatedAt = System.currentTimeMillis())
-                if (current.any { it.id == note.id }) {
-                    current.map { if (it.id == note.id) stamped else it }
+            notesDataStore.update { current ->
+                if (cleaned.isBlank) {
+                    current.filter { it.id != note.id }
                 } else {
-                    current + stamped
+                    val stamped = cleaned.copy(updatedAt = System.currentTimeMillis())
+                    if (current.any { it.id == note.id }) {
+                        current.map { if (it.id == note.id) stamped else it }
+                    } else {
+                        current + stamped
+                    }
                 }
             }
-            notesDataStore.saveNotes(updated)
             onSaved()
         }
     }
 
     // ── Trash lifecycle ───────────────────────────────────────────────────
 
-    /** Moves notes to the trash (30-day retention). Pinned/archived flags are kept for restore. */
+    /**
+     * Moves notes to the trash (30-day retention). Pinned/archived flags are kept for restore.
+     * The reminders are taken down — a note in the bin should not ring — but the times stay on
+     * the note so a restore can put them back.
+     */
     fun moveToTrash(ids: Set<String>, onDone: () -> Unit = {}) {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            val current = notesDataStore.notesFlow.first()
-            notesDataStore.saveNotes(current.map { if (it.id in ids) it.copy(deletedAt = now) else it })
+            val doomed = notesDataStore.notesFlow.first().filter { it.id in ids }
+            doomed.forEach { disarmReminders(it) }
+            notesDataStore.update { current -> current.map { if (it.id in ids) it.copy(deletedAt = now) else it } }
             // A trashed note should not keep a Start tile.
             ids.forEach { unpinFromStart(it) }
             if (_editingNote.value?.id in ids) _editingNote.value = null
@@ -298,8 +307,10 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun restoreFromTrash(ids: Set<String>) {
         viewModelScope.launch {
-            val current = notesDataStore.notesFlow.first()
-            notesDataStore.saveNotes(current.map { if (it.id in ids) it.copy(deletedAt = null) else it })
+            val restored = notesDataStore.notesFlow.first()
+                .filter { it.id in ids }
+                .associate { note -> note.id to armReminders(note.copy(deletedAt = null)) }
+            notesDataStore.update { current -> current.map { restored[it.id] ?: it } }
             exitSelectionMode()
         }
     }
@@ -307,13 +318,41 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
     /** Permanently deletes notes and cleans up their alarms, calendar events and media files. */
     fun deleteForever(ids: Set<String>, onDone: () -> Unit = {}) {
         viewModelScope.launch {
-            val current = notesDataStore.notesFlow.first()
-            val doomed = current.filter { it.id in ids }
+            val doomed = notesDataStore.notesFlow.first().filter { it.id in ids }
             doomed.forEach { cleanupNoteResources(it) }
-            notesDataStore.saveNotes(current.filter { it.id !in ids })
+            notesDataStore.update { current -> current.filter { it.id !in ids } }
             exitSelectionMode()
             onDone()
         }
+    }
+
+    /** Silences a note's reminders without forgetting when they were set for. */
+    private suspend fun disarmReminders(note: Note) {
+        if (note.reminderAt != null) {
+            cancelAlarmRecord("note-${note.id}")
+            note.linkedEventId?.let { removeCalendarEvent(it) }
+        }
+        note.items.mapNotNull { it.alarmId }.forEach { cancelAlarmRecord(it) }
+    }
+
+    /**
+     * Puts a restored note's reminders back, for the ones still ahead. A time already passed is
+     * dropped rather than rung late. Returns the note as it should now be stored.
+     */
+    private suspend fun armReminders(note: Note): Note {
+        val now = System.currentTimeMillis()
+        var armed = note
+        val reminderAt = note.reminderAt
+        armed = if (reminderAt != null && reminderAt > now) {
+            setNoteReminder(armed, reminderAt)
+        } else {
+            armed.copy(reminderAt = null, linkedEventId = null)
+        }
+        for (item in note.items) {
+            val at = item.reminderAt ?: continue
+            armed = if (at > now) setItemReminder(armed, item.id, at) else clearItemReminder(armed, item.id)
+        }
+        return armed
     }
 
     fun emptyTrash(onDone: () -> Unit = {}) {
@@ -347,10 +386,9 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun setArchived(ids: Set<String>, archived: Boolean) {
         viewModelScope.launch {
-            val current = notesDataStore.notesFlow.first()
-            notesDataStore.saveNotes(
+            notesDataStore.update { current ->
                 current.map { if (it.id in ids) it.copy(isArchived = archived, isPinned = false) else it }
-            )
+            }
             exitSelectionMode()
         }
     }
@@ -367,13 +405,16 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun duplicateNotes(ids: Set<String>) {
         viewModelScope.launch {
-            val current = notesDataStore.notesFlow.first()
             val now = System.currentTimeMillis()
-            val copies = current.filter { it.id in ids }.map { source ->
+            val copies = notesDataStore.notesFlow.first().filter { it.id in ids }.map { source ->
                 source.copy(
                     id = UUID.randomUUID().toString(),
                     title = if (source.title.isBlank()) "" else getApplication<Application>().localizedString(R.string.notes_copy_suffix, source.title),
                     items = source.items.map { it.copy(id = UUID.randomUUID().toString(), reminderAt = null, alarmId = null) },
+                    // The copy gets files of its own: shared ones would be deleted from under
+                    // it the day the original is emptied from the trash.
+                    imagePaths = source.imagePaths.mapNotNull { copyAttachment(it) },
+                    audioPath = source.audioPath?.let { copyAttachment(it) },
                     isPinned = false,
                     linkedEventId = null,
                     reminderAt = null,
@@ -381,8 +422,22 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
                     updatedAt = now
                 )
             }
-            notesDataStore.saveNotes(current + copies)
+            notesDataStore.update { current -> current + copies }
             exitSelectionMode()
+        }
+    }
+
+    /** A fresh file beside [path] with the same bytes, or null when it could not be made. */
+    private suspend fun copyAttachment(path: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val source = File(path)
+            if (!source.isFile) return@withContext null
+            val target = File(source.parentFile, "${UUID.randomUUID()}.${source.extension}".removeSuffix("."))
+            source.copyTo(target, overwrite = false)
+            target.absolutePath
+        } catch (e: Exception) {
+            ZuneLog.w("NotesHubViewModel", "attachment could not be copied for the duplicate", e)
+            null
         }
     }
 
@@ -399,10 +454,9 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
 
     private fun updateNote(id: String, transform: (Note) -> Note) {
         viewModelScope.launch {
-            val current = notesDataStore.notesFlow.first()
-            notesDataStore.saveNotes(
+            notesDataStore.update { current ->
                 current.map { if (it.id == id) transform(it).copy(updatedAt = System.currentTimeMillis()) else it }
-            )
+            }
             _editingNote.value?.let { editing ->
                 if (editing.id == id) _editingNote.value = transform(editing)
             }
@@ -415,7 +469,9 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val tiles = settingsDataStore.startTiles.first()
             val id = "note:${note.id}"
-            val updated = if (tiles.any { it.id == id }) tiles.filter { it.id != id }
+            // A tile inside a folder is only found by looking inside the folders, which is what
+            // removeTile does and a plain filter does not.
+            val updated = if (StartFolders.allTileIds(tiles).contains(id)) StartFolders.removeTile(tiles, id)
             else tiles + StartTileItem.fromNote(note.id, 2)
             settingsDataStore.setStartTiles(updated)
             // Make sure the note itself exists before the tile shows up.
@@ -426,16 +482,20 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
     fun toggleQuickNoteTile() {
         viewModelScope.launch {
             val tiles = settingsDataStore.startTiles.first()
-            val updated = if (tiles.any { it.isQuickNote }) tiles.filter { !it.isQuickNote }
-            else tiles + StartTileItem(StartTileItem.QUICK_NOTE_ID, 1)
+            val updated = if (StartFolders.allTileIds(tiles).contains(StartTileItem.QUICK_NOTE_ID)) {
+                StartFolders.removeTile(tiles, StartTileItem.QUICK_NOTE_ID)
+            } else {
+                tiles + StartTileItem(StartTileItem.QUICK_NOTE_ID, 1)
+            }
             settingsDataStore.setStartTiles(updated)
         }
     }
 
     private suspend fun unpinFromStart(noteId: String) {
         val tiles = settingsDataStore.startTiles.first()
-        if (tiles.any { it.noteId == noteId }) {
-            settingsDataStore.setStartTiles(tiles.filter { it.noteId != noteId })
+        val id = "note:$noteId"
+        if (StartFolders.allTileIds(tiles).contains(id)) {
+            settingsDataStore.setStartTiles(StartFolders.removeTile(tiles, id))
         }
     }
 

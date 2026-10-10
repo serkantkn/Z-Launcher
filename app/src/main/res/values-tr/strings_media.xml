@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings for the Internet, Files, Notes, Pictures, Music and Camera hubs added by the audit fixes. -->
+<resources>
+    <!-- Internet hub -->
+    <string name="browser_download_blob">bu bağlantı indirilemiyor</string>
+    <string name="browser_page_crashed">sayfa çöktü</string>
+    <string name="browser_page_reload">yeniden yükle</string>
+    <string name="browser_permission_title">site izni</string>
+    <string name="browser_permission_body">%1$s şunu kullanmak istiyor: %2$s.</string>
+    <string name="browser_permission_camera">kamera</string>
+    <string name="browser_permission_microphone">mikrofon</string>
+    <string name="browser_permission_location">konum</string>
+    <string name="browser_permission_allow">izin ver</string>
+    <string name="browser_permission_deny">reddet</string>
+
+    <!-- Files hub -->
+    <string name="files_already_here">zaten burada</string>
+    <string name="files_paste_progress">%1$d / %2$d · %3$s</string>
+    <string name="files_paste_cancelled">yapıştırma iptal edildi</string>
+    <string name="files_folder_failed">klasör oluşturulamadı</string>
+    <string name="files_delete_failed">%1$s silinemedi</string>
+    <string name="files_rename_failed">%1$s yeniden adlandırılamadı</string>
+
+    <!-- Pictures hub -->
+    <string name="pics_save_failed">resim kaydedilemedi</string>
+    <string name="editor_load_failed">resim açılamadı</string>
+    <string name="editor_save_failed">resim kaydedilemedi; daha küçük bir kırpma deneyin</string>
+
+    <!-- Music hub -->
+    <string name="music_sleep_other_app">uyku zamanlayıcısı diğer uygulamayı duraklatamadı</string>
+</resources>

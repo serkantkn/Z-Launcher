@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.pictures
 
+import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.util.MediaSaver
 import com.serkantkn.zunelauncher.util.toUserMessage
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
@@ -62,24 +64,47 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
     private val _selectedAlbum = MutableStateFlow<MediaAlbum?>(null)
     val selectedAlbum: StateFlow<MediaAlbum?> = _selectedAlbum.asStateFlow()
 
+    /** A one-line message for the person — a save that failed, say — shown once and cleared. */
+    private val _statusMessage = MutableStateFlow<String?>(null)
+    val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
+
+    /**
+     * Whether the media store has changed since it was last read. The observer sets it; coming
+     * back to the hub reads again only when it is set, rather than on every single resume.
+     */
+    private var mediaDirty = false
+
+    private var observerDebounce: kotlinx.coroutines.Job? = null
+
+    /**
+     * The store announces every row it touches; a camera burst or a sync is hundreds of changes
+     * in a row, and each used to start a full read. They are gathered up for half a second and
+     * read once.
+     */
     private val mediaContentObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
             super.onChange(selfChange, uri)
-            if (_hasPermission.value) {
+            mediaDirty = true
+            if (!_hasPermission.value) return
+            observerDebounce?.cancel()
+            observerDebounce = viewModelScope.launch {
+                kotlinx.coroutines.delay(OBSERVER_DEBOUNCE_MS)
                 loadMedia()
             }
         }
     }
 
     init {
-        try {
-            application.contentResolver.registerContentObserver(
-                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                true,
-                mediaContentObserver
-            )
-        } catch (e: Exception) {
-            ZuneLog.e("PicturesHubViewModel", "onChange failed", e)
+        // Videos are in the roll too, so a new recording has to wake the hub as a photo does.
+        listOf(
+            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        ).forEach { uri ->
+            try {
+                application.contentResolver.registerContentObserver(uri, true, mediaContentObserver)
+            } catch (e: Exception) {
+                ZuneLog.e("PicturesHubViewModel", "observer registration failed", e)
+            }
         }
         if (_hasPermission.value) {
             loadMedia()
@@ -96,26 +121,46 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun onPermissionResult(granted: Boolean) {
-        _hasPermission.value = granted
-        if (granted) {
+        // The dialog's own answer can be "some of them" on Android 14, which the launcher
+        // does not hear as a yes; the permission state itself says.
+        _hasPermission.value = granted || checkPermissions()
+        if (_hasPermission.value) {
             loadMedia()
         }
     }
 
+    /**
+     * Whether any pictures may be read. On Android 14 the person may hand over only a few,
+     * which arrives as READ_MEDIA_VISUAL_USER_SELECTED and nothing else: that is access, to
+     * those few, and the hub shows them rather than asking again.
+     */
     private fun checkPermissions(): Boolean {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            android.Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        val app = getApplication<Application>()
+        fun has(permission: String) =
+            ContextCompat.checkSelfPermission(app, permission) == PackageManager.PERMISSION_GRANTED
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+                has(android.Manifest.permission.READ_MEDIA_IMAGES) ||
+                    has(android.Manifest.permission.READ_MEDIA_VIDEO) ||
+                    has(android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+                has(android.Manifest.permission.READ_MEDIA_IMAGES) || has(android.Manifest.permission.READ_MEDIA_VIDEO)
+            else -> has(android.Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-        return ContextCompat.checkSelfPermission(
-            getApplication(),
-            permission
-        ) == PackageManager.PERMISSION_GRANTED
     }
 
+    /** Reads again only if something has changed since the last read; for coming back to the hub. */
+    fun loadMediaIfChanged() {
+        if (!_hasPermission.value) return
+        if (mediaDirty || _allImages.value.isEmpty()) loadMedia()
+    }
+
+    private var loadJob: kotlinx.coroutines.Job? = null
+
     fun loadMedia() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        mediaDirty = false
+        loadJob = viewModelScope.launch {
             _isLoading.value = true
             try {
                 val images = mediaRepository.getAllImages()
@@ -123,6 +168,8 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
                 _cameraRollImages.value = mediaRepository.getCameraRollImages(images)
                 _albums.value = mediaRepository.getAlbums(images)
                 _errorMessage.value = null
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ZuneLog.e("PicturesHubViewModel", "loadMedia failed", e)
                 _errorMessage.value = e.toUserMessage(getApplication())
@@ -130,6 +177,10 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
                 _isLoading.value = false
             }
         }
+    }
+
+    fun clearStatus() {
+        _statusMessage.value = null
     }
 
     fun selectAlbum(album: MediaAlbum?) {
@@ -313,6 +364,13 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
         }.onFailure { ZuneLog.w("PicturesHubViewModel", "nothing on this phone plays video", it) }
     }
 
+    /**
+     * Pictures whose deletion is waiting on the system's consent dialog, and what to do once
+     * they are gone. On Android 10 consent is given one picture at a time and the delete has to
+     * be run again afterwards; on 11+ the dialog does the deleting itself.
+     */
+    private var pendingConsentDelete: Pair<List<MediaImage>, () -> Unit>? = null
+
     /** Deletes several at once; the system asks for permission on modern Android. */
     fun deletePhotos(
         activity: android.app.Activity,
@@ -328,17 +386,37 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
                         activity.contentResolver,
                         photos.map { it.uri }
                     )
+                    pendingConsentDelete = emptyList<MediaImage>() to onDeleted
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         onIntentSenderRequired(request.intentSender)
                     }
                 }.onFailure { ZuneLog.e("PicturesHubViewModel", "deletePhotos failed", it) }
-            } else {
-                val deleted = photos.count {
-                    runCatching { activity.contentResolver.delete(it.uri, null, null) > 0 }
-                        .getOrDefault(false)
+                return@launch
+            }
+            var deleted = 0
+            val remaining = photos.toMutableList()
+            for (photo in photos) {
+                try {
+                    if (activity.contentResolver.delete(photo.uri, null, null) > 0) deleted++
+                    remaining.remove(photo)
+                } catch (e: SecurityException) {
+                    // Android 10: a picture another app made needs the person's say-so, asked
+                    // for one picture at a time. The rest wait for the answer.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && e is android.app.RecoverableSecurityException) {
+                        pendingConsentDelete = remaining.toList() to onDeleted
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            onIntentSenderRequired(e.userAction.actionIntent.intentSender)
+                        }
+                        break
+                    }
+                    ZuneLog.e("PicturesHubViewModel", "deletePhotos refused", e)
+                } catch (e: Exception) {
+                    ZuneLog.e("PicturesHubViewModel", "deletePhotos failed", e)
                 }
-                if (deleted > 0) {
-                    loadMedia()
+            }
+            if (deleted > 0) {
+                loadMedia()
+                if (pendingConsentDelete == null) {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onDeleted() }
                 }
             }
@@ -350,71 +428,67 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
         photo: MediaImage,
         onIntentSenderRequired: (android.content.IntentSender) -> Unit,
         onDeleted: () -> Unit
+    ) = deletePhotos(activity, listOf(photo), onIntentSenderRequired, onDeleted)
+
+    /**
+     * The consent dialog has closed. With a yes, the pictures that were waiting on it are
+     * deleted now (Android 10) or already gone (11+); either way the roll is read again.
+     */
+    fun onDeleteConsent(activity: android.app.Activity, granted: Boolean, onIntentSenderRequired: (android.content.IntentSender) -> Unit) {
+        val (waiting, onDeleted) = pendingConsentDelete ?: return
+        pendingConsentDelete = null
+        if (!granted) return
+        if (waiting.isEmpty()) {
+            loadMedia()
+            onDeleted()
+        } else {
+            deletePhotos(activity, waiting, onIntentSenderRequired, onDeleted)
+        }
+    }
+
+    /**
+     * Writes an edited picture beside the original: into the launcher's own album, as a PNG if
+     * the original was one, carrying the original's date and place. A failure is reported and
+     * [onFailed] lets the editor stay open with the work still in it, rather than closing on a
+     * picture that was never written.
+     */
+    fun saveEditedPhoto(
+        bitmap: android.graphics.Bitmap,
+        source: MediaImage,
+        onSaved: (android.net.Uri) -> Unit = {},
+        onFailed: (String) -> Unit = {}
     ) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                try {
-                    val pi = android.provider.MediaStore.createDeleteRequest(
-                        activity.contentResolver,
-                        listOf(photo.uri)
-                    )
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        onIntentSenderRequired(pi.intentSender)
-                    }
-                } catch (e: Exception) {
-                    ZuneLog.e("PicturesHubViewModel", "deletePhoto failed", e)
-                }
-            } else {
-                try {
-                    val count = activity.contentResolver.delete(photo.uri, null, null)
-                    if (count > 0) {
-                        loadMedia()
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            onDeleted()
-                        }
-                    }
-                } catch (e: SecurityException) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && e is android.app.RecoverableSecurityException) {
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            onIntentSenderRequired(e.userAction.actionIntent.intentSender)
-                        }
-                    }
-                } catch (e: Exception) {
-                    ZuneLog.e("PicturesHubViewModel", "deletePhoto failed", e)
+            val app = getApplication<Application>()
+            val png = source.mimeType.equals("image/png", ignoreCase = true) ||
+                source.displayName.endsWith(".png", ignoreCase = true)
+            val uri = try {
+                MediaSaver.saveImage(
+                    app,
+                    bitmap,
+                    MediaSaver.fileName("EDIT", if (png) "png" else "jpg"),
+                    png = png,
+                    exifFrom = source.uri
+                )
+            } catch (e: Throwable) {
+                ZuneLog.e("PicturesHubViewModel", "saveEditedPhoto failed", e)
+                null
+            }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (uri != null) {
+                    loadMedia()
+                    onSaved(uri)
+                } else {
+                    val message = app.getString(R.string.pics_save_failed)
+                    _statusMessage.value = message
+                    onFailed(message)
                 }
             }
         }
     }
 
-    fun saveEditedPhoto(bitmap: android.graphics.Bitmap, onSaved: (android.net.Uri) -> Unit = {}) {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            val context = getApplication<Application>()
-            val filename = "Zune_Edit_${System.currentTimeMillis()}.jpg"
-            val contentValues = android.content.ContentValues().apply {
-                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/Zune")
-                    put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
-                }
-            }
-
-            val resolver = context.contentResolver
-            val imageUri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            if (imageUri != null) {
-                resolver.openOutputStream(imageUri)?.use { stream ->
-                    bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, stream)
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    contentValues.clear()
-                    contentValues.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
-                    resolver.update(imageUri, contentValues, null, null)
-                }
-                loadMedia()
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    onSaved(imageUri)
-                }
-            }
-        }
+    private companion object {
+        /** How long the media store's changes are gathered before the roll is read again. */
+        const val OBSERVER_DEBOUNCE_MS = 500L
     }
 }

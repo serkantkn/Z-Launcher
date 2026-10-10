@@ -106,8 +106,17 @@ fun CameraHubScreen(
     var focusTick by remember { mutableIntStateOf(0) }
     var zoomShowing by remember { mutableStateOf(false) }
 
-    val askForCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        hasCamera = it
+    // Android 9 also has to be asked before a shot may be written to the gallery; the two
+    // questions go out together so the first picture does not fail quietly.
+    val askForCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        hasCamera = it[Manifest.permission.CAMERA] ?: granted(Manifest.permission.CAMERA)
+    }
+    val cameraPermissions = remember {
+        if (com.serkantkn.zunelauncher.util.LegacyStorage.needsWritePermission(context)) {
+            arrayOf(Manifest.permission.CAMERA, com.serkantkn.zunelauncher.util.LegacyStorage.WRITE_PERMISSION)
+        } else {
+            arrayOf(Manifest.permission.CAMERA)
+        }
     }
     val askForMicrophone = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasMicrophone = granted
@@ -120,7 +129,7 @@ fun CameraHubScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (!hasCamera) askForCamera.launch(Manifest.permission.CAMERA)
+        if (!hasCamera) askForCamera.launch(cameraPermissions)
     }
 
     // Rebinding is what switches modes and lenses; the flash is only a setting on what is bound.
@@ -309,7 +318,7 @@ fun CameraHubScreen(
             )
         } else {
             PermissionNotice(
-                onAsk = { askForCamera.launch(Manifest.permission.CAMERA) },
+                onAsk = { askForCamera.launch(cameraPermissions) },
                 modifier = Modifier.align(Alignment.Center)
             )
         }

@@ -54,6 +54,10 @@ import android.content.Intent
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
+import android.webkit.CookieManager
+import androidx.compose.foundation.clickable
+import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
+import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
 import com.serkantkn.zunelauncher.ui.animation.rememberHingeSpec
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -133,11 +137,115 @@ fun BrowserHubScreen(
         }
     }
 
-    // A site pinned to the start board opens straight into its page.
+    // A site pinned to the start board, or a link handed over from another app, opens straight
+    // into its page — also while the hub is already open, which a one-off read would miss.
     LaunchedEffect(Unit) {
-        com.serkantkn.zunelauncher.data.repository.BrowserBridge.consume()?.let { url ->
+        com.serkantkn.zunelauncher.data.repository.BrowserBridge.pendingUrl.collect { pending ->
+            if (pending == null) return@collect
+            val url = com.serkantkn.zunelauncher.data.repository.BrowserBridge.consume() ?: return@collect
             val tabId = viewModel.openTabWith(url)
             pendingLoad = tabId to url
+        }
+    }
+
+    /**
+     * Closes a tab and its page. When the last private tab goes, the session cookies go with it:
+     * the platform gives every page one cookie jar, so this sweep is what "private" amounts to.
+     */
+    val closeTab: (String) -> Unit = { tabId ->
+        val closing = state.tabs.firstOrNull { it.id == tabId }
+        webViewCache.remove(tabId)?.destroy()
+        viewModel.closeTab(tabId)
+        if (closing?.isPrivate == true && state.tabs.none { it.isPrivate && it.id != tabId }) {
+            CookieManager.getInstance().removeSessionCookies(null)
+            CookieManager.getInstance().flush()
+        }
+    }
+
+    // The phone's menu and the tablet's header offer the same things; these are the things.
+    val startFindInPage: () -> Unit = {
+        findQuery = ""
+        findMatches = 0 to 0
+        webViewCache[activeTab.id]?.setFindListener { ordinal, count, done ->
+            if (done) {
+                findMatches = (if (count == 0) 0 else ordinal + 1) to count
+            }
+        }
+    }
+    val toggleDesktopSite: () -> Unit = {
+        val on = !activeTab.isDesktopSite
+        viewModel.setDesktopSite(activeTab.id, on)
+        webViewCache[activeTab.id]?.let { web ->
+            web.settings.userAgentString = if (on) DESKTOP_USER_AGENT else null
+            web.settings.useWideViewPort = true
+            web.settings.loadWithOverviewMode = true
+            web.reload()
+        }
+    }
+    val toggleReadingView: () -> Unit = {
+        val web = webViewCache[activeTab.id]
+        if (activeTab.isReadingView) {
+            viewModel.setReadingView(activeTab.id, false)
+            web?.reload()
+        } else {
+            web?.evaluateJavascript(readingViewScript(zuneColors.isDark)) { result ->
+                // "nothing" means the page had no article worth keeping; "already" means it is
+                // in reading view as it stands, which is what was asked for.
+                if (result.contains("ok") || result.contains("already")) {
+                    viewModel.setReadingView(activeTab.id, true)
+                } else {
+                    viewModel.reportPageError("")
+                }
+            }
+        }
+    }
+
+    /** What a site is asking for, while the question is on screen. */
+    var permissionAsk by remember { mutableStateOf<SitePermissionAsk?>(null) }
+
+    /** Answers already given this session, by origin and kind, so a site is asked once. */
+    val permissionAnswers = remember { mutableMapOf<String, Boolean>() }
+
+    /** Asks the user, unless this origin has already answered for this kind of access. */
+    val askSitePermission: (String, Set<SitePermissionKind>, (Boolean) -> Unit) -> Unit =
+        { origin, kinds, answer ->
+            val remembered = kinds.map { permissionAnswers[origin + it.name] }
+            if (remembered.all { it != null }) {
+                answer(remembered.all { it == true })
+            } else {
+                // A second question before the first is answered replaces it, and the page that
+                // asked first hears "no" rather than nothing.
+                permissionAsk?.answer?.invoke(false)
+                permissionAsk = SitePermissionAsk(origin, kinds) { granted ->
+                    kinds.forEach { permissionAnswers[origin + it.name] = granted }
+                    answer(granted)
+                }
+            }
+        }
+
+    permissionAsk?.let { ask ->
+        SitePermissionDialog(ask = ask, onDone = { if (permissionAsk === ask) permissionAsk = null })
+    }
+
+    // A video on the whole screen gets the whole screen: no status or navigation bar, and the
+    // phone may be turned on its side for it even though Start itself stays upright.
+    val activity = context as? android.app.Activity
+    DisposableEffect(fullscreen != null) {
+        val window = activity?.window
+        val insets = window?.let { androidx.core.view.WindowInsetsControllerCompat(it, it.decorView) }
+        val previousOrientation = activity?.requestedOrientation
+        val entering = fullscreen != null
+        if (entering && insets != null) {
+            insets.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insets.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        }
+        onDispose {
+            if (entering && insets != null) {
+                insets.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                previousOrientation?.let { activity.requestedOrientation = it }
+            }
         }
     }
 
@@ -228,14 +336,21 @@ fun BrowserHubScreen(
                                 }
                             },
                             onNewTab = { viewModel.openNewTab() },
-                            onCloseTab = {
-                                val webView = webViewCache.remove(it)
-                                webView?.destroy()
-                                viewModel.closeTab(it)
-                            },
+                            onCloseTab = { closeTab(it) },
                             onSwitchTab = { viewModel.switchTab(it) },
                             onOpenDownloads = { viewModel.toggleDownloadsScreen(true) },
-                            onOpenSettings = { onOpenSettings?.invoke("HUBS") }
+                            onOpenSettings = { onOpenSettings?.invoke("HUBS") },
+                            isPinnedToStart = viewModel.isPinnedToStart(activeTab.url),
+                            onTogglePinToStart = {
+                                viewModel.togglePinToStart(activeTab.url, activeTab.title)
+                            },
+                            onFindInPage = { startFindInPage() },
+                            onShare = { sharePage(context, activeTab.title, activeTab.url) },
+                            isDesktopSite = activeTab.isDesktopSite,
+                            onToggleDesktopSite = { toggleDesktopSite() },
+                            isReadingView = activeTab.isReadingView,
+                            onToggleReadingView = { toggleReadingView() },
+                            onNewPrivateTab = { viewModel.openPrivateTab() }
                         )
                     }
 
@@ -259,6 +374,9 @@ fun BrowserHubScreen(
                                             }
                                         }
                                 ) {
+                                    if (tab.isCrashed) {
+                                        CrashedPage(onReload = { viewModel.reloadCrashedTab(tab.id) })
+                                    } else key(tab.generation) {
                                     AndroidView(
                                         factory = { ctx ->
                                             createBrowserWebView(
@@ -269,7 +387,7 @@ fun BrowserHubScreen(
                                                     onProgress = { viewModel.onProgressChanged(tab.id, it) },
                                                     onNavState = { back, forward -> viewModel.setNavigationState(tab.id, back, forward) },
                                                     onDownload = { url, ua, disposition, mime, length ->
-                                                        viewModel.startDownload(url, ua, disposition, mime, length)
+                                                        viewModel.startDownload(url, ua, disposition, mime, length, tab.isPrivate)
                                                     },
                                                     onOpenInNewTab = { viewModel.openTabWith(it) },
                                                     onEnterFullscreen = { view, callback ->
@@ -287,15 +405,33 @@ fun BrowserHubScreen(
                                                             false
                                                         }
                                                     },
-                                                    onSitePermission = { request -> answerSitePermission(context, request) },
-                                                    onGeolocation = { origin, callback ->
-                                                        callback.invoke(origin, hasLocationPermission(context), false)
+                                                    onSitePermission = { request ->
+                                                        answerSitePermission(context, request, askSitePermission)
                                                     },
-                                                    onError = { viewModel.reportPageError(it) }
-                                                )
+                                                    onGeolocation = { origin, callback ->
+                                                        if (!hasLocationPermission(context)) {
+                                                            callback.invoke(origin, false, false)
+                                                        } else {
+                                                            askSitePermission(origin, setOf(SitePermissionKind.LOCATION)) { granted ->
+                                                                callback.invoke(origin, granted, false)
+                                                            }
+                                                        }
+                                                    },
+                                                    onError = { viewModel.reportPageError(it) },
+                                                    onRenderGone = { viewModel.markTabCrashed(tab.id) }
+                                                ),
+                                                isPrivate = tab.isPrivate
                                             ).also { webViewCache[tab.id] = it }
                                         },
-                                        onRelease = { webViewCache.remove(tab.id) },
+                                        // A view let go of because its tab crashed (or was rebuilt)
+                                        // is destroyed here; one closed from the tab list was
+                                        // destroyed already and is no longer in the cache.
+                                        onRelease = { view ->
+                                            if (webViewCache[tab.id] === view) {
+                                                webViewCache.remove(tab.id)
+                                                view.destroy()
+                                            }
+                                        },
                                         update = { view ->
                                             val wantedAgent = if (tab.isDesktopSite) DESKTOP_USER_AGENT else null
                                             if (view.settings.userAgentString != wantedAgent &&
@@ -320,6 +456,7 @@ fun BrowserHubScreen(
                                         },
                                         modifier = Modifier.fillMaxSize()
                                     )
+                                    }
 
                                     if (tab.showStartScreen && isVisible) {
                                         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -430,11 +567,7 @@ fun BrowserHubScreen(
                                 }
                             },
                             onNewTab = { viewModel.openNewTab() },
-                            onCloseTab = { 
-                                val webView = webViewCache.remove(it)
-                                webView?.destroy()
-                                viewModel.closeTab(it)
-                            },
+                            onCloseTab = { closeTab(it) },
                             onSwitchTab = { viewModel.switchTab(it) },
                             onOpenDownloads = { viewModel.toggleDownloadsScreen(true) },
                             downloadsCount = state.downloads.size,
@@ -442,44 +575,12 @@ fun BrowserHubScreen(
                             onTogglePinToStart = {
                                 viewModel.togglePinToStart(activeTab.url, activeTab.title)
                             },
-                            onFindInPage = {
-                                findQuery = ""
-                                findMatches = 0 to 0
-                                webViewCache[activeTab.id]?.setFindListener { ordinal, count, done ->
-                                    if (done) {
-                                        findMatches = (if (count == 0) 0 else ordinal + 1) to count
-                                    }
-                                }
-                            },
+                            onFindInPage = { startFindInPage() },
                             onShare = { sharePage(context, activeTab.title, activeTab.url) },
                             isDesktopSite = activeTab.isDesktopSite,
-                            onToggleDesktopSite = {
-                                val on = !activeTab.isDesktopSite
-                                viewModel.setDesktopSite(activeTab.id, on)
-                                webViewCache[activeTab.id]?.let { web ->
-                                    web.settings.userAgentString = if (on) DESKTOP_USER_AGENT else null
-                                    web.settings.useWideViewPort = true
-                                    web.settings.loadWithOverviewMode = true
-                                    web.reload()
-                                }
-                            },
+                            onToggleDesktopSite = { toggleDesktopSite() },
                             isReadingView = activeTab.isReadingView,
-                            onToggleReadingView = {
-                                val web = webViewCache[activeTab.id]
-                                if (activeTab.isReadingView) {
-                                    viewModel.setReadingView(activeTab.id, false)
-                                    web?.reload()
-                                } else {
-                                    web?.evaluateJavascript(readingViewScript(zuneColors.isDark)) { result ->
-                                        // "nothing" means the page had no article worth keeping.
-                                        if (result.contains("ok")) {
-                                            viewModel.setReadingView(activeTab.id, true)
-                                        } else {
-                                            viewModel.reportPageError("")
-                                        }
-                                    }
-                                }
-                            },
+                            onToggleReadingView = { toggleReadingView() },
                             onNewPrivateTab = { viewModel.openPrivateTab() },
                             thumbnails = thumbnails,
                             onTabsOpened = {
@@ -581,20 +682,126 @@ private data class FullscreenPage(
     val callback: WebChromeClient.CustomViewCallback
 )
 
+/** What a page can ask the phone for. */
+internal enum class SitePermissionKind { CAMERA, MICROPHONE, LOCATION }
+
+/** A site's question, waiting for the user's answer. */
+internal class SitePermissionAsk(
+    val origin: String,
+    val kinds: Set<SitePermissionKind>,
+    val answer: (Boolean) -> Unit
+)
+
 /**
  * A page asking for the camera or the microphone can only be given what the launcher itself has
- * been given. Asking the user again from in here would be a second dialog for the same question,
- * so a permission the launcher lacks is a refusal rather than a prompt.
+ * been given, so a permission the launcher lacks is a refusal rather than a prompt. What the
+ * launcher does hold is still not the page's to take: the user is asked, once per site.
  */
-private fun answerSitePermission(context: Context, request: PermissionRequest) {
-    val granted = request.resources.filter { resource ->
+private fun answerSitePermission(
+    context: Context,
+    request: PermissionRequest,
+    ask: (String, Set<SitePermissionKind>, (Boolean) -> Unit) -> Unit
+) {
+    val wanted = request.resources.mapNotNull { resource ->
         when (resource) {
-            PermissionRequest.RESOURCE_VIDEO_CAPTURE -> holds(context, Manifest.permission.CAMERA)
-            PermissionRequest.RESOURCE_AUDIO_CAPTURE -> holds(context, Manifest.permission.RECORD_AUDIO)
-            else -> false
+            PermissionRequest.RESOURCE_VIDEO_CAPTURE ->
+                if (holds(context, Manifest.permission.CAMERA)) resource to SitePermissionKind.CAMERA else null
+            PermissionRequest.RESOURCE_AUDIO_CAPTURE ->
+                if (holds(context, Manifest.permission.RECORD_AUDIO)) resource to SitePermissionKind.MICROPHONE else null
+            else -> null
         }
     }
-    if (granted.isEmpty()) request.deny() else request.grant(granted.toTypedArray())
+    if (wanted.isEmpty()) {
+        request.deny()
+        return
+    }
+    val origin = request.origin?.let { "${it.scheme}://${it.host}" } ?: ""
+    ask(origin, wanted.map { it.second }.toSet()) { granted ->
+        try {
+            if (granted) request.grant(wanted.map { it.first }.toTypedArray()) else request.deny()
+        } catch (e: Exception) {
+            // The page may be gone by the time the answer comes.
+            ZuneLog.w("BrowserHubScreen", "site permission answered too late", e)
+        }
+    }
+}
+
+/** The question a site is asking, put the way Windows Phone put its own. */
+@Composable
+private fun SitePermissionDialog(ask: SitePermissionAsk, onDone: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    var answered by remember(ask) { mutableStateOf(false) }
+    val answer: (Boolean) -> Unit = { granted ->
+        if (!answered) {
+            answered = true
+            ask.answer(granted)
+        }
+    }
+    val context = LocalContext.current
+    val what = ask.kinds.sorted().joinToString(", ") { kind ->
+        context.getString(
+            when (kind) {
+                SitePermissionKind.CAMERA -> R.string.browser_permission_camera
+                SitePermissionKind.MICROPHONE -> R.string.browser_permission_microphone
+                SitePermissionKind.LOCATION -> R.string.browser_permission_location
+            }
+        )
+    }
+    ZuneFlipDialog(
+        onDismissRequest = {
+            answer(false)
+            onDone()
+        },
+        title = stringResource(R.string.browser_permission_title),
+        confirmButton = {
+            ZuneDialogButton(
+                text = stringResource(R.string.browser_permission_allow),
+                onClick = { dismissWithAnim { answer(true); onDone() } },
+                borderColor = zuneColors.accentColor
+            )
+        },
+        dismissButton = {
+            ZuneDialogButton(
+                text = stringResource(R.string.browser_permission_deny),
+                onClick = { dismissWithAnim { answer(false); onDone() } },
+                borderColor = zuneColors.textMuted
+            )
+        }
+    ) {
+        Text(
+            text = stringResource(R.string.browser_permission_body, ask.origin, what),
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color.White
+        )
+    }
+}
+
+/** What a tab shows once its renderer has died: the fact, and the way back. */
+@Composable
+private fun CrashedPage(onReload: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = stringResource(R.string.browser_page_crashed),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Light),
+            color = if (zuneColors.isDark) Color.White else Color.Black
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.browser_page_reload),
+            style = MaterialTheme.typography.titleMedium,
+            color = zuneColors.accentColor,
+            modifier = Modifier
+                .clickable(onClick = onReload)
+                .padding(vertical = 8.dp)
+        )
+    }
 }
 
 private fun hasLocationPermission(context: Context): Boolean =

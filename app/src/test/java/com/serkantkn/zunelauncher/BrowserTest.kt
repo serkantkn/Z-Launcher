@@ -4,6 +4,7 @@ import com.serkantkn.zunelauncher.data.model.BrowserFavorite
 import com.serkantkn.zunelauncher.data.model.BrowserHistory
 import com.serkantkn.zunelauncher.data.model.SearchEngine
 import com.serkantkn.zunelauncher.data.model.StartTileItem
+import com.serkantkn.zunelauncher.ui.screens.browser.decodeDataUrl
 import com.serkantkn.zunelauncher.ui.screens.browser.groupHistoryByDay
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -167,5 +168,36 @@ class BrowserTest {
     fun otherKindsOfTileAreNotWebsites() {
         assertFalse(StartTileItem.fromApp("com.whatsapp").isWeb)
         assertNull(StartTileItem.fromApp("com.whatsapp").webUrl)
+    }
+
+    // ── A download that is its own address ────────────────────────────────────────────────────
+
+    @Test
+    fun aBase64DataLinkGivesBackItsBytesAndType() {
+        val decoded = decodeDataUrl("data:text/plain;base64,aGVsbG8=")
+
+        assertEquals("text/plain", decoded?.first)
+        assertEquals("hello", decoded?.second?.toString(Charsets.UTF_8))
+    }
+
+    @Test
+    fun aPercentEncodedDataLinkWithoutATypeIsPlainText() {
+        val decoded = decodeDataUrl("data:,merhaba%20d%C3%BCnya")
+
+        assertEquals("text/plain", decoded?.first)
+        assertEquals("merhaba dünya", decoded?.second?.toString(Charsets.UTF_8))
+    }
+
+    @Test
+    fun aDataLinkWithParametersKeepsOnlyTheType() {
+        val decoded = decodeDataUrl("data:image/png;name=a.png;base64,iVBORw0KGgo=")
+
+        assertEquals("image/png", decoded?.first)
+    }
+
+    @Test
+    fun somethingThatIsNotADataLinkIsNotDecoded() {
+        assertNull(decodeDataUrl("https://example.com/file.bin"))
+        assertNull(decodeDataUrl("data:text/plain"))
     }
 }

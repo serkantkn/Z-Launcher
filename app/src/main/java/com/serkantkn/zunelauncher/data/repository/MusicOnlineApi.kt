@@ -88,12 +88,12 @@ object MusicOnlineApi {
     // -- Cover art ------------------------------------------------------------
 
     /** The front of a record, as bytes, or null when nobody has a picture of it. */
-    fun fetchCoverArt(artist: String, album: String): ByteArray? {
+    suspend fun fetchCoverArt(artist: String, album: String): ByteArray? {
         if (album.isBlank()) return null
         return coverFromArchive(artist, album) ?: coverFromAppleSearch(artist, album)
     }
 
-    private fun coverFromArchive(artist: String, album: String): ByteArray? = runCatching {
+    private suspend fun coverFromArchive(artist: String, album: String): ByteArray? = runCatching {
         waitForMusicBrainz()
         val query = buildString {
             if (artist.isNotBlank()) append("artist:\"").append(artist).append("\" AND ")
@@ -125,15 +125,18 @@ object MusicOnlineApi {
         null
     }
 
-    /** Keeps MusicBrainz to the one request a second it asks for. */
-    private fun waitForMusicBrainz() {
+    /**
+     * Keeps MusicBrainz to the one request a second it asks for. The wait suspends rather than
+     * sleeps: a thread of the IO pool held asleep is a thread the rest of the launcher cannot use.
+     */
+    private suspend fun waitForMusicBrainz() {
         val sleepFor = synchronized(musicBrainzLock) {
             val now = System.currentTimeMillis()
             val wait = (lastMusicBrainzAt + MUSICBRAINZ_GAP_MS - now).coerceAtLeast(0L)
             lastMusicBrainzAt = now + wait
             wait
         }
-        if (sleepFor > 0L) Thread.sleep(sleepFor)
+        if (sleepFor > 0L) kotlinx.coroutines.delay(sleepFor)
     }
 
     // -- The little bit of HTTP this needs ------------------------------------

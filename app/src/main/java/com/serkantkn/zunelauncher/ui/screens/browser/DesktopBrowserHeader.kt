@@ -21,7 +21,10 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -77,11 +80,21 @@ fun DesktopBrowserHeader(
     onSwitchTab: (Int) -> Unit,
     onOpenDownloads: (() -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
+    isPinnedToStart: Boolean = false,
+    onTogglePinToStart: () -> Unit = {},
+    onFindInPage: () -> Unit = {},
+    onShare: () -> Unit = {},
+    isDesktopSite: Boolean = false,
+    onToggleDesktopSite: () -> Unit = {},
+    isReadingView: Boolean = false,
+    onToggleReadingView: () -> Unit = {},
+    onNewPrivateTab: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
     var inputText by remember(url) { mutableStateOf(url) }
     var isFocused by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
 
     val headerBg = if (zuneColors.isDark) Color(0xFF1E1E1E) else Color(0xFFE6E6E6)
     val tabStripBg = if (zuneColors.isDark) Color(0xFF121212) else Color(0xFFD0D0D0)
@@ -367,6 +380,72 @@ fun DesktopBrowserHeader(
                         tint = if (zuneColors.isDark) Color.White else Color.Black,
                         modifier = Modifier.size(20.dp)
                     )
+                }
+
+                // Everything the phone's menu offers that has no button of its own up here.
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clickable { menuExpanded = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.browser_more),
+                        tint = if (zuneColors.isDark) Color.White else Color.Black,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        modifier = Modifier.background(headerBg)
+                    ) {
+                        val onAPage = url.isNotBlank()
+                        val ink = if (zuneColors.isDark) Color.White else Color.Black
+                        @Composable
+                        fun item(text: String, enabled: Boolean, onClick: () -> Unit) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = text,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = if (enabled) ink else zuneColors.textMuted
+                                    )
+                                },
+                                enabled = enabled,
+                                onClick = {
+                                    menuExpanded = false
+                                    onClick()
+                                }
+                            )
+                        }
+                        item(
+                            stringResource(
+                                if (isPinnedToStart) R.string.browser_unpin_from_start
+                                else R.string.browser_pin_to_start
+                            ),
+                            onAPage,
+                            onTogglePinToStart
+                        )
+                        item(stringResource(R.string.browser_find_in_page), onAPage, onFindInPage)
+                        item(stringResource(R.string.browser_share), onAPage, onShare)
+                        item(
+                            stringResource(
+                                if (isDesktopSite) R.string.browser_mobile_site else R.string.browser_desktop_site
+                            ),
+                            onAPage,
+                            onToggleDesktopSite
+                        )
+                        item(
+                            stringResource(
+                                if (isReadingView) R.string.browser_reading_view_off
+                                else R.string.browser_reading_view
+                            ),
+                            onAPage,
+                            onToggleReadingView
+                        )
+                        item(stringResource(R.string.browser_new_private_tab), true, onNewPrivateTab)
+                    }
                 }
             }
         }

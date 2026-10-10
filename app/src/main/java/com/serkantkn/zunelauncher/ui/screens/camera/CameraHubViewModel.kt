@@ -96,9 +96,12 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
 
     // ── The night stack holds what it has gathered until there is enough of it ────────────────
 
+    // Filled on the camera's thread, read on the view model's: everything about the stack is
+    // touched under [nightLock], and the reader takes a copy rather than the list itself.
+    private val nightLock = Any()
     private var nightFrames = mutableListOf<IntArray>()
     private var nightSize: Pair<Int, Int>? = null
-    private var wantedNightFrames = 0
+    @Volatile private var wantedNightFrames = 0
 
     @Volatile
     private var yaw = 0f
@@ -347,7 +350,7 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
             null
         } finally {
             wantedNightFrames = 0
-            nightFrames = mutableListOf()
+            synchronized(nightLock) { nightFrames = mutableListOf() }
         }
         _state.value = CaptureState.IDLE
         if (uri != null) {
@@ -392,19 +395,23 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
     // ── Night: several frames added together ─────────────────────────────────────────────────
 
     private suspend fun gatherNightShot(): Uri? {
-        nightFrames = mutableListOf()
-        nightSize = null
+        synchronized(nightLock) {
+            nightFrames = mutableListOf()
+            nightSize = null
+        }
         wantedNightFrames = NIGHT_FRAMES
         // The analyser fills the list; this waits for it rather than driving it.
         var waited = 0
-        while (nightFrames.size < wantedNightFrames && waited < NIGHT_TIMEOUT_MILLIS) {
+        while (synchronized(nightLock) { nightFrames.size } < wantedNightFrames && waited < NIGHT_TIMEOUT_MILLIS) {
             kotlinx.coroutines.delay(50)
             waited += 50
         }
         wantedNightFrames = 0
-        val frames = nightFrames.toList()
-        val size = nightSize
-        nightFrames = mutableListOf()
+        val (frames, size) = synchronized(nightLock) {
+            val snapshot = nightFrames.toList() to nightSize
+            nightFrames = mutableListOf()
+            snapshot
+        }
         if (frames.isEmpty() || size == null) return null
 
         return withContext(Dispatchers.Default) {
@@ -420,6 +427,20 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
 
     private var sheet: PanoramaSheet? = null
     private var canvas: Bitmap? = null
+
+    /**
+     * Held while a frame is pasted onto the sheet and while the finished sheet is cropped. The
+     * analyser runs on the camera's thread and the crop on a worker; without this a frame could
+     * land on the sheet while it was being copied out, or after it had been let go of.
+     */
+    private val sheetLock = Any()
+
+    /**
+     * Set by whoever ends the sweep first. The analyser asks to finish on every frame once the
+     * sheet is full, and the shutter can ask at the same moment; only the first ask is honoured,
+     * or the sheet would be saved twice and cleared under the first save.
+     */
+    private val finishing = java.util.concurrent.atomic.AtomicBoolean(false)
     private var lastProfile: FrameAlign.Profile? = null
     private var framePixels: IntArray? = null
 
@@ -452,8 +473,11 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun clearSweep() {
-        sheet = null
-        canvas = null
+        synchronized(sheetLock) {
+            sheet = null
+            canvas = null
+        }
+        finishing.set(false)
         lastProfile = null
         framePixels = null
         pixelsPerRadian = 0f
@@ -466,41 +490,44 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun finishSweep() {
-        val plan = sheet
-        val sheetBitmap = canvas
+        if (finishing.getAndSet(true)) return
         _state.value = CaptureState.CAPTURING
         sensors?.unregisterListener(yawListener)
         engine.lockExposure(false)
         viewModelScope.launch {
-            val uri = if (
-                plan == null || sheetBitmap == null ||
-                plan.filledWidth < PanoramaSheet.MIN_PANORAMA_WIDTH ||
-                plan.filledHeight <= 0
-            ) {
-                null
-            } else {
-                // A sheet this wide is megabytes; running out of room for the copy must end the
-                // sweep with a message, not with a viewfinder that has quietly stopped working.
-                try {
-                    withContext(Dispatchers.Default) {
-                        // Only the band every frame covered is kept: a sweep that drifts upwards
-                        // leaves the early frames' floor and the late ones' ceiling with nothing
-                        // beside them.
-                        val cropped = Bitmap.createBitmap(
-                            sheetBitmap,
-                            plan.filledLeft,
-                            plan.filledTop,
-                            plan.filledWidth,
-                            plan.filledHeight
-                        )
-                        MediaSaver.saveJpeg(getApplication(), cropped, MediaSaver.fileName("PANO", "jpg"))
+            // A sheet this wide is megabytes; running out of room for the copy must end the
+            // sweep with a message, not with a viewfinder that has quietly stopped working.
+            val uri = try {
+                withContext(Dispatchers.Default) {
+                    // The crop waits for any frame still being pasted, and no frame can start
+                    // once it holds the lock. Only the band every frame covered is kept: a sweep
+                    // that drifts upwards leaves the early frames' floor and the late ones'
+                    // ceiling with nothing beside them.
+                    val cropped = synchronized(sheetLock) {
+                        val plan = sheet
+                        val sheetBitmap = canvas
+                        if (plan == null || sheetBitmap == null ||
+                            plan.filledWidth < PanoramaSheet.MIN_PANORAMA_WIDTH ||
+                            plan.filledHeight <= 0
+                        ) {
+                            null
+                        } else {
+                            Bitmap.createBitmap(
+                                sheetBitmap,
+                                plan.filledLeft,
+                                plan.filledTop,
+                                plan.filledWidth,
+                                plan.filledHeight
+                            )
+                        }
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Throwable) {
-                    ZuneLog.e(TAG, "the panorama could not be put together", e)
-                    null
+                    cropped?.let { MediaSaver.saveJpeg(getApplication(), it, MediaSaver.fileName("PANO", "jpg")) }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                ZuneLog.e(TAG, "the panorama could not be put together", e)
+                null
             }
             clearSweep()
             _state.value = CaptureState.IDLE
@@ -534,12 +561,17 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun collectNightFrame(frame: ImageProxy) {
-        if (nightFrames.size >= wantedNightFrames) return
+        if (synchronized(nightLock) { nightFrames.size } >= wantedNightFrames) return
         val bitmap = frame.toUprightBitmap() ?: return
         val pixels = IntArray(bitmap.width * bitmap.height)
         bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-        nightSize = bitmap.width to bitmap.height
-        nightFrames.add(pixels)
+        synchronized(nightLock) {
+            // The stack is of one size; a frame of another (a mode switch mid-shot) is dropped.
+            val size = bitmap.width to bitmap.height
+            if (nightSize != null && nightSize != size) return
+            nightSize = size
+            if (nightFrames.size < wantedNightFrames) nightFrames.add(pixels)
+        }
     }
 
     /**
@@ -552,6 +584,7 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
      * clear sky — at the scale the readable frames have taught it.
      */
     private fun addSweepFrame(frame: ImageProxy) {
+        if (finishing.get()) return
         val bitmap = frame.toUprightBitmap() ?: return
         val width = bitmap.width
         val height = bitmap.height
@@ -690,13 +723,17 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun paste(frame: Bitmap, paste: PanoramaSheet.Paste) {
-        val sheetBitmap = canvas ?: return
-        Canvas(sheetBitmap).drawBitmap(
-            frame,
-            Rect(paste.sourceLeft, 0, paste.sourceRight, frame.height),
-            Rect(paste.left, paste.top, paste.left + paste.width, paste.top + frame.height),
-            null
-        )
+        synchronized(sheetLock) {
+            // Once the finish has begun the sheet is spoken for; a late frame is dropped.
+            if (finishing.get()) return
+            val sheetBitmap = canvas ?: return
+            Canvas(sheetBitmap).drawBitmap(
+                frame,
+                Rect(paste.sourceLeft, 0, paste.sourceRight, frame.height),
+                Rect(paste.left, paste.top, paste.left + paste.width, paste.top + frame.height),
+                null
+            )
+        }
     }
 
     /**
@@ -706,22 +743,25 @@ class CameraHubViewModel(application: Application) : AndroidViewModel(applicatio
      * is twenty megabytes and this happens every few frames.
      */
     private fun publishPreview() {
-        val plan = sheet ?: return
-        val sheetBitmap = canvas ?: return
-        if (plan.filledWidth <= 0 || plan.filledHeight <= 0) return
-        val width = (plan.filledWidth * PREVIEW_HEIGHT / plan.filledHeight).coerceIn(1, PREVIEW_MAX_WIDTH)
-        val preview = Bitmap.createBitmap(width, PREVIEW_HEIGHT, Bitmap.Config.ARGB_8888)
-        Canvas(preview).drawBitmap(
-            sheetBitmap,
-            Rect(
-                plan.filledLeft,
-                plan.filledTop,
-                plan.filledLeft + plan.filledWidth,
-                plan.filledTop + plan.filledHeight
-            ),
-            Rect(0, 0, width, PREVIEW_HEIGHT),
-            null
-        )
+        val preview = synchronized(sheetLock) {
+            val plan = sheet ?: return
+            val sheetBitmap = canvas ?: return
+            if (plan.filledWidth <= 0 || plan.filledHeight <= 0) return
+            val width = (plan.filledWidth * PREVIEW_HEIGHT / plan.filledHeight).coerceIn(1, PREVIEW_MAX_WIDTH)
+            Bitmap.createBitmap(width, PREVIEW_HEIGHT, Bitmap.Config.ARGB_8888).also { preview ->
+                Canvas(preview).drawBitmap(
+                    sheetBitmap,
+                    Rect(
+                        plan.filledLeft,
+                        plan.filledTop,
+                        plan.filledLeft + plan.filledWidth,
+                        plan.filledTop + plan.filledHeight
+                    ),
+                    Rect(0, 0, width, PREVIEW_HEIGHT),
+                    null
+                )
+            }
+        }
         _sweepPreview.value = preview
     }
 
