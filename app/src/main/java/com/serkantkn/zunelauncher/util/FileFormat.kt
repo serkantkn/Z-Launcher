@@ -141,14 +141,18 @@ fun matchesFileQuery(name: String, query: String): Boolean {
 /**
  * A name that is not already taken: "rapor.pdf" becomes "rapor (2).pdf" rather than overwriting
  * whatever was there. The number goes before the extension, where a person would put it.
+ *
+ * Names are compared without regard to case: shared storage on Android is case-insensitive, so
+ * "Rapor.pdf" and "rapor.pdf" are the same file there, and writing the one would replace the other.
  */
 fun uniqueFileName(desired: String, taken: Set<String>): String {
-    if (desired !in taken) return desired
+    val folded = taken.mapTo(HashSet()) { it.lowercase(Locale.ROOT) }
+    if (desired.lowercase(Locale.ROOT) !in folded) return desired
     val dot = desired.lastIndexOf('.')
     val stem = if (dot > 0) desired.substring(0, dot) else desired
     val suffix = if (dot > 0) desired.substring(dot) else ""
     var index = 2
-    while ("$stem ($index)$suffix" in taken && index < MAX_TRIES) index++
+    while ("$stem ($index)$suffix".lowercase(Locale.ROOT) in folded && index < MAX_TRIES) index++
     return "$stem ($index)$suffix"
 }
 
@@ -161,5 +165,33 @@ fun isInsideItself(sourcePath: String, destinationPath: String): Boolean {
     val destination = destinationPath.trimEnd('/')
     return destination == source || destination.startsWith("$source/")
 }
+
+/**
+ * Whether a paste would put a thing back where it already is. Pasting a cut file into its own
+ * folder used to rename it to "(2)"; it should do nothing and say so.
+ */
+fun isAlreadyThere(sourcePath: String, destinationPath: String): Boolean {
+    val parent = sourcePath.trimEnd('/').substringBeforeLast('/', "")
+    return parent == destinationPath.trimEnd('/')
+}
+
+/**
+ * A display name from a content provider, made safe to use as a file name. A provider is any
+ * app, and "../../shared_prefs/x.xml" is a perfectly legal display name: the separators go, as
+ * does every "..", and what is left of nothing is [fallback].
+ */
+fun sanitizeFileName(name: String?, fallback: String = "file"): String {
+    val cleaned = name.orEmpty()
+        .replace('/', '_')
+        .replace('\\', '_')
+        .replace("\u0000", "")
+        .filterNot { it.isISOControl() }
+        .trim()
+    if (cleaned.isEmpty() || cleaned.all { it == '.' }) return fallback
+    return cleaned.take(MAX_NAME_LENGTH)
+}
+
+/** What a filesystem will take; the longest names are cut, not refused. */
+private const val MAX_NAME_LENGTH = 200
 
 private const val MAX_TRIES = 1000

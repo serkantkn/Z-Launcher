@@ -26,14 +26,17 @@ import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.FileSort
 import com.serkantkn.zunelauncher.util.PackageInstall
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.util.isAlreadyThere
 import com.serkantkn.zunelauncher.util.isInsideItself
 import com.serkantkn.zunelauncher.util.localizedString
 import com.serkantkn.zunelauncher.util.matchesFileQuery
+import com.serkantkn.zunelauncher.util.sanitizeFileName
 import com.serkantkn.zunelauncher.util.sortFiles
 import com.serkantkn.zunelauncher.util.toUserMessage
 import com.serkantkn.zunelauncher.util.uniqueFileName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -193,15 +196,18 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun selectAll() {
-        _selection.value = _fileItems.value.map { it.file.absolutePath }.toSet()
+        _selection.value = visibleItems().map { it.file.absolutePath }.toSet()
     }
 
     fun clearSelection() {
         _selection.value = emptySet()
     }
 
+    /** What is on screen: the search's hits while a search is showing, the folder otherwise. */
+    private fun visibleItems(): List<FileItemModel> = _deepResults.value ?: _fileItems.value
+
     private fun selectedItems(): List<FileItemModel> =
-        _fileItems.value.filter { it.file.absolutePath in _selection.value }
+        visibleItems().filter { it.file.absolutePath in _selection.value }
 
     // ── The clipboard ───────────────────────────────────────────────────────
 
@@ -240,55 +246,134 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         _clipboard.value = null
     }
 
+    private var pasteJob: Job? = null
+
     /**
      * Puts what is on the clipboard into the open folder.
      *
      * A move is tried as a rename first, which on the same volume is instant and costs nothing;
      * only when that fails — moving between the phone and a card, say — is it copied and then
-     * deleted. Names that would collide are given a number rather than overwriting, and a folder
-     * cannot be pasted inside itself.
+     * deleted. Names that would collide are given a number rather than overwriting, a folder
+     * cannot be pasted inside itself, and a thing pasted back where it already sits is left as it
+     * is rather than renamed to "(2)".
+     *
+     * The copy goes a piece at a time so it can be stopped: a half-copied file is removed, what
+     * was finished before stays.
      */
     fun paste(destination: File = _currentDirectory.value) {
         val board = _clipboard.value ?: return
-        viewModelScope.launch {
+        if (pasteJob?.isActive == true) return
+        pasteJob = viewModelScope.launch {
             _busyMessage.value = application().localizedString(R.string.files_working)
-            val failures = withContext(Dispatchers.IO) {
-                var failed = 0
-                val taken = (destination.list() ?: emptyArray()).toMutableSet()
-                board.paths.forEach { path ->
-                    yield()
-                    val source = File(path)
-                    if (!source.exists()) { failed++; return@forEach }
-                    if (source.isDirectory && isInsideItself(source.absolutePath, destination.absolutePath)) {
-                        failed++
-                        return@forEach
-                    }
-                    val name = uniqueFileName(source.name, taken)
-                    val target = File(destination, name)
-                    val ok = runCatching {
-                        if (board.isMove && source.renameTo(target)) return@runCatching true
-                        val copied = if (source.isDirectory) {
-                            source.copyRecursively(target, overwrite = false)
-                        } else {
-                            source.copyTo(target, overwrite = false).exists()
+            var failed = 0
+            var alreadyThere = 0
+            val touched = mutableListOf<String>()
+            try {
+                withContext(Dispatchers.IO) {
+                    val taken = (destination.list() ?: emptyArray()).toMutableSet()
+                    board.paths.forEachIndexed { index, path ->
+                        ensureActive()
+                        val source = File(path)
+                        if (!source.exists()) { failed++; return@forEachIndexed }
+                        if (isAlreadyThere(source.absolutePath, destination.absolutePath)) {
+                            alreadyThere++
+                            return@forEachIndexed
                         }
-                        if (copied && board.isMove) source.deleteRecursively()
-                        copied
-                    }.getOrElse {
-                        ZuneLog.w(TAG, "could not paste $path", it)
-                        false
+                        if (source.isDirectory && isInsideItself(source.absolutePath, destination.absolutePath)) {
+                            failed++
+                            return@forEachIndexed
+                        }
+                        _busyMessage.value = application().localizedString(
+                            R.string.files_paste_progress, index + 1, board.paths.size, source.name
+                        )
+                        val name = uniqueFileName(source.name, taken)
+                        val target = File(destination, name)
+                        val ok = runCatching {
+                            // renameTo replaces an existing target without a word; the unique
+                            // name makes that unlikely, the check makes it impossible.
+                            if (target.exists()) return@runCatching false
+                            if (board.isMove && source.renameTo(target)) return@runCatching true
+                            val copied = copyChunked(source, target)
+                            if (copied && board.isMove) source.deleteRecursively()
+                            copied
+                        }.getOrElse {
+                            ZuneLog.w(TAG, "could not paste $path", it)
+                            false
+                        }
+                        if (ok) {
+                            taken += name
+                            touched += target.absolutePath
+                            if (board.isMove) touched += source.absolutePath
+                        } else {
+                            failed++
+                        }
                     }
-                    if (ok) taken += name else failed++
                 }
-                failed
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                _errorMessage.value = application().localizedString(R.string.files_paste_cancelled)
+                scanPaths(touched)
+                throw e
+            } finally {
+                _clipboard.value = null
+                _busyMessage.value = null
             }
-            _clipboard.value = null
-            _busyMessage.value = null
-            if (failures > 0) {
-                _errorMessage.value = application().localizedString(R.string.files_paste_partial, failures)
+            scanPaths(touched)
+            _errorMessage.value = when {
+                failed > 0 -> application().localizedString(R.string.files_paste_partial, failed)
+                alreadyThere > 0 && touched.isEmpty() -> application().localizedString(R.string.files_already_here)
+                else -> null
             }
             reload()
         }
+    }
+
+    /** Stops a paste that is still going; the file being copied is removed. */
+    fun cancelPaste() {
+        pasteJob?.cancel()
+        pasteJob = null
+        _busyMessage.value = null
+        reload()
+    }
+
+    /**
+     * Copies a file (or a tree) in pieces, checking between pieces whether anybody has asked it to
+     * stop. [File.copyTo] cannot be interrupted and would leave a half-written file behind as
+     * though it were whole.
+     */
+    private fun kotlinx.coroutines.CoroutineScope.copyChunked(source: File, target: File): Boolean {
+        if (source.isDirectory) {
+            if (!target.mkdirs() && !target.isDirectory) return false
+            val children = source.listFiles() ?: return false
+            return children.all { child -> copyChunked(child, File(target, child.name)) }
+        }
+        val buffer = ByteArray(COPY_CHUNK)
+        try {
+            source.inputStream().use { input ->
+                target.outputStream().use { output ->
+                    while (true) {
+                        ensureActive()
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        output.write(buffer, 0, read)
+                    }
+                }
+            }
+        } catch (e: Throwable) {
+            runCatching { target.delete() }
+            throw e
+        }
+        return target.exists()
+    }
+
+    /**
+     * Tells the media store about files that changed on disk. Without this a moved photo still
+     * sits in the gallery at its old address, and the new one takes until the next reboot to show.
+     */
+    private fun scanPaths(paths: List<String>) {
+        if (paths.isEmpty()) return
+        runCatching {
+            android.media.MediaScannerConnection.scanFile(application(), paths.toTypedArray(), null, null)
+        }.onFailure { ZuneLog.w(TAG, "media scan failed", it) }
     }
 
     // ── Reading a folder ────────────────────────────────────────────────────
@@ -303,18 +388,18 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /**
+     * Whether the hub may read and write the storage. From Android 11 only "all files access"
+     * will do: READ_EXTERNAL_STORAGE there opens the media folders and nothing else, and a hub
+     * that counted it as enough listed Download as empty and could not write anywhere.
+     */
     fun checkPermission(): Boolean {
         val context: Context = getApplication()
-        val hasRead = ContextCompat.checkSelfPermission(
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) return Environment.isExternalStorageManager()
+        return ContextCompat.checkSelfPermission(
             context,
             android.Manifest.permission.READ_EXTERNAL_STORAGE
         ) == PackageManager.PERMISSION_GRANTED
-        val hasAllFiles = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Environment.isExternalStorageManager()
-        } else {
-            true
-        }
-        return hasAllFiles || hasRead
     }
 
     fun refreshPermissionState() {
@@ -367,10 +452,15 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun reload() = loadDirectory(_currentDirectory.value)
 
+    private var loadJob: Job? = null
+
     fun loadDirectory(directory: File) {
         clearDeepSearch()
         clearSelection()
-        viewModelScope.launch {
+        // Two folders opened in quick succession used to race: the slower listing landed last
+        // and was shown under the faster one's name.
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _currentDirectory.value = directory
             _currentVolume.value = volumeOf(directory)
             if (!directory.exists() || !directory.canRead()) {
@@ -447,18 +537,31 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     // ── Changing things ─────────────────────────────────────────────────────
 
-    fun createDirectory(folderName: String): Boolean {
-        val newDir = File(_currentDirectory.value, folderName.trim())
-        if (folderName.isBlank() || newDir.exists()) return false
-        val created = newDir.mkdirs()
-        if (created) reload()
-        return created
+    // Every change to the disk runs off the main thread and says so when it did not happen; a
+    // tap that quietly did nothing is worse than one that failed out loud.
+
+    fun createDirectory(folderName: String) {
+        val name = folderName.trim()
+        if (name.isEmpty()) return
+        viewModelScope.launch {
+            val newDir = File(_currentDirectory.value, name)
+            val created = withContext(Dispatchers.IO) {
+                !newDir.exists() && runCatching { newDir.mkdirs() }.getOrDefault(false)
+            }
+            if (created) reload() else _errorMessage.value = application().localizedString(R.string.files_folder_failed)
+        }
     }
 
-    fun deleteItem(item: FileItemModel): Boolean {
-        val deleted = if (item.isDirectory) item.file.deleteRecursively() else item.file.delete()
-        if (deleted) reload()
-        return deleted
+    fun deleteItem(item: FileItemModel) {
+        viewModelScope.launch {
+            val deleted = withContext(Dispatchers.IO) {
+                runCatching { if (item.isDirectory) item.file.deleteRecursively() else item.file.delete() }
+                    .getOrDefault(false)
+            }
+            if (deleted) scanPaths(listOf(item.file.absolutePath))
+            else _errorMessage.value = application().localizedString(R.string.files_delete_failed, item.name)
+            reload()
+        }
     }
 
     /** Deletes everything chosen, reporting how many would not go. */
@@ -466,14 +569,19 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         val chosen = selectedItems().ifEmpty { return }
         viewModelScope.launch {
             _busyMessage.value = application().localizedString(R.string.files_working)
+            val gone = mutableListOf<String>()
             val failed = withContext(Dispatchers.IO) {
                 chosen.count { item ->
                     yield()
-                    !(if (item.isDirectory) item.file.deleteRecursively() else item.file.delete())
+                    val ok = runCatching { if (item.isDirectory) item.file.deleteRecursively() else item.file.delete() }
+                        .getOrDefault(false)
+                    if (ok) gone += item.file.absolutePath
+                    !ok
                 }
             }
             _busyMessage.value = null
             clearSelection()
+            scanPaths(gone)
             if (failed > 0) {
                 _errorMessage.value = application().localizedString(R.string.files_delete_partial, failed)
             }
@@ -481,14 +589,36 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun renameItem(item: FileItemModel, newName: String): Boolean {
+    /**
+     * Gives a thing a new name. A change of case only — "Rapor" to "rapor" — is a rename to a
+     * name shared storage considers the same, which it refuses; so it goes by way of a temporary
+     * name, the way a desktop file manager does it.
+     */
+    fun renameItem(item: FileItemModel, newName: String) {
         val trimmed = newName.trim()
-        if (trimmed.isEmpty()) return false
-        val target = File(item.file.parentFile, trimmed)
-        if (target.exists()) return false
-        val renamed = runCatching { item.file.renameTo(target) }.getOrDefault(false)
-        if (renamed) reload()
-        return renamed
+        if (trimmed.isEmpty() || trimmed == item.name) return
+        viewModelScope.launch {
+            val source = item.file
+            val target = File(source.parentFile, trimmed)
+            val caseOnly = trimmed.equals(item.name, ignoreCase = true)
+            val renamed = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (!caseOnly && target.exists()) return@runCatching false
+                    if (caseOnly) {
+                        val temp = File(source.parentFile, uniqueFileName("$trimmed.renaming", source.parentFile?.list()?.toSet() ?: emptySet()))
+                        source.renameTo(temp) && temp.renameTo(target)
+                    } else {
+                        source.renameTo(target)
+                    }
+                }.getOrDefault(false)
+            }
+            if (renamed) {
+                scanPaths(listOf(source.absolutePath, target.absolutePath))
+                reload()
+            } else {
+                _errorMessage.value = application().localizedString(R.string.files_rename_failed, item.name)
+            }
+        }
     }
 
     fun openFile(context: Context, file: File) {
@@ -691,17 +821,28 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun reloadCloudFolder() = loadCloudFolder(force = true)
 
-    /** Asks the service to look through the whole drive, not only the open folder. */
+    private var cloudSearchJob: Job? = null
+
+    /**
+     * Asks the service to look through the whole drive, not only the open folder. It waits for
+     * the typing to pause first: every keystroke used to be a request of its own, and the
+     * answers came back in whatever order the network felt like.
+     */
     fun searchCloud(query: String) {
         val account = _activeCloudAccount.value ?: return
+        cloudSearchJob?.cancel()
         if (query.isBlank()) {
             _cloudSearchResults.value = null
+            _cloudBusy.value = false
             return
         }
-        viewModelScope.launch {
+        cloudSearchJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(CLOUD_SEARCH_DEBOUNCE_MS)
             _cloudBusy.value = true
             try {
                 _cloudSearchResults.value = cloudRepository.search(account, query)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _cloudMessage.value = cloudMessageOf(e)
             } finally {
@@ -792,7 +933,7 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
             val context: Context = getApplication()
             val staged = withContext(Dispatchers.IO) {
                 runCatching {
-                    val name = queryDisplayName(context, uri) ?: "upload"
+                    val name = sanitizeFileName(queryDisplayName(context, uri), fallback = "upload")
                     val target = File(context.cacheDir, "upload").apply { mkdirs() }.let { File(it, name) }
                     context.contentResolver.openInputStream(uri)?.use { input ->
                         target.outputStream().use { output -> input.copyTo(output) }
@@ -906,5 +1047,11 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
         /** A guard against a tree that loops through a symbolic link. */
         const val MAX_FOLDERS = 4000
+
+        /** How much of a file is copied between looks at the cancel flag. */
+        const val COPY_CHUNK = 256 * 1024
+
+        /** How long the typing has to pause before the cloud is asked. */
+        const val CLOUD_SEARCH_DEBOUNCE_MS = 300L
     }
 }

@@ -8,7 +8,9 @@ import com.serkantkn.zunelauncher.util.FileCategory
 import com.serkantkn.zunelauncher.util.FileSort
 import com.serkantkn.zunelauncher.util.categoryOf
 import com.serkantkn.zunelauncher.util.formatFileSize
+import com.serkantkn.zunelauncher.util.isAlreadyThere
 import com.serkantkn.zunelauncher.util.isInsideItself
+import com.serkantkn.zunelauncher.util.sanitizeFileName
 import com.serkantkn.zunelauncher.util.matchesFileQuery
 import com.serkantkn.zunelauncher.util.sortFiles
 import com.serkantkn.zunelauncher.util.uniqueFileName
@@ -147,6 +149,12 @@ class FilesTest {
         assertEquals(".gitignore (2)", uniqueFileName(".gitignore", setOf(".gitignore")))
     }
 
+    @Test
+    fun `a name that differs only in case is taken, because shared storage says so`() {
+        assertEquals("Rapor (2).pdf", uniqueFileName("Rapor.pdf", setOf("rapor.pdf")))
+        assertEquals("rapor (3).pdf", uniqueFileName("rapor.pdf", setOf("RAPOR.PDF", "Rapor (2).pdf")))
+    }
+
     // ── Pasting somewhere silly ─────────────────────────────────────────────
 
     @Test
@@ -157,6 +165,25 @@ class FilesTest {
         assertFalse(isInsideItself("/storage/a", "/storage/b"))
         // A name that merely begins the same way is a different folder.
         assertFalse(isInsideItself("/storage/a", "/storage/ab"))
+    }
+
+    @Test
+    fun `pasting a thing back into its own folder is noticed`() {
+        assertTrue(isAlreadyThere("/storage/a/rapor.pdf", "/storage/a"))
+        assertTrue(isAlreadyThere("/storage/a/klasör", "/storage/a/"))
+        assertFalse(isAlreadyThere("/storage/a/rapor.pdf", "/storage/b"))
+        assertFalse(isAlreadyThere("/storage/a/rapor.pdf", "/storage/a/b"))
+    }
+
+    // ── Names from other apps ───────────────────────────────────────────────
+
+    @Test
+    fun `a provider's display name cannot walk out of the folder`() {
+        assertEquals("_.._shared_prefs_x.xml", sanitizeFileName("/../shared_prefs/x.xml"))
+        assertEquals("a_b", sanitizeFileName("a\\b"))
+        assertEquals("upload", sanitizeFileName("..", fallback = "upload"))
+        assertEquals("upload", sanitizeFileName(null, fallback = "upload"))
+        assertEquals("rapor.pdf", sanitizeFileName("  rapor.pdf\u0000 "))
     }
 
     // ── Drives ──────────────────────────────────────────────────────────────
