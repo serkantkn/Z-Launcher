@@ -35,7 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.data.model.ContactModel
+import com.serkantkn.zunelauncher.data.model.ContactPhone
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.util.PhoneNumbers
 
@@ -49,7 +49,7 @@ import com.serkantkn.zunelauncher.util.PhoneNumbers
  */
 @Composable
 internal fun NewMessageScreen(
-    contacts: List<Pair<ContactModel, String>>,
+    contacts: List<ContactPhone>,
     onClose: () -> Unit,
     onRecipientChosen: (name: String, number: String) -> Unit,
     modifier: Modifier = Modifier
@@ -62,9 +62,9 @@ internal fun NewMessageScreen(
             contacts
         } else {
             val digits = PhoneNumbers.digitsOf(query)
-            contacts.filter { (contact, number) ->
-                contact.name.contains(query, ignoreCase = true) ||
-                    (digits.isNotEmpty() && PhoneNumbers.digitsOf(number).contains(digits))
+            contacts.filter { entry ->
+                entry.contact.name.contains(query, ignoreCase = true) ||
+                    (digits.isNotEmpty() && PhoneNumbers.digitsOf(entry.number).contains(digits))
             }
         }
     }
@@ -148,11 +148,12 @@ internal fun NewMessageScreen(
                     }
                 }
 
-                items(filtered, key = { (contact, number) -> "${contact.id}-$number" }) { (contact, number) ->
+                items(filtered, key = { entry -> "${entry.contact.id}-${entry.number}" }) { entry ->
+                    val contact = entry.contact
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onRecipientChosen(contact.name, number) },
+                            .clickable { onRecipientChosen(contact.name, entry.number) },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         MessageAvatar(
@@ -167,8 +168,10 @@ internal fun NewMessageScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
+                            // Which of their numbers, for somebody who has more than one.
+                            val label = entry.typeLabel.lowercase(java.util.Locale.getDefault())
                             Text(
-                                text = number,
+                                text = if (label.isBlank()) entry.number else "${entry.number} · $label",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = zuneColors.textMuted
                             )

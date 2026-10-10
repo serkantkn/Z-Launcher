@@ -65,6 +65,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
@@ -132,6 +134,8 @@ fun MessagingHubScreen(
     var deleteConversation by remember { mutableStateOf<SmsConversationModel?>(null) }
     var deleteMessage by remember { mutableStateOf<SmsMessageModel?>(null) }
     var detailsMessage by remember { mutableStateOf<SmsMessageModel?>(null) }
+    /** A group conversation's people, offered one at a time when "call" is pressed. */
+    var callChooser by remember { mutableStateOf<SmsConversationModel?>(null) }
 
     // The list's stamps say "18:40", "yesterday", "Tuesday"; they have to age as the hub stays open.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -162,6 +166,30 @@ fun MessagingHubScreen(
     }
 
     LaunchedEffect(Unit) { viewModel.checkPermissionAndLoad(context) }
+
+    // The hub stays composed while the launcher is away, and the messaging role, the permissions
+    // and the store itself can all change out there; they are read again on the way back.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.checkPermissionAndLoad(context) }
+
+    // The system's own "make this the messaging app" sheet. Its answer arrives here, where the
+    // banner can be taken down the moment the role is held — not on the next cold start.
+    val roleRequest = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { viewModel.checkPermissionAndLoad(context) }
+    val askToBeDefault: () -> Unit = {
+        defaultSmsRequest(context)?.let { intent ->
+            runCatching { roleRequest.launch(intent) }
+        }
+    }
+
+    // Ringing one of several people: the chooser, or the only one there is.
+    val callConversation: (SmsConversationModel) -> Unit = { conversation ->
+        val people = conversation.recipients.filter { it.isNotBlank() }
+        when {
+            people.size > 1 -> callChooser = conversation
+            else -> PhoneCaller.call(context, conversation.address, conversation.title)
+        }
+    }
 
     val openPicker: () -> Unit = {
         if (!isTransitioning) {
@@ -299,7 +327,7 @@ fun MessagingHubScreen(
     val bottomBarMenuItems = buildList {
         add(WpBarMenuItem(stringResource(R.string.common_refresh)) { viewModel.loadConversations(context) })
         if (!isDefaultApp) {
-            add(WpBarMenuItem(stringResource(R.string.msg_make_default)) { askToBeDefault(context) })
+            add(WpBarMenuItem(stringResource(R.string.msg_make_default)) { askToBeDefault() })
         }
     }
 
@@ -397,7 +425,7 @@ fun MessagingHubScreen(
     fun ListArea() {
         Column(modifier = Modifier.fillMaxSize()) {
             if (!isDefaultApp && hasPermission) {
-                DefaultAppNotice(onMakeDefault = { askToBeDefault(context) })
+                DefaultAppNotice(onMakeDefault = { askToBeDefault() })
                 Spacer(modifier = Modifier.height(8.dp))
             }
             AnimatedVisibility(visible = isSearchActive) {
@@ -417,7 +445,10 @@ fun MessagingHubScreen(
                                     Manifest.permission.READ_SMS,
                                     Manifest.permission.SEND_SMS,
                                     Manifest.permission.RECEIVE_SMS,
-                                    Manifest.permission.READ_CONTACTS
+                                    Manifest.permission.READ_CONTACTS,
+                                    // Without this the phone will not name its SIMs, and the
+                                    // chooser for which one to send from never appears.
+                                    Manifest.permission.READ_PHONE_STATE
                                 )
                             )
                         }
@@ -482,7 +513,8 @@ fun MessagingHubScreen(
                                             viewModel.sendSms(context, conversation.address, text)
                                         },
                                         onClose = closeConversation,
-                                        onCall = { PhoneCaller.call(context, conversation.address, conversation.title) },
+                                        onCall = { callConversation(conversation) },
+                                        onVisibilityChange = viewModel::setConversationVisible,
                                         onMessageLongPress = { menuMessage = it }
                                     )
                                 } else {
@@ -592,7 +624,8 @@ fun MessagingHubScreen(
                                 viewModel.sendSms(context, conversation.address, text)
                             },
                             onClose = closeConversation,
-                            onCall = { PhoneCaller.call(context, conversation.address, conversation.title) },
+                            onCall = { callConversation(conversation) },
+                            onVisibilityChange = viewModel::setConversationVisible,
                             onMessageLongPress = { menuMessage = it },
                             modifier = Modifier.statusBarsPadding()
                         )
@@ -636,7 +669,7 @@ fun MessagingHubScreen(
             }
             if (conversation.address.isNotBlank()) {
                 SheetAction(stringResource(R.string.msg_call)) {
-                    PhoneCaller.call(context, conversation.address, conversation.title)
+                    callConversation(conversation)
                     menuConversation = null
                 }
             }
@@ -698,6 +731,19 @@ fun MessagingHubScreen(
             ) {
                 deleteMessage = message
                 menuMessage = null
+            }
+        }
+    }
+
+    // ── Which of a group's people to ring ──
+    callChooser?.let { conversation ->
+        MessagingSheet(title = stringResource(R.string.msg_pick_recipient_to_call), onDismiss = { callChooser = null }) {
+            conversation.recipients.filter { it.isNotBlank() }.forEach { number ->
+                val name = remember(number) { com.serkantkn.zunelauncher.data.repository.SmsRepository.contactNameFor(context, number) }
+                SheetAction(if (name == number) number else "$name · $number") {
+                    callChooser = null
+                    PhoneCaller.call(context, number, name)
+                }
             }
         }
     }
@@ -812,25 +858,16 @@ private fun copyToClipboard(context: Context, text: String) {
     clipboard.setPrimaryClip(ClipData.newPlainText("message", text))
 }
 
-/** Asks Android to make the launcher the phone's messaging app. */
-private fun askToBeDefault(context: Context) {
-    runCatching {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            val roleManager = context.getSystemService(android.app.role.RoleManager::class.java)
-            if (roleManager != null && roleManager.isRoleAvailable(android.app.role.RoleManager.ROLE_SMS)) {
-                context.startActivity(
-                    roleManager.createRequestRoleIntent(android.app.role.RoleManager.ROLE_SMS)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-                return
-            }
+/** The system's "make this the messaging app" prompt, for an activity-result launcher to start. */
+private fun defaultSmsRequest(context: Context): Intent? {
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        val roleManager = context.getSystemService(android.app.role.RoleManager::class.java)
+        if (roleManager != null && roleManager.isRoleAvailable(android.app.role.RoleManager.ROLE_SMS)) {
+            return roleManager.createRequestRoleIntent(android.app.role.RoleManager.ROLE_SMS)
         }
-        context.startActivity(
-            Intent(android.provider.Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT)
-                .putExtra(android.provider.Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, context.packageName)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
     }
+    return Intent(android.provider.Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT)
+        .putExtra(android.provider.Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, context.packageName)
 }
 
 private const val HINGE_MILLIS = 320

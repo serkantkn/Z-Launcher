@@ -240,6 +240,11 @@ object SmsRepository {
         return drafts
     }
 
+    /**
+     * A conversation's messages, oldest first. Drafts are not among them: a draft is text in the
+     * box at the bottom, not a bubble that was sent, and it reaches the composer through
+     * [getConversations] instead.
+     */
     suspend fun getMessagesForThread(context: Context, threadId: Long): List<SmsMessageModel> =
         withContext(Dispatchers.IO) {
             val messages = mutableListOf<SmsMessageModel>()
@@ -247,7 +252,7 @@ object SmsRepository {
                 context.contentResolver.query(
                     Telephony.Sms.CONTENT_URI,
                     null,
-                    "${Telephony.Sms.THREAD_ID} = ?",
+                    "${Telephony.Sms.THREAD_ID} = ? AND ${Telephony.Sms.TYPE} != ${Telephony.Sms.MESSAGE_TYPE_DRAFT}",
                     arrayOf(threadId.toString()),
                     "${Telephony.Sms.DATE} ASC"
                 )?.use { cursor ->
@@ -277,7 +282,7 @@ object SmsRepository {
                         )
                     }
                 }
-                messages += readMmsForThread(context, threadId)
+                messages += readMmsForThread(context, threadId, isGroup = isGroupThread(context, threadId))
             } catch (e: Exception) {
                 ZuneLog.e(TAG, "the conversation would not open", e)
                 throw e
@@ -292,7 +297,7 @@ object SmsRepository {
      * to an app built for it — but a picture message with a caption is still a message, and a
      * conversation that hid them would be a conversation with holes in it.
      */
-    private fun readMmsForThread(context: Context, threadId: Long): List<SmsMessageModel> {
+    private fun readMmsForThread(context: Context, threadId: Long, isGroup: Boolean): List<SmsMessageModel> {
         val messages = mutableListOf<SmsMessageModel>()
         try {
             context.contentResolver.query(
@@ -308,20 +313,24 @@ object SmsRepository {
                     // thousandths; mixing the two puts every picture in 1970.
                     val date = cursor.getLong(1) * 1000L
                     val box = cursor.getInt(2)
+                    val isOutgoing = box == MMS_BOX_SENT || box == MMS_BOX_OUTBOX
                     val parts = mmsParts(context, mmsId)
+                    // In a group, a picture with no name on it could be from anybody in it.
+                    val sender = if (isGroup && !isOutgoing) mmsSender(context, mmsId) else ""
                     messages += SmsMessageModel(
                         id = MMS_ID_OFFSET + mmsId,
                         threadId = threadId,
-                        address = "",
+                        address = sender,
                         body = parts.text,
                         timestamp = date,
-                        isOutgoing = box == MMS_BOX_SENT || box == MMS_BOX_OUTBOX,
+                        isOutgoing = isOutgoing,
                         isRead = cursor.getInt(3) == 1,
                         type = if (box == MMS_BOX_SENT) Telephony.Sms.MESSAGE_TYPE_SENT else Telephony.Sms.MESSAGE_TYPE_INBOX,
                         delivery = MessageDelivery.NONE,
                         isMms = true,
                         hasAttachment = parts.hasAttachment,
-                        subscriptionId = cursor.getInt(4)
+                        subscriptionId = cursor.getInt(4),
+                        senderName = if (sender.isBlank()) "" else contactNameFor(context, sender)
                     )
                 }
             }
@@ -329,6 +338,36 @@ object SmsRepository {
             ZuneLog.w(TAG, "the picture messages would not open", e)
         }
         return messages
+    }
+
+    /** Whether a thread goes to more than one person. */
+    private fun isGroupThread(context: Context, threadId: Long): Boolean = try {
+        context.contentResolver.query(
+            THREADS_URI,
+            arrayOf("recipient_ids"),
+            "_id = ?",
+            arrayOf(threadId.toString()),
+            null
+        )?.use { cursor ->
+            cursor.moveToFirst() && cursor.getString(0).orEmpty().trim().split(' ').filter { it.isNotBlank() }.size > 1
+        } ?: false
+    } catch (e: Exception) {
+        false
+    }
+
+    /** The number a picture message came from: the "from" row in its address table. */
+    private fun mmsSender(context: Context, mmsId: Long): String = try {
+        context.contentResolver.query(
+            Uri.parse("content://mms/$mmsId/addr"),
+            arrayOf("address", "type"),
+            "type = $MMS_ADDR_FROM",
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0).orEmpty() else ""
+        }.orEmpty()
+    } catch (e: Exception) {
+        ""
     }
 
     private data class MmsParts(val text: String, val hasAttachment: Boolean)
@@ -381,8 +420,10 @@ object SmsRepository {
                         Telephony.Sms.TYPE,
                         Telephony.Sms.READ
                     ),
-                    "${Telephony.Sms.BODY} LIKE ?",
-                    arrayOf("%${query.replace("%", "\\%")}%"),
+                    // Only messages that were sent or received: a draft is not something that
+                    // was said. The escape clause is what makes a typed "%" or "_" literal.
+                    "${Telephony.Sms.BODY} LIKE ? ESCAPE '\\' AND ${Telephony.Sms.TYPE} != ${Telephony.Sms.MESSAGE_TYPE_DRAFT}",
+                    arrayOf("%${escapeLike(query)}%"),
                     "${Telephony.Sms.DATE} DESC"
                 )?.use { cursor ->
                     while (cursor.moveToNext() && messages.size < limit) {
@@ -635,7 +676,13 @@ object SmsRepository {
      */
     internal const val MMS_ID_OFFSET = 1_000_000_000L
 
+    /** The LIKE wildcards and the escape itself, each escaped for an `ESCAPE '\\'` clause. */
+    internal fun escapeLike(text: String): String =
+        text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
     private const val MMS_BOX_SENT = 2
     private const val MMS_BOX_OUTBOX = 4
+    /** PduHeaders.FROM: the address row that names a picture message's sender. */
+    private const val MMS_ADDR_FROM = 137
     private const val SEARCH_LIMIT = 200
 }
