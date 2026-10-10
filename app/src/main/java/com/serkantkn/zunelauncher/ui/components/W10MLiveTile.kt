@@ -58,6 +58,7 @@ import com.serkantkn.zunelauncher.data.model.Alarm
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
+import com.serkantkn.zunelauncher.ui.theme.LocalScreenAwake
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -111,11 +112,16 @@ fun W10MLiveTileFrame(
     )
 }
 
-/** Emits the current time once a minute, aligned to the minute boundary. */
+/**
+ * Emits the current time once a minute, aligned to the minute boundary. Behind an opaque hub it
+ * stops ticking — nothing it feeds can be seen — and catches up the moment the screen is back.
+ */
 @Composable
-private fun rememberMinuteTicker(): Long {
+fun rememberMinuteTicker(): Long {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
+    val awake = LocalScreenAwake.current
+    LaunchedEffect(awake) {
+        if (!awake) return@LaunchedEffect
         while (true) {
             now = System.currentTimeMillis()
             delay(60_000L - now % 60_000L + 50L)
