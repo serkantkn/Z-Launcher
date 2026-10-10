@@ -190,6 +190,21 @@ internal fun NoteEditorScreen(
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) viewModel.startRecording()
     }
+    // Android 9 needs leave to write into Documents; the export waits for the answer.
+    var pendingExportMarkdown by remember { mutableStateOf<Boolean?>(null) }
+    val writePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val markdown = pendingExportMarkdown
+        pendingExportMarkdown = null
+        if (granted && markdown != null) viewModel.exportNoteToDocuments(note, markdown)
+    }
+    fun exportNote(markdown: Boolean) {
+        if (com.serkantkn.zunelauncher.util.LegacyStorage.needsWritePermission(context)) {
+            pendingExportMarkdown = markdown
+            writePermission.launch(com.serkantkn.zunelauncher.util.LegacyStorage.WRITE_PERMISSION)
+        } else {
+            viewModel.exportNoteToDocuments(note, markdown)
+        }
+    }
     val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
@@ -498,8 +513,8 @@ internal fun NoteEditorScreen(
                     }
                 })
                 add(WpBarMenuItem(stringResource(R.string.common_share)) { onShare() })
-                add(WpBarMenuItem(stringResource(R.string.notes_export_txt)) { viewModel.exportNoteToDocuments(note, markdown = false) })
-                add(WpBarMenuItem(stringResource(R.string.notes_export_md)) { viewModel.exportNoteToDocuments(note, markdown = true) })
+                add(WpBarMenuItem(stringResource(R.string.notes_export_txt)) { exportNote(markdown = false) })
+                add(WpBarMenuItem(stringResource(R.string.notes_export_md)) { exportNote(markdown = true) })
                 add(WpBarMenuItem(if (note.isArchived) stringResource(R.string.notes_unarchive) else stringResource(R.string.notes_archive)) { onToggleArchive() })
                 if (note.isChecklist) {
                     add(WpBarMenuItem(stringResource(R.string.notes_delete_checked)) {

@@ -11,7 +11,6 @@ import com.serkantkn.zunelauncher.MainActivity
 import com.serkantkn.zunelauncher.data.model.Note
 import com.serkantkn.zunelauncher.data.repository.NotesBridge
 import com.serkantkn.zunelauncher.di.appContainer
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -39,8 +38,7 @@ class ReceiveNoteActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 val note = Note(title = subject, content = text)
-                val current = store.notesFlow.first()
-                store.saveNotes(current + note)
+                store.update { current -> current + note }
                 NotesBridge.open(note.id)
             } catch (e: Exception) {
                 ZuneLog.e("ReceiveNoteActivity", "onCreate failed", e)

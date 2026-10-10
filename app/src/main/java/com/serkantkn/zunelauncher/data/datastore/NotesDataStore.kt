@@ -50,12 +50,29 @@ class NotesDataStore(private val context: Context) {
         parseNotes(preferences[NOTES_KEY])
     }
 
-    suspend fun saveNotes(notes: List<Note>) {
-        val jsonString = serializeNotes(notes)
+    /**
+     * Reads the list, lets [transform] rewrite it and writes the result, all inside one DataStore
+     * edit. Every write goes through here: a read followed by a separate write lets two callers —
+     * the editor saving and the share sheet adding, say — each write their own copy of the list,
+     * and whichever lands second silently drops the other's note.
+     *
+     * A store that is not a JSON array at all is not replaced: its text is set aside under its
+     * own key, so that what was there can still be recovered, before the new list is written.
+     */
+    suspend fun update(transform: (List<Note>) -> List<Note>) {
         context.notesDataStore.edit { preferences ->
-            preferences[NOTES_KEY] = jsonString
+            val stored = preferences[NOTES_KEY]
+            val split = splitNotesJson(stored)
+            if (split.corrupt && !stored.isNullOrBlank() && preferences[CORRUPT_KEY] == null) {
+                ZuneLog.w(TAG, "notes store unreadable; keeping its text aside before writing")
+                preferences[CORRUPT_KEY] = stored
+            }
+            val (current, broken) = readStore(stored)
+            preferences[NOTES_KEY] = serializeNotes(transform(current), broken)
         }
     }
+
+    suspend fun saveNotes(notes: List<Note>) = update { notes }
 
     /**
      * Locks any note that was marked private before notes were encrypted.
@@ -68,7 +85,8 @@ class NotesDataStore(private val context: Context) {
         try {
             val stored = context.notesDataStore.data.first()[NOTES_KEY] ?: return
             if (!hasUnsealedLockedNote(stored)) return
-            saveNotes(parseNotes(stored))
+            // Reading and writing the same list back is what seals it.
+            update { it }
             ZuneLog.d(TAG, "locked notes written back sealed")
         } catch (e: CancellationException) {
             throw e
@@ -127,33 +145,43 @@ class NotesDataStore(private val context: Context) {
             return -1
         }
         if (imported.isEmpty()) return 0
-        val current = notesFlow.first()
         val importedIds = imported.map { it.id }.toSet()
-        val merged = current.filter { it.id !in importedIds } + imported
-        saveNotes(merged)
+        update { current -> current.filter { it.id !in importedIds } + imported }
         return imported.size
     }
 
     // ── JSON mapping ──────────────────────────────────────────────────────
 
-    private fun serializeNotes(notes: List<Note>): String {
+    /**
+     * The notes, followed by the entries that could not be read as notes, as they were written.
+     *
+     * One bad entry used to empty the whole list, and the next save — any save — wrote that
+     * empty list back over everything. The entry that will not parse is skipped on read and
+     * written back untouched, so a fixed build can still get at it.
+     */
+    private fun serializeNotes(notes: List<Note>, broken: List<String> = emptyList()): String {
         val array = JSONArray()
         for (note in notes) array.put(note.toJson())
+        for (raw in broken) runCatching { array.put(JSONObject(raw)) }
         return array.toString()
     }
 
-    private fun parseNotes(jsonString: String?): List<Note> {
-        if (jsonString == null) return emptyList()
-        return try {
-            val array = JSONArray(jsonString)
-            val list = mutableListOf<Note>()
-            for (i in 0 until array.length()) {
-                list.add(array.getJSONObject(i).toNote())
+    private fun parseNotes(jsonString: String?): List<Note> = readStore(jsonString).first
+
+    /** The notes that could be read, and the raw text of every entry that could not. */
+    private fun readStore(jsonString: String?): Pair<List<Note>, List<String>> {
+        val split = splitNotesJson(jsonString)
+        val notes = mutableListOf<Note>()
+        val broken = split.broken.toMutableList()
+        for (entry in split.entries) {
+            try {
+                notes += entry.toNote()
+            } catch (e: Exception) {
+                ZuneLog.w(TAG, "a note could not be read and is kept as it is", e)
+                broken += entry.toString()
             }
-            list
-        } catch (e: Exception) {
-            emptyList()
         }
+        return notes to broken
     }
 
     /**
@@ -312,7 +340,39 @@ class NotesDataStore(private val context: Context) {
 
         /** The field a locked note's words live in, once they are locked. */
         private const val SEALED_KEY = "sealed"
+
+        /** Where the text of a store that was not a JSON array is put aside, never overwritten. */
+        private val CORRUPT_KEY = stringPreferencesKey("notes_json_unreadable")
         const val BACKUP_FORMAT = "zune-notes-backup"
         const val BACKUP_VERSION = 1
     }
+}
+
+/** The stored array taken apart: the objects in it, the elements that are not objects, and
+ *  whether the text was an array at all. */
+internal class NotesSplit(
+    val entries: List<JSONObject>,
+    val broken: List<String>,
+    val corrupt: Boolean
+)
+
+/**
+ * Takes the stored notes array apart one element at a time, so that one element that is not an
+ * object does not take the rest with it. Text that is not a JSON array is reported as corrupt
+ * with nothing in it; an absent or blank store is simply empty.
+ */
+internal fun splitNotesJson(jsonString: String?): NotesSplit {
+    if (jsonString.isNullOrBlank()) return NotesSplit(emptyList(), emptyList(), corrupt = false)
+    val array = try {
+        JSONArray(jsonString)
+    } catch (e: Exception) {
+        return NotesSplit(emptyList(), emptyList(), corrupt = true)
+    }
+    val entries = mutableListOf<JSONObject>()
+    val broken = mutableListOf<String>()
+    for (i in 0 until array.length()) {
+        val element = array.opt(i)
+        if (element is JSONObject) entries += element else if (element != null) broken += element.toString()
+    }
+    return NotesSplit(entries, broken, corrupt = false)
 }
