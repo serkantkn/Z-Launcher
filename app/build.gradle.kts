@@ -15,9 +15,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
     }
 
     buildFeatures {
@@ -140,17 +137,13 @@ dependencies {
     // DataStore & Serialization
     implementation(libs.androidx.datastore.preferences)
     
-    // Biometric
-    implementation("androidx.biometric:biometric:1.1.0")
+    // Biometric; MainActivity extends FragmentActivity for its prompt, so fragment is named too
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.fragment)
 
     // Testing
     testImplementation(libs.junit)
     // android.jar stubs org.json, so the real implementation is put on the unit test classpath
     testImplementation("org.json:json:20240303")
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
