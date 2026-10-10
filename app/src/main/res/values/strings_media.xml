@@ -20,4 +20,9 @@
     <string name="files_folder_failed">the folder could not be made</string>
     <string name="files_delete_failed">%1$s could not be deleted</string>
     <string name="files_rename_failed">%1$s could not be renamed</string>
+
+    <!-- Pictures hub -->
+    <string name="pics_save_failed">the picture could not be saved</string>
+    <string name="editor_load_failed">the picture would not open</string>
+    <string name="editor_save_failed">the picture could not be saved; try a smaller crop</string>
 </resources>

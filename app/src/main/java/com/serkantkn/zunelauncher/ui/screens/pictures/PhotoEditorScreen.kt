@@ -79,6 +79,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.serkantkn.zunelauncher.data.model.MediaImage
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
@@ -132,7 +133,8 @@ private enum class CropAspectRatio(@StringRes val labelRes: Int, val ratio: Floa
 @Composable
 fun PhotoEditorScreen(
     photo: MediaImage,
-    onSave: (Bitmap) -> Unit,
+    /** Hands the finished picture over; [onDone] is told the failure, if there was one. */
+    onSave: (Bitmap, onDone: (error: String?) -> Unit) -> Unit,
     onCancel: () -> Unit
 ) {
     val context = LocalContext.current
@@ -143,6 +145,8 @@ fun PhotoEditorScreen(
     var originalBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
+    /** What went wrong — the picture would not open, or would not save — shown in place. */
+    var errorText by remember { mutableStateOf<String?>(null) }
 
     // Transformation States
     var rotationAngle by remember { mutableFloatStateOf(0f) }
@@ -165,9 +169,12 @@ fun PhotoEditorScreen(
     // Load original bitmap from URI with proper EXIF orientation handling
     LaunchedEffect(photo.uri) {
         isLoading = true
+        errorText = null
         originalBitmap = withContext(Dispatchers.IO) {
             decodeBitmapWithExif(context, photo.uri)
         }
+        // A picture that would not open is said so, not spun on forever.
+        if (originalBitmap == null) errorText = context.getString(R.string.editor_load_failed)
         isLoading = false
     }
 
@@ -219,6 +226,7 @@ fun PhotoEditorScreen(
     fun applyAndExport() {
         val src = originalBitmap ?: return
         isSaving = true
+        errorText = null
         coroutineScope.launch(Dispatchers.Default) {
             try {
                 val matrix = Matrix().apply {
@@ -277,13 +285,18 @@ fun PhotoEditorScreen(
                 }
 
                 withContext(Dispatchers.Main) {
-                    isSaving = false
-                    onSave(finalBitmap)
+                    onSave(finalBitmap) { error ->
+                        isSaving = false
+                        errorText = error
+                    }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // OutOfMemoryError included: three copies of a big picture is where it goes,
+                // and the editor should say so rather than die with the edits in it.
                 ZuneLog.e("PhotoEditorScreen", "applyAndExport failed", e)
                 withContext(Dispatchers.Main) {
                     isSaving = false
+                    errorText = context.getString(R.string.editor_save_failed)
                 }
             }
         }
@@ -349,12 +362,19 @@ fun PhotoEditorScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (isLoading || originalBitmap == null) {
+                if (isLoading) {
                     CircularProgressIndicator(color = zuneColors.accentColor)
+                } else if (originalBitmap == null) {
+                    Text(
+                        text = errorText ?: stringResource(R.string.editor_load_failed),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
                 } else {
                     val bmp = originalBitmap!!
 
-                    // Preview transformed bitmap
+                    // Preview transformed bitmap. Turning a big picture is another copy of it;
+                    // if there is no room for that, the untransformed one stands in.
                     val previewBitmap = remember(bmp, rotationAngle, flipHorizontal, flipVertical) {
                         val matrix = Matrix().apply {
                             postScale(
@@ -363,7 +383,24 @@ fun PhotoEditorScreen(
                             )
                             postRotate(rotationAngle)
                         }
-                        Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, matrix, true)
+                        try {
+                            Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, matrix, true)
+                        } catch (e: OutOfMemoryError) {
+                            ZuneLog.w("PhotoEditorScreen", "no room to turn the preview", e)
+                            bmp
+                        }
+                    }
+                    errorText?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .zIndex(1f)
+                                .background(Color.Black.copy(alpha = 0.6f))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
                     }
 
                     BoxWithConstraints(
@@ -878,6 +915,11 @@ private fun CornerHandle(
 
 /**
  * Decodes a bitmap from URI and applies EXIF orientation if needed so portrait photos stay portrait.
+ *
+ * The picture is read at no more than [MAX_EDIT_SIDE] pixels on its long side. A 48-megapixel
+ * shot is 200 MB as a bitmap, and the editor keeps three of them — the original, the turned
+ * preview and the export — which is more than a phone will give one app. Running out is caught
+ * too, so the worst case is "would not open" rather than the launcher gone.
  */
 private fun decodeBitmapWithExif(context: android.content.Context, uri: android.net.Uri): Bitmap? {
     return try {
@@ -889,8 +931,13 @@ private fun decodeBitmapWithExif(context: android.content.Context, uri: android.
             )
         } ?: android.media.ExifInterface.ORIENTATION_NORMAL
 
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, MAX_EDIT_SIDE)
+        }
         val rawBitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream)
+            BitmapFactory.decodeStream(stream, null, options)
         } ?: return null
 
         val matrix = Matrix()
@@ -924,10 +971,24 @@ private fun decodeBitmapWithExif(context: android.content.Context, uri: android.
             rawBitmap.recycle()
         }
         orientedBitmap
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         ZuneLog.e("PhotoEditorScreen", "decodeBitmapWithExif failed", e)
         null
     }
+}
+
+/** The longest side the editor will hold a picture at; anything bigger is read smaller. */
+private const val MAX_EDIT_SIDE = 4096
+
+/** The power of two that brings [width] x [height] under [maxSide] on its long side. */
+internal fun sampleSizeFor(width: Int, height: Int, maxSide: Int): Int {
+    var sample = 1
+    var longest = maxOf(width, height)
+    while (longest > maxSide && sample < 64) {
+        sample *= 2
+        longest /= 2
+    }
+    return sample
 }
 
 

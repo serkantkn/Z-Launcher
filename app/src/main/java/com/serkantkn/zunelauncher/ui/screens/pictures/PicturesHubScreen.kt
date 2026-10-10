@@ -132,8 +132,18 @@ fun PicturesHubScreen(
     val pendingAlbum by PicturesBridge.pendingAlbum.collectAsState()
     val pendingPhoto by PicturesBridge.pendingPhoto.collectAsState()
 
+    // Coming back reads the roll again only when the store said something changed; a full
+    // read on every resume made the hub stutter each time a dialog closed over it.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        if (hasPermission) viewModel.loadMedia()
+        viewModel.loadMediaIfChanged()
+    }
+
+    val statusMessage by viewModel.statusMessage.collectAsState()
+    LaunchedEffect(statusMessage) {
+        statusMessage?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearStatus()
+        }
     }
 
 
@@ -173,19 +183,27 @@ fun PicturesHubScreen(
 
     var viewingPhotosList by remember { mutableStateOf<List<MediaImage>?>(null) }
     var viewingInitialIndex by remember { mutableIntStateOf(0) }
-    var editingPhoto by remember { mutableStateOf<MediaImage?>(null) }
     var isSearchOpen by remember { mutableStateOf(false) }
     var showColumnsSheet by remember { mutableStateOf(false) }
 
+    /** The consent dialog's launcher, held in a holder so its own result can launch it again. */
+    val deleteLauncherHolder = remember { arrayOfNulls<androidx.activity.result.ActivityResultLauncher<IntentSenderRequest>>(1) }
     val deleteIntentSenderLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            viewModel.loadMedia()
+        val granted = result.resultCode == Activity.RESULT_OK
+        if (granted) {
             viewModel.clearSelection()
             viewingPhotosList = null
         }
+        // On Android 10 a yes only opens the door; the delete itself still has to be run.
+        (context as? Activity)?.let { activity ->
+            viewModel.onDeleteConsent(activity, granted) { sender ->
+                deleteLauncherHolder[0]?.launch(IntentSenderRequest.Builder(sender).build())
+            }
+        }
     }
+    deleteLauncherHolder[0] = deleteIntentSenderLauncher
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -193,15 +211,48 @@ fun PicturesHubScreen(
     )
 
     fun requestMediaPermission() {
-        val wanted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
+        val wanted = when {
+            // Android 14 lets the person hand over a few pictures rather than all of them;
+            // asking for that too is what makes the picker offer the choice.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> arrayOf(
+                android.Manifest.permission.READ_MEDIA_IMAGES,
+                android.Manifest.permission.READ_MEDIA_VIDEO,
+                android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+            )
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(
                 android.Manifest.permission.READ_MEDIA_IMAGES,
                 android.Manifest.permission.READ_MEDIA_VIDEO
             )
-        } else {
-            arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+            else -> arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
         }
         permissionLauncher.launch(wanted)
+    }
+
+    // Android 9 has to be asked before a picture may be written; the save waits for the answer.
+    var pendingSave by remember { mutableStateOf<Pair<android.graphics.Bitmap, (String?) -> Unit>?>(null) }
+    var editingPhoto by remember { mutableStateOf<MediaImage?>(null) }
+    val writePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val (bitmap, onDone) = pendingSave ?: return@rememberLauncherForActivityResult
+        pendingSave = null
+        val source = editingPhoto
+        if (granted && source != null) {
+            viewModel.saveEditedPhoto(bitmap, source, onSaved = { onDone(null) }, onFailed = { onDone(it) })
+        } else {
+            onDone(context.getString(R.string.pics_save_failed))
+        }
+    }
+
+    /** Saves the editor's result, asking Android 9 for leave first; [onDone] gets the failure, if any. */
+    fun saveEdited(bitmap: android.graphics.Bitmap, onDone: (String?) -> Unit) {
+        val source = editingPhoto ?: return onDone(context.getString(R.string.pics_save_failed))
+        if (com.serkantkn.zunelauncher.util.LegacyStorage.needsWritePermission(context)) {
+            pendingSave = bitmap to onDone
+            writePermissionLauncher.launch(com.serkantkn.zunelauncher.util.LegacyStorage.WRITE_PERMISSION)
+        } else {
+            viewModel.saveEditedPhoto(bitmap, source, onSaved = { onDone(null) }, onFailed = { onDone(it) })
+        }
     }
 
     /** Opens an album and sends its name up into the pivot. */
@@ -585,9 +636,13 @@ fun PicturesHubScreen(
             editingPhoto?.let { photoToEdit ->
                 PhotoEditorScreen(
                     photo = photoToEdit,
-                    onSave = { editedBitmap ->
-                        viewModel.saveEditedPhoto(editedBitmap)
-                        editingPhoto = null
+                    onSave = { editedBitmap, onDone ->
+                        // The editor closes only once the picture is on disk; a failure leaves
+                        // it open with the edits still in it.
+                        saveEdited(editedBitmap) { error ->
+                            if (error == null) editingPhoto = null
+                            onDone(error)
+                        }
                     },
                     onCancel = { editingPhoto = null }
                 )

@@ -20,4 +20,9 @@
     <string name="files_folder_failed">klasör oluşturulamadı</string>
     <string name="files_delete_failed">%1$s silinemedi</string>
     <string name="files_rename_failed">%1$s yeniden adlandırılamadı</string>
+
+    <!-- Pictures hub -->
+    <string name="pics_save_failed">resim kaydedilemedi</string>
+    <string name="editor_load_failed">resim açılamadı</string>
+    <string name="editor_save_failed">resim kaydedilemedi; daha küçük bir kırpma deneyin</string>
 </resources>

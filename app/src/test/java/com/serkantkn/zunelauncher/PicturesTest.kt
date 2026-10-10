@@ -176,3 +176,25 @@ class PicturesTest {
         }
     }
 }
+
+/** How big a picture the editor lets itself hold. */
+class PhotoEditorDecodeTest {
+
+    @Test
+    fun aSmallPictureIsReadAsItIs() {
+        assertEquals(1, com.serkantkn.zunelauncher.ui.screens.pictures.sampleSizeFor(3000, 2000, 4096))
+    }
+
+    @Test
+    fun aHugePictureIsReadAtThePowerOfTwoThatFits() {
+        // 8000 → 4000 at 2; 12000 → 6000 at 2, 3000 at 4.
+        assertEquals(2, com.serkantkn.zunelauncher.ui.screens.pictures.sampleSizeFor(8000, 6000, 4096))
+        assertEquals(4, com.serkantkn.zunelauncher.ui.screens.pictures.sampleSizeFor(9000, 12000, 4096))
+    }
+
+    @Test
+    fun anUnknownSizeDoesNotSpin() {
+        assertEquals(1, com.serkantkn.zunelauncher.ui.screens.pictures.sampleSizeFor(0, 0, 4096))
+        assertEquals(1, com.serkantkn.zunelauncher.ui.screens.pictures.sampleSizeFor(-1, -1, 4096))
+    }
+}
