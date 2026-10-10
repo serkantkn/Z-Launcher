@@ -10,7 +10,9 @@ import android.os.Build
 import android.os.Message
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -33,7 +35,9 @@ internal class BrowserWebCallbacks(
     val onFileChooser: (ValueCallback<Array<Uri>>, WebChromeClient.FileChooserParams) -> Boolean,
     val onSitePermission: (PermissionRequest) -> Unit,
     val onGeolocation: (origin: String, callback: android.webkit.GeolocationPermissions.Callback) -> Unit,
-    val onError: (message: String) -> Unit
+    val onError: (message: String) -> Unit,
+    /** The page's renderer died under it; the view is no longer usable and has to go. */
+    val onRenderGone: () -> Unit = {}
 )
 
 /** The user agent a desktop site expects to see, for the "desktop version" switch. */
@@ -47,9 +51,20 @@ internal const val DESKTOP_USER_AGENT =
  * only that much wiring is not a browser — it cannot zoom, cannot upload a file, cannot play a
  * video full screen and cannot follow a link that is not http. Everything here exists to close one
  * of those holes.
+ *
+ * A [isPrivate] page keeps as little as the platform lets it. Without androidx.webkit's profile
+ * API (not a dependency here) every WebView in the process shares one cookie jar, so a private tab
+ * cannot have a jar of its own: what it can do is keep nothing on disk — no DOM storage, no
+ * databases, no cache — refuse third-party cookies, and have its session cookies swept when the
+ * last private tab closes (the hub does that). Cookies a site sets with an expiry date still land
+ * in the shared jar; that is the limit of this approach.
  */
 @SuppressLint("SetJavaScriptEnabled")
-internal fun createBrowserWebView(context: Context, callbacks: BrowserWebCallbacks): WebView =
+internal fun createBrowserWebView(
+    context: Context,
+    callbacks: BrowserWebCallbacks,
+    isPrivate: Boolean = false
+): WebView =
     WebView(context).apply {
         layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -59,8 +74,9 @@ internal fun createBrowserWebView(context: Context, callbacks: BrowserWebCallbac
 
         settings.apply {
             javaScriptEnabled = true
-            domStorageEnabled = true
-            databaseEnabled = true
+            domStorageEnabled = !isPrivate
+            databaseEnabled = !isPrivate
+            if (isPrivate) cacheMode = WebSettings.LOAD_NO_CACHE
             loadWithOverviewMode = true
             useWideViewPort = true
 
@@ -72,7 +88,9 @@ internal fun createBrowserWebView(context: Context, callbacks: BrowserWebCallbac
 
             // A page that opens another window gets one, rather than silently doing nothing.
             setSupportMultipleWindows(true)
-            javaScriptCanOpenWindowsAutomatically = true
+            // ...but only when someone tapped for it; a script popping windows on its own is
+            // the oldest trick there is, and onCreateWindow checks the gesture too.
+            javaScriptCanOpenWindowsAutomatically = false
 
             // Video should not start on its own, and should be allowed to go full screen.
             mediaPlaybackRequiresUserGesture = true
@@ -86,6 +104,7 @@ internal fun createBrowserWebView(context: Context, callbacks: BrowserWebCallbac
             // an insecure one, because a single injected script is the whole page.
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         }
+        CookieManager.getInstance().setAcceptThirdPartyCookies(this, !isPrivate)
 
         webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -129,6 +148,21 @@ internal fun createBrowserWebView(context: Context, callbacks: BrowserWebCallbac
                 }
                 callbacks.onError(description ?: "")
             }
+
+            /**
+             * The renderer behind this page was killed — out of memory, or a crash of its own.
+             * Returning false here would take the whole launcher down with it; instead the hub
+             * is told to throw the view away and offer the page again.
+             */
+            override fun onRenderProcessGone(
+                view: WebView?,
+                detail: RenderProcessGoneDetail?
+            ): Boolean {
+                val crashed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && detail?.didCrash() == true
+                ZuneLog.w(TAG, "render process gone (crashed=$crashed) for ${view?.url}")
+                callbacks.onRenderGone()
+                return true
+            }
         }
 
         webChromeClient = object : WebChromeClient() {
@@ -140,6 +174,10 @@ internal fun createBrowserWebView(context: Context, callbacks: BrowserWebCallbac
             /**
              * A page asking for a new window: the address it wants is fished out of a throwaway
              * WebView and opened as a tab of our own.
+             *
+             * Only a window the user asked for by tapping gets one. The throwaway view is also
+             * put down after a moment if the page never navigates it — a window.open() that
+             * is then written into by script would otherwise leave a WebView alive for good.
              */
             override fun onCreateWindow(
                 view: WebView?,
@@ -147,21 +185,34 @@ internal fun createBrowserWebView(context: Context, callbacks: BrowserWebCallbac
                 isUserGesture: Boolean,
                 resultMsg: Message?
             ): Boolean {
+                if (!isUserGesture) return false
                 val host = view ?: return false
                 val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
                 val catcher = WebView(host.context)
+                var done = false
+                val giveUp = Runnable {
+                    if (!done) {
+                        done = true
+                        catcher.destroy()
+                    }
+                }
                 catcher.webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(
                         v: WebView?,
                         request: WebResourceRequest?
                     ): Boolean {
-                        request?.url?.toString()?.let(callbacks.onOpenInNewTab)
-                        catcher.destroy()
+                        if (!done) {
+                            done = true
+                            host.removeCallbacks(giveUp)
+                            request?.url?.toString()?.let(callbacks.onOpenInNewTab)
+                            catcher.destroy()
+                        }
                         return true
                     }
                 }
                 transport.webView = catcher
                 resultMsg.sendToTarget()
+                host.postDelayed(giveUp, POPUP_CATCHER_TIMEOUT_MS)
                 return true
             }
 
@@ -208,7 +259,7 @@ internal fun createBrowserWebView(context: Context, callbacks: BrowserWebCallbac
 private fun handOverToAnApp(context: Context, url: String, onError: (String) -> Unit): Boolean {
     val intent = try {
         if (url.startsWith("intent:")) {
-            Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+            Intent.parseUri(url, Intent.URI_INTENT_SCHEME).sanitisedForAPage()
         } else {
             Intent(Intent.ACTION_VIEW, Uri.parse(url))
         }
@@ -218,23 +269,19 @@ private fun handOverToAnApp(context: Context, url: String, onError: (String) -> 
     }
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
+    // An intent: link that nothing on the phone answers to is not sent at all, so it cannot
+    // reach an activity that was never meant to be reachable from a web page.
+    val fallback = intent.getStringExtra("browser_fallback_url")
+    val resolvable = url.startsWith("intent:").not() ||
+        intent.resolveActivity(context.packageManager) != null
+    if (!resolvable) return openFallback(context, fallback) || run { onError(url); true }
+
     return try {
         context.startActivity(intent)
         true
     } catch (e: ActivityNotFoundException) {
         // An intent: link can name a fallback web address for exactly this case.
-        val fallback = intent.getStringExtra("browser_fallback_url")
-        if (!fallback.isNullOrBlank()) {
-            return try {
-                context.startActivity(
-                    Intent(Intent.ACTION_VIEW, Uri.parse(fallback))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-                true
-            } catch (inner: Exception) {
-                false
-            }
-        }
+        if (openFallback(context, fallback)) return true
         onError(url)
         true
     } catch (e: Exception) {
@@ -242,5 +289,34 @@ private fun handOverToAnApp(context: Context, url: String, onError: (String) -> 
         false
     }
 }
+
+/**
+ * Strips an intent: link down to what a page may ask for.
+ *
+ * As parsed, the link can name a component (any activity in any app, exported or, from inside
+ * this one, not), carry a selector, and ask for URI grants on the launcher's own providers. A
+ * browser's job is to open a browsable activity by action and data, and nothing beyond that.
+ */
+private fun Intent.sanitisedForAPage(): Intent = apply {
+    component = null
+    selector = null
+    addCategory(Intent.CATEGORY_BROWSABLE)
+    flags = flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION).inv()
+}
+
+private fun openFallback(context: Context, fallback: String?): Boolean {
+    if (fallback.isNullOrBlank()) return false
+    val uri = Uri.parse(fallback)
+    if (uri.scheme != "http" && uri.scheme != "https") return false
+    return try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (e: Exception) {
+        false
+    }
+}
+
+/** How long a popup's throwaway view waits for the page to navigate it before it is put down. */
+private const val POPUP_CATCHER_TIMEOUT_MS = 5_000L
 
 private const val TAG = "BrowserWebView"

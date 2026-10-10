@@ -6,6 +6,7 @@ import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.webkit.URLUtil
+import android.webkit.WebSettings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -53,7 +54,11 @@ data class BrowserTab(
     /** Asking the site for the version it would send a computer. */
     val isDesktopSite: Boolean = false,
     /** The page stripped back to what it says, Windows Phone's reading view. */
-    val isReadingView: Boolean = false
+    val isReadingView: Boolean = false,
+    /** The page's renderer died; the tab shows an offer to load it again instead of a view. */
+    val isCrashed: Boolean = false,
+    /** Bumped on every reload after a crash, so the hub builds a fresh view for the tab. */
+    val generation: Int = 0
 )
 
 data class BrowserSuggestion(
@@ -223,30 +228,57 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Starts a download the page asked for.
+     *
+     * The download manager fetches on its own, outside the page's session: without the page's
+     * cookies and user agent a file behind a login came back as the login page. A `data:` link
+     * is not fetched at all — the file is right there in the address and is written straight
+     * to Downloads. A `blob:` link only exists inside the page's renderer and cannot be reached
+     * from here. A download from a [isPrivate] tab still runs, but is not written to the list.
+     */
     fun startDownload(
         url: String,
         userAgent: String?,
         contentDisposition: String?,
         mimeType: String?,
-        contentLength: Long
+        contentLength: Long,
+        isPrivate: Boolean = false
     ) {
+        val app = getApplication<Application>()
+        when {
+            url.startsWith("blob:") -> {
+                _state.update { it.copy(errorMessage = app.localizedString(R.string.browser_download_blob)) }
+                return
+            }
+            url.startsWith("data:") -> {
+                saveDataUrl(url, contentDisposition, mimeType, isPrivate)
+                return
+            }
+        }
         try {
             val fileName = URLUtil.guessFileName(url, contentDisposition, mimeType)
             val request = DownloadManager.Request(Uri.parse(url)).apply {
                 if (!mimeType.isNullOrEmpty()) {
                     setMimeType(mimeType)
                 }
-                if (!userAgent.isNullOrEmpty()) {
-                    addRequestHeader("User-Agent", userAgent)
-                }
+                addRequestHeader("User-Agent", userAgent?.takeIf { it.isNotEmpty() } ?: WebSettings.getDefaultUserAgent(app))
+                android.webkit.CookieManager.getInstance().getCookie(url)
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { addRequestHeader("Cookie", it) }
                 setTitle(fileName)
-                setDescription(getApplication<Application>().localizedString(R.string.browser_downloading))
+                setDescription(app.localizedString(R.string.browser_downloading))
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
             }
 
-            val dm = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val dm = app.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val downloadId = dm.enqueue(request)
+
+            if (isPrivate) {
+                _state.update { it.copy(errorMessage = app.localizedString(R.string.browser_download_started, fileName)) }
+                return
+            }
 
             val newDownload = BrowserDownload(
                 id = downloadId,
@@ -261,13 +293,50 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             _state.update {
                 it.copy(
                     downloads = updatedList,
-                    errorMessage = getApplication<Application>().localizedString(R.string.browser_download_started, fileName)
+                    errorMessage = app.localizedString(R.string.browser_download_started, fileName)
                 )
             }
             saveDownloads(updatedList)
             startDownloadPolling()
         } catch (e: Exception) {
-            _state.update { it.copy(errorMessage = getApplication<Application>().localizedString(R.string.browser_download_failed, e.localizedMessage ?: "")) }
+            _state.update { it.copy(errorMessage = app.localizedString(R.string.browser_download_failed, e.localizedMessage ?: "")) }
+        }
+    }
+
+    /** Writes the payload of a `data:` link to Downloads and lists it as a finished download. */
+    private fun saveDataUrl(url: String, contentDisposition: String?, mimeType: String?, isPrivate: Boolean) {
+        val app = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = runCatching {
+                val payload = decodeDataUrl(url) ?: error("not a data url")
+                val mime = mimeType?.takeIf { it.isNotBlank() } ?: payload.first
+                val fileName = URLUtil.guessFileName("https://data/download", contentDisposition, mime)
+                val saved = writeToDownloads(app, fileName, mime, payload.second)
+                BrowserDownload(
+                    id = -System.currentTimeMillis(),
+                    fileName = fileName,
+                    url = url.take(DATA_URL_KEEP),
+                    mimeType = mime,
+                    totalBytes = payload.second.size.toLong(),
+                    downloadedBytes = payload.second.size.toLong(),
+                    status = DownloadManager.STATUS_SUCCESSFUL,
+                    localUri = saved.toString()
+                )
+            }
+            withContext(Dispatchers.Main) {
+                result.onSuccess { download ->
+                    val updated = if (isPrivate) _state.value.downloads else listOf(download) + _state.value.downloads
+                    _state.update {
+                        it.copy(
+                            downloads = updated,
+                            errorMessage = app.localizedString(R.string.browser_download_started, download.fileName)
+                        )
+                    }
+                    if (!isPrivate) saveDownloads(updated)
+                }.onFailure { e ->
+                    _state.update { it.copy(errorMessage = app.localizedString(R.string.browser_download_failed, e.localizedMessage ?: "")) }
+                }
+            }
         }
     }
 
@@ -282,8 +351,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 download
             } else {
                 val query = DownloadManager.Query().setFilterById(download.id)
-                val cursor = dm.query(query)
-                if (cursor != null && cursor.moveToFirst()) {
+                val fresh = dm.query(query)?.use { cursor ->
+                    if (!cursor.moveToFirst()) return@use null
                     val statusIdx = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
                     val bytesDownloadedIdx = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
                     val bytesTotalIdx = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
@@ -293,22 +362,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     val downloadedBytes = if (bytesDownloadedIdx >= 0) cursor.getLong(bytesDownloadedIdx) else download.downloadedBytes
                     val totalBytes = if (bytesTotalIdx >= 0) cursor.getLong(bytesTotalIdx) else download.totalBytes
                     val localUri = if (localUriIdx >= 0) cursor.getString(localUriIdx) ?: download.localUri else download.localUri
-
-                    cursor.close()
-                    if (status != download.status || downloadedBytes != download.downloadedBytes || totalBytes != download.totalBytes || localUri != download.localUri) {
-                        changed = true
-                        download.copy(
-                            status = status,
-                            downloadedBytes = downloadedBytes,
-                            totalBytes = if (totalBytes > 0) totalBytes else download.totalBytes,
-                            localUri = localUri
-                        )
-                    } else {
-                        download
-                    }
-                } else {
-                    download
+                    download.copy(
+                        status = status,
+                        downloadedBytes = downloadedBytes,
+                        totalBytes = if (totalBytes > 0) totalBytes else download.totalBytes,
+                        localUri = localUri
+                    )
                 }
+                    // No row at all: the download manager no longer knows the id — cancelled from
+                    // its notification, or cleared by the system. Left as "running" it would be
+                    // polled forever; as "failed" it can be retried or removed.
+                    ?: download.copy(status = DownloadManager.STATUS_FAILED)
+                if (fresh != download) changed = true
+                fresh
             }
         }
         if (changed) {
@@ -659,7 +725,25 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun onPageStarted(tabId: String, url: String?, title: String?) {
-        updateTab(tabId) { it.copy(isLoading = true, url = url ?: it.url, title = title ?: getApplication<Application>().localizedString(R.string.browser_loading)) }
+        // A new page is a new page: the reading view belonged to the one before it.
+        updateTab(tabId) {
+            it.copy(
+                isLoading = true,
+                isReadingView = false,
+                url = url ?: it.url,
+                title = title ?: getApplication<Application>().localizedString(R.string.browser_loading)
+            )
+        }
+    }
+
+    /** The tab's renderer died; the hub drops the view and shows the offer to load it again. */
+    fun markTabCrashed(tabId: String) {
+        updateTab(tabId) { it.copy(isCrashed = true, isLoading = false, isReadingView = false) }
+    }
+
+    /** Builds the crashed tab a fresh page, which then loads the address it had. */
+    fun reloadCrashedTab(tabId: String) {
+        updateTab(tabId) { it.copy(isCrashed = false, generation = it.generation + 1) }
     }
 
     fun onPageFinished(tabId: String, url: String?, title: String?) {
@@ -770,6 +854,64 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             url.trimEnd('/')
         }
     }
+}
+
+/** How much of a `data:` address is kept in the download record; the rest is the file itself. */
+private const val DATA_URL_KEEP = 64
+
+/**
+ * Pulls the file out of a `data:` address: its media type and its bytes. Returns null for
+ * anything that is not one. A missing type means `text/plain`, as the RFC has it.
+ */
+internal fun decodeDataUrl(url: String): Pair<String, ByteArray>? {
+    if (!url.startsWith("data:", ignoreCase = true)) return null
+    val comma = url.indexOf(',')
+    if (comma < 0) return null
+    val header = url.substring(5, comma)
+    val body = url.substring(comma + 1)
+    val isBase64 = header.endsWith(";base64", ignoreCase = true)
+    val mime = header.removeSuffix(";base64").substringBefore(';').ifBlank { "text/plain" }
+    val bytes = if (isBase64) {
+        runCatching { java.util.Base64.getMimeDecoder().decode(body.trim()) }.getOrNull() ?: return null
+    } else {
+        java.net.URLDecoder.decode(body.replace("+", "%2B"), "UTF-8").toByteArray()
+    }
+    return mime to bytes
+}
+
+/** Puts [bytes] into the public Downloads folder under [fileName] and returns where it landed. */
+private fun writeToDownloads(context: Context, fileName: String, mime: String, bytes: ByteArray): Uri {
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        val resolver = context.contentResolver
+        val values = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(android.provider.MediaStore.Downloads.MIME_TYPE, mime)
+            put(android.provider.MediaStore.Downloads.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: error("downloads not writable")
+        try {
+            resolver.openOutputStream(uri)?.use { it.write(bytes) } ?: error("downloads not writable")
+            values.clear()
+            values.put(android.provider.MediaStore.Downloads.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+        } catch (e: Exception) {
+            // A half-written pending row is invisible and never cleaned up; take it with us.
+            runCatching { resolver.delete(uri, null, null) }
+            throw e
+        }
+        return uri
+    }
+    val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).also { it.mkdirs() }
+    var file = java.io.File(dir, fileName)
+    var n = 2
+    while (file.exists()) {
+        file = java.io.File(dir, "${fileName.substringBeforeLast('.')} ($n).${fileName.substringAfterLast('.', "")}".removeSuffix("."))
+        n++
+    }
+    file.writeBytes(bytes)
+    android.media.MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf(mime), null)
+    return Uri.fromFile(file)
 }
 
 class BrowserViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

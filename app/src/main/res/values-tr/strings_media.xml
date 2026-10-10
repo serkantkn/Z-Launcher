@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings for the Internet, Files, Notes, Pictures, Music and Camera hubs added by the audit fixes. -->
+<resources>
+    <!-- Internet hub -->
+    <string name="browser_download_blob">bu bağlantı indirilemiyor</string>
+    <string name="browser_page_crashed">sayfa çöktü</string>
+    <string name="browser_page_reload">yeniden yükle</string>
+    <string name="browser_permission_title">site izni</string>
+    <string name="browser_permission_body">%1$s şunu kullanmak istiyor: %2$s.</string>
+    <string name="browser_permission_camera">kamera</string>
+    <string name="browser_permission_microphone">mikrofon</string>
+    <string name="browser_permission_location">konum</string>
+    <string name="browser_permission_allow">izin ver</string>
+    <string name="browser_permission_deny">reddet</string>
+</resources>

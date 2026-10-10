@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings for the Internet, Files, Notes, Pictures, Music and Camera hubs added by the audit fixes. -->
+<resources>
+    <!-- Internet hub -->
+    <string name="browser_download_blob">this link cannot be downloaded</string>
+    <string name="browser_page_crashed">the page crashed</string>
+    <string name="browser_page_reload">reload</string>
+    <string name="browser_permission_title">site permission</string>
+    <string name="browser_permission_body">%1$s wants to use your %2$s.</string>
+    <string name="browser_permission_camera">camera</string>
+    <string name="browser_permission_microphone">microphone</string>
+    <string name="browser_permission_location">location</string>
+    <string name="browser_permission_allow">allow</string>
+    <string name="browser_permission_deny">deny</string>
+</resources>
