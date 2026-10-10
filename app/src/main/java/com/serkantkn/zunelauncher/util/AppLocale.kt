@@ -61,15 +61,43 @@ object AppLocale {
         return true
     }
 
-    /** Wraps [base] with the chosen locale on pre-Android 13 devices; a no-op otherwise. */
+    /**
+     * Wraps [base] with the chosen locale.
+     *
+     * On Android 13+ the platform is meant to do this for every context of the process, and does
+     * when an activity started the process. When a service started it — the accessibility
+     * service drawing the action center, the notification listener — the application context
+     * keeps the phone's language, so the chosen one is applied here as well.
+     */
     fun wrap(base: Context): Context {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return base
-        val tag = prefs(base).getString(KEY_TAG, null) ?: return base
-        val locale = Locale.forLanguageTag(tag)
+        val locale = chosenLocale(base) ?: return base
+        if (base.resources.configuration.locales[0] == locale) return base
         Locale.setDefault(locale)
         val config = Configuration(base.resources.configuration)
         config.setLocale(locale)
         return base.createConfigurationContext(config)
+    }
+
+    /** The language picked in the launcher, or null when it follows the phone. */
+    fun chosenLocale(context: Context): Locale? {
+        val tag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.getSystemService(LocaleManager::class.java)
+                ?.applicationLocales
+                ?.takeIf { !it.isEmpty }
+                ?.get(0)
+                ?.toLanguageTag()
+        } else {
+            prefs(context).getString(KEY_TAG, null)
+        }
+        return tag?.let { Locale.forLanguageTag(it) }
+    }
+
+    /**
+     * Makes the chosen language the process's default, for the date and number formats that
+     * read Locale.getDefault(). Called when the process starts, whatever started it.
+     */
+    fun applyDefault(context: Context) {
+        chosenLocale(context)?.let { Locale.setDefault(it) }
     }
 
     private fun prefs(context: Context) =

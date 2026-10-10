@@ -47,7 +47,7 @@
     <string name="open_settings">open settings</string>
     <string name="type_message">type a message...</string>
     <string name="send">send</string>
-    <string name="accessibility_service_description">Captures the volume keys to show the Windows Phone volume bar on top of other apps. Screen content is never read.</string>
+    <string name="accessibility_service_description">Captures the volume keys to show the Windows Phone volume bar, and covers the status bar so that a pull from the top opens the Windows Phone action center instead of the system shade. Screen content is never read.</string>
     <string name="settings_language">language</string>
     <string name="settings_language_subtitle">app language</string>
     <string name="language_system">system language</string>

@@ -47,7 +47,7 @@
     <string name="open_settings">ayarları aç</string>
     <string name="type_message">mesaj yaz...</string>
     <string name="send">gönder</string>
-    <string name="accessibility_service_description">Ses tuşlarını yakalayarak Windows Phone ses barını diğer uygulamaların üstünde gösterir. Ekran içeriği okunmaz.</string>
+    <string name="accessibility_service_description">Ses tuşlarını yakalayarak Windows Phone ses barını gösterir ve durum çubuğunu kaplayarak yukarıdan çekince sistem paneli yerine Windows Phone eylem merkezini açar. Ekran içeriği okunmaz.</string>
     <string name="settings_language">dil</string>
     <string name="settings_language_subtitle">uygulama dili</string>
     <string name="language_system">sistem dili</string>

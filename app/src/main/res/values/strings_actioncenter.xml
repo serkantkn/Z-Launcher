@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_center_all_settings">all settings</string>
+    <string name="action_center_empty">no notifications</string>
+</resources>

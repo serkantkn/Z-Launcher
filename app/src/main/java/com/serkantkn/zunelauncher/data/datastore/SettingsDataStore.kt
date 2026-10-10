@@ -73,6 +73,7 @@ class SettingsDataStore(private val context: Context) {
         val BROWSER_DOWNLOADS = stringPreferencesKey("browser_downloads")
         val NOTIFICATION_STYLE = stringPreferencesKey("notification_style")
         val VOLUME_BAR_STYLE = stringPreferencesKey("volume_bar_style")
+        val WP_ACTION_CENTER = booleanPreferencesKey("wp_action_center")
         val DISABLED_NOTIFICATION_APPS = stringPreferencesKey("disabled_notification_apps")
         val TIME_FORMAT = stringPreferencesKey("time_format")
         val DATE_FORMAT = stringPreferencesKey("date_format")
@@ -939,6 +940,15 @@ class SettingsDataStore(private val context: Context) {
         context.settingsDataStore.edit { prefs ->
             prefs[NOTIFICATION_STYLE] = style.name
         }
+    }
+
+    /** Whether a pull from the status bar opens the Windows Phone action center. On by default. */
+    val wpActionCenter: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[WP_ACTION_CENTER] ?: true
+    }
+
+    suspend fun setWpActionCenter(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[WP_ACTION_CENTER] = enabled }
     }
 
     suspend fun setVolumeBarStyle(style: com.serkantkn.zunelauncher.data.model.VolumeBarStyle) {

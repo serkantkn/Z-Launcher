@@ -48,6 +48,9 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        // Whatever started the process — an activity, the accessibility service, a receiver —
+        // the dates and numbers it formats come out in the launcher's language.
+        com.serkantkn.zunelauncher.util.AppLocale.applyDefault(this)
         NoteFallbackTitles.refresh(localized())
         bindTimeText()
         rearmClock()

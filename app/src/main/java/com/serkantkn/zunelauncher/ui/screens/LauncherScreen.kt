@@ -1051,7 +1051,26 @@ private fun RenderHubScreen(
     }
 }
 
+/**
+ * The pull from the top of Start. With the Windows Phone action center on (the default) it
+ * brings that down and never the system shade; with it off, the system shade as before.
+ */
 internal fun expandNotificationPanel(context: Context) {
+    kotlinx.coroutines.MainScope().launch {
+        val wpPanel = runCatching {
+            context.applicationContext.appContainer.settingsDataStore.wpActionCenter.first()
+        }.getOrDefault(true)
+        if (wpPanel) {
+            if (!com.serkantkn.zunelauncher.data.service.ActionCenterOverlay.open(context)) {
+                ZuneLog.w("LauncherScreen", "the action center has nothing to draw with")
+            }
+        } else {
+            expandSystemShade(context)
+        }
+    }
+}
+
+private fun expandSystemShade(context: Context) {
     try {
         val statusBarService = context.getSystemService("statusbar")
         val statusBarManager = Class.forName("android.app.StatusBarManager")
