@@ -15,9 +15,14 @@ import androidx.core.content.ContextCompat
 import com.serkantkn.zunelauncher.MainActivity
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.HubType
+import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.TimeText
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.localizedString
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
  * The reminder itself: a notification, not an alarm screen.
@@ -60,6 +65,24 @@ class EventReminderReceiver : BroadcastReceiver() {
         runCatching {
             NotificationManagerCompat.from(context).notify(eventId.hashCode(), notification)
         }.onFailure { ZuneLog.w(TAG, "the reminder would not show", it) }
+
+        // One week of a series has been warned about; the week after needs its own booking.
+        if (intent.getBooleanExtra(EXTRA_REPEATS, false)) rebookNext(context, eventId)
+    }
+
+    private fun rebookNext(context: Context, eventId: String) {
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val container = context.applicationContext.appContainer
+                val master = container.calendarDataStore.eventsFlow.first().firstOrNull { it.id == eventId }
+                if (master != null) container.eventReminderScheduler.schedule(master)
+            } catch (e: Exception) {
+                ZuneLog.w(TAG, "the next reminder of the series would not book", e)
+            } finally {
+                pendingResult.finish()
+            }
+        }
     }
 
     private fun openCalendar(context: Context, eventId: String): PendingIntent =
@@ -98,6 +121,7 @@ class EventReminderReceiver : BroadcastReceiver() {
         const val EXTRA_START = "START"
         const val EXTRA_LOCATION = "LOCATION"
         const val EXTRA_ALL_DAY = "ALL_DAY"
+        const val EXTRA_REPEATS = "REPEATS"
         private const val CHANNEL_ID = "zune_events"
         private const val TAG = "EventReminderReceiver"
     }

@@ -15,6 +15,7 @@
     <string name="cal_scope_delete_message">delete only this event, or the whole series?</string>
     <string name="cal_scope_this_event">this event</string>
     <string name="cal_scope_whole_series">whole series</string>
+    <string name="cal_save_failed">the calendar would not take the change</string>
 
     <!-- Weather -->
     <string name="weather_updated_just_now">updated just now</string>

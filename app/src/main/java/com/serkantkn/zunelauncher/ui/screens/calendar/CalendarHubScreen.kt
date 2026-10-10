@@ -48,9 +48,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
 import com.serkantkn.zunelauncher.data.model.CalendarInfo
+import com.serkantkn.zunelauncher.data.model.EventEditScope
 import com.serkantkn.zunelauncher.data.repository.SettingsBridge
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.components.MetroNotice
+import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
+import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
@@ -137,6 +140,9 @@ fun CalendarHubScreen(
     val hingeSpec = rememberHingeSpec()
     val editorHinge = remember { Animatable(0f) }
     var menuTarget by remember { mutableStateOf<CalendarEvent?>(null) }
+    // A change to one week of a repeating event: this week, or every week?
+    var scopeQuestion by remember { mutableStateOf<ScopeQuestion?>(null) }
+    val notice by viewModel.notice.collectAsState()
 
     fun openEditor(event: CalendarEvent, isNew: Boolean) {
         editingEvent = event
@@ -165,8 +171,38 @@ fun CalendarHubScreen(
         )
     }
 
-    BackHandler(enabled = editingEvent != null || menuTarget != null) {
+    /** Saves straight away, or asks first when the event is one week of a series. */
+    fun saveOrAsk(saved: CalendarEvent, calendarId: Long) {
+        if (saved.isOccurrence && saved.isRepeating) {
+            scopeQuestion = ScopeQuestion(saved, calendarId, isDelete = false)
+        } else {
+            viewModel.saveEvent(saved, calendarId)
+            closeEditor()
+        }
+    }
+
+    fun deleteOrAsk(event: CalendarEvent, fromEditor: Boolean) {
+        if (event.isOccurrence && event.isRepeating) {
+            scopeQuestion = ScopeQuestion(event, null, isDelete = true, closeEditorAfter = fromEditor)
+        } else {
+            viewModel.deleteEvent(event)
+            if (fromEditor) closeEditor()
+        }
+    }
+
+    fun answerScope(question: ScopeQuestion, scope: EventEditScope) {
+        scopeQuestion = null
+        if (question.isDelete) {
+            viewModel.deleteEvent(question.event, scope)
+        } else {
+            viewModel.saveEvent(question.event, question.calendarId, scope)
+        }
+        if (question.closeEditorAfter) closeEditor()
+    }
+
+    BackHandler(enabled = editingEvent != null || menuTarget != null || scopeQuestion != null) {
         when {
+            scopeQuestion != null -> scopeQuestion = null
             menuTarget != null -> menuTarget = null
             else -> closeEditor()
         }
@@ -191,6 +227,14 @@ fun CalendarHubScreen(
                             )
                         )
                     },
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+            }
+            notice?.let { res ->
+                MetroNotice(
+                    message = stringResource(res),
+                    actionLabel = stringResource(R.string.common_ok),
+                    onAction = { viewModel.clearNotice() },
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
             }
@@ -365,20 +409,19 @@ fun CalendarHubScreen(
                         event = editing,
                         isNew = isNewEvent,
                         calendars = calendars.filter { it.isWritable },
-                        selectedCalendarId = editing.calendarId
-                            ?: defaultCalendarId
-                            ?: calendars.firstOrNull { it.isWritable && it.isPrimary }?.id
-                            ?: calendars.firstOrNull { it.isWritable }?.id
-                            ?: CalendarInfo.LOCAL_ID,
+                        // An event stays where it lives unless the chip is changed: the
+                        // launcher's own events open on "local", a phone event on its calendar.
+                        selectedCalendarId = when {
+                            !isNewEvent && editing.isLocal -> CalendarInfo.LOCAL_ID
+                            else -> editing.calendarId
+                                ?: defaultCalendarId
+                                ?: calendars.firstOrNull { it.isWritable && it.isPrimary }?.id
+                                ?: calendars.firstOrNull { it.isWritable }?.id
+                                ?: CalendarInfo.LOCAL_ID
+                        },
                         weekStart = weekStart,
-                        onSave = { saved, calendarId ->
-                            viewModel.saveEvent(saved, calendarId)
-                            closeEditor()
-                        },
-                        onDelete = {
-                            viewModel.deleteEvent(it)
-                            closeEditor()
-                        },
+                        onSave = { saved, calendarId -> saveOrAsk(saved, calendarId) },
+                        onDelete = { deleteOrAsk(it, fromEditor = true) },
                         onClose = { closeEditor() }
                     )
                 }
@@ -407,14 +450,50 @@ fun CalendarHubScreen(
                         label = stringResource(R.string.common_delete),
                         color = MaterialTheme.colorScheme.error
                     ) {
-                        viewModel.deleteEvent(event)
                         menuTarget = null
+                        deleteOrAsk(event, fromEditor = false)
                     }
                 }
             }
         }
+
+        // One week of a series, or all of them
+        scopeQuestion?.let { question ->
+            ZuneFlipDialog(
+                onDismissRequest = { scopeQuestion = null },
+                title = stringResource(R.string.cal_scope_title),
+                confirmButton = {
+                    ZuneDialogButton(
+                        text = stringResource(R.string.cal_scope_this_event),
+                        onClick = { dismissWithAnim { answerScope(question, EventEditScope.THIS_EVENT) } }
+                    )
+                },
+                dismissButton = {
+                    ZuneDialogButton(
+                        text = stringResource(R.string.cal_scope_whole_series),
+                        onClick = { dismissWithAnim { answerScope(question, EventEditScope.WHOLE_SERIES) } }
+                    )
+                }
+            ) {
+                Text(
+                    text = stringResource(
+                        if (question.isDelete) R.string.cal_scope_delete_message else R.string.cal_scope_edit_message
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White
+                )
+            }
+        }
     }
 }
+
+/** A pending "this event or the whole series" answer, with what it was asked for. */
+private data class ScopeQuestion(
+    val event: CalendarEvent,
+    val calendarId: Long?,
+    val isDelete: Boolean,
+    val closeEditorAfter: Boolean = true
+)
 
 /**
  * Where a new event starts: the next whole hour on the day being looked at, or on today the next

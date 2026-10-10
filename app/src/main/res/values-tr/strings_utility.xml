@@ -15,6 +15,7 @@
     <string name="cal_scope_delete_message">yalnızca bu etkinlik mi, tüm seri mi silinsin?</string>
     <string name="cal_scope_this_event">bu etkinlik</string>
     <string name="cal_scope_whole_series">tüm seri</string>
+    <string name="cal_save_failed">takvim değişikliği almadı</string>
 
     <!-- Hava durumu -->
     <string name="weather_updated_just_now">az önce güncellendi</string>
