@@ -50,7 +50,7 @@ import com.serkantkn.zunelauncher.ui.components.WpDurationPicker
 @Composable
 internal fun TimerPage(
     state: ClockDataStore.TimerState,
-    remainingMillis: Long,
+    remainingMillis: () -> Long,
     presets: List<Long>,
     onSetDuration: (Long) -> Unit,
     onOpenSetup: () -> Unit,
@@ -58,18 +58,20 @@ internal fun TimerPage(
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
-    val progress = if (state.totalMillis > 0L) {
-        1f - (remainingMillis.toFloat() / state.totalMillis.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
-    val finished = state.totalMillis > 0L && remainingMillis <= 0L && !state.isRunning
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = contentPadding
     ) {
         item {
+            // Read inside the item, so the quarter-second tick redraws the figure and not the hub.
+            val remaining = remainingMillis()
+            val progress = if (state.totalMillis > 0L) {
+                1f - (remaining.toFloat() / state.totalMillis.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            val finished = state.totalMillis > 0L && remaining <= 0L && !state.isRunning
             Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                 if (state.label.isNotBlank()) {
                     Text(
@@ -79,8 +81,8 @@ internal fun TimerPage(
                     )
                 }
                 MetroBigNumber(
-                    text = formatCountdown(remainingMillis),
-                    fontSize = if (remainingMillis >= 3_600_000L) 68.sp else 88.sp,
+                    text = formatCountdown(remaining),
+                    fontSize = if (remaining >= 3_600_000L) 68.sp else 88.sp,
                     color = if (finished) zuneColors.accentColor else null
                 )
                 Spacer(modifier = Modifier.height(14.dp))

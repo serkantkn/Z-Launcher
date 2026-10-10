@@ -42,7 +42,7 @@ import com.serkantkn.zunelauncher.ui.components.MetroRule
 import com.serkantkn.zunelauncher.ui.components.MetroSubScreen
 import com.serkantkn.zunelauncher.ui.components.MetroSwitchRow
 import com.serkantkn.zunelauncher.ui.components.MetroTextField
-import com.serkantkn.zunelauncher.ui.components.WpDurationPicker
+import com.serkantkn.zunelauncher.ui.screens.clock.WpClockPicker
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.util.RepeatKind
 import com.serkantkn.zunelauncher.util.isSameDay
@@ -182,16 +182,10 @@ private fun EventEditBody(
         }
         if (!draft.isAllDay) {
             item {
-                WpDurationPicker(
-                    hours = draft.hour,
-                    minutes = draft.minute,
-                    seconds = null,
-                    onHours = { setTime(it, draft.minute) },
-                    onMinutes = { setTime(draft.hour, it) },
-                    onSeconds = {},
-                    hourLabel = stringResource(R.string.clock_hours),
-                    minuteLabel = stringResource(R.string.clock_minutes),
-                    secondLabel = stringResource(R.string.clock_seconds),
+                WpClockPicker(
+                    hour = draft.hour,
+                    minute = draft.minute,
+                    onTime = { hour, minute -> setTime(hour, minute) },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                 )
             }

@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +35,7 @@ import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.WorldCity
 import com.serkantkn.zunelauncher.ui.components.wpTilt
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.util.TimeText
 import com.serkantkn.zunelauncher.util.formatOffset
 import com.serkantkn.zunelauncher.util.isNightInZone
 import com.serkantkn.zunelauncher.util.zoneDayOffset
@@ -67,10 +70,14 @@ internal fun WorldClockPage(
 ) {
     val zuneColors = LocalZuneColors.current
     val date = remember(now) { Date(now) }
-    val timeFormat = remember(showSeconds) {
-        SimpleDateFormat(if (showSeconds) "HH:mm:ss" else "HH:mm", Locale.getDefault())
+    val use24h by TimeText.use24h.collectAsState()
+    // Keyed on the phone's zone as well: a format remembered once keeps the zone it was made
+    // in, and a traveller's local time would stay on the old city until the hub was reopened.
+    val zoneId = TimeZone.getDefault().id
+    val timeFormat = remember(showSeconds, use24h, zoneId) {
+        SimpleDateFormat(TimeText.pattern(withSeconds = showSeconds, use24h = use24h), Locale.getDefault())
     }
-    val dateFormat = remember { SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()) }
+    val dateFormat = remember(zoneId) { SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -135,8 +142,9 @@ private fun WorldCityRow(
     val interactionSource = remember { MutableInteractionSource() }
 
     val zone = remember(city.timeZoneId) { TimeZone.getTimeZone(city.timeZoneId) }
-    val timeFormat = remember(city.timeZoneId) {
-        SimpleDateFormat("HH:mm", Locale.getDefault()).apply { timeZone = zone }
+    val use24h by TimeText.use24h.collectAsState()
+    val timeFormat = remember(city.timeZoneId, use24h) {
+        SimpleDateFormat(TimeText.pattern(use24h = use24h), Locale.getDefault()).apply { timeZone = zone }
     }
     val offsetMinutes = zoneOffsetMinutes(now, city.timeZoneId)
     val dayOffset = zoneDayOffset(now, city.timeZoneId)

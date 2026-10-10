@@ -1,7 +1,7 @@
 package com.serkantkn.zunelauncher.data.model
 
+import com.serkantkn.zunelauncher.util.TimeText
 import java.util.Calendar
-import java.util.Locale
 import java.util.UUID
 
 /**
@@ -48,7 +48,8 @@ data class CalendarEvent(
 
     val minute: Int get() = fieldOf(Calendar.MINUTE)
 
-    val formattedTime: String get() = String.format(Locale.ROOT, "%02d:%02d", hour, minute)
+    /** The start as a clock reading, the way the clock setting says it. */
+    val formattedTime: String get() = TimeText.clock(hour, minute)
 
     /** How long it runs for, never negative. */
     val durationMillis: Long get() = (endMillis - startMillis).coerceAtLeast(0L)

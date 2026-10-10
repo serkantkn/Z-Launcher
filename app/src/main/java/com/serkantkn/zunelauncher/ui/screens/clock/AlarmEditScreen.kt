@@ -40,7 +40,6 @@ import com.serkantkn.zunelauncher.ui.components.MetroSubScreen
 import com.serkantkn.zunelauncher.ui.components.MetroSwitchRow
 import com.serkantkn.zunelauncher.ui.components.MetroTextField
 import com.serkantkn.zunelauncher.ui.components.MetroValueRow
-import com.serkantkn.zunelauncher.ui.components.WpDurationPicker
 
 /**
  * Setting an alarm.
@@ -113,16 +112,10 @@ private fun AlarmEditBody(
         contentPadding = contentPadding
     ) {
         item {
-            WpDurationPicker(
-                hours = draft.hour,
-                minutes = draft.minute,
-                seconds = null,
-                onHours = { draft = draft.copy(hour = it) },
-                onMinutes = { draft = draft.copy(minute = it) },
-                onSeconds = {},
-                hourLabel = stringResource(R.string.clock_hours),
-                minuteLabel = stringResource(R.string.clock_minutes),
-                secondLabel = stringResource(R.string.clock_seconds),
+            WpClockPicker(
+                hour = draft.hour,
+                minute = draft.minute,
+                onTime = { hour, minute -> draft = draft.copy(hour = hour, minute = minute) },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
             )
         }

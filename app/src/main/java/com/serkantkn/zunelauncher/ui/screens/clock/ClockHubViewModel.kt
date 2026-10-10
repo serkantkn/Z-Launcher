@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.clock
 
 import android.app.Application
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.data.datastore.ClockDataStore
@@ -63,14 +64,17 @@ class ClockHubViewModel(application: Application) : AndroidViewModel(application
 
     fun saveAlarm(alarm: Alarm) {
         viewModelScope.launch {
+            // Booked first, so the record can say what moment it was booked for: that is how a
+            // phone that was off at the time tells a missed alarm from one due tomorrow.
+            val booked = alarmScheduler.schedule(alarm)
+            val settled = alarm.copy(bookedForMillis = booked)
             val stored = alarmDataStore.alarmsFlow.first()
             val updated = if (stored.any { it.id == alarm.id }) {
-                stored.map { if (it.id == alarm.id) alarm else it }
+                stored.map { if (it.id == alarm.id) settled else it }
             } else {
-                stored + alarm
+                stored + settled
             }
             alarmDataStore.saveAlarms(updated)
-            alarmScheduler.schedule(alarm)
         }
     }
 
@@ -134,16 +138,24 @@ class ClockHubViewModel(application: Application) : AndroidViewModel(application
     val stopwatch: StateFlow<ClockDataStore.StopwatchState> = clockDataStore.stopwatch
         .stateIn(viewModelScope, SharingStarted.Eagerly, ClockDataStore.StopwatchState())
 
+    init {
+        // A watch left running across a reboot, or across the clock being set, has lost the
+        // base it was counting from: freeze it at what it had counted for certain.
+        viewModelScope.launch {
+            val state = clockDataStore.stopwatch.first()
+            if (state.isRunning && !state.sameClock(System.currentTimeMillis(), SystemClock.elapsedRealtime())) {
+                clockDataStore.saveStopwatch(state.copy(isRunning = false))
+            }
+        }
+    }
+
     fun toggleStopwatch() {
         val state = stopwatch.value
-        val now = System.currentTimeMillis()
+        val nowWall = System.currentTimeMillis()
+        val nowRealtime = SystemClock.elapsedRealtime()
         viewModelScope.launch {
             clockDataStore.saveStopwatch(
-                if (state.isRunning) {
-                    state.copy(isRunning = false, elapsedMillis = state.readingAt(now))
-                } else {
-                    state.copy(isRunning = true, baseMillis = now - state.elapsedMillis)
-                }
+                if (state.isRunning) state.stopped(nowWall, nowRealtime) else state.started(nowWall, nowRealtime)
             )
         }
     }
@@ -156,7 +168,7 @@ class ClockHubViewModel(application: Application) : AndroidViewModel(application
 
     fun addLap() {
         val state = stopwatch.value
-        val reading = state.readingAt(System.currentTimeMillis())
+        val reading = state.readingAt(System.currentTimeMillis(), SystemClock.elapsedRealtime())
         if (reading <= 0L) return
         viewModelScope.launch {
             clockDataStore.saveStopwatch(state.copy(laps = listOf(reading) + state.laps))
@@ -202,10 +214,11 @@ class ClockHubViewModel(application: Application) : AndroidViewModel(application
             if (state.isRunning) {
                 val remaining = state.remainingAt(System.currentTimeMillis())
                 timerScheduler.cancel()
-                TimerNotifier.clear(context)
                 clockDataStore.saveTimer(
                     state.copy(isRunning = false, endsAtMillis = 0L, remainingMillis = remaining)
                 )
+                // Paused is not gone: the shade keeps it, with a way to pick it up again.
+                TimerNotifier.showPaused(context, remaining, state.label)
             } else {
                 // Restarting a finished countdown starts it over rather than ending immediately.
                 val duration = state.remainingMillis.takeIf { it > 0L } ?: state.totalMillis

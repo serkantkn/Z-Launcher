@@ -18,17 +18,35 @@ import com.serkantkn.zunelauncher.util.ZuneLog
  * of alarm Android will not delay for battery: it is the call the phone's own clock app makes, and
  * it is what puts the little alarm symbol in the status bar. That symbol is a link, so it is given
  * somewhere to go — the launcher's own Clock hub, on the alarms page.
+ *
+ * An alarm has two bookings, not one. Its own — the next weekday, or the one moment a reminder is
+ * for — and, while it is snoozed, the snooze. They are booked under different actions and request
+ * codes so that one never replaces the other: snoozing a weekday alarm used to overwrite the next
+ * morning's booking, and the morning after the snooze nothing rang.
  */
 class AlarmScheduler(private val context: Context) {
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    fun schedule(alarm: Alarm) {
+    /**
+     * Books the alarm's own next moment. Returns when it was booked for, or null when there was
+     * nothing left to book (disabled, or a reminder whose moment has already passed).
+     */
+    fun schedule(alarm: Alarm): Long? {
         if (!alarm.isEnabled) {
             cancel(alarm)
-            return
+            return null
         }
-        val triggerAt = alarm.nextTriggerMillis()
+        val now = System.currentTimeMillis()
+        // The snooze has its own booking; this one is for the alarm's own time.
+        val own = alarm.copy(snoozedUntilMillis = null)
+        val triggerAt = own.dueAt(now)
+        if (triggerAt == null) {
+            cancel(alarm)
+            return null
+        }
         arm(alarm, triggerAt, isSnooze = false)
+        if (alarm.isSnoozedAt(now)) arm(alarm, alarm.snoozedUntilMillis!!, isSnooze = true)
+        return triggerAt
     }
 
     /** Puts a ringing alarm off until [untilMillis] without touching when it would next be due. */
@@ -36,13 +54,14 @@ class AlarmScheduler(private val context: Context) {
         arm(alarm, untilMillis, isSnooze = true)
     }
 
+    /** Drops a pending snooze and nothing else. */
+    fun cancelSnooze(alarm: Alarm) {
+        alarmManager.cancel(pendingIntent(alarm.id, isSnooze = true))
+    }
+
     private fun arm(alarm: Alarm, triggerAt: Long, isSnooze: Boolean) {
-        val intent = Intent(context, AlarmReceiver::class.java).apply {
-            // A distinct action per alarm, so two alarms never collide into one pending intent.
-            action = "${AlarmReceiver.ACTION_FIRE}.${alarm.id}"
-            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarm.id)
+        val intent = fireIntent(alarm.id, isSnooze).apply {
             putExtra(AlarmReceiver.EXTRA_ALARM_LABEL, alarm.label)
-            putExtra(AlarmReceiver.EXTRA_IS_SNOOZE, isSnooze)
             alarm.noteId?.let { putExtra(AlarmReceiver.EXTRA_NOTE_ID, it) }
             // How it should ring travels with the alarm rather than being looked up when it goes
             // off: the intent is rebuilt on every save, so these are always what was last saved,
@@ -56,7 +75,7 @@ class AlarmScheduler(private val context: Context) {
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            alarm.id.hashCode(),
+            requestCode(alarm.id, isSnooze),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -78,18 +97,31 @@ class AlarmScheduler(private val context: Context) {
         }
     }
 
+    /** Takes both of the alarm's bookings out of the system's clock. */
     fun cancel(alarm: Alarm) {
-        val intent = Intent(context, AlarmReceiver::class.java).apply {
-            action = "${AlarmReceiver.ACTION_FIRE}.${alarm.id}"
+        alarmManager.cancel(pendingIntent(alarm.id, isSnooze = false))
+        alarmManager.cancel(pendingIntent(alarm.id, isSnooze = true))
+    }
+
+    private fun fireIntent(alarmId: String, isSnooze: Boolean): Intent =
+        Intent(context, AlarmReceiver::class.java).apply {
+            // A distinct action per alarm and per booking, so no two ever collide into one
+            // pending intent.
+            action = (if (isSnooze) AlarmReceiver.ACTION_SNOOZE_FIRE else AlarmReceiver.ACTION_FIRE) + ".$alarmId"
+            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+            putExtra(AlarmReceiver.EXTRA_IS_SNOOZE, isSnooze)
         }
-        val pendingIntent = PendingIntent.getBroadcast(
+
+    private fun pendingIntent(alarmId: String, isSnooze: Boolean): PendingIntent =
+        PendingIntent.getBroadcast(
             context,
-            alarm.id.hashCode(),
-            intent,
+            requestCode(alarmId, isSnooze),
+            fireIntent(alarmId, isSnooze),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        alarmManager.cancel(pendingIntent)
-    }
+
+    private fun requestCode(alarmId: String, isSnooze: Boolean): Int =
+        if (isSnooze) Alarm.snoozeRequestCode(alarmId) else Alarm.requestCode(alarmId)
 
     /**
      * Whether the phone will let the launcher name an exact minute.

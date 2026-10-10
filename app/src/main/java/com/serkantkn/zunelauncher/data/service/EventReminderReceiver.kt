@@ -15,10 +15,9 @@ import androidx.core.content.ContextCompat
 import com.serkantkn.zunelauncher.MainActivity
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.HubType
+import com.serkantkn.zunelauncher.util.TimeText
 import com.serkantkn.zunelauncher.util.ZuneLog
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.serkantkn.zunelauncher.util.localizedString
 
 /**
  * The reminder itself: a notification, not an alarm screen.
@@ -40,15 +39,15 @@ class EventReminderReceiver : BroadcastReceiver() {
         ensureChannel(context)
 
         val whenText = if (isAllDay) {
-            context.getString(R.string.cal_all_day)
+            context.localizedString(R.string.cal_all_day)
         } else {
-            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(start))
+            TimeText.format(start)
         }
         val text = listOfNotNull(whenText, location.takeIf { it.isNotBlank() }).joinToString(" • ")
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_wp_calendar)
-            .setContentTitle(title.ifBlank { context.getString(R.string.hub_calendar) })
+            .setContentTitle(title.ifBlank { context.localizedString(R.string.hub_calendar) })
             .setContentText(text)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -81,7 +80,7 @@ class EventReminderReceiver : BroadcastReceiver() {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                context.getString(R.string.hub_calendar),
+                context.localizedString(R.string.hub_calendar),
                 NotificationManager.IMPORTANCE_HIGH
             )
         )

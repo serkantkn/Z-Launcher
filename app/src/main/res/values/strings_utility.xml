@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Alarms and the timer -->
+    <string name="alarm_notification_title">alarm</string>
+    <string name="alarm_channel_ringing">ringing alarms</string>
+    <string name="alarm_channel_missed">missed alarms</string>
+    <string name="alarm_missed_title">missed alarm</string>
+    <string name="alarm_missed_text">%1$s did not ring while the phone was off; it has been switched off</string>
+    <string name="clock_timer_paused_at">paused • %1$s left</string>
+    <string name="common_resume">resume</string>
+
+    <!-- Calendar -->
+    <string name="cal_scope_title">repeating event</string>
+    <string name="cal_scope_edit_message">change only this event, or the whole series?</string>
+    <string name="cal_scope_delete_message">delete only this event, or the whole series?</string>
+    <string name="cal_scope_this_event">this event</string>
+    <string name="cal_scope_whole_series">whole series</string>
+
+    <!-- Weather -->
+    <string name="weather_updated_just_now">updated just now</string>
+    <string name="weather_updated_minutes_ago">updated %1$d min ago</string>
+    <string name="weather_updated_hours_ago">updated %1$d h ago</string>
+    <string name="weather_status_quota">refresh limit reached for today</string>
+    <string name="weather_status_no_network">no network</string>
+    <string name="weather_status_fresh">already up to date</string>
+    <string name="weather_suffix_km">km</string>
+    <string name="weather_suffix_mi">mi</string>
+    <string name="weather_suffix_hpa">hPa</string>
+    <string name="weather_suffix_inhg">inHg</string>
+    <string name="weather_suffix_mm">mm</string>
+    <string name="weather_suffix_in">in</string>
+
+    <!-- Apps -->
+    <string name="apps_launch_failed">the app could not be opened</string>
+
+    <!-- Settings: permissions -->
+    <string name="settings_perm_calendar">calendar</string>
+    <string name="settings_perm_calendar_sub">for the calendar hub and the agenda on start</string>
+    <string name="settings_perm_location">location</string>
+    <string name="settings_perm_location_sub">for the weather where you are</string>
+    <string name="settings_perm_notifications">notifications</string>
+    <string name="settings_perm_notifications_sub">for alarms, timers and reminders</string>
+    <string name="settings_perm_exact_alarms">exact alarms</string>
+    <string name="settings_perm_exact_alarms_sub">so alarms ring at the minute they were set for</string>
+    <string name="settings_perm_usage_access">usage access</string>
+    <string name="settings_perm_usage_access_sub">for the most used apps in the app list</string>
+
+    <!-- Settings: wallpaper -->
+    <string name="settings_image_load_failed">the picture could not be opened</string>
+</resources>
