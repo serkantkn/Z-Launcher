@@ -58,6 +58,11 @@ fun ZuneBackground(
     modifier: Modifier = Modifier,
     /** True for the background under Start: it drifts a little as the Zune list scrolls. */
     followsStart: Boolean = false,
+    /**
+     * True to draw the phone's own wallpaper whatever picture the launcher has been given. Said
+     * outright because a null override means "use the launcher's", not "use the system's".
+     */
+    systemWallpaper: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -98,7 +103,7 @@ fun ZuneBackground(
         onDispose { context.unregisterReceiver(receiver) }
     }
 
-    val effectiveCustomPath = customWallpaperPathOverride ?: customWallpaperPath
+    val effectiveCustomPath = if (systemWallpaper) null else customWallpaperPathOverride ?: customWallpaperPath
 
     // The picture itself is read by WallpaperImages, which keeps one copy for the whole launcher:
     // several of these backgrounds are alive at once — the Start screen, the hub in front of it,
