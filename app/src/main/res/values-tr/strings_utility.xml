@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Alarmlar ve zamanlayıcı -->
+    <string name="alarm_notification_title">alarm</string>
+    <string name="alarm_channel_ringing">çalan alarmlar</string>
+    <string name="alarm_channel_missed">kaçırılan alarmlar</string>
+    <string name="alarm_missed_title">kaçırılan alarm</string>
+    <string name="alarm_missed_text">%1$s telefon kapalıyken çalmadı; kapatıldı</string>
+    <string name="clock_timer_paused_at">duraklatıldı • %1$s kaldı</string>
+    <string name="common_resume">sürdür</string>
+
+    <!-- Takvim -->
+    <string name="cal_scope_title">yinelenen etkinlik</string>
+    <string name="cal_scope_edit_message">yalnızca bu etkinlik mi, tüm seri mi değişsin?</string>
+    <string name="cal_scope_delete_message">yalnızca bu etkinlik mi, tüm seri mi silinsin?</string>
+    <string name="cal_scope_this_event">bu etkinlik</string>
+    <string name="cal_scope_whole_series">tüm seri</string>
+    <string name="cal_save_failed">takvim değişikliği almadı</string>
+
+    <!-- Hava durumu -->
+    <string name="weather_updated_just_now">az önce güncellendi</string>
+    <string name="weather_updated_minutes_ago">%1$d dk önce güncellendi</string>
+    <string name="weather_updated_hours_ago">%1$d sa önce güncellendi</string>
+    <string name="weather_status_quota">yenileme sınırı doldu</string>
+    <string name="weather_status_no_network">ağ yok</string>
+    <string name="weather_status_fresh">zaten güncel</string>
+    <string name="weather_units_metric">metrik birimler</string>
+    <string name="weather_units_imperial">imperial birimler</string>
+    <string name="weather_suffix_km">km</string>
+    <string name="weather_suffix_mi">mi</string>
+    <string name="weather_suffix_hpa">hPa</string>
+    <string name="weather_suffix_inhg">inHg</string>
+    <string name="weather_suffix_mm">mm</string>
+    <string name="weather_suffix_in">inç</string>
+
+    <!-- Uygulamalar -->
+    <string name="apps_launch_failed">uygulama açılamadı</string>
+
+    <!-- Ayarlar: izinler -->
+    <string name="settings_perm_calendar">takvim</string>
+    <string name="settings_perm_calendar_sub">takvim hub\'ı ve başlangıçtaki ajanda için</string>
+    <string name="settings_perm_location">konum</string>
+    <string name="settings_perm_location_sub">bulunduğun yerin hava durumu için</string>
+    <string name="settings_perm_notifications">bildirimler</string>
+    <string name="settings_perm_notifications_sub">alarmlar, zamanlayıcılar ve hatırlatıcılar için</string>
+    <string name="settings_perm_exact_alarms">tam zamanlı alarmlar</string>
+    <string name="settings_perm_exact_alarms_sub">alarmlar ayarlandıkları dakikada çalsın diye</string>
+    <string name="settings_perm_usage_access">kullanım erişimi</string>
+    <string name="settings_perm_usage_access_sub">uygulama listesindeki en çok kullanılanlar için</string>
+
+    <!-- Ayarlar: duvar kağıdı -->
+    <string name="settings_image_load_failed">resim açılamadı</string>
+</resources>

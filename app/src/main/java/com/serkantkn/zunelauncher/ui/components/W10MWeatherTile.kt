@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -29,6 +30,8 @@ import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.WeatherSnapshot
 import com.serkantkn.zunelauncher.ui.screens.weather.conditionIcon
 import com.serkantkn.zunelauncher.ui.screens.weather.formatAt
+import com.serkantkn.zunelauncher.util.daysFrom
+import com.serkantkn.zunelauncher.util.hoursFrom
 
 /**
  * The weather tile: what it is doing outside, in the place the hub is set to.
@@ -55,7 +58,11 @@ fun W10MWeatherTile(
     modifier: Modifier = Modifier
 ) {
     val title = stringResource(HubType.WEATHER.titleRes)
-    val today = snapshot?.daily?.firstOrNull()
+    // The forecast was fetched a while ago: "today" and "the next hours" are the clock's, not
+    // the fetch's. Keyed on the snapshot, so a day-old tile still reads today's figures.
+    val nowSeconds = remember(snapshot?.fetchedAt) { System.currentTimeMillis() / 1000 }
+    val today = remember(snapshot, nowSeconds) { snapshot?.daysFrom(nowSeconds)?.firstOrNull() }
+    val hours = remember(snapshot, nowSeconds) { snapshot?.hoursFrom(nowSeconds).orEmpty() }
 
     W10MTileSurface(
         liveKey = "hub:${HubType.WEATHER.name}",
@@ -182,9 +189,9 @@ fun W10MWeatherTile(
                         }
                     }
 
-                    if (span >= 4 && hourSlots > 0 && snapshot.hourly.size > 1) {
+                    if (span >= 4 && hourSlots > 0 && hours.size > 1) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            snapshot.hourly.drop(1).take(hourSlots).forEach { hour ->
+                            hours.drop(1).take(hourSlots).forEach { hour ->
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier.width(HOUR_COLUMN_WIDTH)

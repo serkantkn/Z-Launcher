@@ -44,7 +44,7 @@ import com.serkantkn.zunelauncher.ui.components.metroDigitStyle
  */
 @Composable
 internal fun StopwatchPage(
-    readingMillis: Long,
+    readingMillis: () -> Long,
     laps: List<Long>,
     onClearLaps: () -> Unit,
     contentPadding: PaddingValues,
@@ -56,13 +56,16 @@ internal fun StopwatchPage(
     val slowest = remember(splits) { slowestLapIndex(splits) }
 
     ClockSplit(contentPadding = contentPadding, modifier = modifier, head = {
+            // The reading is a lambda so the tick is read here, inside this one item, and the
+            // thirty-a-second recomposition reaches this figure and nothing else on the hub.
+            val reading = readingMillis()
             Box(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 20.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 MetroBigNumber(
-                    text = formatStopwatch(readingMillis),
-                    fontSize = if (readingMillis >= 3_600_000L) 56.sp else 72.sp
+                    text = formatStopwatch(reading),
+                    fontSize = if (reading >= 3_600_000L) 56.sp else 72.sp
                 )
             }
     }) {

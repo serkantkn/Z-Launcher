@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +48,8 @@ import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneLauncherTheme
 import com.serkantkn.zunelauncher.util.AppLocale
+import com.serkantkn.zunelauncher.util.TimeText
+import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -59,8 +62,15 @@ import java.util.Locale
  * Phone alarm, which was a screen rather than a dialog, and which asked exactly two questions.
  *
  * "Ertele" is the bigger of the two and sits where a thumb lands, because it is the one pressed
- * half asleep. The sound is not owned here but by [AlarmRinger], so that the same snooze can be
- * pressed from the notification when no screen of ours is up.
+ * half asleep. The sound is not owned here but by [AlarmRinger], started by the receiver before
+ * this screen exists, so that the same snooze can be pressed from the notification when no screen
+ * of ours is up — and so that this screen being recreated, replaced by a second alarm, or swept
+ * away by the system never silences an alarm nobody has answered. Only "ertele" and "kapat" do.
+ *
+ * Manifest: the activity should carry `android:taskAffinity=""`, `android:excludeFromRecents="true"`,
+ * `android:showWhenLocked="true"`, `android:turnScreenOn="true"` and `android:launchMode="singleTop"`,
+ * so it sits in a task of its own, leaves no trace in recents, and a second alarm lands in
+ * [onNewIntent] rather than stacking a second copy.
  */
 class AlarmActivity : ComponentActivity() {
 
@@ -68,13 +78,16 @@ class AlarmActivity : ComponentActivity() {
         super.attachBaseContext(AppLocale.wrap(newBase))
     }
 
-    private var alarmId: String? = null
-    private var snoozeMinutes: Int = Alarm.DEFAULT_SNOOZE_MINUTES
-    private var isTimer: Boolean = false
+    /** Which alarm (or [AlarmRinger.TIMER_ID]) this screen is answering for. */
+    private var ringingId by mutableStateOf<String?>(null)
+    private var label by mutableStateOf("")
+    private var snoozeMinutes by mutableIntStateOf(Alarm.DEFAULT_SNOOZE_MINUTES)
+    private var isTimer by mutableStateOf(false)
 
     companion object {
         /** Set when the screen is ending a countdown rather than an alarm. */
         const val EXTRA_TIMER_MODE = "TIMER_MODE"
+        private const val TAG = "AlarmActivity"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,35 +113,29 @@ class AlarmActivity : ComponentActivity() {
             )
         }
 
-        isTimer = intent.getBooleanExtra(EXTRA_TIMER_MODE, false)
-        alarmId = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_ID)
-        val label = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_LABEL).orEmpty()
-        snoozeMinutes = intent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, Alarm.DEFAULT_SNOOZE_MINUTES)
-        val autoSilence = intent.getIntExtra(AlarmReceiver.EXTRA_AUTO_SILENCE, Alarm.DEFAULT_AUTO_SILENCE_MINUTES)
-
-        AlarmRinger.start(
-            context = this,
-            ringtoneUri = intent.getStringExtra(AlarmReceiver.EXTRA_RINGTONE),
-            vibrate = intent.getBooleanExtra(AlarmReceiver.EXTRA_VIBRATE, true),
-            // A timer has been watched for; it does not need to be crept up on.
-            gradualVolume = !isTimer && intent.getBooleanExtra(AlarmReceiver.EXTRA_GRADUAL, true)
-        )
+        bind(intent)
+        // Opened late — the notification tapped after the alarm was already answered or gave up.
+        if (!AlarmRinger.isRinging) {
+            finish()
+            return
+        }
 
         setContent {
             val fontScale by appContainer.settingsDataStore.fontScale.collectAsState(initial = 1.0f)
+            val use24h by TimeText.use24h.collectAsState()
             ZuneLauncherTheme(fontScale = fontScale) {
-                // Nobody came: stop making a noise rather than ringing into an empty room.
-                if (autoSilence > 0) {
-                    LaunchedEffect(Unit) {
-                        delay(autoSilence * 60_000L)
-                        dismiss()
-                    }
+                // The sound is the alarm; when it stops — answered from the shade, or given up on
+                // by the ringer itself — there is nothing left for this screen to ask.
+                LaunchedEffect(Unit) {
+                    while (AlarmRinger.isRinging) delay(500L)
+                    finish()
                 }
                 AlarmScreen(
                     eyebrow = stringResource(
                         if (isTimer) R.string.clock_timer_finished else R.string.alarm_wake_up
                     ).lowercase(Locale.getDefault()),
                     label = label,
+                    use24h = use24h,
                     secondaryLabel = if (isTimer) {
                         stringResource(R.string.clock_timer_add_minute)
                     } else {
@@ -141,9 +148,28 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
+    /** A second alarm while the first is up: the newer one takes the screen. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val previous = ringingId
+        bind(intent)
+        if (previous != null && previous != ringingId) {
+            ZuneLog.w(TAG, "alarm $ringingId replaces $previous on the alarm screen")
+        }
+    }
+
+    private fun bind(intent: Intent) {
+        isTimer = intent.getBooleanExtra(EXTRA_TIMER_MODE, false)
+        ringingId = if (isTimer) AlarmRinger.TIMER_ID else intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_ID)
+        label = intent.getStringExtra(AlarmReceiver.EXTRA_ALARM_LABEL).orEmpty()
+        snoozeMinutes = intent.getIntExtra(AlarmReceiver.EXTRA_SNOOZE_MINUTES, Alarm.DEFAULT_SNOOZE_MINUTES)
+    }
+
     private fun snooze() {
-        AlarmRinger.stop()
-        alarmId?.let { id ->
+        val id = ringingId
+        AlarmRinger.stop(id)
+        if (id != null) {
             sendBroadcast(
                 Intent(this, AlarmReceiver::class.java).apply {
                     action = AlarmReceiver.ACTION_SNOOZE
@@ -156,7 +182,7 @@ class AlarmActivity : ComponentActivity() {
 
     /** A timer's answer to snooze: give it one more minute from now. */
     private fun addMinute() {
-        AlarmRinger.stop()
+        AlarmRinger.stop(AlarmRinger.TIMER_ID)
         sendBroadcast(
             Intent(this, TimerReceiver::class.java).apply { action = TimerReceiver.ACTION_ADD_MINUTE }
         )
@@ -164,18 +190,21 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun dismiss() {
-        AlarmRinger.stop()
+        val id = ringingId
+        AlarmRinger.stop(id)
         if (isTimer) {
             sendBroadcast(
                 Intent(this, TimerReceiver::class.java).apply { action = TimerReceiver.ACTION_STOP }
             )
+        } else if (id != null) {
+            sendBroadcast(
+                Intent(this, AlarmReceiver::class.java).apply {
+                    action = AlarmReceiver.ACTION_DISMISS
+                    putExtra(AlarmReceiver.EXTRA_ALARM_ID, id)
+                }
+            )
         }
         finish()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        AlarmRinger.stop()
     }
 }
 
@@ -183,6 +212,7 @@ class AlarmActivity : ComponentActivity() {
 private fun AlarmScreen(
     eyebrow: String,
     label: String,
+    use24h: Boolean,
     secondaryLabel: String,
     onSecondary: () -> Unit,
     onDismiss: () -> Unit
@@ -195,7 +225,7 @@ private fun AlarmScreen(
             delay(1000L)
         }
     }
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val timeFormat = remember(use24h) { SimpleDateFormat(TimeText.pattern(use24h = use24h), Locale.getDefault()) }
     val dateFormat = remember { SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()) }
 
     Box(

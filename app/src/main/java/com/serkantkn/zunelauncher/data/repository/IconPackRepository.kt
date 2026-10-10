@@ -7,8 +7,17 @@ import android.content.res.Resources
 import android.graphics.drawable.Drawable
 import android.util.LruCache
 import com.serkantkn.zunelauncher.util.ZuneLog
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
+import java.util.concurrent.ConcurrentHashMap
 
 /** An icon pack the user has installed. */
 data class IconPackInfo(val packageName: String, val label: String)
@@ -20,18 +29,32 @@ data class IconPackInfo(val packageName: String, val label: String)
  * `appfilter.xml` mapping a component to a drawable name, and a `drawable.xml` listing everything
  * the pack contains for pickers. They live in the pack's assets, or — for packs built as
  * libraries — in its `res/xml`. Both are read here so the same code serves either shape.
+ *
+ * An appfilter is thousands of lines, and it used to be parsed on the main thread the first time
+ * a list asked for an icon, inside a `remember` — a visible stall on every pack change. It is
+ * parsed once, on IO, into caches that several threads may read; [ready] ticks when a parse
+ * lands so a list drawn before it can ask again.
  */
 class IconPackRepository(private val context: Context) {
 
     private val packageManager = context.packageManager
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    /** appfilter, per pack, parsed once. */
-    private val filters = mutableMapOf<String, Map<String, String>>()
+    /** appfilter, per pack, parsed once. Read from any thread. */
+    private val filters = ConcurrentHashMap<String, Map<String, String>>()
 
     /** The pack's whole drawable list, for the picker. */
-    private val catalogues = mutableMapOf<String, List<String>>()
+    private val catalogues = ConcurrentHashMap<String, List<String>>()
+
+    /** Packs whose parse is under way, so a list asking twenty times starts one parse, not twenty. */
+    private val parsing = ConcurrentHashMap.newKeySet<String>()
 
     private val drawableCache = LruCache<String, Drawable>(180)
+
+    private val _ready = MutableStateFlow(0)
+
+    /** Ticks whenever a pack's filter has been parsed or dropped; a list keys its icons on it. */
+    val ready: StateFlow<Int> = _ready.asStateFlow()
 
     /**
      * Packs are found the way every launcher finds them: by the theme intents the pack declares.
@@ -56,9 +79,44 @@ class IconPackRepository(private val context: Context) {
         return found.values.sortedBy { it.label.lowercase() }
     }
 
-    /** The pack's own icon for an app, or null when the pack says nothing about it. */
+    /**
+     * The pack's own icon for an app, or null when the pack says nothing about it. Parses the
+     * pack's filter if it has not been read yet — so this is for background callers, such as
+     * the tile factory; a list on the main thread uses [iconForIfReady].
+     */
     fun iconFor(packPackage: String, packageName: String, activityName: String): Drawable? {
         val filter = appFilter(packPackage)
+        return iconFrom(filter, packPackage, packageName, activityName)
+    }
+
+    /**
+     * The same, without ever parsing on the caller's thread: null until the pack has been read,
+     * with the read started on IO and [ready] ticking when it lands.
+     */
+    fun iconForIfReady(packPackage: String, packageName: String, activityName: String): Drawable? {
+        val filter = filters[packPackage]
+        if (filter == null) {
+            prepare(packPackage)
+            return null
+        }
+        return iconFrom(filter, packPackage, packageName, activityName)
+    }
+
+    /** Reads a pack's filter on IO, once, and says so through [ready]. */
+    fun prepare(packPackage: String) {
+        if (packPackage.isBlank() || filters.containsKey(packPackage)) return
+        if (!parsing.add(packPackage)) return
+        scope.launch {
+            try {
+                appFilter(packPackage)
+            } finally {
+                parsing.remove(packPackage)
+                _ready.value = _ready.value + 1
+            }
+        }
+    }
+
+    private fun iconFrom(filter: Map<String, String>, packPackage: String, packageName: String, activityName: String): Drawable? {
         if (filter.isEmpty()) return null
         val drawable = filter[componentKey(packageName, activityName)]
             ?: filter[packageFallbackKey(packageName)]
@@ -79,23 +137,54 @@ class IconPackRepository(private val context: Context) {
 
     fun drawableByName(packPackage: String, name: String): Drawable? {
         val key = "$packPackage/$name"
-        drawableCache.get(key)?.let { return it }
+        synchronized(drawableCache) { drawableCache.get(key) }?.let { return it }
         val resources = resourcesOf(packPackage) ?: return null
         return try {
             @Suppress("DISCOURAGED_API_USAGE")
             val id = resources.getIdentifier(name, "drawable", packPackage)
-            if (id == 0) null else resources.getDrawable(id, null)?.also { drawableCache.put(key, it) }
+            if (id == 0) null else resources.getDrawable(id, null)?.also {
+                synchronized(drawableCache) { drawableCache.put(key, it) }
+            }
         } catch (e: Exception) {
             ZuneLog.w(TAG, "icon pack drawable $key failed", e)
             null
         }
     }
 
-    /** Forgets everything read from a pack, so a reinstalled pack is read afresh. */
+    /** Forgets everything read from every pack, so a reinstalled pack is read afresh. */
     fun invalidate() {
         filters.clear()
         catalogues.clear()
-        drawableCache.evictAll()
+        synchronized(drawableCache) { drawableCache.evictAll() }
+        _ready.value = _ready.value + 1
+    }
+
+    /** Forgets one pack — the one the phone just said came, went or changed. */
+    fun invalidate(packPackage: String): Boolean {
+        val hadFilter = filters.remove(packPackage) != null
+        val hadCatalogue = catalogues.remove(packPackage) != null
+        if (!hadFilter && !hadCatalogue) return false
+        synchronized(drawableCache) {
+            drawableCache.snapshot().keys.filter { it.startsWith("$packPackage/") }.forEach { drawableCache.remove(it) }
+        }
+        _ready.value = _ready.value + 1
+        return true
+    }
+
+    /**
+     * Drops a pack's caches when the phone says that package changed. A pack updated in place
+     * would otherwise keep serving its old filter until the launcher was restarted.
+     * [onInvalidated] is for whoever else caches what this served — the tile factory.
+     */
+    fun watchPackages(changes: Flow<String>, onInvalidated: () -> Unit) {
+        scope.launch {
+            changes.collect { packageName ->
+                if (invalidate(packageName)) {
+                    ZuneLog.d(TAG, "icon pack $packageName changed; read afresh")
+                    onInvalidated()
+                }
+            }
+        }
     }
 
     private fun appFilter(packPackage: String): Map<String, String> = filters.getOrPut(packPackage) {

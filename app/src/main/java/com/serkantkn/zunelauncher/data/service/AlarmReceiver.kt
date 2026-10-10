@@ -16,16 +16,19 @@ import kotlinx.coroutines.launch
 /**
  * Fires when an Alarm's scheduled time is reached.
  *
+ * - Starts the sound itself, here, before anything else: a receiver may not be allowed to put a
+ *   screen up (Android refuses background starts), but it is always allowed to make a noise. Then
+ *   it posts the full-screen notification and lets the system bring [AlarmActivity] up.
  * - Holds a short wake lock for the whole hand-off (released by timeout, not immediately,
- *   so the device does not fall back asleep before AlarmActivity is up).
- * - Repeating alarms are re-scheduled for their next weekday; one-shot alarms are disabled
- *   so the Clock Hub list stays truthful. Note reminders (alarms carrying a noteId) are
- *   removed after firing.
- * - A snooze ringing back is not a fresh firing: it must not re-arm anything or retire the alarm,
- *   only clear the "snoozed until" note the list is showing.
+ *   so the device does not fall back asleep before the screen is up).
+ * - Repeating alarms are re-booked for their next weekday at the moment they fire, whatever is
+ *   pressed afterwards; one-shot alarms are disabled so the Clock Hub list stays truthful. Note
+ *   reminders (alarms carrying a noteId) are removed after firing.
+ * - A snooze ringing back is not a fresh firing: it only clears the "snoozed until" note the list
+ *   is showing — and, for a one-shot alarm, switches it off, because its own firing already came.
  *
- * It also takes the snooze itself, because the phone can be asleep with only the notification on
- * screen and no activity alive to press a button in.
+ * It also takes the snooze and the dismiss themselves, because the phone can be asleep with only
+ * the notification on screen and no activity alive to press a button in.
  */
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -41,7 +44,6 @@ class AlarmReceiver : BroadcastReceiver() {
         }
 
         val alarmId = intent.getStringExtra(EXTRA_ALARM_ID) ?: return
-        val alarmLabel = intent.getStringExtra(EXTRA_ALARM_LABEL) ?: ""
         val noteId = intent.getStringExtra(EXTRA_NOTE_ID)
         val isSnoozeRinging = intent.getBooleanExtra(EXTRA_IS_SNOOZE, false)
 
@@ -53,54 +55,89 @@ class AlarmReceiver : BroadcastReceiver() {
         // Released automatically after the timeout; AlarmActivity keeps the screen on itself.
         wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
 
+        // Two alarms a minute apart: the newer one takes the speaker, the older one is settled as
+        // though it had been dismissed, and the log says so.
+        val older = AlarmRinger.activeId
+        if (older != null && older != alarmId) {
+            ZuneLog.w(TAG, "alarm $alarmId rings over $older; the older one is dismissed")
+            if (older == AlarmRinger.TIMER_ID) TimerNotifier.clear(context) else settleDismissed(context, older)
+        }
+
+        val app = context.applicationContext
+        AlarmRinger.start(
+            context = app,
+            id = alarmId,
+            ringtoneUri = intent.getStringExtra(EXTRA_RINGTONE),
+            vibrate = intent.getBooleanExtra(EXTRA_VIBRATE, true),
+            gradualVolume = intent.getBooleanExtra(EXTRA_GRADUAL, true),
+            autoSilenceMillis = intent.getIntExtra(EXTRA_AUTO_SILENCE, Alarm.DEFAULT_AUTO_SILENCE_MINUTES) * 60_000L,
+            onAutoSilence = {
+                // Nobody came: settle it the way a dismiss would, so the list stops saying "snoozed".
+                app.sendBroadcast(
+                    Intent(app, AlarmReceiver::class.java).apply {
+                        action = ACTION_DISMISS
+                        putExtra(EXTRA_ALARM_ID, alarmId)
+                    }
+                )
+            }
+        )
+        AlarmNotifier.showAlarm(app, intent)
+
+        // Asking directly as well costs nothing: where the start is allowed the screen is up a
+        // beat sooner, and where it is refused the full-screen notification does the same job.
         val alarmIntent = Intent(context, AlarmActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(EXTRA_ALARM_ID, alarmId)
-            putExtra(EXTRA_ALARM_LABEL, alarmLabel)
-            putExtra(EXTRA_RINGTONE, intent.getStringExtra(EXTRA_RINGTONE))
-            putExtra(EXTRA_VIBRATE, intent.getBooleanExtra(EXTRA_VIBRATE, true))
-            putExtra(EXTRA_SNOOZE_MINUTES, intent.getIntExtra(EXTRA_SNOOZE_MINUTES, Alarm.DEFAULT_SNOOZE_MINUTES))
-            putExtra(EXTRA_GRADUAL, intent.getBooleanExtra(EXTRA_GRADUAL, true))
-            putExtra(EXTRA_AUTO_SILENCE, intent.getIntExtra(EXTRA_AUTO_SILENCE, Alarm.DEFAULT_AUTO_SILENCE_MINUTES))
-            if (noteId != null) putExtra(EXTRA_NOTE_ID, noteId)
+            intent.extras?.let { putExtras(it) }
         }
         try {
             context.startActivity(alarmIntent)
         } catch (e: Exception) {
-            ZuneLog.e(TAG, "the alarm screen would not open", e)
+            ZuneLog.w(TAG, "the alarm screen would not open directly; the notification will", e)
         }
 
         // Re-arm or retire the alarm record off the main thread.
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val container = context.applicationContext.appContainer
+                val container = app.appContainer
                 val store = container.alarmDataStore
                 val scheduler = container.alarmScheduler
                 val alarms = store.alarmsFlow.first()
                 val fired = alarms.firstOrNull { it.id == alarmId } ?: return@launch
 
                 if (isSnoozeRinging) {
-                    // Only the snooze note is stale; when it is due again is unchanged.
-                    store.saveAlarms(alarms.map { if (it.id == alarmId) it.copy(snoozedUntilMillis = null) else it })
+                    // The snooze note is stale. A repeating alarm's next day is already booked;
+                    // a one-shot one has now rung for good and goes quiet.
+                    val settled = if (fired.isRepeating) {
+                        fired.copy(snoozedUntilMillis = null)
+                    } else {
+                        fired.copy(snoozedUntilMillis = null, isEnabled = false, bookedForMillis = null)
+                    }
+                    store.saveAlarms(alarms.map { if (it.id == alarmId) settled else it })
                     return@launch
                 }
 
                 when {
-                    fired.noteId != null -> {
+                    fired.noteId != null || noteId != null -> {
                         // Note reminders are one-shot: drop the record.
                         store.saveAlarms(alarms.filter { it.id != alarmId })
                     }
-                    fired.daysOfWeek.isNotEmpty() -> {
-                        // Repeating: schedule the next matching weekday.
+                    fired.isRepeating -> {
+                        // Repeating: book the next matching weekday now, whatever happens next.
                         val cleared = fired.copy(snoozedUntilMillis = null)
-                        store.saveAlarms(alarms.map { if (it.id == alarmId) cleared else it })
-                        scheduler.schedule(cleared)
+                        val booked = scheduler.schedule(cleared)
+                        store.saveAlarms(
+                            alarms.map { if (it.id == alarmId) cleared.copy(bookedForMillis = booked) else it }
+                        )
                     }
                     else -> {
                         store.saveAlarms(
                             alarms.map {
-                                if (it.id == alarmId) it.copy(isEnabled = false, snoozedUntilMillis = null) else it
+                                if (it.id == alarmId) {
+                                    it.copy(isEnabled = false, snoozedUntilMillis = null, bookedForMillis = null)
+                                } else {
+                                    it
+                                }
                             }
                         )
                     }
@@ -115,7 +152,8 @@ class AlarmReceiver : BroadcastReceiver() {
 
     /** Puts a ringing alarm off and writes the new time onto the record, so the list says so. */
     private fun snooze(context: Context, alarmId: String) {
-        AlarmRinger.stop()
+        AlarmRinger.stop(alarmId)
+        AlarmNotifier.clearRinging(context)
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -137,13 +175,12 @@ class AlarmReceiver : BroadcastReceiver() {
 
     /** Silences a ringing alarm from outside the screen that is ringing it. */
     private fun dismiss(context: Context, alarmId: String) {
-        AlarmRinger.stop()
+        AlarmRinger.stop(alarmId)
+        AlarmNotifier.clearRinging(context)
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val store = context.applicationContext.appContainer.alarmDataStore
-                val alarms = store.alarmsFlow.first()
-                store.saveAlarms(alarms.map { if (it.id == alarmId) it.copy(snoozedUntilMillis = null) else it })
+                settleDismissedNow(context, alarmId)
             } catch (e: Exception) {
                 ZuneLog.e(TAG, "the alarm would not settle after being dismissed", e)
             } finally {
@@ -152,8 +189,28 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
+    /** Clears a dismissed alarm's snooze note on the record, without touching the ringer. */
+    private fun settleDismissed(context: Context, alarmId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching { settleDismissedNow(context, alarmId) }
+                .onFailure { ZuneLog.w(TAG, "the handed-over alarm would not settle", it) }
+        }
+    }
+
+    private suspend fun settleDismissedNow(context: Context, alarmId: String) {
+        val container = context.applicationContext.appContainer
+        val store = container.alarmDataStore
+        val alarms = store.alarmsFlow.first()
+        val alarm = alarms.firstOrNull { it.id == alarmId } ?: return
+        if (alarm.snoozedUntilMillis != null) {
+            container.alarmScheduler.cancelSnooze(alarm)
+            store.saveAlarms(alarms.map { if (it.id == alarmId) it.copy(snoozedUntilMillis = null) else it })
+        }
+    }
+
     companion object {
         const val ACTION_FIRE = "com.serkantkn.zunelauncher.ALARM_FIRE"
+        const val ACTION_SNOOZE_FIRE = "com.serkantkn.zunelauncher.ALARM_SNOOZE_FIRE"
         const val ACTION_SNOOZE = "com.serkantkn.zunelauncher.ALARM_SNOOZE"
         const val ACTION_DISMISS = "com.serkantkn.zunelauncher.ALARM_DISMISS"
         const val EXTRA_ALARM_ID = "ALARM_ID"

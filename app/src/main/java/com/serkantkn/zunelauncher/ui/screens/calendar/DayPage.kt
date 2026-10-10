@@ -166,8 +166,9 @@ private fun HourRow(
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = { },
-                // An empty stretch of the day is where a new event most naturally starts.
+                // An empty stretch of the day is where a new event most naturally starts: a tap
+                // does it, and the long press that always did still does.
+                onClick = { onAddAt(hourStart) },
                 onLongClick = { onAddAt(hourStart) }
             )
             .padding(vertical = 2.dp),

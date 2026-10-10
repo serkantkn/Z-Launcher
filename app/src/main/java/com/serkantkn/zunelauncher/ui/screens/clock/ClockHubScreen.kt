@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -117,18 +118,31 @@ fun ClockHubScreen(
         viewModel.checkExactAlarmPermission()
     }
 
-    // ── The only thing on this screen that ticks ────────────────────────────
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val tickMillis = when {
+    // ── The only things on this screen that tick ────────────────────────────
+    // Two clocks, and neither is read up here: a state read at this level would recompose the
+    // whole hub — pivot, bar, every page — thirty times a second while a stopwatch runs. Each
+    // page reads the clock it needs inside its own scope, so the fast tick reaches the stopwatch
+    // figure and nothing else.
+    val slowNow = remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            slowNow.longValue = System.currentTimeMillis()
+            delay(1000L)
+        }
+    }
+    val fastNow = remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val fastRealtime = remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    val fastTick = when {
         stopwatch.isRunning -> 33L
         timer.isRunning -> 250L
-        else -> 1000L
+        else -> 0L
     }
-    LaunchedEffect(tickMillis) {
-        while (true) {
-            now = System.currentTimeMillis()
-            delay(tickMillis)
-        }
+    LaunchedEffect(fastTick) {
+        do {
+            fastNow.longValue = System.currentTimeMillis()
+            fastRealtime.longValue = SystemClock.elapsedRealtime()
+            if (fastTick > 0L) delay(fastTick)
+        } while (fastTick > 0L)
     }
 
     // ── Sub-screens ────────────────────────────────────────────────────────
@@ -199,16 +213,13 @@ fun ClockHubScreen(
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp
     val pageContentPadding = PaddingValues(top = 8.dp, bottom = listBottomPadding)
 
-    val stopwatchReading = stopwatch.readingAt(now)
-    val timerRemaining = timer.remainingAt(now)
-
     // ── The four pages ─────────────────────────────────────────────────────
     @Composable
     fun Page(index: Int) {
         when (index) {
             PAGE_WORLD -> WorldClockPage(
                 cities = cities,
-                now = now,
+                now = slowNow.longValue,
                 showSeconds = showSeconds,
                 onAddCity = { isCityPickerOpen = true; openHinge(cityHinge) },
                 onCityLongPress = { cityMenuTarget = it },
@@ -217,18 +228,21 @@ fun ClockHubScreen(
 
             PAGE_ALARMS -> AlarmsPage(
                 alarms = alarms,
-                now = now,
+                now = slowNow.longValue,
                 canScheduleExact = canScheduleExact,
                 onAdd = { newAlarm() },
                 onEdit = { editAlarm(it, isNew = false) },
                 onToggle = { viewModel.toggleAlarm(it) },
                 onLongPress = { alarmMenuTarget = it },
-                onFixExactPermission = { openExactAlarmSettings(context) },
+                onFixExactPermission = {
+                    // Only worth sending anyone to Settings when the phone really says no.
+                    if (openExactAlarmSettings(context)) Unit else viewModel.checkExactAlarmPermission()
+                },
                 contentPadding = pageContentPadding
             )
 
             PAGE_STOPWATCH -> StopwatchPage(
-                readingMillis = stopwatchReading,
+                readingMillis = { stopwatch.readingAt(fastNow.longValue, fastRealtime.longValue) },
                 laps = stopwatch.laps,
                 onClearLaps = { viewModel.clearLaps() },
                 contentPadding = pageContentPadding
@@ -236,7 +250,7 @@ fun ClockHubScreen(
 
             PAGE_TIMER -> TimerPage(
                 state = timer,
-                remainingMillis = timerRemaining,
+                remainingMillis = { timer.remainingAt(fastNow.longValue) },
                 presets = presets,
                 onSetDuration = { viewModel.setTimerDuration(it) },
                 onOpenSetup = { isTimerSetupOpen = true; openHinge(timerHinge) },
@@ -388,7 +402,7 @@ fun ClockHubScreen(
         HingeSubScreen(progress = cityHinge.value, isOpen = isCityPickerOpen, density = density) {
             CityPickerScreen(
                 existing = cities,
-                now = now,
+                now = slowNow.longValue,
                 onPick = {
                     viewModel.addCity(it)
                     closeHinge(cityHinge) { isCityPickerOpen = false }
@@ -420,7 +434,7 @@ fun ClockHubScreen(
                     viewModel.duplicateAlarm(alarm)
                     alarmMenuTarget = null
                 }
-                if (alarm.snoozedUntilMillis != null && alarm.snoozedUntilMillis > now) {
+                if (alarm.isSnoozedAt(System.currentTimeMillis())) {
                     SheetAction(label = stringResource(R.string.clock_cancel_snooze)) {
                         viewModel.cancelSnooze(alarm)
                         alarmMenuTarget = null
@@ -481,23 +495,24 @@ private fun HingeSubScreen(
     }
 }
 
-/** Where Android hides the switch that lets an app name an exact minute. */
-private fun openExactAlarmSettings(context: android.content.Context) {
-    runCatching {
-        val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+/**
+ * Where Android hides the switch that lets an app name an exact minute — opened only when the
+ * phone actually says no. Returns false when there was nothing to fix, so the caller can simply
+ * re-read the permission instead.
+ */
+private fun openExactAlarmSettings(context: android.content.Context): Boolean {
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return false
+    val alarmManager = context.getSystemService(android.content.Context.ALARM_SERVICE) as? android.app.AlarmManager
+    if (alarmManager == null || alarmManager.canScheduleExactAlarms()) return false
+    return runCatching {
+        context.startActivity(
             android.content.Intent(
                 android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                 android.net.Uri.parse("package:${context.packageName}")
-            )
-        } else {
-            android.content.Intent(
-                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                android.net.Uri.parse("package:${context.packageName}")
-            )
-        }
-        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
-    }
+            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    }.getOrDefault(false)
 }
 
 private const val PAGE_WORLD = 0

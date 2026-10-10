@@ -6,16 +6,16 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.serkantkn.zunelauncher.data.model.NoteFallbackTitles
-import com.serkantkn.zunelauncher.data.service.TimerNotifier
+import com.serkantkn.zunelauncher.data.service.ClockRearm
 import com.serkantkn.zunelauncher.di.AppContainer
 import com.serkantkn.zunelauncher.util.DeviceClass
+import com.serkantkn.zunelauncher.util.TimeText
 import com.serkantkn.zunelauncher.util.WallpaperImages
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.localized
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "zune_settings")
@@ -49,8 +49,20 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         NoteFallbackTitles.refresh(localized())
+        bindTimeText()
         rearmClock()
         sealLockedNotes()
+    }
+
+    /**
+     * Keeps [TimeText] — the process-wide "12 or 24 hours" — in step with the setting, so every
+     * clock reading in the launcher is written the same way the Start tile writes it.
+     */
+    private fun bindTimeText() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            runCatching { TimeText.bind(container.settingsDataStore.timeFormat) }
+                .onFailure { ZuneLog.w("ZuneLauncherApp", "the time format could not be followed", it) }
+        }
     }
 
     /**
@@ -86,24 +98,19 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
     }
 
     /**
-     * Books the alarms and any running timer again on a cold start.
+     * Books the alarms, the reminders and any running timer again on a cold start.
      *
      * Force-stopping an app cancels every alarm it had booked — being force-stopped, updated or
      * cleared is exactly when an alarm silently stops existing, and the person who set it has no
      * way of knowing. Re-booking on start costs nothing (the same PendingIntent simply replaces
-     * itself) and is the difference between an alarm that rings and one that does not.
+     * itself) and is the difference between an alarm that rings and one that does not. The walk
+     * itself is [ClockRearm], the same one the boot and time-change receivers make, so a reminder
+     * whose moment has already passed is marked missed here too rather than booked in the past.
      */
     private fun rearmClock() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                val alarms = container.alarmDataStore.alarmsFlow.first()
-                alarms.filter { it.isEnabled }.forEach { container.alarmScheduler.schedule(it) }
-
-                val timer = container.clockDataStore.timer.first()
-                if (timer.isRunning && timer.endsAtMillis > System.currentTimeMillis()) {
-                    container.timerScheduler.schedule(timer.endsAtMillis)
-                    TimerNotifier.showRunning(this@ZuneLauncherApp, timer.endsAtMillis, timer.label)
-                }
+                ClockRearm.rearmAll(this@ZuneLauncherApp, "cold start")
             } catch (e: Exception) {
                 ZuneLog.e("ZuneLauncherApp", "the clock would not re-arm on start", e)
             }

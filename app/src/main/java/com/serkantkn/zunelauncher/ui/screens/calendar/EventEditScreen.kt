@@ -42,8 +42,9 @@ import com.serkantkn.zunelauncher.ui.components.MetroRule
 import com.serkantkn.zunelauncher.ui.components.MetroSubScreen
 import com.serkantkn.zunelauncher.ui.components.MetroSwitchRow
 import com.serkantkn.zunelauncher.ui.components.MetroTextField
-import com.serkantkn.zunelauncher.ui.components.WpDurationPicker
+import com.serkantkn.zunelauncher.ui.screens.clock.WpClockPicker
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.util.DAY_MS
 import com.serkantkn.zunelauncher.util.RepeatKind
 import com.serkantkn.zunelauncher.util.isSameDay
 import com.serkantkn.zunelauncher.util.monthGrid
@@ -177,21 +178,25 @@ private fun EventEditBody(
             MetroSwitchRow(
                 title = stringResource(R.string.cal_all_day),
                 checked = draft.isAllDay,
-                onCheckedChange = { draft = draft.copy(isAllDay = it) }
+                onCheckedChange = { allDay ->
+                    // An all-day event spans its day, midnight to midnight, so the stores agree
+                    // on which day that is; switched back, it starts at a sensible hour.
+                    val day = startOfDay(draft.startMillis)
+                    draft = if (allDay) {
+                        draft.copy(isAllDay = true, startMillis = day, endMillis = day + DAY_MS)
+                    } else {
+                        val start = day + 9 * 60 * 60 * 1000L
+                        draft.copy(isAllDay = false, startMillis = start, endMillis = start + CalendarEvent.DEFAULT_DURATION_MS)
+                    }
+                }
             )
         }
         if (!draft.isAllDay) {
             item {
-                WpDurationPicker(
-                    hours = draft.hour,
-                    minutes = draft.minute,
-                    seconds = null,
-                    onHours = { setTime(it, draft.minute) },
-                    onMinutes = { setTime(draft.hour, it) },
-                    onSeconds = {},
-                    hourLabel = stringResource(R.string.clock_hours),
-                    minuteLabel = stringResource(R.string.clock_minutes),
-                    secondLabel = stringResource(R.string.clock_seconds),
+                WpClockPicker(
+                    hour = draft.hour,
+                    minute = draft.minute,
+                    onTime = { hour, minute -> setTime(hour, minute) },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                 )
             }

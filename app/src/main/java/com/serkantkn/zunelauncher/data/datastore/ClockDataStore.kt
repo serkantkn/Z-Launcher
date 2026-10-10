@@ -47,18 +47,62 @@ class ClockDataStore(private val context: Context) {
     /**
      * A stopwatch reading that survives the launcher being killed.
      *
-     * [baseMillis] is the wall-clock moment the watch would have been started at to read what it
-     * reads now, so the reading is always `now - baseMillis` while it runs. [elapsedMillis] holds
-     * the frozen reading while it is stopped.
+     * While it runs the reading is counted on the phone's uptime clock, which nothing can set:
+     * [baseRealtime] is the uptime moment it was started (or last resumed) and [elapsedMillis]
+     * what it had already counted by then. The uptime clock starts over at every boot, so
+     * [bootEpoch] — wall time minus uptime, a number that only changes when the phone reboots or
+     * somebody sets the clock — says whether the base is still meaningful. When it is not, the
+     * reading falls back to [elapsedMillis]: what was counted for certain, rather than a figure
+     * that the wall clock being set back an hour would make an hour wrong.
+     *
+     * [baseMillis] is the older wall-clock base, kept so a reading written by a previous build
+     * still reads, and so a caller without an uptime reading can still ask.
      */
     data class StopwatchState(
         val isRunning: Boolean = false,
         val baseMillis: Long = 0L,
         val elapsedMillis: Long = 0L,
-        val laps: List<Long> = emptyList()
+        val laps: List<Long> = emptyList(),
+        val baseRealtime: Long = 0L,
+        val bootEpoch: Long = 0L
     ) {
+        /** The wall-clock reading: what a caller without an uptime clock gets. */
         fun readingAt(now: Long): Long =
             if (isRunning) (now - baseMillis).coerceAtLeast(0L) else elapsedMillis
+
+        /**
+         * The reading off the uptime clock. [nowRealtime] is the phone's uptime now and [nowWall]
+         * the wall clock now; together they say whether this is the same boot and the same clock
+         * the watch was started on.
+         */
+        fun readingAt(nowWall: Long, nowRealtime: Long): Long {
+            if (!isRunning) return elapsedMillis
+            if (!sameClock(nowWall, nowRealtime)) return elapsedMillis
+            return (elapsedMillis + (nowRealtime - baseRealtime)).coerceAtLeast(0L)
+        }
+
+        /** Whether the uptime base still belongs to this boot and this setting of the clock. */
+        fun sameClock(nowWall: Long, nowRealtime: Long): Boolean =
+            bootEpoch != 0L && kotlin.math.abs((nowWall - nowRealtime) - bootEpoch) <= CLOCK_TOLERANCE_MS
+
+        /** A running watch, started (or resumed) at this moment. */
+        fun started(nowWall: Long, nowRealtime: Long): StopwatchState = copy(
+            isRunning = true,
+            baseMillis = nowWall - elapsedMillis,
+            baseRealtime = nowRealtime,
+            bootEpoch = nowWall - nowRealtime
+        )
+
+        /** The watch frozen at its reading as of this moment. */
+        fun stopped(nowWall: Long, nowRealtime: Long): StopwatchState = copy(
+            isRunning = false,
+            elapsedMillis = readingAt(nowWall, nowRealtime)
+        )
+
+        companion object {
+            /** How far the boot epoch may drift before it is a different boot or a set clock. */
+            const val CLOCK_TOLERANCE_MS = 2_000L
+        }
     }
 
     val stopwatch: Flow<StopwatchState> = context.clockDataStore.data.map { prefs ->
@@ -66,7 +110,9 @@ class ClockDataStore(private val context: Context) {
             isRunning = prefs[SW_RUNNING] ?: false,
             baseMillis = prefs[SW_BASE] ?: 0L,
             elapsedMillis = prefs[SW_ELAPSED] ?: 0L,
-            laps = parseLongs(prefs[SW_LAPS])
+            laps = parseLongs(prefs[SW_LAPS]),
+            baseRealtime = prefs[SW_BASE_REALTIME] ?: 0L,
+            bootEpoch = prefs[SW_BOOT_EPOCH] ?: 0L
         )
     }
 
@@ -78,6 +124,8 @@ class ClockDataStore(private val context: Context) {
             prefs[SW_BASE] = state.baseMillis
             prefs[SW_ELAPSED] = state.elapsedMillis
             prefs[SW_LAPS] = array.toString()
+            prefs[SW_BASE_REALTIME] = state.baseRealtime
+            prefs[SW_BOOT_EPOCH] = state.bootEpoch
         }
     }
 
@@ -157,6 +205,8 @@ class ClockDataStore(private val context: Context) {
         private val SW_BASE = longPreferencesKey("stopwatch_base")
         private val SW_ELAPSED = longPreferencesKey("stopwatch_elapsed")
         private val SW_LAPS = stringPreferencesKey("stopwatch_laps")
+        private val SW_BASE_REALTIME = longPreferencesKey("stopwatch_base_realtime")
+        private val SW_BOOT_EPOCH = longPreferencesKey("stopwatch_boot_epoch")
         private val TIMER_RUNNING = booleanPreferencesKey("timer_running")
         private val TIMER_ENDS_AT = longPreferencesKey("timer_ends_at")
         private val TIMER_REMAINING = longPreferencesKey("timer_remaining")

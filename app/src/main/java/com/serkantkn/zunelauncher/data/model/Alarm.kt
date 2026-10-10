@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.model
 
+import com.serkantkn.zunelauncher.util.TimeText
 import java.util.Calendar
 import java.util.Locale
 import java.util.UUID
@@ -26,22 +27,65 @@ data class Alarm(
     /** Gives up after this many minutes of nobody answering. Zero means it never gives up. */
     val autoSilenceMinutes: Int = DEFAULT_AUTO_SILENCE_MINUTES,
     /** Set while the alarm is snoozed: the moment it will come back. */
-    val snoozedUntilMillis: Long? = null
+    val snoozedUntilMillis: Long? = null,
+    /**
+     * The moment a one-shot alarm was last booked for, so a phone that was off when it should
+     * have rung can tell a missed alarm from one that is simply due tomorrow.
+     */
+    val bookedForMillis: Long? = null
 ) {
+    /** The time as the clock setting says it: "07:05" or "7:05 AM". */
     val timeString: String
-        get() = String.format(Locale.ROOT, "%02d:%02d", hour, minute)
+        get() = TimeText.clock(hour, minute)
 
     /** Whether this one comes back every week rather than firing once and going quiet. */
     val isRepeating: Boolean get() = daysOfWeek.isNotEmpty()
+
+    /** A note's reminder, or a reminder with a fixed moment: fires once, at that moment. */
+    val isExact: Boolean get() = exactTimeMillis != null
+
+    /** Whether a snooze is pending at [now]. */
+    fun isSnoozedAt(now: Long): Boolean = snoozedUntilMillis != null && snoozedUntilMillis > now
 
     /**
      * Next moment this alarm fires, relative to [now]: a pending snooze first, then the exact time
      * for one-shot reminders, otherwise today's/tomorrow's [hour]:[minute] advanced to the next
      * selected weekday. Same rule AlarmScheduler uses, so the Start tile and the real alarm agree.
+     *
+     * An exact time that has already gone by is still returned: see [dueAt] for the version a
+     * scheduler wants, which refuses to book something in the past.
      */
     fun nextTriggerMillis(now: Long = System.currentTimeMillis()): Long {
         snoozedUntilMillis?.let { if (it > now) return it }
         exactTimeMillis?.let { return it }
+        return nextClockTime(now)
+    }
+
+    /**
+     * When the system should be asked to ring this, or null when there is nothing left to ring:
+     * an exact-time reminder whose moment has passed with no snooze pending.
+     */
+    fun dueAt(now: Long = System.currentTimeMillis()): Long? {
+        snoozedUntilMillis?.let { if (it > now) return it }
+        exactTimeMillis?.let { return if (it > now) it else null }
+        return nextClockTime(now)
+    }
+
+    /**
+     * Whether this alarm should have rung already and never did — the phone was off, or the
+     * launcher was stopped. A repeating alarm is never missed in this sense: it simply moves on
+     * to its next day. A pending snooze means it is still waiting, not missed.
+     */
+    fun isMissedAt(now: Long = System.currentTimeMillis()): Boolean {
+        if (!isEnabled || isRepeating) return false
+        if (isSnoozedAt(now)) return false
+        exactTimeMillis?.let { return it <= now }
+        // A snooze that came and went while the phone was off counts as missed too.
+        snoozedUntilMillis?.let { if (it <= now) return true }
+        return bookedForMillis != null && bookedForMillis <= now
+    }
+
+    private fun nextClockTime(now: Long): Long {
         val calendar = Calendar.getInstance().apply {
             timeInMillis = now
             set(Calendar.HOUR_OF_DAY, hour)
@@ -62,6 +106,17 @@ data class Alarm(
     companion object {
         const val DEFAULT_SNOOZE_MINUTES = 10
         const val DEFAULT_AUTO_SILENCE_MINUTES = 10
+
+        /**
+         * The PendingIntent request code for an alarm's own booking, and the different one for its
+         * snooze: a snooze booked under the base code would replace the next day's booking of a
+         * repeating alarm, and the day after would never ring.
+         */
+        fun requestCode(id: String): Int = id.hashCode()
+
+        fun snoozeRequestCode(id: String): Int = id.hashCode() xor SNOOZE_CODE_BIT
+
+        private const val SNOOZE_CODE_BIT = 0x40000000
 
         /** Monday to Friday, in Calendar's own numbering. */
         val WEEKDAYS: Set<Int> = setOf(

@@ -74,7 +74,10 @@ class CalendarDataStore(private val context: Context) {
             reminderMinutes = if (obj.isNull("reminderMinutes")) null else obj.optInt("reminderMinutes"),
             recurrence = if (obj.isNull("recurrence")) null else obj.optString("recurrence", "").ifEmpty { null },
             linkedNoteId = if (obj.isNull("linkedNoteId")) null else obj.optString("linkedNoteId", "").ifEmpty { null },
-            isLocal = true
+            isLocal = true,
+            excludedStarts = obj.optJSONArray("excludedStarts")?.let { array ->
+                (0 until array.length()).map { array.getLong(it) }.toSet()
+            }.orEmpty()
         )
     }
 
@@ -90,6 +93,7 @@ class CalendarDataStore(private val context: Context) {
         put("reminderMinutes", event.reminderMinutes ?: JSONObject.NULL)
         put("recurrence", event.recurrence ?: JSONObject.NULL)
         put("linkedNoteId", event.linkedNoteId ?: JSONObject.NULL)
+        put("excludedStarts", org.json.JSONArray().also { array -> event.excludedStarts.sorted().forEach { array.put(it) } })
     }
 
     // ── What to show from the phone's calendars ─────────────────────────────

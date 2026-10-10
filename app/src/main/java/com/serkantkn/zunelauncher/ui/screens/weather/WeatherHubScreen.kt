@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.data.model.MeasureSystem
 import com.serkantkn.zunelauncher.data.model.TemperatureUnit
 import com.serkantkn.zunelauncher.data.model.WeatherSky
 import com.serkantkn.zunelauncher.data.model.WindUnit
@@ -111,6 +112,7 @@ fun WeatherHubScreen(
     val canAddPlace by viewModel.canAddPlace.collectAsState()
     val temperatureUnit by viewModel.temperatureUnit.collectAsState()
     val windUnit by viewModel.windUnit.collectAsState()
+    val measureSystem by viewModel.measureSystem.collectAsState()
     val animatedSky by viewModel.animatedSky.collectAsState()
     val updatesLeft by viewModel.updatesLeft.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -194,6 +196,18 @@ fun WeatherHubScreen(
         add(
             WpBarMenuItem(
                 stringResource(
+                    if (measureSystem == MeasureSystem.METRIC) MeasureSystem.IMPERIAL.labelRes
+                    else MeasureSystem.METRIC.labelRes
+                )
+            ) {
+                viewModel.setMeasureSystem(
+                    if (measureSystem == MeasureSystem.METRIC) MeasureSystem.IMPERIAL else MeasureSystem.METRIC
+                )
+            }
+        )
+        add(
+            WpBarMenuItem(
+                stringResource(
                     if (animatedSky) R.string.weather_animated_sky_turn_off
                     else R.string.weather_animated_sky_turn_on
                 )
@@ -246,7 +260,8 @@ fun WeatherHubScreen(
                 WeatherDetailsPage(
                     snapshot = current,
                     temperatureUnit = temperatureUnit,
-                    windUnit = windUnit
+                    windUnit = windUnit,
+                    measureSystem = measureSystem
                 )
             }
 

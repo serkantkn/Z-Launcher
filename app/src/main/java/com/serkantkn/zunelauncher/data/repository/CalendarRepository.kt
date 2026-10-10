@@ -10,6 +10,11 @@ import androidx.core.content.ContextCompat
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
 import com.serkantkn.zunelauncher.data.model.CalendarInfo
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.util.allDayLocalEnd
+import com.serkantkn.zunelauncher.util.allDayLocalStart
+import com.serkantkn.zunelauncher.util.allDayUtcEnd
+import com.serkantkn.zunelauncher.util.allDayUtcStart
+import java.util.Calendar
 import java.util.TimeZone
 
 /**
@@ -23,6 +28,13 @@ import java.util.TimeZone
  * Repeating events are read through [CalendarContract.Instances] rather than the event rows, so a
  * weekly meeting appears once on every week it actually happens instead of once on the day it was
  * first created — the provider works the repeat rule out, which is the only sane way to do it.
+ * Changing or deleting one of those weeks is an *exception* row keyed by the week's original
+ * start, never a rewrite of the series: that is how every calendar app does it, and it is the
+ * difference between skipping one meeting and cancelling them all.
+ *
+ * All-day events are stored by the provider as UTC midnights with their zone set to UTC. They are
+ * converted to local midnights on the way in and back on the way out, so a birthday is on its
+ * day in Istanbul and in Los Angeles alike.
  *
  * Every call is allowed to fail. A phone with the permission refused, a calendar that has gone
  * away, an OEM provider that refuses a column: none of those should be more than an empty list.
@@ -122,6 +134,9 @@ class CalendarRepository(private val context: Context) {
             .appendPath(toMillis.toString())
             .build()
 
+        // One reminder query per event, not per occurrence: a weekly meeting is one event.
+        val reminders = HashMap<Long, Int?>()
+
         return runCatching {
             context.contentResolver.query(uri, projection, null, null, "${CalendarContract.Instances.BEGIN} ASC")
                 ?.use { cursor ->
@@ -132,6 +147,14 @@ class CalendarRepository(private val context: Context) {
                             val eventId = cursor.getLong(0)
                             val begin = cursor.getLong(4)
                             val end = cursor.getLong(5)
+                            val isAllDay = cursor.getInt(6) == 1
+                            val rrule = cursor.getString(9)?.takeIf { it.isNotBlank() }
+                            val start = if (isAllDay) allDayLocalStart(begin) else begin
+                            val finish = when {
+                                isAllDay -> allDayLocalEnd(if (end > begin) end else begin + DAY_MS)
+                                end > begin -> end
+                                else -> begin + CalendarEvent.DEFAULT_DURATION_MS
+                            }
                             add(
                                 CalendarEvent(
                                     // An instance is identified by its event and which occurrence
@@ -140,15 +163,20 @@ class CalendarRepository(private val context: Context) {
                                     title = cursor.getString(1).orEmpty(),
                                     description = cursor.getString(2).orEmpty(),
                                     location = cursor.getString(3).orEmpty(),
-                                    startMillis = begin,
-                                    endMillis = if (end > begin) end else begin + CalendarEvent.DEFAULT_DURATION_MS,
-                                    isAllDay = cursor.getInt(6) == 1,
+                                    startMillis = start,
+                                    endMillis = finish,
+                                    isAllDay = isAllDay,
                                     colorHex = colorToHex(cursor.getInt(7)),
-                                    recurrence = cursor.getString(9),
+                                    reminderMinutes = reminders.getOrPut(eventId) { reminderMinutesOf(eventId) },
+                                    recurrence = rrule,
                                     calendarId = calendarId,
                                     systemEventId = eventId,
                                     isLocal = false,
-                                    isEditable = calendarId in writableIds
+                                    isEditable = calendarId in writableIds,
+                                    seriesId = if (rrule != null) "$SYSTEM_PREFIX$eventId" else null,
+                                    // The provider's own number for this occurrence, untouched:
+                                    // it is what an exception row is keyed by.
+                                    instanceStartMillis = if (rrule != null) begin else null
                                 )
                             )
                         }
@@ -167,12 +195,11 @@ class CalendarRepository(private val context: Context) {
         if (!canWrite()) return null
         val values = valuesOf(event).apply {
             put(CalendarContract.Events.CALENDAR_ID, calendarId)
-            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
         }
         return runCatching {
             val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
             val id = uri?.lastPathSegment?.toLongOrNull()
-            if (id != null) setReminder(id, event.reminderMinutes)
+            if (id != null && event.reminderMinutes != null) setReminder(id, event.reminderMinutes)
             id
         }.getOrElse {
             ZuneLog.w(TAG, "the phone would not take the new event", it)
@@ -180,14 +207,28 @@ class CalendarRepository(private val context: Context) {
         }
     }
 
-    /** Writes changes back to an event that is already in a phone calendar. */
+    /**
+     * Writes changes back to an event that is already in a phone calendar: a one-off event, or
+     * a whole series.
+     *
+     * For a series the date is the master's own: what was opened was one week of it, and moving
+     * the series to that week would shift every other week along. Its time of day, length and
+     * everything else are taken from the draft.
+     */
     fun update(event: CalendarEvent): Boolean {
         val eventId = event.systemEventId ?: return false
         if (!canWrite()) return false
         return runCatching {
+            val values = if (event.isRepeating && event.isOccurrence) {
+                seriesValuesOf(event, masterStartOf(eventId) ?: event.startMillis)
+            } else {
+                valuesOf(event)
+            }
             val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
-            val rows = context.contentResolver.update(uri, valuesOf(event), null, null)
-            setReminder(eventId, event.reminderMinutes)
+            val rows = context.contentResolver.update(uri, values, null, null)
+            // Reminders are only rewritten when the draft changed them: every rewrite is a
+            // delete-and-insert that other calendar apps see as a change.
+            if (reminderMinutesOf(eventId) != event.reminderMinutes) setReminder(eventId, event.reminderMinutes)
             rows > 0
         }.getOrElse {
             ZuneLog.w(TAG, "the phone would not change the event", it)
@@ -195,6 +236,33 @@ class CalendarRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Changes one occurrence of a repeating event and nothing else, by writing an exception row
+     * against the series keyed by the occurrence's original start.
+     */
+    fun updateOccurrence(event: CalendarEvent): Boolean {
+        val masterId = event.systemEventId ?: return false
+        val original = event.instanceStartMillis ?: return false
+        if (!canWrite()) return false
+        val values = valuesOf(event.copy(recurrence = null)).apply {
+            put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, original)
+            put(CalendarContract.Events.ORIGINAL_ALL_DAY, if (event.isAllDay) 1 else 0)
+            put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CONFIRMED)
+        }
+        return runCatching {
+            val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_EXCEPTION_URI, masterId)
+            val id = context.contentResolver.insert(uri, values)?.lastPathSegment?.toLongOrNull()
+            if (id != null && event.reminderMinutes != reminderMinutesOf(masterId)) {
+                setReminder(id, event.reminderMinutes)
+            }
+            id != null
+        }.getOrElse {
+            ZuneLog.w(TAG, "the phone would not change the one occurrence", it)
+            false
+        }
+    }
+
+    /** Deletes a one-off event, or a whole series. */
     fun delete(event: CalendarEvent): Boolean {
         val eventId = event.systemEventId ?: return false
         if (!canWrite()) return false
@@ -207,14 +275,44 @@ class CalendarRepository(private val context: Context) {
         }
     }
 
+    /** Takes one occurrence out of a series: a cancelled exception, the series untouched. */
+    fun deleteOccurrence(event: CalendarEvent): Boolean {
+        val masterId = event.systemEventId ?: return false
+        val original = event.instanceStartMillis ?: return false
+        if (!canWrite()) return false
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, original)
+            put(CalendarContract.Events.ORIGINAL_ALL_DAY, if (event.isAllDay) 1 else 0)
+            put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CANCELED)
+        }
+        return runCatching {
+            val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_EXCEPTION_URI, masterId)
+            context.contentResolver.insert(uri, values) != null
+        }.getOrElse {
+            ZuneLog.w(TAG, "the phone would not cancel the one occurrence", it)
+            false
+        }
+    }
+
     private fun valuesOf(event: CalendarEvent): ContentValues = ContentValues().apply {
         put(CalendarContract.Events.TITLE, event.title)
         put(CalendarContract.Events.DESCRIPTION, event.description)
         put(CalendarContract.Events.EVENT_LOCATION, event.location)
-        put(CalendarContract.Events.DTSTART, event.startMillis)
         put(CalendarContract.Events.ALL_DAY, if (event.isAllDay) 1 else 0)
+        val start: Long
+        val end: Long
+        if (event.isAllDay) {
+            start = allDayUtcStart(event.startMillis)
+            end = allDayUtcEnd(event.startMillis, event.endMillis)
+            put(CalendarContract.Events.EVENT_TIMEZONE, "UTC")
+        } else {
+            start = event.startMillis
+            end = event.endMillis
+            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+        }
+        put(CalendarContract.Events.DTSTART, start)
         if (event.recurrence.isNullOrBlank()) {
-            put(CalendarContract.Events.DTEND, event.endMillis)
+            put(CalendarContract.Events.DTEND, end)
             putNull(CalendarContract.Events.RRULE)
             putNull(CalendarContract.Events.DURATION)
         } else {
@@ -222,9 +320,41 @@ class CalendarRepository(private val context: Context) {
             // would say when the first one finishes, not how long each of them runs.
             putNull(CalendarContract.Events.DTEND)
             put(CalendarContract.Events.RRULE, event.recurrence)
-            put(CalendarContract.Events.DURATION, durationRule(event.durationMillis))
+            put(CalendarContract.Events.DURATION, durationRule(event, start, end))
         }
     }
+
+    /** The values for a whole series: the draft's everything, on the master's own date. */
+    private fun seriesValuesOf(event: CalendarEvent, masterStart: Long): ContentValues {
+        val start = if (event.isAllDay) {
+            allDayLocalStart(masterStart)
+        } else {
+            val draft = Calendar.getInstance().apply { timeInMillis = event.startMillis }
+            Calendar.getInstance().apply {
+                timeInMillis = masterStart
+                set(Calendar.HOUR_OF_DAY, draft.get(Calendar.HOUR_OF_DAY))
+                set(Calendar.MINUTE, draft.get(Calendar.MINUTE))
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        }
+        return valuesOf(event.copy(startMillis = start, endMillis = start + event.durationMillis))
+    }
+
+    /** When a series begins, as the provider has it (a UTC midnight for an all-day one). */
+    private fun masterStartOf(eventId: Long): Long? = runCatching {
+        context.contentResolver.query(
+            ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
+            arrayOf(CalendarContract.Events.DTSTART, CalendarContract.Events.ALL_DAY),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            val start = cursor.getLong(0)
+            if (cursor.getInt(1) == 1) allDayLocalStart(start) else start
+        }
+    }.getOrNull()
 
     /**
      * Puts the warning on the event itself rather than keeping a private alarm for it.
@@ -267,7 +397,9 @@ class CalendarRepository(private val context: Context) {
         }.getOrNull()
     }
 
-    private fun durationRule(millis: Long): String = "P${(millis / 1000L).coerceAtLeast(1L)}S"
+    private fun durationRule(event: CalendarEvent, start: Long, end: Long): String =
+        if (event.isAllDay) "P${((end - start) / DAY_MS).coerceAtLeast(1L)}D"
+        else "P${((end - start) / 1000L).coerceAtLeast(1L)}S"
 
     private fun colorToHex(color: Int): String =
         if (color == 0) CalendarEvent.DEFAULT_COLOR else String.format("#%06X", 0xFFFFFF and color)
@@ -275,6 +407,7 @@ class CalendarRepository(private val context: Context) {
     private companion object {
         const val TAG = "CalendarRepository"
         const val SYSTEM_PREFIX = "sys:"
+        const val DAY_MS = 24 * 60 * 60 * 1000L
     }
 }
 

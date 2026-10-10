@@ -64,7 +64,12 @@ class AppContainer(private val appContext: Context) {
 
     // --- Repositories ---
     val appRepository: AppRepository by lazy { AppRepository(appContext) }
-    val iconPackRepository: IconPackRepository by lazy { IconPackRepository(appContext) }
+    val iconPackRepository: IconPackRepository by lazy {
+        IconPackRepository(appContext).also { packs ->
+            // A pack updated in place is read afresh, and the tiles drawn from it are redrawn.
+            packs.watchPackages(appRepository.packageChanges()) { tileIconFactory.invalidate() }
+        }
+    }
     val mediaRepository: MediaRepository by lazy { MediaRepository(appContext) }
     val contactRepository: ContactRepository by lazy { ContactRepository(appContext) }
     val cloudAuthRepository: CloudAuthRepository by lazy { CloudAuthRepository(appContext, secretStore) }

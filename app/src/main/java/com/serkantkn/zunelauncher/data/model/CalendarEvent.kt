@@ -1,7 +1,7 @@
 package com.serkantkn.zunelauncher.data.model
 
+import com.serkantkn.zunelauncher.util.TimeText
 import java.util.Calendar
-import java.util.Locale
 import java.util.UUID
 
 /**
@@ -39,7 +39,24 @@ data class CalendarEvent(
     /** Which calendar it came from, for saying so and for knowing where to write it back. */
     val isLocal: Boolean = true,
     /** False when the calendar it lives in is read-only (a birthdays or holidays feed). */
-    val isEditable: Boolean = true
+    val isEditable: Boolean = true,
+    /**
+     * Set on one occurrence of a repeating event: the id of the series it was expanded from —
+     * the launcher's own master record, or the phone's master row. Null on an event that
+     * happens once, and on a master itself.
+     */
+    val seriesId: String? = null,
+    /**
+     * On an occurrence, the moment the series said this one would start, exactly as the
+     * provider numbered it (UTC midnight for an all-day one). It is what an exception row is
+     * keyed by, so it is kept untouched even when [startMillis] has been moved.
+     */
+    val instanceStartMillis: Long? = null,
+    /**
+     * On a master kept by the launcher: occurrences that were edited or deleted on their own,
+     * by their original start — the launcher's own EXDATE.
+     */
+    val excludedStarts: Set<Long> = emptySet()
 ) {
     /** The start, for the callers that only care when it begins. */
     val timestamp: Long get() = startMillis
@@ -48,13 +65,17 @@ data class CalendarEvent(
 
     val minute: Int get() = fieldOf(Calendar.MINUTE)
 
-    val formattedTime: String get() = String.format(Locale.ROOT, "%02d:%02d", hour, minute)
+    /** The start as a clock reading, the way the clock setting says it. */
+    val formattedTime: String get() = TimeText.clock(hour, minute)
 
     /** How long it runs for, never negative. */
     val durationMillis: Long get() = (endMillis - startMillis).coerceAtLeast(0L)
 
     /** Whether it repeats rather than happening once. */
     val isRepeating: Boolean get() = !recurrence.isNullOrBlank()
+
+    /** Whether this is one occurrence of a series rather than the series itself. */
+    val isOccurrence: Boolean get() = seriesId != null
 
     private fun fieldOf(field: Int): Int =
         Calendar.getInstance().apply { timeInMillis = startMillis }.get(field)
@@ -79,3 +100,6 @@ data class CalendarEvent(
         )
     }
 }
+
+/** What a change to one occurrence of a repeating event is meant to touch. */
+enum class EventEditScope { THIS_EVENT, WHOLE_SERIES }

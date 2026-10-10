@@ -3,10 +3,13 @@ package com.serkantkn.zunelauncher.ui.screens.calendar
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.CalendarEvent
 import com.serkantkn.zunelauncher.data.model.CalendarInfo
+import com.serkantkn.zunelauncher.data.model.EventEditScope
 import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.DAY_MS
+import com.serkantkn.zunelauncher.util.expandOccurrences
 import com.serkantkn.zunelauncher.util.matches
 import com.serkantkn.zunelauncher.util.resolveWeekStart
 import com.serkantkn.zunelauncher.util.shiftMonth
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.util.UUID
 
 /**
  * The Calendar hub's state.
@@ -80,13 +84,28 @@ class CalendarHubViewModel(application: Application) : AndroidViewModel(applicat
 
     // ── Everything, from both sources ───────────────────────────────────────
 
+    /** The launcher's own records: a repeating event is one record here, its series. */
     private val localEvents: StateFlow<List<CalendarEvent>> = calendarDataStore.eventsFlow
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /**
+     * Everything the pages show: the phone's instances and the launcher's own events, the
+     * repeating ones expanded over the same window the phone's are read for.
+     */
     val events: StateFlow<List<CalendarEvent>> =
-        combine(localEvents, _systemEvents) { local, system ->
-            (local + system).sortedBy { it.startMillis }
+        combine(localEvents, _systemEvents, _currentMonth) { local, system, month ->
+            val (from, to) = visibleRange(month, System.currentTimeMillis())
+            val expanded = local.flatMap { expandOccurrences(it, from, to) }
+            (expanded + system).sortedBy { it.startMillis }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Something the last write had to say: a string resource, or null. */
+    private val _notice = MutableStateFlow<Int?>(null)
+    val notice: StateFlow<Int?> = _notice.asStateFlow()
+
+    fun clearNotice() {
+        _notice.value = null
+    }
 
     /** What the search page shows: everything the typed words match. */
     val searchResults: StateFlow<List<CalendarEvent>> =
@@ -121,17 +140,19 @@ class CalendarHubViewModel(application: Application) : AndroidViewModel(applicat
             _systemEvents.value = emptyList()
             return
         }
-        val month = _currentMonth.value
-        val now = System.currentTimeMillis()
-        // Wide enough that the month grid, the agenda and a year of searching all come from one
-        // query: a month either side of what is on screen, and a year ahead of today.
-        val from = minOf(startOfDay(now), shiftMonth(month, -1))
-        val to = maxOf(now + 365 * DAY_MS, shiftMonth(month, 2))
+        val (from, to) = visibleRange(_currentMonth.value, System.currentTimeMillis())
         val visible = visibleCalendars.value
         _systemEvents.value = withContext(Dispatchers.IO) {
             calendarRepository.events(from, to, visible)
         }
     }
+
+    /**
+     * Wide enough that the month grid, the agenda and a year of searching all come from one
+     * query: a month either side of what is on screen, and a year ahead of today.
+     */
+    private fun visibleRange(month: Long, now: Long): Pair<Long, Long> =
+        minOf(startOfDay(now), shiftMonth(month, -1)) to maxOf(now + 365 * DAY_MS, shiftMonth(month, 2))
 
     // ── Moving about ────────────────────────────────────────────────────────
 
@@ -171,48 +192,175 @@ class CalendarHubViewModel(application: Application) : AndroidViewModel(applicat
      * whichever calendar has been chosen — and to the launcher's own store when that is what was
      * chosen, or when there is no calendar it may write to.
      */
-    fun saveEvent(event: CalendarEvent, targetCalendarId: Long?) {
+    fun saveEvent(
+        event: CalendarEvent,
+        targetCalendarId: Long?,
+        scope: EventEditScope = EventEditScope.THIS_EVENT
+    ) {
         viewModelScope.launch {
-            val destination = targetCalendarId ?: event.calendarId ?: resolveDefaultCalendar()
-            val writeToSystem = destination != null &&
-                destination != CalendarInfo.LOCAL_ID &&
-                calendarRepository.canWrite()
+            // Where it was is where it stays unless the calendar chip was actually changed: a
+            // local event is local, a phone event is in its own calendar.
+            val home = if (event.isLocal) CalendarInfo.LOCAL_ID else event.calendarId
+            val destination = targetCalendarId ?: home ?: resolveDefaultCalendar()
+            val moved = home != null && destination != home
+            val toSystem = destination != null && destination != CalendarInfo.LOCAL_ID
+            val canWrite = calendarRepository.canWrite()
 
-            if (writeToSystem) {
-                val ok = withContext(Dispatchers.IO) {
-                    if (event.systemEventId != null && event.calendarId == destination) {
-                        calendarRepository.update(event)
-                    } else {
-                        // Moved between calendars, or new: write it there and drop the old copy.
-                        val inserted = calendarRepository.insert(event, destination!!)
-                        if (inserted != null && event.systemEventId != null) {
-                            calendarRepository.delete(event)
+            when {
+                // ── Staying in a phone calendar ──
+                toSystem && !moved && event.systemEventId != null -> {
+                    val ok = withContext(Dispatchers.IO) {
+                        if (event.isOccurrence && scope == EventEditScope.THIS_EVENT) {
+                            calendarRepository.updateOccurrence(event)
+                        } else {
+                            calendarRepository.update(event)
                         }
-                        inserted != null
+                    }
+                    if (ok) loadSystemEvents() else _notice.value = R.string.cal_save_failed
+                }
+
+                // ── Going into a phone calendar: new, or moved from the launcher or another calendar ──
+                toSystem && canWrite -> {
+                    val inserted = withContext(Dispatchers.IO) {
+                        calendarRepository.insert(seriesOrOne(event, scope), destination!!)
+                    }
+                    if (inserted == null) {
+                        // The phone would not take it: whatever it was before, it still is.
+                        // A brand-new event is not lost either — it is kept by the launcher.
+                        if (event.isLocal && event.systemEventId == null && !event.isOccurrence) {
+                            saveLocal(event.copy(isLocal = true, systemEventId = null, calendarId = null))
+                        }
+                        _notice.value = R.string.cal_save_failed
+                        return@launch
+                    }
+                    // Only now, with the new copy safely written, does the old one go.
+                    withContext(Dispatchers.IO) { dropOldCopy(event, scope) }
+                    loadSystemEvents()
+                }
+
+                // ── Kept by the launcher ──
+                else -> {
+                    if (toSystem && !canWrite) _notice.value = R.string.cal_save_failed
+                    val ok = saveLocalScoped(event.copy(isLocal = true, systemEventId = null, calendarId = null), scope)
+                    // A phone event moved into the launcher: its phone copy goes once ours is written.
+                    if (ok && event.systemEventId != null && !event.isLocal) {
+                        withContext(Dispatchers.IO) { dropOldCopy(event, scope) }
+                        loadSystemEvents()
                     }
                 }
-                if (ok) {
-                    // An event that used to be ours no longer is.
-                    if (event.isLocal) removeLocal(event.id)
-                    loadSystemEvents()
-                    return@launch
-                }
-                // Writing failed; rather than lose it, keep it ourselves.
             }
-            saveLocal(event.copy(isLocal = true, systemEventId = null, calendarId = null))
         }
     }
 
-    fun deleteEvent(event: CalendarEvent) {
+    fun deleteEvent(event: CalendarEvent, scope: EventEditScope = EventEditScope.THIS_EVENT) {
         viewModelScope.launch {
             if (!event.isLocal) {
-                val ok = withContext(Dispatchers.IO) { calendarRepository.delete(event) }
+                val ok = withContext(Dispatchers.IO) {
+                    if (event.isOccurrence && scope == EventEditScope.THIS_EVENT) {
+                        calendarRepository.deleteOccurrence(event)
+                    } else {
+                        calendarRepository.delete(event)
+                    }
+                }
                 if (ok) loadSystemEvents()
                 return@launch
             }
-            reminderScheduler.cancel(event.id)
-            removeLocal(event.id)
+            val masterId = event.seriesId ?: event.id
+            if (event.isOccurrence && scope == EventEditScope.THIS_EVENT) {
+                excludeOccurrence(masterId, event.instanceStartMillis ?: event.startMillis)
+            } else {
+                reminderScheduler.cancel(masterId)
+                removeLocal(masterId)
+            }
         }
+    }
+
+    /** What goes into a phone calendar: one week of a series, or the series with the draft's changes. */
+    private fun seriesOrOne(event: CalendarEvent, scope: EventEditScope): CalendarEvent =
+        if (event.isOccurrence && scope == EventEditScope.THIS_EVENT) {
+            event.copy(recurrence = null, seriesId = null, instanceStartMillis = null)
+        } else {
+            event
+        }
+
+    /** After a successful move: the copy where the event used to live. */
+    private suspend fun dropOldCopy(event: CalendarEvent, scope: EventEditScope) {
+        if (event.isLocal) {
+            val masterId = event.seriesId ?: event.id
+            if (event.isOccurrence && scope == EventEditScope.THIS_EVENT) {
+                excludeOccurrence(masterId, event.instanceStartMillis ?: event.startMillis)
+            } else {
+                reminderScheduler.cancel(masterId)
+                removeLocal(masterId)
+            }
+        } else if (event.systemEventId != null) {
+            if (event.isOccurrence && scope == EventEditScope.THIS_EVENT) {
+                calendarRepository.deleteOccurrence(event)
+            } else {
+                calendarRepository.delete(event)
+            }
+        }
+    }
+
+    /**
+     * Writes to the launcher's own store, honouring the scope: one occurrence of a series becomes
+     * a standalone event and a gap in the series; the whole series takes the draft's changes on
+     * the series' own date.
+     */
+    private suspend fun saveLocalScoped(event: CalendarEvent, scope: EventEditScope): Boolean {
+        if (!event.isOccurrence) {
+            saveLocal(event)
+            return true
+        }
+        val masterId = event.seriesId ?: return false
+        val stored = calendarDataStore.eventsFlow.first()
+        val master = stored.firstOrNull { it.id == masterId }
+        if (master == null) {
+            // The series is not ours (it came from the phone): keep this one as a plain event.
+            saveLocal(event.copy(id = UUID.randomUUID().toString(), recurrence = null, seriesId = null, instanceStartMillis = null))
+            return true
+        }
+        if (scope == EventEditScope.THIS_EVENT) {
+            val original = event.instanceStartMillis ?: event.startMillis
+            val standalone = event.copy(
+                id = UUID.randomUUID().toString(),
+                recurrence = null,
+                seriesId = null,
+                instanceStartMillis = null,
+                excludedStarts = emptySet()
+            )
+            val updatedMaster = master.copy(excludedStarts = master.excludedStarts + original)
+            calendarDataStore.saveEvents(
+                stored.map { if (it.id == masterId) updatedMaster else it } + standalone
+            )
+            reminderScheduler.schedule(updatedMaster)
+            reminderScheduler.schedule(standalone)
+        } else {
+            // The series keeps its own first date; the time of day and everything else is new.
+            val draftTime = Calendar.getInstance().apply { timeInMillis = event.startMillis }
+            val start = if (event.isAllDay) {
+                startOfDay(master.startMillis)
+            } else {
+                Calendar.getInstance().apply {
+                    timeInMillis = master.startMillis
+                    set(Calendar.HOUR_OF_DAY, draftTime.get(Calendar.HOUR_OF_DAY))
+                    set(Calendar.MINUTE, draftTime.get(Calendar.MINUTE))
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+            }
+            val updatedMaster = event.copy(
+                id = masterId,
+                startMillis = start,
+                endMillis = start + event.durationMillis,
+                seriesId = null,
+                instanceStartMillis = null,
+                excludedStarts = master.excludedStarts
+            )
+            calendarDataStore.saveEvents(stored.map { if (it.id == masterId) updatedMaster else it })
+            reminderScheduler.schedule(updatedMaster)
+        }
+        return true
     }
 
     private suspend fun saveLocal(event: CalendarEvent) {
@@ -229,6 +377,15 @@ class CalendarHubViewModel(application: Application) : AndroidViewModel(applicat
     private suspend fun removeLocal(id: String) {
         val stored = calendarDataStore.eventsFlow.first()
         calendarDataStore.saveEvents(stored.filterNot { it.id == id })
+    }
+
+    /** Leaves a gap in one of our own series where one occurrence was taken out. */
+    private suspend fun excludeOccurrence(masterId: String, originalStart: Long) {
+        val stored = calendarDataStore.eventsFlow.first()
+        val master = stored.firstOrNull { it.id == masterId } ?: return
+        val updated = master.copy(excludedStarts = master.excludedStarts + originalStart)
+        calendarDataStore.saveEvents(stored.map { if (it.id == masterId) updated else it })
+        reminderScheduler.schedule(updated)
     }
 
     /** The calendar a new event goes to when nobody has said. */

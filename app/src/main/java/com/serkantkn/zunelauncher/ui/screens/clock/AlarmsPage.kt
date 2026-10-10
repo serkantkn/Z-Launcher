@@ -16,6 +16,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,10 +30,10 @@ import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.Alarm
 import com.serkantkn.zunelauncher.ui.components.wpTilt
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.util.TimeText
 import com.serkantkn.zunelauncher.util.UntilParts
 import com.serkantkn.zunelauncher.util.untilParts
 import java.text.DateFormatSymbols
-import java.util.Calendar
 import java.util.Locale
 import com.serkantkn.zunelauncher.ui.components.MetroBigNumber
 import com.serkantkn.zunelauncher.ui.components.MetroEmpty
@@ -144,6 +146,7 @@ private fun AlarmRow(
 ) {
     val zuneColors = LocalZuneColors.current
     val interactionSource = remember { MutableInteractionSource() }
+    val use24h by TimeText.use24h.collectAsState()
     val snoozedUntil = alarm.snoozedUntilMillis?.takeIf { it > now && alarm.isEnabled }
 
     Row(
@@ -161,7 +164,7 @@ private fun AlarmRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             MetroBigNumber(
-                text = alarm.timeString,
+                text = TimeText.clock(alarm.hour, alarm.minute, use24h = use24h),
                 fontSize = 44.sp,
                 color = if (alarm.isEnabled) null else zuneColors.textMuted
             )
@@ -225,13 +228,6 @@ internal fun untilText(parts: UntilParts): String = when {
     else -> stringResource(R.string.clock_in_minutes, parts.minutes)
 }
 
-/** A moment as a clock reading. */
-internal fun timeOf(millis: Long, locale: Locale = Locale.getDefault()): String {
-    val calendar = Calendar.getInstance(locale).apply { timeInMillis = millis }
-    return String.format(
-        Locale.ROOT,
-        "%02d:%02d",
-        calendar.get(Calendar.HOUR_OF_DAY),
-        calendar.get(Calendar.MINUTE)
-    )
-}
+/** A moment as a clock reading, the way the clock setting says it. */
+internal fun timeOf(millis: Long, locale: Locale = Locale.getDefault()): String =
+    TimeText.format(millis, locale = locale)

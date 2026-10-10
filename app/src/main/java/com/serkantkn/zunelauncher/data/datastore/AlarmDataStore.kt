@@ -65,7 +65,8 @@ class AlarmDataStore(private val context: Context) {
             snoozeMinutes = obj.optInt("snoozeMinutes", Alarm.DEFAULT_SNOOZE_MINUTES),
             gradualVolume = obj.optBoolean("gradualVolume", true),
             autoSilenceMinutes = obj.optInt("autoSilenceMinutes", Alarm.DEFAULT_AUTO_SILENCE_MINUTES),
-            snoozedUntilMillis = if (obj.isNull("snoozedUntilMillis")) null else obj.optLong("snoozedUntilMillis")
+            snoozedUntilMillis = if (obj.isNull("snoozedUntilMillis")) null else obj.optLong("snoozedUntilMillis"),
+            bookedForMillis = if (obj.isNull("bookedForMillis")) null else obj.optLong("bookedForMillis")
         )
     }
 
@@ -84,6 +85,7 @@ class AlarmDataStore(private val context: Context) {
         put("gradualVolume", alarm.gradualVolume)
         put("autoSilenceMinutes", alarm.autoSilenceMinutes)
         put("snoozedUntilMillis", alarm.snoozedUntilMillis ?: JSONObject.NULL)
+        put("bookedForMillis", alarm.bookedForMillis ?: JSONObject.NULL)
     }
 
     private companion object {

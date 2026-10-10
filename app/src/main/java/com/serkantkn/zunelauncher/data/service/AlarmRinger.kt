@@ -11,9 +11,9 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -22,7 +22,12 @@ import kotlinx.coroutines.launch
  *
  * It does not belong to the screen that shows the alarm: the phone can be woken by a notification
  * with no screen of ours in front, and a snooze pressed there has to be able to stop the sound.
- * So the player lives here, and whoever wants quiet calls [stop].
+ * So the player lives here, started by the receiver the moment the alarm fires, and whoever wants
+ * quiet calls [stop].
+ *
+ * It knows which alarm it is ringing for ([activeId]), so that a second alarm arriving while the
+ * first is still ringing is a deliberate hand-over — the newer one wins, the older is settled —
+ * and not two players fighting over the speaker.
  *
  * Every step of starting it is allowed to fail. A phone with no alarm sound, a ringtone on a
  * memory card that is no longer in the phone, an audio focus refusal — none of those are reasons
@@ -31,26 +36,57 @@ import kotlinx.coroutines.launch
  */
 object AlarmRinger {
 
+    /** What the timer rings under, since it has no alarm id of its own. */
+    const val TIMER_ID = "timer"
+
     private var player: MediaPlayer? = null
     private var vibrator: Vibrator? = null
     private var fadeJob: Job? = null
-    private val scope = CoroutineScope(SupervisorJob())
+    private var silenceJob: Job? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** Whether something is making a noise right now. */
     @Volatile
     var isRinging: Boolean = false
         private set
 
+    /** The alarm (or [TIMER_ID]) the noise is for, while [isRinging]. */
+    @Volatile
+    var activeId: String? = null
+        private set
+
+    /**
+     * Starts ringing for [id]. Anything already ringing is stopped first.
+     *
+     * [autoSilenceMillis] above zero gives up after that long with nobody answering, and then
+     * [onAutoSilence] is told — so the record can be settled from wherever the ring was started,
+     * screen or no screen.
+     */
     fun start(
         context: Context,
+        id: String,
         ringtoneUri: String?,
         vibrate: Boolean,
-        gradualVolume: Boolean
+        gradualVolume: Boolean,
+        autoSilenceMillis: Long = 0L,
+        onAutoSilence: (() -> Unit)? = null
     ) {
         stop()
         isRinging = true
-        startSound(context, ringtoneUri, gradualVolume)
-        if (vibrate) startVibration(context)
+        activeId = id
+        val app = context.applicationContext
+        startSound(app, ringtoneUri, gradualVolume)
+        if (vibrate) startVibration(app)
+        if (autoSilenceMillis > 0L) {
+            silenceJob = scope.launch {
+                delay(autoSilenceMillis)
+                if (activeId == id && isRinging) {
+                    ZuneLog.w(TAG, "nobody answered $id; going quiet")
+                    stop()
+                    onAutoSilence?.invoke()
+                }
+            }
+        }
     }
 
     private fun startSound(context: Context, ringtoneUri: String?, gradualVolume: Boolean) {
@@ -123,10 +159,18 @@ object AlarmRinger {
         }
     }
 
-    fun stop() {
+    /**
+     * Goes quiet. With an [id], only if that is what is ringing: a stale "dismiss" for an alarm
+     * that has already been handed over to a newer one must not silence the newer one.
+     */
+    fun stop(id: String? = null) {
+        if (id != null && activeId != null && activeId != id) return
         isRinging = false
+        activeId = null
         fadeJob?.cancel()
         fadeJob = null
+        silenceJob?.cancel()
+        silenceJob = null
         runCatching { player?.stop() }
         runCatching { player?.release() }
         player = null

@@ -29,31 +29,51 @@ class AppRepository(private val context: Context) {
 
     /**
      * Queries all installed apps with a launcher intent and emits them sorted alphabetically.
+     *
+     * [allActivities] keeps every launcher activity a package declares — the app list wants
+     * the game and its map editor both. Off, which is what Start and the pickers want, a package
+     * is one entry.
      */
-    fun getInstalledApps(): Flow<List<AppInfo>> = callbackFlow {
+    fun getInstalledApps(allActivities: Boolean = false): Flow<List<AppInfo>> = callbackFlow {
         // The list is read once at the start and again whenever the phone says a package came,
         // went or changed — so an app removed from the list leaves it at once, and one just
         // installed appears without the launcher being restarted.
-        launch(Dispatchers.IO) { send(queryInstalledApps()) }
+        launch(Dispatchers.IO) { send(queryInstalledApps(allActivities)) }
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
-                launch(Dispatchers.IO) { send(queryInstalledApps()) }
+                launch(Dispatchers.IO) { send(queryInstalledApps(allActivities)) }
             }
-        }
-        val filter = android.content.IntentFilter().apply {
-            addAction(Intent.ACTION_PACKAGE_ADDED)
-            addAction(Intent.ACTION_PACKAGE_REMOVED)
-            addAction(Intent.ACTION_PACKAGE_CHANGED)
-            addAction(Intent.ACTION_PACKAGE_REPLACED)
-            addDataScheme("package")
         }
         // Package broadcasts come from the system alone, which is what the plain registration
         // is still for.
-        context.registerReceiver(receiver, filter)
+        context.registerReceiver(receiver, packageFilter())
         awaitClose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
-    private fun queryInstalledApps(): List<AppInfo> {
+    /**
+     * The packages the phone says came, went or changed, as they happen — for anything that
+     * keeps a cache keyed on a package (an icon pack's filter, say) and must drop it then.
+     */
+    fun packageChanges(): Flow<String> = callbackFlow {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                val packageName = intent?.data?.schemeSpecificPart ?: return
+                trySend(packageName)
+            }
+        }
+        context.registerReceiver(receiver, packageFilter())
+        awaitClose { runCatching { context.unregisterReceiver(receiver) } }
+    }
+
+    private fun packageFilter() = android.content.IntentFilter().apply {
+        addAction(Intent.ACTION_PACKAGE_ADDED)
+        addAction(Intent.ACTION_PACKAGE_REMOVED)
+        addAction(Intent.ACTION_PACKAGE_CHANGED)
+        addAction(Intent.ACTION_PACKAGE_REPLACED)
+        addDataScheme("package")
+    }
+
+    private fun queryInstalledApps(allActivities: Boolean): List<AppInfo> {
         val intent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
         }
@@ -79,7 +99,9 @@ class AppRepository(private val context: Context) {
                 )
             }
             .sortedBy { it.label.lowercase() }
-            .distinctBy { it.packageName }
+            // Keyed on package and activity, so a second launcher activity is a second entry
+            // rather than silently the first one again — unless one per package was asked for.
+            .distinctBy { if (allActivities) it.key else it.packageName }
     }
 
     /**
@@ -125,13 +147,35 @@ class AppRepository(private val context: Context) {
     }
 
     /**
-     * Launches an app by package name.
+     * Launches an app: the named activity when one is given (a package's second entry in the
+     * list is not what its launch intent opens), else whatever the package's launch intent is.
+     *
+     * Returns whether a screen was asked for. It is false, not a crash, when the app was removed
+     * a moment ago, is not exported, or the phone refuses the start — so the caller can say
+     * "uygulama açılamadı" instead of the launcher dying.
      */
-    fun launchApp(packageName: String) {
-        val intent = packageManager.getLaunchIntentForPackage(packageName)
-        intent?.let {
-            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(it)
+    fun launchApp(packageName: String, activityName: String? = null): Boolean {
+        val intent = if (!activityName.isNullOrBlank()) {
+            Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .setClassName(packageName, activityName)
+        } else {
+            packageManager.getLaunchIntentForPackage(packageName)
+        } ?: return false
+        return try {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+            context.startActivity(intent)
+            true
+        } catch (e: android.content.ActivityNotFoundException) {
+            ZuneLog.w("AppRepository", "no screen to open for $packageName/$activityName", e)
+            // The activity named may have gone with an update; the package's own may still do.
+            if (!activityName.isNullOrBlank()) launchApp(packageName, null) else false
+        } catch (e: SecurityException) {
+            ZuneLog.w("AppRepository", "the phone refused to open $packageName", e)
+            false
+        } catch (e: Exception) {
+            ZuneLog.w("AppRepository", "$packageName would not open", e)
+            false
         }
     }
 

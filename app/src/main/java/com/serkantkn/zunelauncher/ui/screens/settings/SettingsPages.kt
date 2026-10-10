@@ -1246,8 +1246,40 @@ internal fun AboutSettingsPage() {
     val hasOverlayAccess = remember(permissionTrigger) {
         android.provider.Settings.canDrawOverlays(context)
     }
+    val hasCalendar = remember(permissionTrigger) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
+    }
+    val hasLocation = remember(permissionTrigger) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+    val hasNotifications = remember(permissionTrigger) {
+        NotificationManagerCompat.from(context).areNotificationsEnabled() &&
+            (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
+    }
+    val hasExactAlarms = remember(permissionTrigger) {
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+            (context.getSystemService(android.content.Context.ALARM_SERVICE) as? android.app.AlarmManager)
+                ?.canScheduleExactAlarms() == true
+    }
+    val hasUsageAccess = remember(permissionTrigger) {
+        com.serkantkn.zunelauncher.util.AppUsage.isGranted(context)
+    }
 
     val requestContactsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { permissionTrigger++ }
+    )
+    val requestCalendarLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissionTrigger++ }
+    )
+    val requestLocationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { permissionTrigger++ }
+    )
+    val requestNotificationsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { permissionTrigger++ }
     )
@@ -1382,6 +1414,92 @@ internal fun AboutSettingsPage() {
                                     Uri.parse("package:${context.packageName}")
                                 )
                                 context.startActivity(intent)
+                            } catch (e: Exception) {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_perm_calendar),
+                        subtitle = stringResource(R.string.settings_perm_calendar_sub),
+                        checked = hasCalendar,
+                        onCheckedChange = {
+                            if (!hasCalendar) {
+                                requestCalendarLauncher.launch(
+                                    arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
+                                )
+                            } else {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_perm_location),
+                        subtitle = stringResource(R.string.settings_perm_location_sub),
+                        checked = hasLocation,
+                        onCheckedChange = {
+                            if (!hasLocation) {
+                                requestLocationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                            } else {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_perm_notifications),
+                        subtitle = stringResource(R.string.settings_perm_notifications_sub),
+                        checked = hasNotifications,
+                        onCheckedChange = {
+                            if (!hasNotifications && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                requestNotificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                // Switched off in the system's own page, or being switched off: go there.
+                                try {
+                                    context.startActivity(
+                                        Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                            .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    )
+                                } catch (e: Exception) {
+                                    openAppSettings(context)
+                                }
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_perm_exact_alarms),
+                        subtitle = stringResource(R.string.settings_perm_exact_alarms_sub),
+                        checked = hasExactAlarms,
+                        onCheckedChange = {
+                            try {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                    context.startActivity(
+                                        Intent(
+                                            android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                            Uri.parse("package:${context.packageName}")
+                                        )
+                                    )
+                                } else {
+                                    openAppSettings(context)
+                                }
+                            } catch (e: Exception) {
+                                openAppSettings(context)
+                            }
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_perm_usage_access),
+                        subtitle = stringResource(R.string.settings_perm_usage_access_sub),
+                        checked = hasUsageAccess,
+                        onCheckedChange = {
+                            try {
+                                context.startActivity(com.serkantkn.zunelauncher.util.AppUsage.settingsIntent())
                             } catch (e: Exception) {
                                 openAppSettings(context)
                             }
