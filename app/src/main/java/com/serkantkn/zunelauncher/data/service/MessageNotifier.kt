@@ -18,8 +18,11 @@ import com.serkantkn.zunelauncher.MainActivity
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.repository.MessagingBridge
 import com.serkantkn.zunelauncher.data.repository.SmsRepository
+import com.serkantkn.zunelauncher.util.RequestCodes
+import com.serkantkn.zunelauncher.util.SendOutcome
 import com.serkantkn.zunelauncher.util.SmsSender
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.util.localizedString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,12 +38,22 @@ object MessageNotifier {
 
     private const val TAG = "MessageNotifier"
     private const val CHANNEL_ID = "zune_messages"
-    private const val NOTIFICATION_BASE = 5200
     const val KEY_REPLY = "zune_message_reply"
     const val EXTRA_THREAD_ID = "thread_id"
     const val EXTRA_ADDRESS = "address"
     const val ACTION_REPLY = "com.serkantkn.zunelauncher.MESSAGE_REPLY"
     const val ACTION_MARK_READ = "com.serkantkn.zunelauncher.MESSAGE_MARK_READ"
+
+    /** One line of a conversation's notification. */
+    private data class Line(val sender: String, val body: String, val at: Long)
+
+    /**
+     * The unread lines of each conversation, so a second message joins the first in the shade
+     * instead of replacing it. In memory only: a process restart loses the earlier lines, and
+     * the notification then starts again from the newest — which is the state it was in before.
+     */
+    private val unread = mutableMapOf<Long, MutableList<Line>>()
+    private const val LINES_KEPT = 5
 
     /**
      * Puts an arriving message up, unless the user is already reading that very conversation —
@@ -52,11 +65,21 @@ object MessageNotifier {
         ensureChannel(context)
 
         val name = displayName(context, sender)
-        val person = Person.Builder().setName(name.ifBlank { context.getString(R.string.msg_unknown_sender) }).build()
+        val lines = synchronized(unread) {
+            val list = unread.getOrPut(threadId) { mutableListOf() }
+            list += Line(name, body, System.currentTimeMillis())
+            while (list.size > LINES_KEPT) list.removeAt(0)
+            list.toList()
+        }
+
         // The reader of a conversation needs a name too, and Android will not take an empty one.
-        val self = Person.Builder().setName(context.getString(R.string.msg_me)).build()
+        val self = Person.Builder().setName(context.localizedString(R.string.msg_me)).build()
+        val unknown = context.localizedString(R.string.msg_unknown_sender)
         val style = NotificationCompat.MessagingStyle(self)
-            .addMessage(body, System.currentTimeMillis(), person)
+        lines.forEach { line ->
+            val person = Person.Builder().setName(line.sender.ifBlank { unknown }).build()
+            style.addMessage(line.body, line.at, person)
+        }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_wp_message)
@@ -69,7 +92,7 @@ object MessageNotifier {
             .addAction(
                 NotificationCompat.Action.Builder(
                     R.drawable.ic_wp_message,
-                    context.getString(R.string.msg_mark_read),
+                    context.localizedString(R.string.msg_mark_read),
                     broadcast(context, ACTION_MARK_READ, threadId, sender)
                 ).build()
             )
@@ -82,8 +105,35 @@ object MessageNotifier {
         }
     }
 
+    /**
+     * A picture message has arrived, and the launcher cannot show it. It says so, and the tap
+     * opens the conversation — where the message's text, if any, is — rather than nothing.
+     */
+    fun showIncomingMms(context: Context, sender: String, threadId: Long) {
+        if (!canPost(context)) return
+        if (threadId > 0L && MessagingBridge.visibleThreadId == threadId) return
+        ensureChannel(context)
+
+        val name = displayName(context, sender).ifBlank { context.localizedString(R.string.msg_unknown_sender) }
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_wp_message)
+            .setContentTitle(name)
+            .setContentText(context.localizedString(R.string.msg_mms_arrived))
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(openThread(context, threadId))
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId(threadId), notification)
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "not allowed to show the picture message", e)
+        }
+    }
+
     /** Takes a conversation's notification down, for when it has been read in the hub. */
     fun clear(context: Context, threadId: Long) {
+        synchronized(unread) { unread.remove(threadId) }
         try {
             NotificationManagerCompat.from(context).cancel(notificationId(threadId))
         } catch (e: Exception) {
@@ -91,7 +141,18 @@ object MessageNotifier {
         }
     }
 
-    private fun notificationId(threadId: Long): Int = NOTIFICATION_BASE + (threadId % 1000L).toInt()
+    /**
+     * One id per conversation, and never the same one for two.
+     *
+     * Thread numbers are a provider's autoincrement, so they are small; shifted up past every
+     * other id the launcher uses they still fit an Int with room for a billion conversations.
+     * The old `threadId % 1000` put conversations 12 and 1012 on one notification.
+     */
+    internal fun notificationId(threadId: Long): Int =
+        NOTIFICATION_BASE + (threadId.coerceAtLeast(0L) % THREAD_ID_SPAN).toInt()
+
+    private const val NOTIFICATION_BASE = 1_100_000_000
+    private const val THREAD_ID_SPAN = 1_000_000_000L
 
     /** The sender's name when the address book knows them, and their number when it does not. */
     private fun displayName(context: Context, sender: String): String =
@@ -99,11 +160,11 @@ object MessageNotifier {
 
     private fun replyAction(context: Context, threadId: Long, address: String): NotificationCompat.Action {
         val remoteInput = RemoteInput.Builder(KEY_REPLY)
-            .setLabel(context.getString(R.string.msg_type_hint))
+            .setLabel(context.localizedString(R.string.msg_type_hint))
             .build()
         return NotificationCompat.Action.Builder(
             R.drawable.ic_wp_message,
-            context.getString(R.string.msg_reply),
+            context.localizedString(R.string.msg_reply),
             broadcast(context, ACTION_REPLY, threadId, address, mutable = true)
         )
             .addRemoteInput(remoteInput)
@@ -126,7 +187,8 @@ object MessageNotifier {
         // A reply's pending intent has to be mutable: the typed text is put into it by the system.
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or
             if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE
-        return PendingIntent.getBroadcast(context, (action + threadId).hashCode(), intent, flags)
+        val kind = if (action == ACTION_REPLY) RequestCodes.Kind.SMS_REPLY else RequestCodes.Kind.SMS_MARK_READ
+        return PendingIntent.getBroadcast(context, RequestCodes.of(kind, threadId), intent, flags)
     }
 
     private fun openThread(context: Context, threadId: Long): PendingIntent {
@@ -136,7 +198,7 @@ object MessageNotifier {
             .putExtra(MainActivity.EXTRA_OPEN_MESSAGE_THREAD, threadId)
         return PendingIntent.getActivity(
             context,
-            threadId.toInt(),
+            RequestCodes.of(RequestCodes.Kind.SMS_OPEN, threadId),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -153,10 +215,10 @@ object MessageNotifier {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                context.getString(R.string.msg_channel_name),
+                context.localizedString(R.string.msg_channel_name),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = context.getString(R.string.msg_channel_description)
+                description = context.localizedString(R.string.msg_channel_description)
                 setShowBadge(true)
             }
         )
@@ -185,9 +247,16 @@ class MessageActionReceiver : BroadcastReceiver() {
                 val pending = goAsync()
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        SmsSender.send(context, address, reply, threadId)
-                        SmsRepository.markThreadRead(context, threadId)
-                        MessageNotifier.clear(context, threadId)
+                        val outcome = SmsSender.send(context, address, reply, threadId)
+                        // A reply that did not leave is no reason to take the message down: the
+                        // notification is the only sign the user has that there is still something
+                        // to answer.
+                        if (outcome == SendOutcome.HANDED_OVER) {
+                            SmsRepository.markThreadRead(context, threadId)
+                            MessageNotifier.clear(context, threadId)
+                        } else {
+                            ZuneLog.w("MessageActionReceiver", "the reply from the notification did not go: $outcome")
+                        }
                         MessagingBridge.messagesChanged()
                     } finally {
                         pending.finish()

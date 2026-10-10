@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Manifest labels -->
+    <string name="label_notes_share">notlar</string>
+    <string name="label_key_service">Z Launcher ses tuşları</string>
+    <string name="label_social_listener">Z Launcher sosyal merkezi</string>
+    <string name="label_sms_compose">Z Launcher mesajlar</string>
+
+    <!-- Call screen -->
+    <string name="call_bluetooth">bluetooth</string>
+    <string name="call_swap">değiştir</string>
+    <string name="call_number_line">%1$s: %2$s</string>
+    <string name="call_quick_custom_hint">kendin yaz…</string>
+    <string name="call_quick_send">gönder</string>
+    <string name="call_answer_hint">cevaplamak için basılı tut</string>
+    <string name="call_ignore_hint">reddetmek için basılı tut</string>
+    <string name="call_hidden_banner">aramaya dönmek için dokun</string>
+
+    <!-- Phone hub -->
+    <string name="phone_private_number">gizli numara</string>
+    <string name="phone_paste">yapıştır</string>
+    <string name="phone_move_up">yukarı taşı</string>
+    <string name="phone_move_down">aşağı taşı</string>
+    <string name="phone_call_failed">arama yapılamadı</string>
+    <string name="phone_missed_call">cevapsız arama</string>
+    <plurals name="phone_missed_calls">
+        <item quantity="one">%1$d cevapsız arama</item>
+        <item quantity="other">%1$d cevapsız arama</item>
+    </plurals>
+
+    <!-- Volume -->
+    <string name="volume_silent_needs_access">telefonu sessize almak için rahatsız etmeyin erişimine izin ver</string>
+
+    <!-- Messaging -->
+    <string name="msg_mms_arrived">resimli mesaj geldi</string>
+    <string name="msg_pick_recipient_to_call">kimi arayalım?</string>
+
+    <!-- People -->
+    <string name="people_tab_recent">son kullanılanlar</string>
+    <string name="people_copied">kopyalandı</string>
+
+    <!-- Email -->
+    <string name="email_error_attachment_unreadable">ek okunamadı: %1$s</string>
+    <string name="email_error_password_store">şifre güvenli bir şekilde saklanamadı</string>
+</resources>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings for the phone, messaging, people, email and social hubs that arrived with the audit
+     fixes. Kept apart from strings.xml so several hands can edit at once. -->
+<resources>
+    <!-- Manifest labels: what the system shows in its own lists -->
+    <string name="label_notes_share">notes</string>
+    <string name="label_key_service">Z Launcher volume keys</string>
+    <string name="label_social_listener">Z Launcher social hub</string>
+    <string name="label_sms_compose">Z Launcher messages</string>
+
+    <!-- Call screen -->
+    <string name="call_bluetooth">bluetooth</string>
+    <string name="call_swap">swap</string>
+    <string name="call_number_line">%1$s: %2$s</string>
+    <string name="call_quick_custom_hint">write your own…</string>
+    <string name="call_quick_send">send</string>
+    <string name="call_answer_hint">hold to answer</string>
+    <string name="call_ignore_hint">hold to decline</string>
+    <string name="call_hidden_banner">tap to return to the call</string>
+
+    <!-- Phone hub -->
+    <string name="phone_private_number">private number</string>
+    <string name="phone_paste">paste</string>
+    <string name="phone_move_up">move up</string>
+    <string name="phone_move_down">move down</string>
+    <string name="phone_call_failed">the call could not be placed</string>
+    <string name="phone_missed_call">missed call</string>
+    <plurals name="phone_missed_calls">
+        <item quantity="one">%1$d missed call</item>
+        <item quantity="other">%1$d missed calls</item>
+    </plurals>
+
+    <!-- Volume -->
+    <string name="volume_silent_needs_access">to silence the phone, allow Z Launcher in do not disturb access</string>
+
+    <!-- Messaging -->
+    <string name="msg_mms_arrived">picture message arrived</string>
+    <string name="msg_pick_recipient_to_call">who to call?</string>
+
+    <!-- People -->
+    <string name="people_tab_recent">recent</string>
+    <string name="people_copied">copied</string>
+
+    <!-- Email -->
+    <string name="email_error_attachment_unreadable">attachment could not be read: %1$s</string>
+    <string name="email_error_password_store">the password could not be stored safely</string>
+</resources>

@@ -6,7 +6,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.serkantkn.zunelauncher.data.model.ContactModel
+import com.serkantkn.zunelauncher.data.model.ContactPhone
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
 import com.serkantkn.zunelauncher.data.model.SmsMessageModel
 import com.serkantkn.zunelauncher.data.model.StartFolders
@@ -22,8 +22,10 @@ import com.serkantkn.zunelauncher.util.SimCard
 import com.serkantkn.zunelauncher.util.SmsSender
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.toUserMessage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,8 +50,8 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
     private val _conversations = MutableStateFlow<List<SmsConversationModel>>(emptyList())
     val conversations: StateFlow<List<SmsConversationModel>> = _conversations.asStateFlow()
 
-    private val _contacts = MutableStateFlow<List<Pair<ContactModel, String>>>(emptyList())
-    val contacts: StateFlow<List<Pair<ContactModel, String>>> = _contacts.asStateFlow()
+    private val _contacts = MutableStateFlow<List<ContactPhone>>(emptyList())
+    val contacts: StateFlow<List<ContactPhone>> = _contacts.asStateFlow()
 
     private val _selectedConversation = MutableStateFlow<SmsConversationModel?>(null)
     val selectedConversation: StateFlow<SmsConversationModel?> = _selectedConversation.asStateFlow()
@@ -184,10 +186,12 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
     fun openConversation(context: Context, conversation: SmsConversationModel) {
         _selectedConversation.value = conversation
         MessagingBridge.visibleThreadId = conversation.threadId.takeIf { it > 0L }
-        _selectedBlocked.value = conversation.address.isNotBlank() &&
-            BlockedNumbers.isBlocked(context, conversation.address)
 
         viewModelScope.launch {
+            // The blocked list is a provider behind a binder; asked on the main thread it would
+            // hold the hinge animation that is opening this very conversation.
+            _selectedBlocked.value = conversation.address.isNotBlank() &&
+                withContext(Dispatchers.IO) { BlockedNumbers.isBlocked(context, conversation.address) }
             if (conversation.threadId > 0L) {
                 _threadMessages.value = try {
                     SmsRepository.getMessagesForThread(context, conversation.threadId)
@@ -256,6 +260,21 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
         MessagingBridge.visibleThreadId = null
     }
 
+    /**
+     * Whether the open conversation is actually in front of the user.
+     *
+     * The notifier skips a message for the conversation on screen; a conversation left open
+     * behind another app, or behind a locked screen, is not on screen, and a message arriving
+     * then has to be announced like any other. The screen says so as it pauses and resumes.
+     */
+    fun setConversationVisible(visible: Boolean) {
+        MessagingBridge.visibleThreadId = if (visible) {
+            _selectedConversation.value?.threadId?.takeIf { it > 0L }
+        } else {
+            null
+        }
+    }
+
     /** Keeps unsent text under the conversation instead of throwing it away. */
     fun saveDraft(context: Context, text: String) {
         val conversation = _selectedConversation.value ?: return
@@ -278,16 +297,30 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
         _selectedSim.value = subscriptionId
     }
 
+    /**
+     * Sends to everybody in the open conversation. A group thread lists several people, and a
+     * reply that went only to the first of them was a private message to the wrong person.
+     */
     fun sendSms(context: Context, recipientNumber: String, messageText: String, onComplete: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
             val conversation = _selectedConversation.value
-            val outcome = SmsSender.send(
-                context = context,
-                address = recipientNumber,
-                text = messageText,
-                threadId = conversation?.threadId?.takeIf { it > 0L } ?: 0L,
-                subscriptionId = _selectedSim.value
-            )
+            val recipients = conversation?.recipients
+                ?.filter { it.isNotBlank() }
+                ?.ifEmpty { null }
+                ?: listOf(recipientNumber)
+            val threadId = conversation?.threadId?.takeIf { it > 0L } ?: 0L
+            // The worst outcome is the one reported: one failure out of three is still a failure.
+            var outcome = SendOutcome.EMPTY
+            for (recipient in recipients) {
+                val each = SmsSender.send(
+                    context = context,
+                    address = recipient,
+                    text = messageText,
+                    threadId = threadId,
+                    subscriptionId = _selectedSim.value
+                )
+                if (outcome == SendOutcome.EMPTY || each != SendOutcome.HANDED_OVER) outcome = each
+            }
             announce(context, outcome)
 
             if (outcome == SendOutcome.HANDED_OVER) {
@@ -295,7 +328,8 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
                     .getOrDefault(_conversations.value)
                 // A brand new conversation only gets its thread number once the message is filed.
                 val landed = _conversations.value.firstOrNull {
-                    PhoneNumbers.sameNumber(it.address, recipientNumber)
+                    (threadId > 0L && it.threadId == threadId) ||
+                        PhoneNumbers.sameNumber(it.address, recipientNumber)
                 }
                 if (landed != null) {
                     _selectedConversation.value = landed
@@ -318,7 +352,9 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
                 messageId = message.id,
                 address = message.address.ifBlank { conversation?.address.orEmpty() },
                 text = message.body,
-                threadId = message.threadId
+                threadId = message.threadId,
+                // The retry leaves on the SIM the first try did, not whichever is selected now.
+                subscriptionId = message.subscriptionId
             )
             announce(context, outcome)
             refresh()
@@ -399,11 +435,13 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
         val number = conversation.address
         if (number.isBlank()) return
         viewModelScope.launch {
-            val blocked = BlockedNumbers.isBlocked(context, number)
-            val done = if (blocked) {
-                BlockedNumbers.unblock(context, number)
-            } else {
-                BlockedNumbers.block(context, number)
+            val blocked = withContext(Dispatchers.IO) { BlockedNumbers.isBlocked(context, number) }
+            val done = withContext(Dispatchers.IO) {
+                if (blocked) {
+                    BlockedNumbers.unblock(context, number)
+                } else {
+                    BlockedNumbers.block(context, number)
+                }
             }
             if (done) {
                 _selectedBlocked.value = !blocked

@@ -516,7 +516,7 @@ private fun ContactDetailContent(
 
                 // Contact Name at Bottom-Left of the Photo
                 Text(
-                    text = displayDetail.contact.name.lowercase(),
+                    text = displayDetail.contact.name.lowercase(Locale.getDefault()),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 34.sp,
@@ -695,12 +695,21 @@ private fun ContactDetailContent(
                         )
                     }
 
+                    // Tapping any of these copies it: a birthday, a company, a note are things
+                    // that get pasted into a message, and a row with a ripple and nothing behind
+                    // it is a broken promise.
+                    val copiedText = stringResource(R.string.people_copied)
+                    val copy: (String) -> Unit = { text ->
+                        copyToClipboard(context, text)
+                        Toast.makeText(context, copiedText, Toast.LENGTH_SHORT).show()
+                    }
                     if (displayDetail.birthday.isNotBlank()) {
+                        val birthdayText = formatBirthday(displayDetail.birthday)
                         ContactChannelRow(
                             label = stringResource(R.string.people_birthday),
-                            value = formatBirthday(displayDetail.birthday),
+                            value = birthdayText,
                             icon = Icons.Default.Cake,
-                            onClick = {}
+                            onClick = { copy(birthdayText) }
                         )
                     }
 
@@ -713,16 +722,18 @@ private fun ContactDetailContent(
                             label = stringResource(R.string.people_organization),
                             value = employment,
                             icon = Icons.Default.Business,
-                            onClick = {}
+                            onClick = { copy(employment) }
                         )
                     }
 
                     if (displayDetail.note.isNotBlank()) {
+                        // A note is the one field that runs to paragraphs; it is shown whole.
                         ContactChannelRow(
                             label = stringResource(R.string.people_note),
                             value = displayDetail.note,
                             icon = Icons.AutoMirrored.Filled.StickyNote2,
-                            onClick = {}
+                            maxLines = Int.MAX_VALUE,
+                            onClick = { copy(displayDetail.note) }
                         )
                     }
 
@@ -873,7 +884,7 @@ private fun WpPrimaryActionButton(
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = label.lowercase(),
+                    text = label.lowercase(Locale.getDefault()),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp
@@ -926,7 +937,7 @@ private fun WpWhatsAppActionButton(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = label.lowercase(),
+                text = label.lowercase(Locale.getDefault()),
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Medium,
                     fontSize = 11.sp
@@ -946,7 +957,7 @@ private fun ContactCallLogItem(
 ) {
     val zuneColors = LocalZuneColors.current
     val format = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
-    val dateString = format.format(Date(call.dateMillis)).lowercase()
+    val dateString = format.format(Date(call.dateMillis)).lowercase(Locale.getDefault())
 
     val (icon, tint, typeText) = when (call.type) {
         CallLog.Calls.INCOMING_TYPE -> Triple(
@@ -1052,10 +1063,26 @@ private fun isWhatsAppInstalled(context: Context): Boolean {
     }
 }
 
+/**
+ * WhatsApp wants the number in international form, without the plus: "905551112233". A local
+ * "0555 111 22 33" is turned into that with the SIM's country, or the phone's; a number that
+ * cannot be made international goes as its bare digits, which is what was sent before.
+ */
+private fun whatsAppNumber(context: Context, phoneNumber: String): String {
+    val telephony = context.getSystemService(Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager
+    val country = listOfNotNull(
+        telephony?.simCountryIso,
+        telephony?.networkCountryIso,
+        Locale.getDefault().country
+    ).firstOrNull { it.isNotBlank() }?.uppercase(Locale.ROOT)
+    val e164 = country?.let { android.telephony.PhoneNumberUtils.formatNumberToE164(phoneNumber, it) }
+    return (e164 ?: phoneNumber).replace(Regex("[^0-9]"), "")
+}
+
 private fun launchWhatsAppChat(context: Context, phoneNumber: String) {
     if (phoneNumber.isBlank()) return
     try {
-        val cleanNumber = phoneNumber.replace(Regex("[^0-9]"), "")
+        val cleanNumber = whatsAppNumber(context, phoneNumber)
         val intent = Intent(Intent.ACTION_VIEW).apply {
             data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanNumber")
             setPackage("com.whatsapp")
@@ -1148,15 +1175,19 @@ fun EditContactScreen(
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
-    val nameParts = remember(detail.contact.name) {
-        val parts = detail.contact.name.split(" ")
-        val first = parts.firstOrNull() ?: ""
-        val last = if (parts.size > 1) parts.drop(1).joinToString(" ") else ""
-        first to last
+    // The parts as the address book keeps them. A record with no structured name at all — some
+    // SIM imports — falls back to the display name split once, which is all there is to go on.
+    val nameParts = remember(detail) {
+        if (!detail.name.isEmpty) {
+            detail.name.given to detail.name.family
+        } else {
+            val parts = detail.contact.name.split(" ")
+            (parts.firstOrNull() ?: "") to (if (parts.size > 1) parts.drop(1).joinToString(" ") else "")
+        }
     }
 
-    var firstName by remember { mutableStateOf(nameParts.first) }
-    var lastName by remember { mutableStateOf(nameParts.second) }
+    var firstName by remember(detail) { mutableStateOf(nameParts.first) }
+    var lastName by remember(detail) { mutableStateOf(nameParts.second) }
     val numbers = remember(detail) {
         mutableStateListOf<ContactNumber>().apply {
             addAll(detail.numbers.ifEmpty { listOf(ContactNumber(number = "")) })
@@ -1305,10 +1336,18 @@ fun EditContactScreen(
 
             Button(
                 onClick = {
+                    // Untouched, the name is not written back at all: a middle name or a title
+                    // this editor does not show must survive an edit of the phone number.
+                    val nameChanged = firstName != nameParts.first || lastName != nameParts.second
                     onSave(
                         ContactEdit(
                             firstName = firstName,
                             lastName = lastName,
+                            name = if (nameChanged) {
+                                detail.name.copy(given = firstName.trim(), family = lastName.trim())
+                            } else {
+                                null
+                            },
                             numbers = numbers.filter { it.number.isNotBlank() },
                             emails = emails.filter { it.address.isNotBlank() },
                             addresses = addresses.filter { it.address.isNotBlank() },
@@ -1324,8 +1363,8 @@ fun EditContactScreen(
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.common_save).uppercase(Locale.getDefault()),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    text = stringResource(R.string.common_save),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
                 )
             }
 
@@ -1430,7 +1469,8 @@ private fun ContactChannelRow(
     label: String,
     value: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    maxLines: Int = 1
 ) {
     val zuneColors = LocalZuneColors.current
     Row(
@@ -1452,7 +1492,7 @@ private fun ContactChannelRow(
                 text = value,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
+                maxLines = maxLines,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
@@ -1462,6 +1502,11 @@ private fun ContactChannelRow(
             )
         }
     }
+}
+
+private fun copyToClipboard(context: Context, text: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager ?: return
+    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("contact", text))
 }
 
 /** Android names these kinds itself, in the phone's own language. */

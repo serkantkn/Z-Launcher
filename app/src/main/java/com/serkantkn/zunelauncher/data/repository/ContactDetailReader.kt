@@ -7,6 +7,7 @@ import com.serkantkn.zunelauncher.data.model.ContactDetailModel
 import com.serkantkn.zunelauncher.data.model.ContactEmail
 import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.data.model.ContactNumber
+import com.serkantkn.zunelauncher.data.model.StructuredName
 import com.serkantkn.zunelauncher.util.ZuneLog
 
 /**
@@ -25,6 +26,7 @@ internal fun readContactDetail(context: Context, contact: ContactModel): Contact
     var note = ""
     var organization = ""
     var jobTitle = ""
+    var name = StructuredName()
     val rawContacts = mutableSetOf<Long>()
 
     try {
@@ -37,7 +39,9 @@ internal fun readContactDetail(context: Context, contact: ContactModel): Contact
                 ContactsContract.Data.DATA1,
                 ContactsContract.Data.DATA2,
                 ContactsContract.Data.DATA3,
-                ContactsContract.Data.DATA4
+                ContactsContract.Data.DATA4,
+                ContactsContract.Data.DATA5,
+                ContactsContract.Data.DATA6
             ),
             "${ContactsContract.Data.CONTACT_ID} = ?",
             arrayOf(contact.id),
@@ -53,6 +57,19 @@ internal fun readContactDetail(context: Context, contact: ContactModel): Contact
                 val data4 = cursor.getString(6)
 
                 when (mimeType) {
+                    ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE -> {
+                        // The first record's name is the one shown; a linked duplicate's is not.
+                        if (name.isEmpty) {
+                            name = StructuredName(
+                                given = cursor.getString(4).orEmpty(),
+                                family = data3.orEmpty(),
+                                prefix = data4.orEmpty(),
+                                middle = cursor.getString(7).orEmpty(),
+                                suffix = cursor.getString(8).orEmpty()
+                            )
+                        }
+                    }
+
                     ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE -> {
                         if (!data1.isNullOrBlank() && numbers.none { it.number == data1 }) {
                             numbers += ContactNumber(rowId, data1, data2, data3)
@@ -100,6 +117,7 @@ internal fun readContactDetail(context: Context, contact: ContactModel): Contact
 
     return ContactDetailModel(
         contact = contact,
+        name = name,
         numbers = numbers,
         emails = emails,
         addresses = addresses,

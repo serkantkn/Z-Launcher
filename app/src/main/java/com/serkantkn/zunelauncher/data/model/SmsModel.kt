@@ -75,7 +75,9 @@ data class SmsMessageModel(
     val isMms: Boolean = false,
     val hasAttachment: Boolean = false,
     /** Which SIM it went out on, or -1 when the phone did not say. */
-    val subscriptionId: Int = -1
+    val subscriptionId: Int = -1,
+    /** Who wrote it, by name, when the conversation has more than one other person in it. */
+    val senderName: String = ""
 ) {
     val isDraft: Boolean get() = type == Telephony.Sms.MESSAGE_TYPE_DRAFT
 

@@ -10,6 +10,9 @@ import com.serkantkn.zunelauncher.data.repository.SmsRepository
 import com.serkantkn.zunelauncher.data.service.MessageNotifier
 import com.serkantkn.zunelauncher.util.BlockedNumbers
 import com.serkantkn.zunelauncher.util.ZuneLog
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * An arriving text message, when the launcher is the phone's messaging app.
@@ -39,20 +42,32 @@ class SmsReceiver : BroadcastReceiver() {
         val sender = first.displayOriginatingAddress.orEmpty()
         val body = parts.joinToString("") { it.displayMessageBody.orEmpty() }
         if (body.isEmpty()) return
-
-        // A number the user blocked is a number they asked not to hear from.
-        if (BlockedNumbers.isBlocked(ctx, sender)) {
-            ZuneLog.d(TAG, "a message from a blocked number was not filed")
-            return
-        }
-
+        val sentAt = first.timestampMillis
         val subscriptionId = intent.getIntExtra("subscription", -1)
-        val threadId = fileInInbox(ctx, sender, body, first.timestampMillis, subscriptionId)
 
-        MessagingBridge.messagesChanged()
-        // The message is already filed; a notification that will not go up must not undo that.
-        runCatching { MessageNotifier.showIncoming(ctx, sender, body, threadId) }
-            .onFailure { ZuneLog.e(TAG, "the message was filed but could not be shown", it) }
+        // Filing the message and naming its sender are both provider queries, and a receiver's
+        // thread is the main one: the work is done off it, with the broadcast held open until
+        // it is finished so the process is not killed halfway through.
+        val pending = goAsync()
+        val appContext = ctx.applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // A number the user blocked is a number they asked not to hear from.
+                if (BlockedNumbers.isBlocked(appContext, sender)) {
+                    ZuneLog.d(TAG, "a message from a blocked number was not filed")
+                    return@launch
+                }
+
+                val threadId = fileInInbox(appContext, sender, body, sentAt, subscriptionId)
+
+                MessagingBridge.messagesChanged()
+                // The message is already filed; a notification that will not go up must not undo that.
+                runCatching { MessageNotifier.showIncoming(appContext, sender, body, threadId) }
+                    .onFailure { ZuneLog.e(TAG, "the message was filed but could not be shown", it) }
+            } finally {
+                pending.finish()
+            }
+        }
     }
 
     /** Writes the message where every messaging app looks, and returns its conversation. */

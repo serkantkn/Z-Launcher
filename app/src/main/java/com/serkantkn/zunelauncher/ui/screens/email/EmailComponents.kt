@@ -277,7 +277,13 @@ internal fun EmailTextField(
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-internal fun EmailHtmlBody(html: String, showImages: Boolean, modifier: Modifier = Modifier) {
+internal fun EmailHtmlBody(
+    html: String,
+    showImages: Boolean,
+    modifier: Modifier = Modifier,
+    /** Inline parts by their Content-ID, as data: URIs, for `<img src="cid:…">`. */
+    inlineImages: Map<String, String> = emptyMap()
+) {
     val zuneColors = LocalZuneColors.current
     val textColor = MaterialTheme.colorScheme.onBackground
     val context = LocalContext.current
@@ -290,8 +296,15 @@ internal fun EmailHtmlBody(html: String, showImages: Boolean, modifier: Modifier
            pre{white-space:pre-wrap}
            </style>"""
     }
-    val page = remember(html, css) {
-        val safe = html.replace(Regex("(?is)<script[^>]*>.*?</script>"), "")
+    val page = remember(html, css, inlineImages) {
+        var safe = html.replace(Regex("(?is)<script[^>]*>.*?</script>"), "")
+        // A picture that came with the mail is shown from the mail, not fetched from anywhere.
+        inlineImages.forEach { (cid, dataUri) ->
+            // The quotes are kept: base64 ends in "=", which an unquoted attribute may not hold.
+            safe = safe.replace(Regex("(?i)([\"']?)cid:${Regex.escape(cid)}\\1")) { match ->
+                match.groupValues[1] + dataUri + match.groupValues[1]
+            }
+        }
         if (safe.contains("<head", ignoreCase = true)) safe.replaceFirst(Regex("(?i)<head[^>]*>"), "$0$css") else "<html><head>$css</head><body>$safe</body></html>"
     }
     AndroidView(
@@ -305,6 +318,9 @@ internal fun EmailHtmlBody(html: String, showImages: Boolean, modifier: Modifier
                 settings.javaScriptEnabled = false
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = false
+                // Nothing leaves the phone until the reader asks for pictures: not an image,
+                // not a stylesheet, not the tracking pixel a sender hides in either.
+                settings.blockNetworkLoads = !showImages
                 settings.blockNetworkImage = !showImages
                 settings.loadsImagesAutomatically = true
                 webViewClient = object : WebViewClient() {
@@ -320,6 +336,7 @@ internal fun EmailHtmlBody(html: String, showImages: Boolean, modifier: Modifier
         },
         update = { view ->
             val imagesChanged = view.settings.blockNetworkImage == showImages
+            view.settings.blockNetworkLoads = !showImages
             view.settings.blockNetworkImage = !showImages
             if (view.tag != page || imagesChanged) {
                 view.tag = page

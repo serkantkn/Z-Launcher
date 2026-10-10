@@ -18,8 +18,11 @@ data class CallGroup(
     /** The newest call's direction; what the row's arrow shows. */
     val type: Int,
     /** True when any call in the run went unanswered, which is what colours the row. */
-    val hasMissed: Boolean
+    val hasMissed: Boolean,
+    /** The caller withheld their number: the row has nothing to dial and says "private number". */
+    val isPrivate: Boolean = false
 ) {
+    /** The name, or the number; a private number has neither and the screen labels it itself. */
     val displayName: String get() = name?.takeIf { it.isNotBlank() } ?: number
 }
 
@@ -48,13 +51,15 @@ fun groupCalls(calls: List<CallLogModel>): List<CallGroup> {
             latestMillis = newest.dateMillis,
             count = runCalls.size,
             type = newest.type,
-            hasMissed = runCalls.any { isMissedType(it.type) }
+            hasMissed = runCalls.any { isMissedType(it.type) },
+            isPrivate = newest.isPrivate
         )
         runCalls = mutableListOf()
     }
 
     calls.forEach { call ->
-        val key = PhoneNumbers.matchKey(call.number)
+        // Withheld numbers cannot be told apart, so a run of them is one row, as it was on WP.
+        val key = if (call.isPrivate) PRIVATE_KEY else PhoneNumbers.matchKey(call.number)
         if (key != runKey) {
             closeRun()
             runKey = key
@@ -67,3 +72,6 @@ fun groupCalls(calls: List<CallLogModel>): List<CallGroup> {
 
 /** The unanswered calls, newest first: what the hub's missed filter and the tile's badge count. */
 fun missedCalls(calls: List<CallLogModel>): List<CallLogModel> = calls.filter { isMissedType(it.type) }
+
+/** The match key shared by every call whose number was withheld. */
+private const val PRIVATE_KEY = "private"

@@ -48,6 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.MessageDelivery
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
@@ -82,12 +84,17 @@ internal fun ConversationScreen(
     onClose: () -> Unit,
     onCall: () -> Unit,
     onMessageLongPress: (SmsMessageModel) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onVisibilityChange: (Boolean) -> Unit = {}
 ) {
     val zuneColors = LocalZuneColors.current
     val listState = rememberLazyListState()
     val days = remember(messages) { groupMessagesByDay(messages) }
     val count = remember(input) { messageCount(input) }
+
+    // A conversation behind another app is not being read; a message arriving then is announced.
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { onVisibilityChange(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onVisibilityChange(true) }
 
     LaunchedEffect(messages.size, conversation.threadId) {
         if (messages.isNotEmpty()) {
@@ -182,6 +189,8 @@ internal fun ConversationScreen(
                     ) { index ->
                         MessageBubble(
                             message = day.messages[index],
+                            // In a group, who wrote it is half the message.
+                            showSender = conversation.isGroup,
                             onLongClick = { onMessageLongPress(day.messages[index]) }
                         )
                     }
@@ -300,7 +309,7 @@ private fun DayHeading(now: Long, dayStart: Long) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MessageBubble(message: SmsMessageModel, onLongClick: () -> Unit) {
+private fun MessageBubble(message: SmsMessageModel, showSender: Boolean, onLongClick: () -> Unit) {
     val zuneColors = LocalZuneColors.current
     val isOut = message.isOutgoing
     val bubbleColor = when {
@@ -323,6 +332,15 @@ private fun MessageBubble(message: SmsMessageModel, onLongClick: () -> Unit) {
                 .combinedClickable(onClick = {}, onLongClick = onLongClick)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
+                val sender = message.senderName.ifBlank { message.address }
+                if (showSender && !isOut && sender.isNotBlank()) {
+                    Text(
+                        text = sender,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = zuneColors.accentColor,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
                 if (message.body.isNotBlank()) {
                     Text(
                         text = message.body,

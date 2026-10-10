@@ -170,7 +170,14 @@ object SmsSender {
      * A message the phone filed but never sent — the failed ones a conversation offers to retry.
      * Deleting the old row first keeps a retried message from appearing twice.
      */
-    suspend fun resend(context: Context, messageId: Long, address: String, text: String, threadId: Long): SendOutcome =
+    suspend fun resend(
+        context: Context,
+        messageId: Long,
+        address: String,
+        text: String,
+        threadId: Long,
+        subscriptionId: Int = -1
+    ): SendOutcome =
         withContext(Dispatchers.IO) {
             if (SmsRepository.isDefaultSmsApp(context) && messageId > 0L) {
                 runCatching {
@@ -181,7 +188,7 @@ object SmsSender {
                     )
                 }
             }
-            send(context, address, text, threadId)
+            send(context, address, text, threadId, subscriptionId)
         }
 
     private fun sentIntent(context: Context, row: Uri?, part: Int): PendingIntent? =
@@ -252,7 +259,7 @@ object SmsSender {
                 SmsManager.getSmsManagerForSubscriptionId(subscriptionId)
             }
         } catch (e: Exception) {
-            ZuneLog.w(TAG, "no radio for subscription $subscriptionId", e)
+            ZuneLog.w(TAG, "no radio for the chosen SIM", e)
             base
         }
     }

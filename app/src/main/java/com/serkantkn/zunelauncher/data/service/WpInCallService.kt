@@ -54,9 +54,8 @@ class WpInCallService : InCallService(), CallManager.CallHost {
     override fun onCallRemoved(call: Call) {
         super.onCallRemoved(call)
         calls -= call
+        // CallManager keeps its own list and moves the screen to whichever call is left.
         CallManager.onCallRemoved(call)
-        // A second call can still be up; show whichever one is left.
-        calls.lastOrNull()?.let { CallManager.onCallAdded(it) }
     }
 
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
@@ -85,7 +84,7 @@ class WpInCallService : InCallService(), CallManager.CallHost {
      * Who is calling. Telecom hands over a number; the name and the face come from the phone's own
      * contacts, looked up off the main thread because a call screen cannot wait on a query.
      */
-    override fun lookUpCaller(number: String, onFound: (String?, String?) -> Unit) {
+    override fun lookUpCaller(number: String, onFound: (String?, String?, String?) -> Unit) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -93,11 +92,13 @@ class WpInCallService : InCallService(), CallManager.CallHost {
         }
         scope.launch {
             val found = withContext(Dispatchers.IO) { queryContact(number) }
-            onFound(found?.first, found?.second)
+            onFound(found?.name, found?.photoUri, found?.label)
         }
     }
 
-    private fun queryContact(number: String): Pair<String?, String?>? = try {
+    private class Caller(val name: String?, val photoUri: String?, val label: String?)
+
+    private fun queryContact(number: String): Caller? = try {
         val uri = Uri.withAppendedPath(
             ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
             Uri.encode(number)
@@ -106,16 +107,26 @@ class WpInCallService : InCallService(), CallManager.CallHost {
             uri,
             arrayOf(
                 ContactsContract.PhoneLookup.DISPLAY_NAME,
-                ContactsContract.PhoneLookup.PHOTO_URI
+                ContactsContract.PhoneLookup.PHOTO_URI,
+                ContactsContract.PhoneLookup.TYPE,
+                ContactsContract.PhoneLookup.LABEL
             ),
             null,
             null,
             null
         )?.use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) to cursor.getString(1) else null
+            if (!cursor.moveToFirst()) return@use null
+            // "mobile", "work": the kind of line, named the way the phone's own settings name it.
+            val label = runCatching {
+                ContactsContract.CommonDataKinds.Phone
+                    .getTypeLabel(resources, cursor.getInt(2), cursor.getString(3).orEmpty())
+                    .toString()
+            }.getOrNull()?.takeIf { it.isNotBlank() }
+            Caller(cursor.getString(0), cursor.getString(1), label)
         }
     } catch (e: Exception) {
-        ZuneLog.w(TAG, "could not look up $number", e)
+        // Whose number it is stays out of the log; the last two digits are enough to debug by.
+        ZuneLog.w(TAG, "could not look up a number ending ${number.takeLast(2)}", e)
         null
     }
 

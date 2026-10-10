@@ -54,6 +54,9 @@ class MainActivity : FragmentActivity() {
 
         /** Carries the name of a ClockPage, for a request that names a page as well as the hub. */
         const val EXTRA_OPEN_CLOCK_PAGE = "open_clock_page"
+
+        /** Set by the call notification: the call screen was hidden with Back and is wanted back. */
+        const val EXTRA_OPEN_CALL = "open_call"
     }
 
     private var currentVolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
@@ -100,6 +103,9 @@ class MainActivity : FragmentActivity() {
         handleSettingsIntent(intent)
         handleMessageIntent(intent)
         handleHubIntent(intent)
+        handleDialIntent(intent)
+        handleWebIntent(intent)
+        handleCallIntent(intent)
         setLauncherContent()
     }
 
@@ -154,6 +160,50 @@ class MainActivity : FragmentActivity() {
         handleSettingsIntent(intent)
         handleMessageIntent(intent)
         handleHubIntent(intent)
+        handleDialIntent(intent)
+        handleWebIntent(intent)
+        handleCallIntent(intent)
+    }
+
+    /**
+     * A number from outside: a `tel:` link in a browser, or a contacts app asking the phone app to
+     * DIAL. Both mean "show me the number on the keypad", never "ring it" — ringing is CALL, which
+     * this activity does not accept at all, because an exported screen that places calls on
+     * anybody's say-so is a hazard.
+     */
+    private fun handleDialIntent(intent: Intent?) {
+        val action = intent?.action ?: return
+        val data = intent.data
+        val isDial = action == Intent.ACTION_DIAL
+        val isTelLink = action == Intent.ACTION_VIEW && data?.scheme == "tel"
+        if (!isDial && !isTelLink) return
+        val number = data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart.orEmpty()
+        if (number.isNotBlank()) com.serkantkn.zunelauncher.data.repository.PhoneBridge.dial(number)
+        com.serkantkn.zunelauncher.data.repository.HubBridge.open(
+            com.serkantkn.zunelauncher.data.model.HubType.PHONE
+        )
+        // Seen once; a configuration change must not dial it a second time.
+        intent.action = Intent.ACTION_MAIN
+        intent.data = null
+    }
+
+    /** A web address, while the launcher is the phone's browser: the Internet hub loads it. */
+    private fun handleWebIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val url = intent.data?.takeIf { it.scheme == "http" || it.scheme == "https" }?.toString() ?: return
+        com.serkantkn.zunelauncher.data.repository.BrowserBridge.open(url)
+        com.serkantkn.zunelauncher.data.repository.HubBridge.open(
+            com.serkantkn.zunelauncher.data.model.HubType.INTERNET
+        )
+        intent.action = Intent.ACTION_MAIN
+        intent.data = null
+    }
+
+    /** The ongoing-call notification tapped after the call screen was put away with Back. */
+    private fun handleCallIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_CALL, false) != true) return
+        com.serkantkn.zunelauncher.data.service.CallManager.setScreenHidden(false)
+        intent.removeExtra(EXTRA_OPEN_CALL)
     }
 
     /**
@@ -225,15 +275,13 @@ class MainActivity : FragmentActivity() {
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         if (currentVolumeBarStyle == VolumeBarStyle.WINDOWS_PHONE && event.action == android.view.KeyEvent.ACTION_DOWN) {
+            // A key the controller declines — while the phone is ringing, say — goes on to the
+            // system, which knows how to silence a ringer.
             when (event.keyCode) {
-                android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
-                    com.serkantkn.zunelauncher.data.service.VolumeController.handleVolumeKey(this, isUp = true)
-                    return true
-                }
-                android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                    com.serkantkn.zunelauncher.data.service.VolumeController.handleVolumeKey(this, isUp = false)
-                    return true
-                }
+                android.view.KeyEvent.KEYCODE_VOLUME_UP ->
+                    if (com.serkantkn.zunelauncher.data.service.VolumeController.handleVolumeKey(this, isUp = true)) return true
+                android.view.KeyEvent.KEYCODE_VOLUME_DOWN ->
+                    if (com.serkantkn.zunelauncher.data.service.VolumeController.handleVolumeKey(this, isUp = false)) return true
             }
         }
         return super.dispatchKeyEvent(event)

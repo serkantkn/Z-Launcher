@@ -20,6 +20,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CallMade
 import androidx.compose.material.icons.automirrored.filled.CallMissed
@@ -46,10 +47,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.data.model.ContactModel
+import com.serkantkn.zunelauncher.data.model.ContactPhone
 import com.serkantkn.zunelauncher.data.model.SpeedDialEntry
+import com.serkantkn.zunelauncher.data.repository.PhoneBridge
+import android.content.ClipboardManager
 import android.widget.Toast
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
@@ -64,6 +69,7 @@ import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.util.BlockedNumber
 import com.serkantkn.zunelauncher.util.CallGroup
+import com.serkantkn.zunelauncher.util.CallOutcome
 import com.serkantkn.zunelauncher.util.PhoneCaller
 import com.serkantkn.zunelauncher.util.PhoneNumbers
 import com.serkantkn.zunelauncher.util.SimLine
@@ -101,12 +107,11 @@ fun PhoneHubScreen(
     val speedDial by viewModel.speedDial.collectAsState()
     val allContacts by viewModel.allContacts.collectAsState()
 
-    var hasPermissions by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
-        )
-    }
+    fun permissionsGranted(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+
+    var hasPermissions by remember { mutableStateOf(permissionsGranted()) }
     var isDialerOpen by remember { mutableStateOf(false) }
     var isSpeedDialPickerOpen by remember { mutableStateOf(false) }
     var isBlockedListOpen by remember { mutableStateOf(false) }
@@ -156,6 +161,35 @@ fun PhoneHubScreen(
         viewModel.loadBlocked()
     }
 
+    // Hubs stay composed while the launcher is away, so "last time" can be a long time ago: a
+    // call made from another app, the role handed over in settings, a permission revoked. All
+    // of it is read again on the way back in.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        isDefaultDialer = PhoneCaller.isDefaultDialer(context)
+        hasPermissions = permissionsGranted()
+        if (hasPermissions) {
+            viewModel.loadRecentCalls()
+            viewModel.loadContacts()
+        }
+        viewModel.loadSimLines()
+        viewModel.loadVoicemail()
+        viewModel.loadBlocked()
+    }
+
+    // Looking at the history is what makes a missed call seen, for the badge and for the phone.
+    LaunchedEffect(hasPermissions, callGroups) {
+        if (hasPermissions && callGroups.any { it.hasMissed }) viewModel.markMissedCallsSeen()
+    }
+
+    // A tel: link from another app lands on the keypad, typed in but not rung.
+    val pendingDial by PhoneBridge.pendingNumber.collectAsState()
+    LaunchedEffect(pendingDial) {
+        val number = pendingDial ?: return@LaunchedEffect
+        PhoneBridge.consume()
+        viewModel.setDialedNumber(number)
+        isDialerOpen = true
+    }
+
     val pager = rememberLoopingPagerState(pageCount = 2)
     val page = pager.pagerState.currentPage % 2
 
@@ -175,7 +209,11 @@ fun PhoneHubScreen(
     }
 
     fun placeCall(number: String, name: String, line: SimLine?) {
-        PhoneCaller.call(context = context, number = number, name = name, account = line?.handle)
+        val outcome = PhoneCaller.call(context = context, number = number, name = name, account = line?.handle)
+        // A press that rings nothing has to say so, or it reads as a dead button.
+        if (outcome == CallOutcome.FAILED) {
+            Toast.makeText(context, R.string.phone_call_failed, Toast.LENGTH_SHORT).show()
+        }
     }
 
     /**
@@ -261,6 +299,9 @@ fun PhoneHubScreen(
                                         permissionLauncher.launch(
                                             arrayOf(
                                                 Manifest.permission.READ_CALL_LOG,
+                                                // Same permission group; this is what lets a
+                                                // missed call be marked seen.
+                                                Manifest.permission.WRITE_CALL_LOG,
                                                 Manifest.permission.READ_CONTACTS,
                                                 Manifest.permission.READ_PHONE_STATE
                                             )
@@ -298,6 +339,7 @@ fun PhoneHubScreen(
                                     entries = speedDial,
                                     onCall = { entry -> call(entry.number, entry.name) },
                                     onRemove = { entry -> viewModel.removeFromSpeedDial(entry.number) },
+                                    onMove = { from, to -> viewModel.moveSpeedDial(from, to) },
                                     onAdd = { isSpeedDialPickerOpen = true }
                                 )
                             }
@@ -416,12 +458,11 @@ fun PhoneHubScreen(
                             ),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(matchingContacts, key = { it.first.id + it.second }) { (contact, number) ->
+                            items(matchingContacts, key = { it.contact.id + it.number }) { entry ->
                                 MatchingContactItem(
-                                    contact = contact,
-                                    number = number,
+                                    entry = entry,
                                     onClick = {
-                                        call(number, contact.name)
+                                        call(entry.number, entry.contact.name)
                                         isDialerOpen = false
                                         viewModel.clearDialedNumber()
                                     }
@@ -432,18 +473,36 @@ fun PhoneHubScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
                     }
 
-                    Text(
-                        text = dialedNumber.ifEmpty { " " },
-                        style = MaterialTheme.typography.displayMedium.copy(
-                            fontWeight = FontWeight.Light,
-                            fontSize = 48.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 1,
-                        textAlign = TextAlign.Center,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
-                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = dialedNumber.ifEmpty { " " },
+                            style = MaterialTheme.typography.displayMedium.copy(
+                                fontWeight = FontWeight.Light,
+                                fontSize = 48.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 1,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                        )
+                        // A number copied from somewhere else; only offered while the pad is empty.
+                        if (dialedNumber.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.phone_paste),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = zuneColors.accentColor,
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .clickable {
+                                        val pasted = clipboardText(context)
+                                        if (pasted.isNullOrBlank()) return@clickable
+                                        viewModel.setDialedNumber(pasted)
+                                    }
+                                    .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 12.dp)
+                            )
+                        }
+                    }
 
                     Box(modifier = Modifier.height(280.dp).padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)) {
                         DialerKeypad(
@@ -533,8 +592,8 @@ fun PhoneHubScreen(
             if (isSpeedDialPickerOpen) {
                 SpeedDialPicker(
                     contacts = allContacts,
-                    onPick = { contact, number ->
-                        viewModel.addToSpeedDial(contact.name, number, contact.photoUri?.toString())
+                    onPick = { entry ->
+                        viewModel.addToSpeedDial(entry.contact.name, entry.number, entry.contact.photoUri?.toString())
                         isSpeedDialPickerOpen = false
                     },
                     onDismiss = { isSpeedDialPickerOpen = false }
@@ -542,6 +601,12 @@ fun PhoneHubScreen(
             }
         }
     }
+}
+
+/** What is on the clipboard, if it is text. */
+private fun clipboardText(context: android.content.Context): String? {
+    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? ClipboardManager
+    return clipboard?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()
 }
 
 /** Opens the messaging hub's conversation with a number, through the phone's own SMS handler. */
@@ -644,15 +709,16 @@ private fun HistoryPage(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(groups, key = { it.id }) { group ->
-                val isBlocked = PhoneNumbers.matchKey(group.number) in blockedKeys
+                val isBlocked = !group.isPrivate && PhoneNumbers.matchKey(group.number) in blockedKeys
                 Column {
                     CallGroupRow(
                         group = group,
                         isBlocked = isBlocked,
-                        onClick = { expandedId = if (expandedId == group.id) null else group.id }
+                        // A withheld number has nothing to call, message, pin or block.
+                        onClick = { if (!group.isPrivate) expandedId = if (expandedId == group.id) null else group.id }
                     )
                     RowActions(
-                        visible = expandedId == group.id,
+                        visible = expandedId == group.id && !group.isPrivate,
                         canBlock = canBlock,
                         isBlocked = isBlocked,
                         onCall = { expandedId = null; onCall(group) },
@@ -727,7 +793,7 @@ private fun CallGroupRow(group: CallGroup, isBlocked: Boolean, onClick: () -> Un
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = group.displayName,
+                    text = if (group.isPrivate) stringResource(R.string.phone_private_number) else group.displayName,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
@@ -826,14 +892,18 @@ private fun RowAction(label: String, background: Color, modifier: Modifier, onCl
 // SPEED DIAL
 // ════════════════════════════════════════════════════════════
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SpeedDialPage(
     entries: List<SpeedDialEntry>,
     onCall: (SpeedDialEntry) -> Unit,
     onRemove: (SpeedDialEntry) -> Unit,
+    onMove: (from: Int, to: Int) -> Unit,
     onAdd: () -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
+    /** The entry whose long-press menu is open: move up, move down, remove. */
+    var menuFor by remember { mutableStateOf<String?>(null) }
     if (entries.isEmpty()) {
         Column(modifier = Modifier.padding(top = ZuneDimens.SpacingLg)) {
             Text(
@@ -860,41 +930,73 @@ private fun SpeedDialPage(
         contentPadding = PaddingValues(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        items(entries, key = { it.number }) { entry ->
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable { onCall(entry) },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = null,
-                    tint = zuneColors.accentColor,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = entry.name.ifBlank { entry.number },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+        itemsIndexed(entries, key = { _, entry -> entry.number }) { index, entry ->
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = { onCall(entry) },
+                            // The order is the user's; holding a row is how it is changed.
+                            onLongClick = { menuFor = if (menuFor == entry.number) null else entry.number }
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = zuneColors.accentColor,
+                        modifier = Modifier.size(20.dp)
                     )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = entry.name.ifBlank { entry.number },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = entry.number,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = zuneColors.textMuted,
+                            maxLines = 1
+                        )
+                    }
                     Text(
-                        text = entry.number,
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = stringResource(R.string.common_remove),
+                        style = MaterialTheme.typography.labelMedium,
                         color = zuneColors.textMuted,
-                        maxLines = 1
+                        modifier = Modifier
+                            .clickable { onRemove(entry) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
                     )
                 }
-                Text(
-                    text = stringResource(R.string.common_remove),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = zuneColors.textMuted,
-                    modifier = Modifier
-                        .clickable { onRemove(entry) }
-                        .padding(horizontal = 10.dp, vertical = 8.dp)
-                )
+                AnimatedVisibility(
+                    visible = menuFor == entry.number,
+                    enter = expandVertically(tween(220), expandFrom = Alignment.Top),
+                    exit = shrinkVertically(tween(180), shrinkTowards = Alignment.Top)
+                ) {
+                    val quiet = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.12f)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(start = 36.dp, top = 6.dp)
+                    ) {
+                        if (index > 0) {
+                            RowAction(stringResource(R.string.phone_move_up), quiet, Modifier.weight(1f)) {
+                                menuFor = null
+                                onMove(index, index - 1)
+                            }
+                        }
+                        if (index < entries.lastIndex) {
+                            RowAction(stringResource(R.string.phone_move_down), quiet, Modifier.weight(1f)) {
+                                menuFor = null
+                                onMove(index, index + 1)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -902,8 +1004,8 @@ private fun SpeedDialPage(
 
 @Composable
 private fun SpeedDialPicker(
-    contacts: List<Pair<ContactModel, String>>,
-    onPick: (ContactModel, String) -> Unit,
+    contacts: List<ContactPhone>,
+    onPick: (ContactPhone) -> Unit,
     onDismiss: () -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
@@ -943,11 +1045,10 @@ private fun SpeedDialPicker(
                     ),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(contacts, key = { it.first.id + it.second }) { (contact, number) ->
+                    items(contacts, key = { it.contact.id + it.number }) { entry ->
                         MatchingContactItem(
-                            contact = contact,
-                            number = number,
-                            onClick = { onPick(contact, number) }
+                            entry = entry,
+                            onClick = { onPick(entry) }
                         )
                     }
                 }
@@ -957,7 +1058,7 @@ private fun SpeedDialPicker(
 }
 
 @Composable
-private fun MatchingContactItem(contact: ContactModel, number: String, onClick: () -> Unit) {
+private fun MatchingContactItem(entry: ContactPhone, onClick: () -> Unit) {
     val zuneColors = LocalZuneColors.current
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
@@ -965,14 +1066,16 @@ private fun MatchingContactItem(contact: ContactModel, number: String, onClick: 
     ) {
         Column {
             Text(
-                text = contact.name,
+                text = entry.contact.name,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            // Which of their numbers this is, so a person with two is not two identical rows.
+            val label = entry.typeLabel.lowercase(Locale.getDefault())
             Text(
-                text = number,
+                text = if (label.isBlank()) entry.number else "${entry.number} · $label",
                 style = MaterialTheme.typography.bodyMedium,
                 color = zuneColors.textMuted
             )
@@ -1013,8 +1116,13 @@ private fun DialerKeypad(
                         letters = letters,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         onClick = { onAppend(digit) },
-                        // Holding 1 has rung the voicemail box on every phone ever made.
-                        onLongClick = if (digit == "1") onVoicemail else null
+                        // Holding 1 has rung the voicemail box on every phone ever made, and
+                        // holding 0 has typed the "+" written under it.
+                        onLongClick = when (digit) {
+                            "1" -> onVoicemail
+                            "0" -> { { onAppend("+") } }
+                            else -> null
+                        }
                     )
                 }
             }

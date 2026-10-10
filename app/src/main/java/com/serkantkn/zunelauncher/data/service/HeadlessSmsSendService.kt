@@ -10,6 +10,7 @@ import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -24,6 +25,13 @@ class HeadlessSmsSendService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        // A send still in flight has already been handed to the radio; the scope must not outlive
+        // the service it belongs to.
+        scope.cancel()
+        super.onDestroy()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val number = intent?.data?.schemeSpecificPart?.substringBefore('?').orEmpty()

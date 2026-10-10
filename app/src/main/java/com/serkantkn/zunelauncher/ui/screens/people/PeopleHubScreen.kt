@@ -124,7 +124,7 @@ fun PeopleHubScreen(
     val tabs = listOf(
         stringResource(R.string.common_all),
         stringResource(R.string.people_tab_favorites),
-        stringResource(R.string.recent_apps),
+        stringResource(R.string.people_tab_recent),
         stringResource(R.string.people_groups)
     )
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
@@ -195,12 +195,20 @@ fun PeopleHubScreen(
         }
     }
 
-    // Somebody pinned to the start board opens straight onto their card.
-    LaunchedEffect(hasPermission) {
+    // Somebody pinned to the start board opens straight onto their card. The bridge is watched
+    // rather than read once: the hub stays composed, and the second tile tapped is a second request.
+    val pendingContactId by com.serkantkn.zunelauncher.data.repository.PeopleBridge.pendingContactId.collectAsState()
+    LaunchedEffect(pendingContactId, hasPermission) {
         if (!hasPermission) return@LaunchedEffect
-        com.serkantkn.zunelauncher.data.repository.PeopleBridge.consume()?.let { contactId ->
-            viewModel.contactById(contactId)?.let { selectContactWithAnimation(it) }
-        }
+        val contactId = pendingContactId ?: return@LaunchedEffect
+        com.serkantkn.zunelauncher.data.repository.PeopleBridge.consume()
+        viewModel.contactById(contactId)?.let { selectContactWithAnimation(it) }
+    }
+
+    // Permissions and the address book both change outside the launcher; both are read again
+    // on the way back in, since the hub was never torn down in between.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshOnResume()
     }
 
 
@@ -939,7 +947,7 @@ private fun LetterHeader(letter: Char) {
     val zuneColors = LocalZuneColors.current
 
     Text(
-        text = letter.lowercase(),
+        text = letter.lowercase(java.util.Locale.getDefault()),
         style = MaterialTheme.typography.headlineLarge.copy(
             fontWeight = FontWeight.Bold,
             fontSize = 42.sp
@@ -1018,9 +1026,9 @@ private fun ContactListItem(
 @Composable
 private fun PeoplePermissionRequest(onRequestPermission: () -> Unit) {
     ZunePermissionRequest(
-        title = stringResource(R.string.contacts_permission_title).lowercase(),
+        title = stringResource(R.string.contacts_permission_title).lowercase(java.util.Locale.getDefault()),
         message = stringResource(R.string.contacts_permission_message),
-        buttonLabel = stringResource(R.string.grant_permission).lowercase(),
+        buttonLabel = stringResource(R.string.grant_permission).lowercase(java.util.Locale.getDefault()),
         onRequest = onRequestPermission
     )
 }

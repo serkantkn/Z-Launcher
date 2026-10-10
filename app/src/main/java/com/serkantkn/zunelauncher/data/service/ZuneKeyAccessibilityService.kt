@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -55,12 +56,6 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         }
     }
 
-    override fun onDestroy() {
-        styleJob?.cancel()
-        WpVolumeOverlay.hide()
-        super.onDestroy()
-    }
-
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // Not used: this service exists only for key filtering.
     }
@@ -80,12 +75,23 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         if (volumeBarStyle != VolumeBarStyle.WINDOWS_PHONE) return false
         if (!WpToastOverlay.isAvailable(this)) return false
 
+        // A ringing phone is the system's to quieten: the controller declines the key and so do we.
+        if (CallManager.callStatus.value == CallStatus.INCOMING) return false
+
         if (event.action == KeyEvent.ACTION_DOWN) {
-            VolumeController.handleVolumeKey(this, isUp)
+            if (!VolumeController.handleVolumeKey(this, isUp)) return false
             WpVolumeOverlay.show(this)
         }
         // Consume both DOWN and UP so the system volume panel never appears.
         return true
+    }
+
+    override fun onDestroy() {
+        styleJob?.cancel()
+        // The scope is the service's; a collector left running would outlive it.
+        scope.cancel()
+        WpVolumeOverlay.hide()
+        super.onDestroy()
     }
 
     companion object {

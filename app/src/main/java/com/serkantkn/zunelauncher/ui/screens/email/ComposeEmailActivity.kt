@@ -9,6 +9,8 @@ import androidx.activity.ComponentActivity
 import com.serkantkn.zunelauncher.MainActivity
 import com.serkantkn.zunelauncher.data.repository.EmailBridge
 import com.serkantkn.zunelauncher.util.AppLocale
+import com.serkantkn.zunelauncher.util.ZuneLog
+import java.io.File
 
 /**
  * Target of mailto: links and the share sheet ("paylaş → E-posta"). Parses the intent into an
@@ -49,12 +51,21 @@ class ComposeEmailActivity : ComponentActivity() {
         intent?.getStringArrayExtra(Intent.EXTRA_BCC)?.let { if (bcc.isBlank()) bcc = it.joinToString(", ") }
         intent?.getStringExtra(Intent.EXTRA_SUBJECT)?.let { if (subject.isBlank()) subject = it }
         intent?.getStringExtra(Intent.EXTRA_TEXT)?.let { if (body.isBlank()) body = it }
-        when (intent?.action) {
-            Intent.ACTION_SEND -> streamExtra(intent)?.let { attachments += it.toString() }
-            Intent.ACTION_SEND_MULTIPLE -> streamExtras(intent).forEach { attachments += it.toString() }
+        val shared = when (intent?.action) {
+            Intent.ACTION_SEND -> listOfNotNull(streamExtra(intent))
+            Intent.ACTION_SEND_MULTIPLE -> streamExtras(intent)
+            else -> emptyList()
         }
-        attachments.forEach { uri ->
-            runCatching { grantUriPermission(packageName, Uri.parse(uri), Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        // The grant that came with the share lasts only as long as this activity, and the mail
+        // is sent later from a screen that has none; so each file is copied into the cache now.
+        // Only content:// from another app is taken: a file:// path, or a URI that names this
+        // app's own provider, is a way of asking the launcher to mail its own private files.
+        shared.forEach { uri ->
+            if (!isAcceptable(uri)) {
+                ZuneLog.w(TAG, "a shared attachment was refused: ${uri.scheme}")
+                return@forEach
+            }
+            copyToCache(uri)?.let { attachments += Uri.fromFile(it).toString() }
         }
 
         EmailBridge.compose(to = to, cc = cc, bcc = bcc, subject = subject, body = body, attachmentUris = attachments)
@@ -63,6 +74,53 @@ class ComposeEmailActivity : ComponentActivity() {
             putExtra(MainActivity.EXTRA_OPEN_EMAIL, true)
         })
         finish()
+    }
+
+    private fun isAcceptable(uri: Uri): Boolean {
+        if (!uri.scheme.equals("content", ignoreCase = true)) return false
+        val authority = uri.authority.orEmpty()
+        return authority.isNotBlank() && !authority.startsWith(packageName)
+    }
+
+    /** The shared file, as a file of our own under cache/shared_attachments; null if unreadable. */
+    private fun copyToCache(uri: Uri): File? = try {
+        val dir = File(cacheDir, SHARED_DIR).apply { mkdirs() }
+        var name = uri.lastPathSegment?.substringAfterLast('/') ?: "attachment"
+        runCatching {
+            contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst()) c.getString(0)?.let { name = it }
+            }
+        }
+        val safeName = name.replace(Regex("[\\\\/:*?\"<>|]"), "_").ifBlank { "attachment" }
+        val target = File(dir, "${System.currentTimeMillis()}_$safeName")
+        contentResolver.openInputStream(uri)?.use { input ->
+            target.outputStream().use { output ->
+                var copied = 0L
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    copied += read
+                    if (copied > MAX_BYTES) {
+                        // The repository would refuse it at send time anyway; better not to fill
+                        // the cache with something that will never leave.
+                        target.delete()
+                        return null
+                    }
+                    output.write(buffer, 0, read)
+                }
+            }
+        } ?: return null
+        target
+    } catch (e: Exception) {
+        ZuneLog.w(TAG, "a shared attachment could not be copied", e)
+        null
+    }
+
+    private companion object {
+        const val TAG = "ComposeEmailActivity"
+        const val SHARED_DIR = "shared_attachments"
+        const val MAX_BYTES = 25L * 1024 * 1024
     }
 
     @Suppress("DEPRECATION")
