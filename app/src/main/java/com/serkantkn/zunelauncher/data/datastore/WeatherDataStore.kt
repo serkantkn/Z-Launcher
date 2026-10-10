@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.serkantkn.zunelauncher.data.model.MeasureSystem
 import com.serkantkn.zunelauncher.data.model.TemperatureUnit
 import com.serkantkn.zunelauncher.data.model.WeatherPlace
 import com.serkantkn.zunelauncher.data.model.WeatherSnapshot
@@ -38,6 +39,7 @@ class WeatherDataStore(private val context: Context) {
     private val CACHE = stringPreferencesKey("cache_json")
     private val TEMPERATURE_UNIT = stringPreferencesKey("temperature_unit")
     private val WIND_UNIT = stringPreferencesKey("wind_unit")
+    private val MEASURE_SYSTEM = stringPreferencesKey("measure_system")
     private val ANIMATED_SKY = booleanPreferencesKey("animated_sky")
     private val QUOTA_DAY = stringPreferencesKey("quota_day")
     private val QUOTA_USED = intPreferencesKey("quota_used")
@@ -79,13 +81,23 @@ class WeatherDataStore(private val context: Context) {
 
     // --- Units and look ---------------------------------------------------------------------------
 
+    // Until somebody chooses, the units are the country's: a phone set to the United States
+    // reads °F, mph and inches without being asked.
+
     val temperatureUnit: Flow<TemperatureUnit> = context.weatherDataStore.data.map { preferences ->
         runCatching { TemperatureUnit.valueOf(preferences[TEMPERATURE_UNIT] ?: "") }
-            .getOrDefault(TemperatureUnit.CELSIUS)
+            .getOrDefault(TemperatureUnit.defaultFor(Locale.getDefault()))
     }
 
     val windUnit: Flow<WindUnit> = context.weatherDataStore.data.map { preferences ->
-        runCatching { WindUnit.valueOf(preferences[WIND_UNIT] ?: "") }.getOrDefault(WindUnit.KMH)
+        runCatching { WindUnit.valueOf(preferences[WIND_UNIT] ?: "") }
+            .getOrDefault(WindUnit.defaultFor(Locale.getDefault()))
+    }
+
+    /** Visibility, rain and pressure: metric or imperial. */
+    val measureSystem: Flow<MeasureSystem> = context.weatherDataStore.data.map { preferences ->
+        runCatching { MeasureSystem.valueOf(preferences[MEASURE_SYSTEM] ?: "") }
+            .getOrDefault(MeasureSystem.defaultFor(Locale.getDefault()))
     }
 
     /** Whether the sky behind the hub moves. Off means a still gradient, which costs nothing. */
@@ -97,6 +109,10 @@ class WeatherDataStore(private val context: Context) {
 
     suspend fun setWindUnit(unit: WindUnit) {
         context.weatherDataStore.edit { it[WIND_UNIT] = unit.name }
+    }
+
+    suspend fun setMeasureSystem(system: MeasureSystem) {
+        context.weatherDataStore.edit { it[MEASURE_SYSTEM] = system.name }
     }
 
     suspend fun setAnimatedSky(enabled: Boolean) {

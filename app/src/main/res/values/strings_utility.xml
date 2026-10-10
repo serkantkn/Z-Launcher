@@ -24,6 +24,8 @@
     <string name="weather_status_quota">refresh limit reached for today</string>
     <string name="weather_status_no_network">no network</string>
     <string name="weather_status_fresh">already up to date</string>
+    <string name="weather_units_metric">metric units</string>
+    <string name="weather_units_imperial">imperial units</string>
     <string name="weather_suffix_km">km</string>
     <string name="weather_suffix_mi">mi</string>
     <string name="weather_suffix_hpa">hPa</string>

@@ -42,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +65,7 @@ import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.AirQuality
 import com.serkantkn.zunelauncher.data.model.DailyPoint
 import com.serkantkn.zunelauncher.data.model.HourlyPoint
+import com.serkantkn.zunelauncher.data.model.MeasureSystem
 import com.serkantkn.zunelauncher.data.model.TemperatureUnit
 import com.serkantkn.zunelauncher.data.model.WeatherCondition
 import com.serkantkn.zunelauncher.data.model.WeatherPlace
@@ -72,6 +74,11 @@ import com.serkantkn.zunelauncher.data.model.WeatherSnapshot
 import com.serkantkn.zunelauncher.data.model.WindUnit
 import com.serkantkn.zunelauncher.ui.components.ZuneSearchBar
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+import com.serkantkn.zunelauncher.util.TimeText
+import com.serkantkn.zunelauncher.util.UpdatedAgo
+import com.serkantkn.zunelauncher.util.daysFrom
+import com.serkantkn.zunelauncher.util.hoursFrom
+import com.serkantkn.zunelauncher.util.updatedAgo
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -106,7 +113,12 @@ fun WeatherTodayPage(
     isPremium: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val today = snapshot.daily.firstOrNull()
+    // The forecast was fetched some time ago; what is "today" and "now" is the clock's to say.
+    val nowMillis = remember(snapshot.fetchedAt) { System.currentTimeMillis() }
+    val nowSeconds = nowMillis / 1000
+    val today = remember(snapshot, nowSeconds) { snapshot.daysFrom(nowSeconds).firstOrNull() }
+    val hours = remember(snapshot, nowSeconds) { snapshot.hoursFrom(nowSeconds) }
+    val use24h by TimeText.use24h.collectAsState()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -178,7 +190,17 @@ fun WeatherTodayPage(
 
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = stringResource(R.string.weather_updated_at, formatAt(snapshot.fetchedAt / 1000, snapshot.utcOffsetSeconds, "HH:mm")),
+            // How old the forecast is, said relatively — and, once it is a day old, as the
+            // moment itself in the phone's own zone, not the city's.
+            text = when (val ago = updatedAgo(snapshot.fetchedAt, nowMillis)) {
+                UpdatedAgo.JustNow -> stringResource(R.string.weather_updated_just_now)
+                is UpdatedAgo.Minutes -> stringResource(R.string.weather_updated_minutes_ago, ago.minutes)
+                is UpdatedAgo.Hours -> stringResource(R.string.weather_updated_hours_ago, ago.hours)
+                is UpdatedAgo.At -> stringResource(
+                    R.string.weather_updated_at,
+                    SimpleDateFormat("d MMM ${TimeText.pattern(use24h = use24h)}", Locale.getDefault()).format(Date(ago.millis))
+                )
+            },
             style = MaterialTheme.typography.labelSmall,
             color = InkDim
         )
@@ -192,11 +214,12 @@ fun WeatherTodayPage(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        if (snapshot.hourly.isNotEmpty()) {
+        if (hours.isNotEmpty()) {
             HourlyStrip(
-                hours = snapshot.hourly,
+                hours = hours,
                 offsetSeconds = snapshot.utcOffsetSeconds,
-                unit = temperatureUnit
+                unit = temperatureUnit,
+                timePattern = TimeText.pattern(use24h = use24h)
             )
             Spacer(modifier = Modifier.height(18.dp))
         }
@@ -205,8 +228,9 @@ fun WeatherTodayPage(
             SunArc(
                 sunriseSeconds = today.sunriseSeconds,
                 sunsetSeconds = today.sunsetSeconds,
-                nowSeconds = System.currentTimeMillis() / 1000,
-                offsetSeconds = snapshot.utcOffsetSeconds
+                nowSeconds = nowSeconds,
+                offsetSeconds = snapshot.utcOffsetSeconds,
+                timePattern = TimeText.pattern(use24h = use24h)
             )
         }
 
@@ -215,7 +239,7 @@ fun WeatherTodayPage(
 }
 
 @Composable
-private fun HourlyStrip(hours: List<HourlyPoint>, offsetSeconds: Int, unit: TemperatureUnit) {
+private fun HourlyStrip(hours: List<HourlyPoint>, offsetSeconds: Int, unit: TemperatureUnit, timePattern: String) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         contentPadding = PaddingValues(end = 8.dp)
@@ -230,7 +254,7 @@ private fun HourlyStrip(hours: List<HourlyPoint>, offsetSeconds: Int, unit: Temp
             ) {
                 Text(
                     text = if (index == 0) stringResource(R.string.weather_now)
-                    else formatAt(hour.timeSeconds, offsetSeconds, "HH:mm"),
+                    else formatAt(hour.timeSeconds, offsetSeconds, timePattern),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     color = InkMuted,
                     maxLines = 1
@@ -262,7 +286,7 @@ private fun HourlyStrip(hours: List<HourlyPoint>, offsetSeconds: Int, unit: Temp
 
 /** The daylight arc: where the sun is between rising and setting, as Windows Phone drew it. */
 @Composable
-private fun SunArc(sunriseSeconds: Long, sunsetSeconds: Long, nowSeconds: Long, offsetSeconds: Int) {
+private fun SunArc(sunriseSeconds: Long, sunsetSeconds: Long, nowSeconds: Long, offsetSeconds: Int, timePattern: String) {
     val span = (sunsetSeconds - sunriseSeconds).coerceAtLeast(1)
     val progress = ((nowSeconds - sunriseSeconds).toFloat() / span).coerceIn(0f, 1f)
 
@@ -313,8 +337,8 @@ private fun SunArc(sunriseSeconds: Long, sunsetSeconds: Long, nowSeconds: Long, 
             drawCircle(color = Color(0xFFFFE9A8), radius = 5.dp.toPx(), center = sun)
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            SunLabel(stringResource(R.string.weather_sunrise), formatAt(sunriseSeconds, offsetSeconds, "HH:mm"))
-            SunLabel(stringResource(R.string.weather_sunset), formatAt(sunsetSeconds, offsetSeconds, "HH:mm"))
+            SunLabel(stringResource(R.string.weather_sunrise), formatAt(sunriseSeconds, offsetSeconds, timePattern))
+            SunLabel(stringResource(R.string.weather_sunset), formatAt(sunsetSeconds, offsetSeconds, timePattern))
         }
     }
 }
@@ -341,8 +365,10 @@ fun WeatherDaysPage(
     temperatureUnit: TemperatureUnit,
     modifier: Modifier = Modifier
 ) {
-    val coldest = snapshot.daily.minOfOrNull { it.minTemperature } ?: 0.0
-    val warmest = snapshot.daily.maxOfOrNull { it.maxTemperature } ?: 1.0
+    // Days already gone are not a forecast: the list starts with today, at the place.
+    val days = remember(snapshot) { snapshot.daysFrom(System.currentTimeMillis() / 1000) }
+    val coldest = days.minOfOrNull { it.minTemperature } ?: 0.0
+    val warmest = days.maxOfOrNull { it.maxTemperature } ?: 1.0
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -352,7 +378,7 @@ fun WeatherDaysPage(
             bottom = 90.dp
         )
     ) {
-        itemsIndexed(snapshot.daily, key = { _, day -> day.timeSeconds }) { index, day ->
+        itemsIndexed(days, key = { _, day -> day.timeSeconds }) { index, day ->
             DayRow(
                 day = day,
                 isToday = index == 0,
@@ -451,10 +477,15 @@ fun WeatherDetailsPage(
     snapshot: WeatherSnapshot,
     temperatureUnit: TemperatureUnit,
     windUnit: WindUnit,
+    measureSystem: MeasureSystem,
     modifier: Modifier = Modifier
 ) {
     val now = snapshot.now
     val windSuffix = stringResource(windUnit.suffixRes)
+    val distanceSuffix = stringResource(measureSystem.distanceSuffixRes)
+    val precipitationSuffix = stringResource(measureSystem.precipitationSuffixRes)
+    val pressureSuffix = stringResource(measureSystem.pressureSuffixRes)
+    val today = remember(snapshot) { snapshot.daysFrom(System.currentTimeMillis() / 1000).firstOrNull() }
 
     Column(
         modifier = modifier
@@ -486,7 +517,10 @@ fun WeatherDetailsPage(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             DetailTile(
                 title = stringResource(R.string.weather_pressure),
-                value = "${now.pressure.roundToInt()} hPa",
+                value = when (measureSystem) {
+                    MeasureSystem.METRIC -> "${now.pressure.roundToInt()} $pressureSuffix"
+                    MeasureSystem.IMPERIAL -> "${"%.2f".format(Locale.getDefault(), measureSystem.pressureOf(now.pressure))} $pressureSuffix"
+                },
                 modifier = Modifier.weight(1f)
             )
             DetailTile(
@@ -512,12 +546,12 @@ fun WeatherDetailsPage(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             DetailTile(
                 title = stringResource(R.string.weather_visibility),
-                value = now.visibilityMeters?.let { "${(it / 1000).roundToInt()} km" } ?: "—",
+                value = now.visibilityMeters?.let { "${measureSystem.distanceOf(it).roundToInt()} $distanceSuffix" } ?: "—",
                 modifier = Modifier.weight(1f)
             )
             DetailTile(
                 title = stringResource(R.string.weather_precip_sum),
-                value = "${"%.1f".format(Locale.getDefault(), snapshot.daily.firstOrNull()?.precipitationSum ?: 0.0)} mm",
+                value = "${"%.1f".format(Locale.getDefault(), measureSystem.precipitationOf(today?.precipitationSum ?: 0.0))} $precipitationSuffix",
                 modifier = Modifier.weight(1f)
             )
         }

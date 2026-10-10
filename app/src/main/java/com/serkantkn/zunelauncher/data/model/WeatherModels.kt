@@ -314,6 +314,14 @@ enum class TemperatureUnit(@StringRes val labelRes: Int) {
     /** [celsius] as this unit, rounded for display. */
     fun of(celsius: Double): Int =
         if (this == CELSIUS) Math.round(celsius).toInt() else Math.round(celsius * 9 / 5 + 32).toInt()
+
+    companion object {
+        /** What a phone in that country reads the weather in, before anybody chose. */
+        fun defaultFor(locale: java.util.Locale): TemperatureUnit =
+            if (locale.country in FAHRENHEIT_COUNTRIES) FAHRENHEIT else CELSIUS
+
+        private val FAHRENHEIT_COUNTRIES = setOf("US", "LR", "MM", "BS", "BZ", "KY", "PW")
+    }
 }
 
 enum class WindUnit(@StringRes val labelRes: Int, @StringRes val suffixRes: Int) {
@@ -326,6 +334,42 @@ enum class WindUnit(@StringRes val labelRes: Int, @StringRes val suffixRes: Int)
         KMH -> kmh
         MS -> kmh / 3.6
         MPH -> kmh / 1.609344
+    }
+
+    companion object {
+        fun defaultFor(locale: java.util.Locale): WindUnit =
+            if (MeasureSystem.defaultFor(locale) == MeasureSystem.IMPERIAL) MPH else KMH
+    }
+}
+
+/**
+ * Everything that is not a temperature or a wind: how far you can see, how much fell, and the
+ * pressure. Metric is what the service sends and what is cached; imperial is a conversion at the
+ * last moment, like the others.
+ */
+enum class MeasureSystem(
+    @StringRes val labelRes: Int,
+    @StringRes val distanceSuffixRes: Int,
+    @StringRes val precipitationSuffixRes: Int,
+    @StringRes val pressureSuffixRes: Int
+) {
+    METRIC(R.string.weather_units_metric, R.string.weather_suffix_km, R.string.weather_suffix_mm, R.string.weather_suffix_hpa),
+    IMPERIAL(R.string.weather_units_imperial, R.string.weather_suffix_mi, R.string.weather_suffix_in, R.string.weather_suffix_inhg);
+
+    /** [meters] of visibility as km or miles. */
+    fun distanceOf(meters: Double): Double = if (this == METRIC) meters / 1000.0 else meters / 1609.344
+
+    /** [millimeters] of rain as mm or inches. */
+    fun precipitationOf(millimeters: Double): Double = if (this == METRIC) millimeters else millimeters / 25.4
+
+    /** [hectopascals] as hPa or inches of mercury. */
+    fun pressureOf(hectopascals: Double): Double = if (this == METRIC) hectopascals else hectopascals * 0.02953
+
+    companion object {
+        fun defaultFor(locale: java.util.Locale): MeasureSystem =
+            if (locale.country in IMPERIAL_COUNTRIES) IMPERIAL else METRIC
+
+        private val IMPERIAL_COUNTRIES = setOf("US", "LR", "MM")
     }
 }
 

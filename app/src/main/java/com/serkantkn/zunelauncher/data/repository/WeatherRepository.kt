@@ -14,8 +14,11 @@ import com.serkantkn.zunelauncher.data.model.WeatherException
 import com.serkantkn.zunelauncher.data.model.WeatherPlace
 import com.serkantkn.zunelauncher.data.model.WeatherSnapshot
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.util.hasNetwork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.Locale
@@ -58,7 +61,10 @@ enum class RefreshOutcome {
     ALREADY_FRESH,
 
     /** The free build has spent today's allowance; the cached forecast stands. */
-    QUOTA_REACHED
+    QUOTA_REACHED,
+
+    /** There is no network to ask over; the cached forecast stands. */
+    NO_NETWORK
 }
 
 data class RefreshResult(val outcome: RefreshOutcome, val snapshot: WeatherSnapshot?)
@@ -77,30 +83,63 @@ class WeatherRepository(
     val cache = dataStore.cache
     val fetchesToday = dataStore.fetchesToday
 
+    /** One fetch at a time: two callers asking together share the answer rather than spending twice. */
+    private val refreshLock = Mutex()
+
     /**
      * Brings [place] up to date when its forecast has gone stale and there is allowance left.
      *
      * [force] is the pull-to-refresh case: it skips the staleness check but still respects the
      * daily allowance, so a free build can spend its remaining fetches whenever it likes.
+     *
+     * Held under a lock, so the hub opening and the tile asking at the same moment make one trip:
+     * the second caller finds the forecast just fetched and reads it as already fresh.
      */
     suspend fun refresh(place: WeatherPlace, force: Boolean): RefreshResult = withContext(Dispatchers.IO) {
-        val cached = dataStore.cache.first()[place.id]
-        val age = cached?.let { System.currentTimeMillis() - it.fetchedAt }
+        refreshLock.withLock {
+            val cached = dataStore.cache.first()[place.id]
+            val age = cached?.let { System.currentTimeMillis() - it.fetchedAt }
 
-        if (!force && cached != null && age != null && age < WeatherPolicy.staleMillis) {
-            return@withContext RefreshResult(RefreshOutcome.ALREADY_FRESH, cached)
-        }
-        if (dataStore.fetchesToday.first() >= WeatherPolicy.dailyFetches) {
-            ZuneLog.d(TAG, "daily allowance spent, keeping the cached forecast for ${place.name}")
-            return@withContext RefreshResult(RefreshOutcome.QUOTA_REACHED, cached)
-        }
+            // Just fetched by whoever held the lock before us counts as fresh even when forced.
+            val justFetched = age != null && age < JUST_FETCHED_MS
+            if (cached != null && age != null && (justFetched || (!force && age < WeatherPolicy.staleMillis))) {
+                return@withLock RefreshResult(RefreshOutcome.ALREADY_FRESH, cached)
+            }
+            if (dataStore.fetchesToday.first() >= WeatherPolicy.dailyFetches) {
+                ZuneLog.d(TAG, "daily allowance spent, keeping the cached forecast for ${place.name}")
+                return@withLock RefreshResult(RefreshOutcome.QUOTA_REACHED, cached)
+            }
+            if (!context.hasNetwork()) {
+                return@withLock RefreshResult(RefreshOutcome.NO_NETWORK, cached)
+            }
 
-        val fetched = WeatherApi.forecast(place, System.currentTimeMillis() / 1000)
-        // Air quality is a second endpoint but the same trip for the user, so it is not counted twice.
-        val snapshot = fetched.copy(airQuality = WeatherApi.airQuality(place))
-        dataStore.putSnapshot(snapshot)
-        dataStore.countFetch()
-        RefreshResult(RefreshOutcome.UPDATED, snapshot)
+            val fetched = WeatherApi.forecast(place, System.currentTimeMillis() / 1000)
+            // Air quality is a second endpoint but the same trip for the user, so it is not counted twice.
+            val snapshot = fetched.copy(airQuality = WeatherApi.airQuality(place))
+            dataStore.putSnapshot(snapshot)
+            dataStore.countFetch()
+            RefreshResult(RefreshOutcome.UPDATED, snapshot)
+        }
+    }
+
+    /**
+     * The "here" place brought up to where the phone is now, when the position it was made from
+     * is older than [maxAgeMillis]. Returns the place to refresh: the moved one, or [current]
+     * when nothing newer is known or the permission is gone.
+     */
+    suspend fun refreshedHere(current: WeatherPlace, maxAgeMillis: Long): WeatherPlace = withContext(Dispatchers.IO) {
+        if (!current.isHere || !hasLocationPermission()) return@withContext current
+        val fix = lastKnownLocation() ?: return@withContext current
+        if (System.currentTimeMillis() - fix.time > maxAgeMillis) return@withContext current
+        val moved = WeatherPlace.idOf(fix.latitude, fix.longitude) != WeatherPlace.idOf(current.latitude, current.longitude)
+        if (!moved) return@withContext current
+        val here = current.copy(
+            name = nameOf(fix) ?: current.name,
+            latitude = fix.latitude,
+            longitude = fix.longitude
+        )
+        dataStore.putPlace(here)
+        here
     }
 
     suspend fun search(query: String): List<WeatherPlace> = withContext(Dispatchers.IO) {
@@ -129,16 +168,7 @@ class WeatherRepository(
      */
     suspend fun herePlace(): WeatherPlace? = withContext(Dispatchers.IO) {
         if (!hasLocationPermission()) throw WeatherException(R.string.weather_error_no_location_permission)
-        val manager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-            ?: return@withContext null
-        val newest = try {
-            manager.allProviders
-                .mapNotNull { provider -> runCatching { manager.getLastKnownLocation(provider) }.getOrNull() }
-                .maxByOrNull { it.time }
-        } catch (e: SecurityException) {
-            ZuneLog.w(TAG, "location read refused", e)
-            null
-        } ?: return@withContext null
+        val newest = lastKnownLocation() ?: return@withContext null
 
         WeatherPlace(
             id = WeatherPlace.HERE_ID,
@@ -149,6 +179,19 @@ class WeatherRepository(
             longitude = newest.longitude,
             isHere = true
         )
+    }
+
+    /** The newest position any provider remembers; the GPS is never switched on for it. */
+    private fun lastKnownLocation(): Location? {
+        val manager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
+        return try {
+            manager.allProviders
+                .mapNotNull { provider -> runCatching { manager.getLastKnownLocation(provider) }.getOrNull() }
+                .maxByOrNull { it.time }
+        } catch (e: SecurityException) {
+            ZuneLog.w(TAG, "location read refused", e)
+            null
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -166,5 +209,8 @@ class WeatherRepository(
 
     private companion object {
         const val TAG = "WeatherRepository"
+
+        /** A forecast fetched this recently is what a second caller gets, even when it forced. */
+        const val JUST_FETCHED_MS = 15_000L
     }
 }

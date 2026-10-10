@@ -4,16 +4,20 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.data.model.MeasureSystem
 import com.serkantkn.zunelauncher.data.model.TemperatureUnit
 import com.serkantkn.zunelauncher.data.model.WeatherException
 import com.serkantkn.zunelauncher.data.model.WeatherPlace
 import com.serkantkn.zunelauncher.data.model.WeatherSnapshot
 import com.serkantkn.zunelauncher.data.model.WindUnit
+import com.serkantkn.zunelauncher.data.repository.RefreshOutcome
 import com.serkantkn.zunelauncher.data.repository.WeatherPolicy
 import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.localizedString
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +27,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * The weather hub's state.
@@ -65,10 +70,13 @@ class WeatherHubViewModel(application: Application) : AndroidViewModel(applicati
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val temperatureUnit: StateFlow<TemperatureUnit> = dataStore.temperatureUnit
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TemperatureUnit.CELSIUS)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TemperatureUnit.defaultFor(Locale.getDefault()))
 
     val windUnit: StateFlow<WindUnit> = dataStore.windUnit
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WindUnit.KMH)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WindUnit.defaultFor(Locale.getDefault()))
+
+    val measureSystem: StateFlow<MeasureSystem> = dataStore.measureSystem
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MeasureSystem.defaultFor(Locale.getDefault()))
 
     val animatedSky: StateFlow<Boolean> = dataStore.animatedSky
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
@@ -127,19 +135,42 @@ class WeatherHubViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch { refresh(force = true) }
     }
 
+    /** When the "here" place was last matched against where the phone actually is. */
+    private var hereResolvedAt = 0L
+
     private suspend fun refresh(force: Boolean) {
-        val place = selectedPlace.value ?: places.first().firstOrNull() ?: return
+        // Read off the store, not the hot flow: the flow is shared with a five-second grace and
+        // can still be holding the place that was selected before the one just chosen.
+        val list = repository.places.first()
+        val selectedId = repository.selectedPlaceId.first()
+        var place = list.firstOrNull { it.id == selectedId } ?: list.firstOrNull() ?: return
         if (_isRefreshing.value) return
         _isRefreshing.value = true
         val startedAt = System.currentTimeMillis()
         try {
-            // Nothing to announce either way: the "updated at" line under the temperature is
-            // where the user reads how old the forecast is.
-            repository.refresh(place, force)
-            _message.value = null
+            // "Here" was fixed at wherever the phone first was; a phone that has since moved
+            // should be asked again, cheaply, when the last answer is old enough.
+            if (place.isHere && startedAt - hereResolvedAt > HERE_MAX_AGE_MILLIS) {
+                place = repository.refreshedHere(place, HERE_MAX_AGE_MILLIS)
+                hereResolvedAt = startedAt
+            }
+            val result = repository.refresh(place, force)
+            // The "updated at" line under the temperature says how old the forecast is; the
+            // status line only speaks when a refresh that was asked for could not happen.
+            _message.value = when (result.outcome) {
+                RefreshOutcome.UPDATED -> null
+                RefreshOutcome.ALREADY_FRESH ->
+                    if (force) getApplication<Application>().localizedString(R.string.weather_status_fresh) else null
+                RefreshOutcome.QUOTA_REACHED ->
+                    if (force) getApplication<Application>().localizedString(R.string.weather_status_quota) else null
+                RefreshOutcome.NO_NETWORK ->
+                    getApplication<Application>().localizedString(R.string.weather_status_no_network)
+            }
         } catch (e: WeatherException) {
             ZuneLog.w(TAG, "refresh failed", e)
-            _message.value = getApplication<Application>().localizedString(e.messageRes)
+            _message.value = getApplication<Application>().localizedString(
+                if (e.messageRes == R.string.weather_error_network) R.string.weather_status_no_network else e.messageRes
+            )
         } catch (e: Exception) {
             ZuneLog.e(TAG, "refresh failed", e)
             _message.value = getApplication<Application>().localizedString(R.string.weather_error_service)
@@ -157,26 +188,41 @@ class WeatherHubViewModel(application: Application) : AndroidViewModel(applicati
 
     // --- Places -----------------------------------------------------------------------------------
 
+    private var searchJob: Job? = null
+
+    /**
+     * Typed into the search box. Nothing is asked until the typing pauses, the previous question
+     * is withdrawn when a new one comes, and an answer that arrives for an old question is
+     * ignored — one network trip per place looked for, not one per letter.
+     */
     fun search(query: String) {
-        viewModelScope.launch {
-            if (query.isBlank()) {
-                _searchResults.value = emptyList()
-                return@launch
-            }
+        searchJob?.cancel()
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            _isSearching.value = false
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MILLIS)
             _isSearching.value = true
             try {
-                _searchResults.value = repository.search(query)
+                val results = repository.search(query)
+                if (isActive) _searchResults.value = results
             } catch (e: WeatherException) {
-                _message.value = getApplication<Application>().localizedString(e.messageRes)
-                _searchResults.value = emptyList()
+                if (isActive) {
+                    _message.value = getApplication<Application>().localizedString(e.messageRes)
+                    _searchResults.value = emptyList()
+                }
             } finally {
-                _isSearching.value = false
+                if (isActive) _isSearching.value = false
             }
         }
     }
 
     fun clearSearch() {
+        searchJob?.cancel()
         _searchResults.value = emptyList()
+        _isSearching.value = false
     }
 
     fun addPlace(place: WeatherPlace) {
@@ -236,6 +282,10 @@ class WeatherHubViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch { dataStore.setWindUnit(unit) }
     }
 
+    fun setMeasureSystem(system: MeasureSystem) {
+        viewModelScope.launch { dataStore.setMeasureSystem(system) }
+    }
+
     fun toggleAnimatedSky() {
         viewModelScope.launch { dataStore.setAnimatedSky(!animatedSky.value) }
     }
@@ -243,5 +293,9 @@ class WeatherHubViewModel(application: Application) : AndroidViewModel(applicati
     private companion object {
         const val TAG = "WeatherHubViewModel"
         const val MIN_SPINNER_MILLIS = 900L
+        const val SEARCH_DEBOUNCE_MILLIS = 350L
+
+        /** How old the phone's position behind "here" may get before it is asked for again. */
+        const val HERE_MAX_AGE_MILLIS = 30 * 60_000L
     }
 }
