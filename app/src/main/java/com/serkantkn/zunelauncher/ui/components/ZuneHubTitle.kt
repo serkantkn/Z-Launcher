@@ -45,12 +45,19 @@ fun ZuneHubTitle(
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     fontSize: TextUnit = ZuneDimens.HubTitleFontSize,
-    verticalPadding: androidx.compose.ui.unit.Dp = ZuneDimens.SpacingXs
+    verticalPadding: androidx.compose.ui.unit.Dp = ZuneDimens.SpacingXs,
+    /** Changes when the room for the title does — the edit buttons arriving — so it is re-fitted. */
+    fitKey: Any? = null,
+    minFontSize: TextUnit = 28.sp
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressedState by interactionSource.collectIsPressedAsState()
     var isClickedPressed by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    // A hub's name is one line, as on the Zune: a long translation shrinks a step at a time
+    // until it fits the room it has instead of wrapping onto a second line.
+    var currentSize by remember(title, fontSize, fitKey) { mutableStateOf(fontSize) }
 
     val isVisualPressed = isPressedState || isClickedPressed
 
@@ -72,7 +79,7 @@ fun ZuneHubTitle(
         text = title,
         style = MaterialTheme.typography.displayLarge.copy(
             fontWeight = FontWeight.Light,
-            fontSize = fontSize,
+            fontSize = currentSize,
             shadow = Shadow(
                 color = if (zuneColors.isDark) Color.Black.copy(alpha = 0.55f)
                         else Color.White.copy(alpha = 0.85f),
@@ -81,6 +88,13 @@ fun ZuneHubTitle(
             )
         ),
         color = accentColor,
+        maxLines = 1,
+        softWrap = false,
+        onTextLayout = { layout ->
+            if (layout.didOverflowWidth && currentSize > minFontSize) {
+                currentSize = (currentSize.value - SHRINK_STEP_SP).sp
+            }
+        },
         modifier = modifier
             .graphicsLayer {
                 scaleX = scale

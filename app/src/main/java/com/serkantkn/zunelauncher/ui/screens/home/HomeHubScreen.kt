@@ -72,9 +72,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -168,7 +170,6 @@ fun HomeHubScreen(
     onNavigateToAppsHub: () -> Unit = {},
     /** The page to the right of Start: quickplay in the Zune layout, the app list otherwise. */
     onNavigateNext: () -> Unit = onNavigateToAppsHub,
-    onExpandProgressChange: (Float) -> Unit = {},
     /** Bumped when the Home key is pressed while Start is already in front. */
     homeResetSignal: Int = 0,
     runningHubs: List<HubType> = emptyList(),
@@ -196,7 +197,6 @@ fun HomeHubScreen(
             onNavigateToSocialHub = onNavigateToSocialHub,
             onNavigateToAppsHub = onNavigateToAppsHub,
             onNavigateNext = onNavigateNext,
-            onExpandProgressChange = onExpandProgressChange,
             homeResetSignal = homeResetSignal,
             runningHubs = runningHubs,
             onStopHub = onStopHub,
@@ -218,7 +218,6 @@ private fun HomeHubScreenContent(
     onNavigateToSocialHub: () -> Unit,
     onNavigateToAppsHub: () -> Unit,
     onNavigateNext: () -> Unit,
-    onExpandProgressChange: (Float) -> Unit,
     homeResetSignal: Int,
     runningHubs: List<HubType>,
     onStopHub: (HubType) -> Unit,
@@ -232,8 +231,18 @@ private fun HomeHubScreenContent(
     val favoriteAppsFlow by viewModel.favoriteApps.collectAsState()
     val hubOrderFlow by viewModel.hubOrder.collectAsState()
     val favoritePhotos by viewModel.favoritePhotoUris.collectAsState()
-    val latestNotification by viewModel.latestNotification.collectAsState()
     val notificationCounts by viewModel.notificationCounts.collectAsState()
+    // Whose notifications count on the messaging and phone tiles: whatever app holds the role,
+    // not the two Google apps by name. The launcher holding it keeps its own counts.
+    val defaultSmsPackage by viewModel.defaultSmsPackage.collectAsState()
+    val defaultDialerPackage by viewModel.defaultDialerPackage.collectAsState()
+    val selfPackage = LocalContext.current.packageName
+    fun messagingCount(own: Int) = com.serkantkn.zunelauncher.util.StartBadges.count(
+        own, notificationCounts, defaultSmsPackage, selfPackage
+    )
+    fun phoneCount(own: Int) = com.serkantkn.zunelauncher.util.StartBadges.count(
+        own, notificationCounts, defaultDialerPackage, selfPackage
+    )
     val notesTileSubtitle by viewModel.notesTileSubtitle.collectAsState()
     val pinnedNotesCount by viewModel.pinnedNotesCount.collectAsState()
     val emailUnreadCount by viewModel.emailUnreadCount.collectAsState()
@@ -304,12 +313,6 @@ private fun HomeHubScreenContent(
         )
     }
 
-    // Keyed on Unit, not on the value: keying on the animation cancelled and restarted a
-    // coroutine on every frame of the expansion, which is a lot of rubbish for a callback.
-    LaunchedEffect(Unit) {
-        snapshotFlow { expandProgress.value }.collect { onExpandProgressChange(it) }
-    }
-
     // Exit edit mode when favorites collapse
     LaunchedEffect(isFavoritesExpanded) {
         if (!isFavoritesExpanded) isEditMode = false
@@ -344,10 +347,16 @@ private fun HomeHubScreenContent(
     }
 
     var clickedItemKey by remember { mutableStateOf<String?>(null) }
+    // Set while a tap is on its way out: the turnstile takes most of a second, and two quick
+    // taps used to open both things one after the other.
+    var launching by remember { mutableStateOf(false) }
+    var openFolderId by remember { mutableStateOf<String?>(null) }
+    val animationsOn = LocalAnimationsEnabled.current
 
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) {
             clickedItemKey = null
+            launching = false
             animationProgress.snapTo(1f)
             isEditMode = false
             isFavoritesExpanded = false
@@ -357,20 +366,31 @@ private fun HomeHubScreenContent(
     LaunchedEffect(isHubOpen) {
         if (!isHubOpen && animationProgress.value > 1f) {
             clickedItemKey = null
+            launching = false
             animationProgress.snapTo(0f)
             animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
         }
     }
 
     fun handleLaunch(key: String, action: () -> Unit) {
-        if (isEditMode) return
+        if (isEditMode || launching) return
         clickedItemKey = key
+        if (!animationsOn) {
+            // Nothing turns away, so there is nothing to wait for.
+            openFolderId = null
+            action()
+            return
+        }
+        launching = true
         coroutineScope.launch {
             // Turnstile feather out (1f -> 2f). The launch itself fires slightly before the
             // chosen tile has fully turned away so the hub's hinge-in overlaps it, WP style.
             launch { animationProgress.animateTo(2f, tween(1000, easing = LinearEasing)) }
             delay(860)
+            // A folder left open under the hub would answer the Back key in the hub's stead.
+            openFolderId = null
             action()
+            launching = false
         }
     }
 
@@ -389,8 +409,6 @@ private fun HomeHubScreenContent(
 
     val gridDragDropState = rememberGridDragDropState(
         gridState = gridState,
-        isEditMode = isEditMode,
-        canSwap = { _, _ -> true },
         onMove = { fromIndex, toIndex ->
             // Index 0 = "fav_label", tiles start at 1
             if (fromIndex >= 1 && toIndex >= 1) {
@@ -460,9 +478,11 @@ private fun HomeHubScreenContent(
 
     // A hub whose tap has been pointed at another app opens that app; the rest open themselves.
     val hubTargetApps by viewModel.hubTargetApps.collectAsState()
-    val quickplay by viewModel.quickplay.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
-    val animationsOn = LocalAnimationsEnabled.current
+    // The clock line and the pictures line both read the time of day; once a minute is often
+    // enough for either, and reading the clock in composition never updated them at all.
+    val minuteNow = com.serkantkn.zunelauncher.ui.components.rememberMinuteTicker()
+    val dayStart = remember(minuteNow) { com.serkantkn.zunelauncher.util.startOfDay(minuteNow) }
 
     // Tablet: Start and the app list are one tall page. This is how far the list has risen over
     // Start (0 = Start, 1 = the list) and whether it is meant to stay up; the counter asks the
@@ -506,15 +526,14 @@ private fun HomeHubScreenContent(
         return when (hub) {
             HubType.MESSAGING -> {
                 val first = unreadMessages.firstOrNull()
-                val count = maxOf(unreadMessages.size, notificationCounts["com.google.android.apps.messaging"] ?: 0)
                 if (quiet) HubLiveLine.NONE else HubLiveLine(
                     text = first?.let { "${it.contactName.ifBlank { it.address }}: ${it.snippet}" },
-                    count = count
+                    count = messagingCount(unreadMessages.size)
                 )
             }
             HubType.PHONE -> if (quiet) HubLiveLine.NONE else HubLiveLine(
                 text = lastMissedCaller?.let { "$it · ${stringResource(R.string.zune_line_missed)}" },
-                count = maxOf(missedCalls, notificationCounts["com.google.android.dialer"] ?: 0)
+                count = phoneCount(missedCalls)
             )
             HubType.EMAIL -> if (quiet) HubLiveLine.NONE else HubLiveLine(
                 text = emailTilePreview?.let { (from, subject) -> if (subject.isBlank()) from else "$from: $subject" },
@@ -529,7 +548,7 @@ private fun HomeHubScreenContent(
                 text = upcomingEvents.firstOrNull()?.let { "${it.formattedTime} ${it.title}" }
             )
             HubType.CLOCK -> {
-                val now = System.currentTimeMillis()
+                val now = minuteNow
                 val next = enabledAlarms.map { it.nextTriggerMillis(now) }.filter { it > now }.minOrNull()
                 HubLiveLine(
                     text = next?.let {
@@ -552,10 +571,6 @@ private fun HomeHubScreenContent(
                 count = if (quiet) 0 else pinnedNotesCount
             )
             HubType.PICTURES -> {
-                val dayStart = remember { java.util.Calendar.getInstance().apply {
-                    set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
-                    set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
-                }.timeInMillis }
                 // The store keeps DATE_ADDED in seconds.
                 val today = allImages.count { it.dateAdded * 1000L >= dayStart }
                 HubLiveLine(text = if (today > 0) pluralStringResource(R.plurals.zune_line_new_photos, today, today) else null)
@@ -565,7 +580,6 @@ private fun HomeHubScreenContent(
     }
     var hubTargetPickFor by remember { mutableStateOf<HubType?>(null) }
     val openHub: (HubType) -> Unit = { hub -> if (!viewModel.openHubTarget(hub)) onHubSelected(hub) }
-    var openFolderId by remember { mutableStateOf<String?>(null) }
     val openFolder = localStartTiles.firstOrNull { it.id == openFolderId } as? StartTileUIModel.Folder
 
     LaunchedEffect(runningHubs) {
@@ -606,13 +620,25 @@ private fun HomeHubScreenContent(
         }
     }
 
-    // The open folder answers the back gesture before edit mode does.
-    BackHandler(enabled = openFolderId != null) { openFolderId = null }
+    // The open folder answers the back gesture before edit mode does — but never over a hub,
+    // which is Start's to answer only once it is back in front.
+    BackHandler(enabled = openFolderId != null && !isHubOpen) { openFolderId = null }
 
     val onSetTileSize: (String, Int) -> Unit = { tileId, newSpan ->
         val current = localStartTiles.toMutableList()
         val index = current.indexOfFirst { it.id == tileId }
-        if (index == -1 && tileId.startsWith("app:")) {
+        val folderOf = current.filterIsInstance<StartTileUIModel.Folder>()
+            .firstOrNull { folder -> folder.children.any { it.id == tileId } }
+        if (index == -1 && folderOf != null) {
+            // Inside a folder: the folder keeps the size, and the favourites strip — which may
+            // list the same app — is left alone, or the wrong tile changed.
+            val folderIndex = current.indexOf(folderOf)
+            current[folderIndex] = folderOf.copy(
+                children = folderOf.children.map { if (it.id == tileId) it.withSpan(newSpan) else it }
+            )
+            localStartTiles = current
+            viewModel.setFolderChildSpan(tileId, newSpan)
+        } else if (index == -1 && tileId.startsWith("app:")) {
             // Zune layout: the tile lives in the favourites strip, not on the Start board.
             val packageName = tileId.removePrefix("app:")
             val updated = favoriteApps.map { fav ->
@@ -622,19 +648,7 @@ private fun HomeHubScreenContent(
             viewModel.updateFavoritesOrder(updated)
         }
         if (index != -1) {
-            val old = current[index]
-            current[index] = when (old) {
-                is StartTileUIModel.Hub -> StartTileUIModel.Hub(old.hubType, newSpan)
-                is StartTileUIModel.App -> StartTileUIModel.App(old.appInfo, newSpan)
-                is StartTileUIModel.NoteTile -> StartTileUIModel.NoteTile(old.note, newSpan)
-                is StartTileUIModel.QuickNote -> StartTileUIModel.QuickNote(newSpan)
-                is StartTileUIModel.Web -> old.copy(span = newSpan)
-            is StartTileUIModel.Album -> old.copy(span = newSpan)
-            is StartTileUIModel.MusicAlbum -> old.copy(span = newSpan)
-                is StartTileUIModel.Person -> old.copy(span = newSpan)
-                is StartTileUIModel.Thread -> old.copy(span = newSpan)
-                is StartTileUIModel.Folder -> old.copy(span = newSpan)
-            }
+            current[index] = current[index].withSpan(newSpan)
             localStartTiles = current
             viewModel.updateStartTilesOrder(current)
         }
@@ -732,9 +746,7 @@ private fun HomeHubScreenContent(
     fun TileSizePopup() {
         val targetId = resizeTargetId ?: return
         TileSizeDialog(
-            currentSpan = localStartTiles.firstOrNull { it.id == targetId }?.span
-                ?: favoriteApps.firstOrNull { "app:${it.appInfo.packageName}" == targetId }?.span
-                ?: TileSpan.MEDIUM,
+            currentSpan = tileModel(targetId)?.span ?: TileSpan.MEDIUM,
             onSelect = { span ->
                 onSetTileSize(targetId, span)
                 resizeTargetId = null
@@ -866,8 +878,8 @@ private fun HomeHubScreenContent(
                         isDragging = isDragging,
                         cornerStyle = tileCornerStyle,
                         badgeCount = if (!look.notifications) 0 else when (hubType) {
-                            HubType.MESSAGING -> maxOf(unreadMessages.size, notificationCounts["com.google.android.apps.messaging"] ?: 0)
-                            HubType.PHONE -> maxOf(missedCalls, notificationCounts["com.google.android.dialer"] ?: 0)
+                            HubType.MESSAGING -> messagingCount(unreadMessages.size)
+                            HubType.PHONE -> phoneCount(missedCalls)
                             HubType.NOTES -> pinnedNotesCount
                             HubType.EMAIL -> emailUnreadCount
                             else -> 0
@@ -1125,7 +1137,9 @@ private fun HomeHubScreenContent(
             },
             preview = {
                 CompositionLocalProvider(LocalTileIsPreview provides true) {
-                    StartTile(model, 0, false, false, Modifier, gridColumns = 4)
+                    // The board's own column count, so the preview is the tile as it is drawn
+                    // and not a four-column tile twice the size.
+                    StartTile(model, 0, false, false, Modifier, gridColumns = gridColumns)
                 }
             }
         )
@@ -1156,6 +1170,11 @@ private fun HomeHubScreenContent(
             var stackHeightPx by remember { mutableFloatStateOf(0f) }
             val launcherContext = LocalContext.current
             val appsShown = appsOpen || appsReveal.value > 0f
+            // The running-hubs strip lies over the board's bottom-left corner, so the board is
+            // asked to keep that much clear of its last row while the strip is up.
+            val stripShown = taskSwitcherVisible && runningHubs.isNotEmpty()
+            var stripHeightPx by remember { mutableIntStateOf(0) }
+            val stripReserve = if (stripShown) with(localDensity) { stripHeightPx.toDp() } + 16.dp else 0.dp
 
             Box(
                 modifier = modifier
@@ -1194,10 +1213,13 @@ private fun HomeHubScreenContent(
                         onOpenApps = { openApps(withSearch = false) },
                         onSearch = { openApps(withSearch = true) },
                         onPullToSocial = onNavigateToSocialHub,
-                        onOpenUser = { handleLaunch("hub_PEOPLE") { onHubSelected(HubType.PEOPLE) } },
-                        onOpenSettings = { handleLaunch("hub_SETTINGS") { onHubSelected(HubType.SETTINGS) } },
+                        // Through openHub like every other way into a hub, so a hub pointed at
+                        // another app opens that app from here too.
+                        onOpenUser = { handleLaunch("hub_PEOPLE") { openHub(HubType.PEOPLE) } },
+                        onOpenSettings = { handleLaunch("hub_SETTINGS") { openHub(HubType.SETTINGS) } },
                         onMergeTiles = onMergeTiles,
                         canMerge = canMerge,
+                        bottomReserve = stripReserve,
                         tile = { model, index, isDragging, isMergeTarget, tileModifier ->
                             StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = 4)
                         }
@@ -1205,14 +1227,14 @@ private fun HomeHubScreenContent(
 
                     // The tablet board scrolls sideways, so the strip and the add button are laid
                     // over its bottom-left corner — to the right of the all-apps arrow — rather
-                    // than under the last row.
+                    // than under the last row, which keeps clear of them (see bottomReserve).
                     if (isEditMode) {
                         AddHubButton(
                             missing = hubsOffHome,
                             onClick = { addingHub = true },
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
-                                .padding(start = 40.dp, bottom = 150.dp)
+                                .padding(start = if (stripShown) 104.dp + 320.dp + 24.dp else 104.dp, bottom = 24.dp)
                         )
                     }
                     RunningHubsSection(
@@ -1226,6 +1248,7 @@ private fun HomeHubScreenContent(
                             .align(Alignment.BottomStart)
                             .padding(start = 104.dp, bottom = 16.dp)
                             .width(320.dp)
+                            .onSizeChanged { stripHeightPx = it.height }
                     )
 
                     StartEditBar(
@@ -1473,48 +1496,50 @@ private fun HomeHubScreenContent(
                         }
                     )
 
+                    /** Moves a hub one place up or down the list and keeps the new order. */
+                    fun moveHub(hubType: HubType, by: Int) {
+                        val order = localHubOrder.toMutableList()
+                        val from = order.indexOf(hubType)
+                        val to = from + by
+                        if (from < 0 || to !in order.indices) return
+                        order.add(to, order.removeAt(from))
+                        localHubOrder = order
+                        viewModel.setHubOrder(order)
+                    }
+
                     localHubOrder.forEachIndexed { index, hubType ->
                         val key = "hub_$hubType"
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (isEditMode) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Black.copy(alpha = 0.55f))
-                                        .border(0.5.dp, Color.White.copy(alpha = 0.35f), CircleShape)
-                                        .clickable { onRemoveTile("hub:${hubType.name}") },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.home_running_hub_close),
-                                        tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
+                                ZuneListEditButton(
+                                    icon = Icons.Default.Close,
+                                    label = stringResource(R.string.home_running_hub_close),
+                                    onClick = { onRemoveTile("hub:${hubType.name}") }
+                                )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 // The list has no tile to customise, so what the title opens is
                                 // set from here.
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (hubTargetApps.containsKey(hubType)) zuneColors.accentColor
-                                            else Color.Black.copy(alpha = 0.55f)
-                                        )
-                                        .border(0.5.dp, Color.White.copy(alpha = 0.35f), CircleShape)
-                                        .clickable { hubTargetPickFor = hubType },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                        contentDescription = stringResource(R.string.hub_target_title),
-                                        tint = Color.White,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                }
+                                ZuneListEditButton(
+                                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                                    label = stringResource(R.string.hub_target_title),
+                                    filled = hubTargetApps.containsKey(hubType),
+                                    onClick = { hubTargetPickFor = hubType }
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                // The list has nothing to drag, so a hub moves a step at a time.
+                                ZuneListEditButton(
+                                    icon = Icons.Default.KeyboardArrowUp,
+                                    label = stringResource(R.string.start_hub_move_up),
+                                    enabled = index > 0,
+                                    onClick = { moveHub(hubType, -1) }
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                ZuneListEditButton(
+                                    icon = Icons.Default.KeyboardArrowDown,
+                                    label = stringResource(R.string.start_hub_move_down),
+                                    enabled = index < localHubOrder.lastIndex,
+                                    onClick = { moveHub(hubType, 1) }
+                                )
                                 Spacer(modifier = Modifier.width(10.dp))
                             }
                             val line = liveLineFor(hubType)
@@ -1531,6 +1556,8 @@ private fun HomeHubScreenContent(
                                         title = stringResource(hubType.titleRes),
                                         accentColor = rememberHubNameColour(line.hasNews, ink),
                                         verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
+                                        // Re-fitted when the edit buttons take their share of the row.
+                                        fitKey = isEditMode,
                                         onClick = {
                                             if (isFavoritesExpanded) {
                                                 isFavoritesExpanded = false
@@ -1556,6 +1583,35 @@ private fun HomeHubScreenContent(
 
                     if (isEditMode) {
                         AddHubButton(missing = hubsOffHome, onClick = { addingHub = true })
+                    }
+
+                    // What was pinned from the hubs — notes, people, conversations, sites,
+                    // albums, records and folders — used to be kept by the Zune list and never
+                    // shown by it. They stand under the hubs as tiles, four to a row.
+                    val pinnedTiles = localStartTiles.filter {
+                        it !is StartTileUIModel.Hub && it !is StartTileUIModel.App
+                    }
+                    if (pinnedTiles.isNotEmpty()) {
+                        ZuneSectionWord(
+                            text = stringResource(R.string.start_pinned_section),
+                            modifier = Modifier
+                                .padding(top = 20.dp, bottom = 10.dp)
+                                .w10mStaggeredAnimation({ animationProgress.value }, 4 + localHubOrder.size)
+                        )
+                        ZunePinnedBoard(
+                            tiles = pinnedTiles,
+                            columns = FOLDER_COLUMNS,
+                            gap = tileSpacing.dp
+                        ) { model, index ->
+                            StartTile(
+                                model = model,
+                                index = 5 + localHubOrder.size + index,
+                                isDragging = false,
+                                isMergeTarget = false,
+                                tileModifier = Modifier.fillMaxWidth(),
+                                gridColumns = FOLDER_COLUMNS
+                            )
+                        }
                     }
 
                     RunningHubsSection(
@@ -1636,6 +1692,7 @@ private fun HomeHubScreenContent(
                                     face = favLook.icon.takeIf { it != TileIcon.Default }?.let(iconResolver)
                                         ?: tileFace(favApp.appInfo),
                                     label = favLook.name?.takeIf { it.isNotBlank() } ?: favApp.appInfo.label,
+                                    cornerStyle = tileCornerStyle,
                                     // A tap opens the app, like a tap on anything else with an icon
                                     // on it. Widening the strip is what the swipe across is for, and
                                     // a tile that only makes itself bigger is a tile that does
@@ -1718,9 +1775,13 @@ private fun HomeHubScreenContent(
                                     val isDragging =
                                         gridDragDropState.draggingItemIndex == absoluteIndex
 
+                                    // A large tile is four cells wide and four tall; its stored
+                                    // span of eight is a width only in the packed boards, and
+                                    // here it used to swallow a whole row.
+                                    val gridSpan = TileSpan.cellsOf(favApp.span).first.coerceAtMost(gridColumns)
                                     item(
                                         key = "fav_${favApp.appInfo.packageName}",
-                                        span = { GridItemSpan(favApp.span) }
+                                        span = { GridItemSpan(gridSpan) }
                                     ) {
                                         val key = "app_${favApp.appInfo.packageName}"
 
@@ -1825,6 +1886,32 @@ private fun HomeHubScreenContent(
                 TileLookPopup()
                 TileIconPopup()
                 HubTargetPopup()
+
+                // The pinned folders open over the list, the way they do on the tablet board.
+                StartFolderPanel(
+                    folder = openFolder,
+                    isEditMode = isEditMode,
+                    columns = FOLDER_COLUMNS,
+                    gap = tileSpacing.dp,
+                    onEnterEditMode = { isEditMode = true },
+                    onRename = { name -> openFolderId?.let { viewModel.renameFolder(it, name) } },
+                    onTakeOut = { childId ->
+                        openFolderId?.let { viewModel.removeFromFolder(it, childId) }
+                    },
+                    onMoveChild = { from, to ->
+                        openFolderId?.let { viewModel.moveWithinFolder(it, from, to) }
+                    },
+                    onClose = { openFolderId = null },
+                    tile = { model, index, isDragging, isMergeTarget, tileModifier ->
+                        StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = FOLDER_COLUMNS)
+                    }
+                )
+
+                StartEditBar(
+                    visible = isEditMode && openFolder == null,
+                    onDone = { isEditMode = false },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
         }
 
@@ -1905,13 +1992,13 @@ private fun FavoritesEmptyState(
             Text(
                 text = stringResource(R.string.home_favorites_empty_action),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
-                color = zuneColors.accentColor
+                color = zuneColors.accentLink
             )
             Spacer(modifier = Modifier.width(ZuneDimens.SpacingSm))
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
-                tint = zuneColors.accentColor,
+                tint = zuneColors.accentLink,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -1934,6 +2021,7 @@ private fun FavoritesEmptyState(
 private fun SmallFavoriteTile(
     face: TileIconFace,
     label: String,
+    cornerStyle: TileCornerStyle,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -1941,6 +2029,8 @@ private fun SmallFavoriteTile(
     val zuneColors = LocalZuneColors.current
     val stroke = if (zuneColors.isDark)
         Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.4f)
+    // The same corners as the big tiles: these kept their own rounding whatever was chosen.
+    val shape = RoundedCornerShape(if (cornerStyle == TileCornerStyle.SHARP) 0.dp else 8.dp)
 
     Box(
         modifier = modifier
@@ -1952,9 +2042,9 @@ private fun SmallFavoriteTile(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clip(RoundedCornerShape(8.dp))
+                .clip(shape)
                 .background(zuneColors.accentColor)
-                .border(0.5.dp, stroke, RoundedCornerShape(8.dp))
+                .border(0.5.dp, stroke, shape)
         ) {
             TileIconImage(
                 face = face,

@@ -145,6 +145,8 @@ fun Windows8StartScreen(
     canMerge: (sourceId: String, targetId: String) -> Boolean = { _, _ -> false },
     /** Hoisted so the Home key can take the board back to its first group. */
     scrollState: ScrollState = rememberScrollState(),
+    /** Room kept under the board for whatever Start lays over its bottom edge. */
+    bottomReserve: Dp = 0.dp,
     tile: @Composable (
         model: StartTileUIModel,
         flatIndex: Int,
@@ -230,7 +232,7 @@ fun Windows8StartScreen(
         val sidePadding = 40.dp
 
         val gap = tileSpacing.coerceIn(4.dp, 12.dp)
-        val boardArea = (maxHeight - statusTop - navBottom - headerHeight - footerHeight - GroupHeaderHeight)
+        val boardArea = (maxHeight - statusTop - navBottom - bottomReserve - headerHeight - footerHeight - GroupHeaderHeight)
             .coerceAtLeast(TargetMediumTile * 2)
         val rowsMedium = ((boardArea + gap) / (TargetMediumTile + gap)).toInt().coerceIn(2, 6)
         val medium = ((boardArea + gap) / rowsMedium - gap).coerceAtMost(MaxMediumTile)
@@ -289,7 +291,7 @@ fun Windows8StartScreen(
             label = "win8_semantic_zoom"
         )
 
-        Column(modifier = Modifier.fillMaxSize().padding(top = statusTop, bottom = navBottom)) {
+        Column(modifier = Modifier.fillMaxSize().padding(top = statusTop, bottom = navBottom + bottomReserve)) {
             // ── Header: "başlangıç" on the left; the owner, search and settings on the right ──
             Row(
                 modifier = Modifier

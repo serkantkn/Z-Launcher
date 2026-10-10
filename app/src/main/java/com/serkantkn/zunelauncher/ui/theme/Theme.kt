@@ -85,9 +85,26 @@ data class ZuneExtendedColors(
     val overlay: Color = ZuneColors.SurfaceOverlay,
     val darkOverlay: Color = ZuneColors.DarkOverlay,
     val accentColor: Color = ZuneColors.Magenta,
+    /**
+     * The accent for small words that are links — "close all", "play". On a dark ground the
+     * accent itself; on the light theme a quarter darker, because a bright accent at 14sp on
+     * white is barely there.
+     */
+    val accentLink: Color = ZuneColors.Magenta,
     val isDark: Boolean = true,
     val backgroundSolid: Boolean = false
 )
+
+/** The accent, darkened for the light theme's link words. */
+private fun linkShadeOf(accent: Color, isDark: Boolean): Color =
+    if (isDark) accent else Color(
+        red = accent.red * LIGHT_LINK_DARKEN,
+        green = accent.green * LIGHT_LINK_DARKEN,
+        blue = accent.blue * LIGHT_LINK_DARKEN,
+        alpha = accent.alpha
+    )
+
+private const val LIGHT_LINK_DARKEN = 0.75f
 
 val LocalZuneColors = staticCompositionLocalOf { ZuneExtendedColors() }
 val LocalIsWideScreen = staticCompositionLocalOf { false }
@@ -180,6 +197,7 @@ fun ZuneLauncherTheme(
         ZuneExtendedColors(
             isDark = true,
             accentColor = resolvedAccentColor,
+            accentLink = linkShadeOf(resolvedAccentColor, isDark = true),
             textMuted = if (solidBackgroundEnabled) Color(0xFFB5B5B5) else ZuneColors.WhiteMuted,
             textDim = if (solidBackgroundEnabled) Color(0xFF8E8E8E) else ZuneColors.WhiteDim,
             backgroundSolid = solidBackgroundEnabled
@@ -192,6 +210,7 @@ fun ZuneLauncherTheme(
             darkOverlay = Color(0xCCFFFFFF),
             isDark = false,
             accentColor = resolvedAccentColor,
+            accentLink = linkShadeOf(resolvedAccentColor, isDark = false),
             backgroundSolid = solidBackgroundEnabled
         )
     }
