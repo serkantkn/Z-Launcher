@@ -10,10 +10,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
@@ -57,24 +59,46 @@ fun WallpaperCropScreen(
     var offset by remember { mutableStateOf(Offset.Zero) }
     val context = LocalContext.current
     var originalBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var loadFailed by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val graphicsLayer = rememberGraphicsLayer()
+    val screen = LocalContext.current.resources.displayMetrics
 
-    // Load bitmap from uri
+    // Load bitmap from uri: sampled down to about twice the screen (a 50-megapixel photo is
+    // not a wallpaper and does not fit in memory as one), turned the way the camera held it,
+    // and with the stream closed whatever happens. A picture that will not open says so.
     LaunchedEffect(uri) {
+        loadFailed = false
         originalBitmap = withContext(Dispatchers.IO) {
             try {
-                val stream = context.contentResolver.openInputStream(uri)
-                BitmapFactory.decodeStream(stream)
+                decodeForScreen(context, uri, screen.widthPixels * 2, screen.heightPixels * 2)
             } catch (e: Exception) {
                 ZuneLog.e("WallpaperCropScreen", "WallpaperCropScreen failed", e)
                 null
             }
         }
+        if (originalBitmap == null) loadFailed = true
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        if (originalBitmap != null) {
+        if (loadFailed) {
+            Column(
+                modifier = Modifier.align(Alignment.Center).padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_image_load_failed),
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = onCancel,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                ) {
+                    Text(stringResource(R.string.common_back))
+                }
+            }
+        } else if (originalBitmap != null) {
             // The Box that captures the visual representation
             Box(
                 modifier = Modifier
@@ -153,4 +177,51 @@ fun WallpaperCropScreen(
             )
         }
     }
+}
+
+/**
+ * Decodes a picture no larger than it needs to be for a screen, the right way up.
+ *
+ * Two passes over the stream: the first reads only the size, so the sample rate can be chosen;
+ * the second decodes at that rate. The EXIF orientation is read separately and applied, because a
+ * phone camera stores a portrait photo on its side with a note saying so, and a wallpaper on its
+ * side is not what anybody chose.
+ */
+private fun decodeForScreen(context: android.content.Context, uri: Uri, maxWidth: Int, maxHeight: Int): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    var sample = 1
+    while (bounds.outWidth / (sample * 2) >= maxWidth && bounds.outHeight / (sample * 2) >= maxHeight) {
+        sample *= 2
+    }
+    val options = BitmapFactory.Options().apply { inSampleSize = sample }
+    val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        ?: return null
+
+    val orientation = runCatching {
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            android.media.ExifInterface(stream).getAttributeInt(
+                android.media.ExifInterface.TAG_ORIENTATION,
+                android.media.ExifInterface.ORIENTATION_NORMAL
+            )
+        }
+    }.getOrNull() ?: android.media.ExifInterface.ORIENTATION_NORMAL
+
+    val matrix = android.graphics.Matrix()
+    when (orientation) {
+        android.media.ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+        android.media.ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+        android.media.ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+        android.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+        android.media.ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+        android.media.ExifInterface.ORIENTATION_TRANSPOSE -> { matrix.postRotate(90f); matrix.preScale(-1f, 1f) }
+        android.media.ExifInterface.ORIENTATION_TRANSVERSE -> { matrix.postRotate(270f); matrix.preScale(-1f, 1f) }
+        else -> return decoded
+    }
+    return runCatching {
+        Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+            .also { if (it !== decoded) decoded.recycle() }
+    }.getOrDefault(decoded)
 }

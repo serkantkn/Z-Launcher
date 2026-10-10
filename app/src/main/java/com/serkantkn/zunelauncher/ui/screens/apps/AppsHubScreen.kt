@@ -231,9 +231,9 @@ fun AppsHubScreen(
     // ── One app, wherever it is drawn ──
     @Composable
     fun AppEntry(app: AppInfo, index: Int, inGrid: Boolean) {
-        val key = "app_${app.packageName}"
+        val key = "app_${app.key}"
         // Keyed on the pack as well, so changing icon packs redraws the list.
-        val icon = remember(app.packageName, iconPackKey) { viewModel.iconFor(app) }
+        val icon = remember(app.key, iconPackKey) { viewModel.iconFor(app) }
         // While one app is being asked about, the rest step back: dimmed and a little smaller, the
         // same depth the Start screen puts behind a held tile.
         val held = menuTarget != null && menuTarget?.packageName != app.packageName
@@ -253,7 +253,7 @@ fun AppsHubScreen(
                 index,
                 clickedItemKey == key
             )
-        val onClick = { handleLaunch(key) { viewModel.launchApp(app.packageName) } }
+        val onClick = { handleLaunch(key) { viewModel.launchApp(app) } }
         val onLongPress: (Offset) -> Unit = { where ->
             menuAnchor = where
             menuTarget = app
@@ -374,7 +374,7 @@ fun AppsHubScreen(
                 contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp, end = ZuneDimens.SpacingLg),
                 modifier = Modifier.fillMaxSize()
             ) {
-                itemsIndexed(searchResults, key = { _, app -> app.packageName }) { index, app ->
+                itemsIndexed(searchResults, key = { _, app -> app.key }) { index, app ->
                     AppEntry(app, index, inGrid = false)
                 }
             }
@@ -527,11 +527,11 @@ private sealed class AppsListItem {
      * own letter further down, so it needs a key of its own or the list has two of the same.
      */
     data class Often(val appInfo: AppInfo) : AppsListItem() {
-        override val key: String get() = "often_${appInfo.packageName}"
+        override val key: String get() = "often_${appInfo.key}"
     }
 
     data class App(val appInfo: AppInfo) : AppsListItem() {
-        override val key: String get() = "app_${appInfo.packageName}"
+        override val key: String get() = "app_${appInfo.key}"
     }
 }
 

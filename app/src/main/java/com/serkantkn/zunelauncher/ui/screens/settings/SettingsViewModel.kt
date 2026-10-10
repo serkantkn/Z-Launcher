@@ -681,6 +681,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsDataStore.homeScreenLayout.asState(HomeScreenLayout.ZUNE)
 
+    /**
+     * The same, but null until the setting has actually been read. [homeScreenLayout] says ZUNE
+     * for the first frame whatever was chosen, which is one frame of the wrong Start before the
+     * right one; a caller that would rather draw nothing than the wrong thing waits on this.
+     */
+    val homeScreenLayoutOrNull: StateFlow<HomeScreenLayout?> =
+        settingsDataStore.homeScreenLayout.map<HomeScreenLayout, HomeScreenLayout?> { it }.asState(null)
+
     val tileIconStyle: StateFlow<TileIconStyle> =
         settingsDataStore.tileIconStyle.asState(TileIconStyle.WINDOWS_PHONE)
 
@@ -768,13 +776,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val context = getApplication<Application>()
-                // Save to internal storage
-                val file = java.io.File(context.filesDir, "custom_wallpaper.jpg")
-                val outputStream = java.io.FileOutputStream(file)
-                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 100, outputStream)
-                outputStream.flush()
-                outputStream.close()
-                
+                // Writing a full-screen JPEG and handing it to the wallpaper service are both
+                // slow enough to drop frames; neither belongs on the main thread.
+                val file = withContext(Dispatchers.IO) {
+                    val file = java.io.File(context.filesDir, "custom_wallpaper.jpg")
+                    java.io.FileOutputStream(file).use { out ->
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 100, out)
+                        out.flush()
+                    }
+                    file
+                }
+
                 settingsDataStore.setCustomWallpaperPath(file.absolutePath)
 
                 // Extract dominant color
@@ -786,16 +798,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     }
                 }
 
-
                 // Also attempt to set the system wallpaper
-                try {
-                    com.serkantkn.zunelauncher.ui.components.ZuneWallpaperManager.lastInternalWallpaperChangeTime = System.currentTimeMillis()
-                    val wm = android.app.WallpaperManager.getInstance(context)
-                    val fileInputStream = java.io.FileInputStream(file)
-                    wm.setStream(fileInputStream)
-                    fileInputStream.close()
-                } catch (e: Exception) {
-                    ZuneLog.e("SettingsViewModel", "saveCroppedWallpaper failed", e)
+                withContext(Dispatchers.IO) {
+                    try {
+                        com.serkantkn.zunelauncher.ui.components.ZuneWallpaperManager.lastInternalWallpaperChangeTime = System.currentTimeMillis()
+                        val wm = android.app.WallpaperManager.getInstance(context)
+                        java.io.FileInputStream(file).use { stream -> wm.setStream(stream) }
+                    } catch (e: Exception) {
+                        ZuneLog.e("SettingsViewModel", "saveCroppedWallpaper failed", e)
+                    }
                 }
             } catch (e: Exception) {
                 ZuneLog.e("SettingsViewModel", "saveCroppedWallpaper failed", e)

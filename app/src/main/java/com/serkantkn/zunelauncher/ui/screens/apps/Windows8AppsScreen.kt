@@ -277,15 +277,15 @@ fun Windows8AppsScreen(
                             fg = fg,
                             onHeading = { if (section.letter != null) jumpListOpen = true }
                         ) { app ->
-                            val icon = remember(app.packageName, iconPackKey) { viewModel.iconFor(app) }
+                            val icon = remember(app.key, iconPackKey) { viewModel.iconFor(app) }
                             Win8AppRow(
                                 app = app,
                                 icon = icon,
-                                selected = selected?.packageName == app.packageName,
+                                selected = selected?.key == app.key,
                                 dimmed = app.packageName in hiddenApps && !showingHidden,
                                 fg = fg,
                                 onClick = {
-                                    if (selected != null) selected = null else viewModel.launchApp(app.packageName)
+                                    if (selected != null) selected = null else viewModel.launchApp(app)
                                 },
                                 onLongClick = { selected = app }
                             )

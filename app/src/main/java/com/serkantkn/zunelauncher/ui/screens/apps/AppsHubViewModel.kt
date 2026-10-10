@@ -3,13 +3,16 @@ package com.serkantkn.zunelauncher.ui.screens.apps
 import android.app.Application
 import android.content.Context
 import android.graphics.drawable.Drawable
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.AppInfo
 import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.AppUsage
 import com.serkantkn.zunelauncher.util.rankApps
 import com.serkantkn.zunelauncher.util.sectionLetterOf
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,9 +22,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
-
-/** The three ways into the list, as the pivot across the top offers them. */
-enum class AppsPage { ALL, FREQUENT, NEW }
 
 class AppsHubViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -81,13 +81,6 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
     ) { apps, query -> rankApps(apps, query) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Newest arrivals first. */
-    val newApps: StateFlow<List<AppInfo>> = visibleApps.map { apps ->
-        apps.filter { it.firstInstallTime > 0L }
-            .sortedByDescending { it.firstInstallTime }
-            .take(SECTION_LIMIT)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     /** Time in front, by package, or empty until the phone is allowed to say. */
     private val _usage = MutableStateFlow<Map<String, Long>>(emptyMap())
     val usage: StateFlow<Map<String, Long>> = _usage.asStateFlow()
@@ -110,13 +103,20 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
         .map { list -> list.map { it.packageName }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
+    /** The one collector of the installed list; restarting it cancels the old one first. */
+    private var appsJob: Job? = null
+
     init {
         loadApps()
     }
 
     private fun loadApps() {
-        viewModelScope.launch {
-            appRepository.getInstalledApps().collect { apps -> _allApps.value = apps }
+        // One receiver, one collector: a refresh used to start a second of each and leave the
+        // first running, so every return to the hub registered another package receiver.
+        appsJob?.cancel()
+        appsJob = viewModelScope.launch {
+            // Every launcher activity, so a package's second entry is a second row.
+            appRepository.getInstalledApps(allActivities = true).collect { apps -> _allApps.value = apps }
         }
     }
 
@@ -146,9 +146,14 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
         _searchQuery.value = ""
     }
 
-    fun launchApp(packageName: String) {
-        appRepository.launchApp(packageName)
-        viewModelScope.launch { settingsDataStore.noteAppLaunched(packageName) }
+    /** Opens an app's own entry — the activity the row stands for — and says so when it cannot. */
+    fun launchApp(app: AppInfo) {
+        val opened = appRepository.launchApp(app.packageName, app.activityName)
+        if (!opened) {
+            Toast.makeText(getApplication(), R.string.apps_launch_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        viewModelScope.launch { settingsDataStore.noteAppLaunched(app.packageName) }
     }
 
     fun toggleFavorite(packageName: String) {
@@ -192,18 +197,22 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
     fun iconFor(app: AppInfo): Drawable? {
         val pack = iconPackPackage.value
         if (!pack.isNullOrBlank()) {
-            iconPacks.iconFor(pack, app.packageName, app.activityName)?.let { return it }
+            // Never parses here, on the main thread: null until the pack has been read on IO,
+            // and the list asks again when iconPackKey ticks.
+            iconPacks.iconForIfReady(pack, app.packageName, app.activityName)?.let { return it }
         }
         return appRepository.getAppIcon(app.packageName)
     }
 
-    /** Redraws with a different pack; the list watches this so a change lands without a restart. */
-    val iconPackKey: StateFlow<String?> = iconPackPackage
+    /**
+     * Redraws with a different pack, and again once that pack has been read; the list keys its
+     * icons on this so a change lands without a restart and no icon is stuck on the app's own.
+     */
+    val iconPackKey: StateFlow<String?> = combine(iconPackPackage, iconPacks.ready) { pack, ready ->
+        pack?.let { "$it#$ready" }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private companion object {
-        /** How many apps a section shows before it stops being a shortlist. */
-        const val SECTION_LIMIT = 24
-
         /** How many of the most-used apps ride at the top of the list. */
         const val FREQUENT_LIMIT = 5
     }

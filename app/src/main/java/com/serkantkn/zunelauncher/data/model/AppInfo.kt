@@ -11,7 +11,14 @@ data class AppInfo(
      * cannot be dated simply never appears under "new".
      */
     val firstInstallTime: Long = 0L
-)
+) {
+    /**
+     * What tells two entries apart: the package *and* the activity. A package may put two
+     * things in the app list — a game and its map editor — and a list keyed on the package alone
+     * shows one of them and crashes on the other.
+     */
+    val key: String get() = "$packageName/$activityName"
+}
 
 
 /** A pinned app on the Start screen. Persisted by FavoriteAppsDataStore as a JSON array. */
