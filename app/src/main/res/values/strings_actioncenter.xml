@@ -2,4 +2,27 @@
 <resources>
     <string name="action_center_all_settings">all settings</string>
     <string name="action_center_empty">no notifications</string>
+    <string name="quick_wifi">wi-fi</string>
+    <string name="quick_bluetooth">bluetooth</string>
+    <string name="quick_flashlight">flashlight</string>
+    <string name="quick_rotation_lock">rotation lock</string>
+    <string name="quick_mobile_data">cellular data</string>
+    <string name="quick_airplane">airplane mode</string>
+    <string name="quick_location">location</string>
+    <string name="quick_quiet_hours">quiet hours</string>
+    <string name="action_center_notifications">notifications</string>
+    <string name="action_center_clear_all">clear all</string>
+    <string name="action_center_expand">expand</string>
+    <string name="action_center_collapse">collapse</string>
+    <string name="action_center_brightness_auto">auto</string>
+    <string name="action_center_brightness_permission">allow Z Launcher to change brightness</string>
+    <string name="action_center_reply">reply</string>
+    <string name="action_center_reply_hint">type a reply</string>
+    <string name="action_center_reply_send">send</string>
+    <string name="action_center_cancel">cancel</string>
+    <string name="action_center_reply_sent">reply sent</string>
+    <string name="action_center_reply_failed">the reply could not be sent</string>
+    <string name="action_center_now">now</string>
+    <string name="action_center_no_access">the action center needs notification access to show notifications</string>
+    <string name="action_center_grant">allow</string>
 </resources>

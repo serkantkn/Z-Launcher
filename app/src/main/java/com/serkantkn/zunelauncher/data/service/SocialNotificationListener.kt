@@ -74,6 +74,7 @@ class SocialNotificationListener : NotificationListenerService() {
                 }
             }
             updateAllNotificationCounts()
+            refreshActionCenter()
         } catch (e: Exception) {
             ZuneLog.e(TAG, "onListenerConnected failed", e)
         }
@@ -94,12 +95,22 @@ class SocialNotificationListener : NotificationListenerService() {
             }
         }
         updateAllNotificationCounts()
+        refreshActionCenter()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         // Dismissed in the shade is dismissed in the hub: the two stay one list.
         if (BuildConfig.IS_PREMIUM) SocialRepository.removeMessage(sbn.key)
         updateAllNotificationCounts()
+        refreshActionCenter()
+    }
+
+    /** The action center lists the whole shade, in both flavours; it is read off the main thread. */
+    private fun refreshActionCenter() {
+        scope.launch {
+            runCatching { com.serkantkn.zunelauncher.data.repository.ActionCenterNotifications.refresh(this@SocialNotificationListener) }
+                .onFailure { ZuneLog.e(TAG, "the action center could not be refreshed", it) }
+        }
     }
 
     // ════════════════════════════════════════════════════════════

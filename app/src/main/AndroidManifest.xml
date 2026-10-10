@@ -67,6 +67,10 @@
     <!-- The volume bar's silent mode is a do-not-disturb change, which Android only allows an app
          the user has let into its notification policy. Without it the bar stops at vibrate. -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- The action center: Wi-Fi and Bluetooth state for its squares, brightness and rotation lock. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
 
     <!-- Camera hub, and the keyboard's dictation -->
     <uses-permission android:name="android.permission.CAMERA" />

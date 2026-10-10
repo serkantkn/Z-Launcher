@@ -46,6 +46,16 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
     /** Single shared dependency container for the whole process. See [AppContainer]. */
     val container: AppContainer by lazy { AppContainer(this) }
 
+    /**
+     * A configuration change resets the process's default locale to the phone's. Started by a
+     * service, the launcher's own language is not part of the process configuration, so it is
+     * put back each time.
+     */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        com.serkantkn.zunelauncher.util.AppLocale.applyDefault(this)
+    }
+
     override fun onCreate() {
         super.onCreate()
         // Whatever started the process — an activity, the accessibility service, a receiver —

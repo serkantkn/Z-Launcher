@@ -2,4 +2,27 @@
 <resources>
     <string name="action_center_all_settings">tüm ayarlar</string>
     <string name="action_center_empty">bildirim yok</string>
+    <string name="quick_wifi">wi-fi</string>
+    <string name="quick_bluetooth">bluetooth</string>
+    <string name="quick_flashlight">fener</string>
+    <string name="quick_rotation_lock">döndürme kilidi</string>
+    <string name="quick_mobile_data">mobil veri</string>
+    <string name="quick_airplane">uçak modu</string>
+    <string name="quick_location">konum</string>
+    <string name="quick_quiet_hours">sessiz saatler</string>
+    <string name="action_center_notifications">bildirimler</string>
+    <string name="action_center_clear_all">tümünü temizle</string>
+    <string name="action_center_expand">genişlet</string>
+    <string name="action_center_collapse">daralt</string>
+    <string name="action_center_brightness_auto">otomatik</string>
+    <string name="action_center_brightness_permission">parlaklığı değiştirmek için izin ver</string>
+    <string name="action_center_reply">yanıtla</string>
+    <string name="action_center_reply_hint">yanıt yaz</string>
+    <string name="action_center_reply_send">gönder</string>
+    <string name="action_center_cancel">vazgeç</string>
+    <string name="action_center_reply_sent">yanıt gönderildi</string>
+    <string name="action_center_reply_failed">yanıt gönderilemedi</string>
+    <string name="action_center_now">şimdi</string>
+    <string name="action_center_no_access">bildirimleri göstermek için eylem merkezinin bildirim erişimine ihtiyacı var</string>
+    <string name="action_center_grant">izin ver</string>
 </resources>

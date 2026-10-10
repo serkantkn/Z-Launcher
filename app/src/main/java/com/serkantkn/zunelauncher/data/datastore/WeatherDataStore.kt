@@ -86,18 +86,18 @@ class WeatherDataStore(private val context: Context) {
 
     val temperatureUnit: Flow<TemperatureUnit> = context.weatherDataStore.data.map { preferences ->
         runCatching { TemperatureUnit.valueOf(preferences[TEMPERATURE_UNIT] ?: "") }
-            .getOrDefault(TemperatureUnit.defaultFor(Locale.getDefault()))
+            .getOrDefault(TemperatureUnit.defaultFor(region()))
     }
 
     val windUnit: Flow<WindUnit> = context.weatherDataStore.data.map { preferences ->
         runCatching { WindUnit.valueOf(preferences[WIND_UNIT] ?: "") }
-            .getOrDefault(WindUnit.defaultFor(Locale.getDefault()))
+            .getOrDefault(WindUnit.defaultFor(region()))
     }
 
     /** Visibility, rain and pressure: metric or imperial. */
     val measureSystem: Flow<MeasureSystem> = context.weatherDataStore.data.map { preferences ->
         runCatching { MeasureSystem.valueOf(preferences[MEASURE_SYSTEM] ?: "") }
-            .getOrDefault(MeasureSystem.defaultFor(Locale.getDefault()))
+            .getOrDefault(MeasureSystem.defaultFor(region()))
     }
 
     /** Whether the sky behind the hub moves. Off means a still gradient, which costs nothing. */
@@ -181,6 +181,15 @@ class WeatherDataStore(private val context: Context) {
             preferences[QUOTA_USED] = used + 1
         }
     }
+
+    /**
+     * Where the phone is set to be, for the unit a forecast is read in until one is picked. The
+     * phone's own region, not the process default: that follows whatever language the launcher
+     * speaks and can change under a running process, which made the same forecast flip between
+     * °C and °F.
+     */
+    private fun region(): Locale =
+        android.content.res.Resources.getSystem().configuration.locales[0] ?: Locale.getDefault()
 
     private fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
