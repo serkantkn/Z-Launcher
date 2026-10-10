@@ -33,10 +33,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -134,11 +137,23 @@ fun QuickplayScreen(
         }
     }
 
-    /** Opens something from the page: the page turns away first, and comes back staggered. */
+    /**
+     * Opens something from the page: the page turns away first, and comes back staggered. One
+     * thing at a time — two quick taps used to open both — and with motion off, at once.
+     */
+    val animationsOn = LocalAnimationsEnabled.current
+    var leaving by remember { mutableStateOf(false) }
     fun leaveFor(action: () -> Unit) {
+        if (leaving) return
+        if (!animationsOn) {
+            action()
+            return
+        }
+        leaving = true
         scope.launch {
             entrance.animateTo(2f, tween(EXIT_MILLIS, easing = LinearEasing))
             action()
+            leaving = false
         }
     }
 
@@ -343,7 +358,7 @@ private fun SectionWord(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 22.sp),
-        color = LocalZuneColors.current.accentColor,
+        color = LocalZuneColors.current.accentLink,
         modifier = modifier.padding(bottom = 10.dp)
     )
 }
@@ -353,7 +368,7 @@ private fun ActionWord(text: String, modifier: Modifier = Modifier, onClick: () 
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 20.sp),
-        color = LocalZuneColors.current.accentColor,
+        color = LocalZuneColors.current.accentLink,
         modifier = modifier
             .combinedClickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onClick)
             .padding(vertical = 2.dp)

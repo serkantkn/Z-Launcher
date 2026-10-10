@@ -8,7 +8,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -125,9 +128,14 @@ fun ZuneFlipDialog(
                 shadowElevation = 16.dp,
                 tonalElevation = 8.dp
             ) {
+                // Never taller than most of the screen: a long list — every hub that can be
+                // added back — used to push the buttons off the bottom. The content scrolls
+                // inside; the title and the buttons stay put.
+                val maxDialogHeight = LocalConfiguration.current.screenHeightDp.dp * DIALOG_MAX_HEIGHT_FRACTION
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(max = maxDialogHeight)
                         .padding(top = 28.dp, bottom = 20.dp, start = 20.dp, end = 20.dp)
                 ) {
                     if (!title.isNullOrEmpty()) {
@@ -144,7 +152,13 @@ fun ZuneFlipDialog(
                     }
 
                     // Dialog Content
-                    scope.content()
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        scope.content()
+                    }
 
                     // Action Buttons Row
                     if (confirmButton != null || dismissButton != null) {
@@ -168,6 +182,9 @@ fun ZuneFlipDialog(
         }
     }
 }
+
+/** How much of the screen a dialog may take before its content scrolls. */
+private const val DIALOG_MAX_HEIGHT_FRACTION = 0.85f
 
 /**
  * Windows Phone Metro rectangular stroked button (no solid fill).

@@ -214,7 +214,7 @@ fun TileLookPage(
                     )
                     LookSlider(
                         label = stringResource(R.string.tile_look_icon_scale),
-                        value = "%${(look.iconScale * 100).roundToInt()}",
+                        value = percentText(look.iconScale),
                         sliderValue = look.iconScale,
                         valueRange = TileLook.MIN_ICON_SCALE..TileLook.MAX_ICON_SCALE,
                         steps = 10,
@@ -286,7 +286,7 @@ fun TileLookPage(
                     val opacity = look.opacity ?: boardOpacity
                     LookSlider(
                         label = stringResource(R.string.tile_look_this_tile),
-                        value = "%${100 - opacity}",
+                        value = percentText((100 - opacity) / 100f),
                         sliderValue = (100 - opacity).toFloat(),
                         valueRange = 0f..100f,
                         onValueChange = { onChange(look.copy(opacity = (100 - it).roundToInt().coerceIn(0, 100))) }
@@ -518,6 +518,10 @@ private fun ArrowRow(
         )
     }
 }
+
+/** "%50" in Turkish, "50%" in English: the locale decides which side the sign goes. */
+private fun percentText(fraction: Float): String =
+    java.text.NumberFormat.getPercentInstance(java.util.Locale.getDefault()).format(fraction.toDouble())
 
 @Composable
 private fun LookSlider(

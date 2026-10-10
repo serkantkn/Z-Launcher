@@ -124,7 +124,7 @@ fun RunningHubsSection(
                         fontWeight = FontWeight.Light,
                         fontSize = 14.sp
                     ),
-                    color = zuneColors.accentColor,
+                    color = zuneColors.accentLink,
                     modifier = Modifier
                         .clickable(onClick = onStopAll)
                         .padding(horizontal = 6.dp, vertical = 4.dp)

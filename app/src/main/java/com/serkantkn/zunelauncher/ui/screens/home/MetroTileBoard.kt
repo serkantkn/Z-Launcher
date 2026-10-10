@@ -29,12 +29,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DriveFileMove
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -59,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
 import androidx.compose.ui.zIndex
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.ui.components.LocalTileTakeOut
 import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
 import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
@@ -564,6 +563,8 @@ private fun FolderBand(
     val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
     val childDrag = rememberStartDragState()
+    // The band shows the wallpaper, so the folder's name is written in the theme's ink.
+    val ink = if (zuneColors.isDark) Color.White else Color.Black
 
     val children = folder.children
     val currentChildren by rememberUpdatedState(children)
@@ -594,6 +595,7 @@ private fun FolderBand(
         FolderHeaderBar(
             folderId = folder.id,
             name = folder.name,
+            ink = ink,
             onRename = onRename
         )
 
@@ -627,26 +629,10 @@ private fun FolderBand(
                 },
                 onDropped = { _, _ -> },
                 tile = { model, index, isDragging, isMergeTarget, tileModifier ->
-                    Box {
+                    // The take-out button is one of the tile's own edit buttons, so it stands
+                    // with them instead of over the tile's corner.
+                    CompositionLocalProvider(LocalTileTakeOut provides { onTakeOut(model.id) }) {
                         tile(model, index, isDragging, isMergeTarget, tileModifier)
-                        if (isEditMode) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(4.dp)
-                                    .size(24.dp)
-                                    .background(zuneColors.accentColor)
-                                    .clickable { onTakeOut(model.id) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DriveFileMove,
-                                    contentDescription = stringResource(R.string.start_folder_take_out),
-                                    tint = Color.White,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
-                        }
                     }
                 }
             )

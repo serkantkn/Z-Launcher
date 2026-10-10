@@ -11,30 +11,38 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -45,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.times
 import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.AppInfo
@@ -83,7 +92,7 @@ fun ZuneHubCount(count: Int, modifier: Modifier = Modifier) {
     Text(
         text = if (count > 99) "99+" else count.toString(),
         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal, fontSize = 18.sp),
-        color = LocalZuneColors.current.accentColor,
+        color = LocalZuneColors.current.accentLink,
         modifier = modifier
     )
 }
@@ -188,4 +197,99 @@ private fun EndWord(text: String, onClick: () -> Unit) {
             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onClick)
             .padding(vertical = 6.dp)
     )
+}
+
+// ════════════════════════════════════════════════════════════
+// EDITING THE LIST
+// ════════════════════════════════════════════════════════════
+
+/** One of the small round buttons that stand before a hub's name while the list is edited. */
+@Composable
+fun ZuneListEditButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Lit in the accent when what the button controls is set. */
+    filled: Boolean = false,
+    enabled: Boolean = true
+) {
+    val zuneColors = LocalZuneColors.current
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .alpha(if (enabled) 1f else 0.35f)
+            .clip(CircleShape)
+            .background(if (filled) zuneColors.accentColor else Color.Black.copy(alpha = 0.55f))
+            .border(0.5.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = Color.White,
+            modifier = Modifier.size(14.dp)
+        )
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// WHAT IS PINNED
+// ════════════════════════════════════════════════════════════
+
+/** A section's name in the list, small and in the accent, as quickplay heads its groups. */
+@Composable
+fun ZuneSectionWord(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 22.sp),
+        color = LocalZuneColors.current.accentLink,
+        modifier = modifier
+    )
+}
+
+/**
+ * The pinned tiles under the hubs, packed the way the Start board packs them, but standing still:
+ * the list scrolls as one, so this is a block of a fixed height rather than a board of its own,
+ * and the tiles are not dragged about here.
+ */
+@Composable
+fun ZunePinnedBoard(
+    tiles: List<StartTileUIModel>,
+    columns: Int,
+    gap: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+    tile: @Composable (model: StartTileUIModel, index: Int) -> Unit
+) {
+    val cells = remember(tiles, columns) {
+        packMetroTiles(
+            specs = tiles.map { model ->
+                val (w, h) = TileSpan.cellsOf(model.span)
+                MetroTileSpec(model.id, w, h)
+            },
+            crossAxisCells = columns,
+            columnMajor = false
+        )
+    }
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val cell = ((maxWidth - gap * (columns - 1)) / columns).coerceAtLeast(1.dp)
+        val pitch = cell + gap
+        val rows = cells.maxOfOrNull { it.row + it.rows } ?: 0
+        Box(modifier = Modifier.fillMaxWidth().height(if (rows == 0) 0.dp else rows * pitch - gap)) {
+            cells.forEach { c ->
+                val index = tiles.indexOfFirst { it.id == c.id }
+                if (index < 0) return@forEach
+                key(c.id) {
+                    Box(
+                        modifier = Modifier
+                            .offset(x = c.col * pitch, y = c.row * pitch)
+                            .width(c.cols * cell + (c.cols - 1) * gap)
+                    ) {
+                        tile(tiles[index], index)
+                    }
+                }
+            }
+        }
+    }
 }

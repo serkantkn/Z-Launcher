@@ -76,32 +76,28 @@ import com.serkantkn.zunelauncher.ui.screens.onboarding.FirstRunScreen
 import com.serkantkn.zunelauncher.ui.screens.onboarding.OnboardingScreen
 import com.serkantkn.zunelauncher.ui.screens.onboarding.OnboardingViewModel
 import com.serkantkn.zunelauncher.ui.screens.onboarding.WhatsNewScreen
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import com.serkantkn.zunelauncher.ui.animation.rememberHingeSpec
+import com.serkantkn.zunelauncher.ui.screens.home.HomeHubViewModel
 
-private fun setStatusBarExpandDisabled(context: Context, disabled: Boolean) {
-    try {
-        val statusBarService = context.getSystemService("statusbar")
-        val statusBarManager = Class.forName("android.app.StatusBarManager")
-        val disableMethod = statusBarManager.getMethod("disable", Int::class.javaPrimitiveType)
-
-        val flag = if (disabled) {
-            val field = statusBarManager.getField("DISABLE_EXPAND")
-            field.getInt(null)
-        } else {
-            0
-        }
-        disableMethod.invoke(statusBarService, flag)
-    } catch (e: Exception) {
-        ZuneLog.e("LauncherScreen", "setStatusBarExpandDisabled failed", e)
-    }
-}
+/**
+ * What stands behind a hub: the mode, the launcher's own picture if one is wanted, and whether the
+ * phone's wallpaper is wanted instead of it. The last is said in so many words because "no custom
+ * path" used to fall back to the launcher's wallpaper, which is exactly what "system" is not.
+ */
+private data class HubBackdrop(
+    val mode: BackgroundMode,
+    val customPath: String?,
+    val systemWallpaper: Boolean
+)
 
 @Composable
 fun LauncherScreen(
     modifier: Modifier = Modifier,
-    settingsViewModel: SettingsViewModel = viewModel()
+    settingsViewModel: SettingsViewModel = viewModel(),
+    homeHubViewModel: HomeHubViewModel = viewModel()
 ) {
     val navState = rememberZuneNavigationState()
     // Social, Start, the app list — and, in the Zune layout, quickplay between Start and the
@@ -113,6 +109,21 @@ fun LauncherScreen(
         initialPage = 1,
         pageCount = { if (homeScreenLayout == HomeScreenLayout.ZUNE) 4 else 3 }
     )
+
+    // Both view models answer "Zune" until the preference has been read, so a phone set to the
+    // Windows Phone board drew the Zune list for a frame or two on every cold start. The pager is
+    // kept invisible until the stored value has arrived and both have caught up with it.
+    val launcherContext = LocalContext.current
+    var layoutReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        // Bounded: a Start screen that never appears is worse than one that flickers once.
+        kotlinx.coroutines.withTimeoutOrNull(LAYOUT_WAIT_MILLIS) {
+            val stored = launcherContext.appContainer.settingsDataStore.homeScreenLayout.first()
+            settingsViewModel.homeScreenLayout.first { it == stored }
+            homeHubViewModel.homeScreenLayout.first { it == stored }
+        }
+        layoutReady = true
+    }
 
     val notificationStyle by settingsViewModel.notificationStyle.collectAsState()
     val socialSources by settingsViewModel.socialSources.collectAsState()
@@ -127,15 +138,20 @@ fun LauncherScreen(
     // The notification listener asks the repository on every single notification, so the answer is
     // pushed here — from the launcher, which is always composed — rather than from the hub's own
     // screen, which is not alive until somebody swipes to it.
-    val launcherContext = LocalContext.current
     LaunchedEffect(socialSources) {
         val chosen = socialSources
-        val resolved = chosen ?: com.serkantkn.zunelauncher.data.model.SocialApps.defaultSources(
-            launcherContext.appContainer.appRepository
-                .getInstalledApps()
-                .first()
-                .map { app -> app.packageName }
-        )
+        val resolved = when {
+            chosen != null -> chosen
+            // The free build has no social sources of its own to offer; the premium defaults
+            // used to be pushed anyway, and the listener went on collecting for a hub it lacks.
+            !com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM -> emptySet()
+            else -> com.serkantkn.zunelauncher.data.model.SocialApps.defaultSources(
+                launcherContext.appContainer.appRepository
+                    .getInstalledApps()
+                    .first()
+                    .map { app -> app.packageName }
+            )
+        }
         SocialRepository.updateSources(resolved)
     }
 
@@ -188,20 +204,32 @@ fun LauncherScreen(
     val coroutineScope = rememberCoroutineScope()
     val isWideScreen = LocalIsWideScreen.current
 
-    val (effectiveHubMode, effectiveHubCustomPath) = remember(hubBackgroundMode, solidBackgroundEnabled, customHubWallpaperPath, customWallpaperPath) {
+    val hubBackdrop = remember(hubBackgroundMode, solidBackgroundEnabled, customHubWallpaperPath, customWallpaperPath) {
         when (hubBackgroundMode) {
-            HubBackgroundMode.SOLID -> BackgroundMode.SOLID to null
-            HubBackgroundMode.SYSTEM -> BackgroundMode.WALLPAPER to null
-            HubBackgroundMode.CUSTOM -> (if (customHubWallpaperPath != null) BackgroundMode.WALLPAPER else BackgroundMode.GRADIENT) to customHubWallpaperPath
-            HubBackgroundMode.MATCH_LAUNCHER -> (if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER) to customWallpaperPath
+            HubBackgroundMode.SOLID -> HubBackdrop(BackgroundMode.SOLID, null, systemWallpaper = false)
+            HubBackgroundMode.SYSTEM -> HubBackdrop(BackgroundMode.WALLPAPER, null, systemWallpaper = true)
+            HubBackgroundMode.CUSTOM -> HubBackdrop(
+                if (customHubWallpaperPath != null) BackgroundMode.WALLPAPER else BackgroundMode.GRADIENT,
+                customHubWallpaperPath,
+                systemWallpaper = false
+            )
+            HubBackgroundMode.MATCH_LAUNCHER -> HubBackdrop(
+                if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER,
+                customWallpaperPath,
+                systemWallpaper = false
+            )
         }
     }
+    val effectiveHubMode = hubBackdrop.mode
 
-    var wallpaperOverlayAlpha by remember { mutableStateOf(1f) }
     val density = LocalDensity.current.density
 
     // ── Hinge animation state ──
     val hingeSpec = rememberHingeSpec()
+    // The quick turn between two hubs, and the split's slide: shorter than the hinge, but just as
+    // much motion, so they stop with the setting too.
+    val animationsOn by rememberUpdatedState(LocalAnimationsEnabled.current)
+    fun quickSpec(millis: Int) = tween<Float>(if (animationsOn) millis else 0, easing = FastOutSlowInEasing)
     val hingeProgress = remember { Animatable(0f) }
     var activeHub by remember { mutableStateOf(navState.currentHub) }
     // Hinge direction, Windows Phone style: hubs ENTER from outside the screen (in front, -90° -> 0°,
@@ -217,10 +245,10 @@ fun LauncherScreen(
             if (activeHub != null && targetHub != null) {
                 // Current hub turns away into the depth, the next one swings in from outside
                 isHubHingeOpening = false
-                hingeProgress.animateTo(0f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+                hingeProgress.animateTo(0f, animationSpec = quickSpec(280))
                 activeHub = targetHub
                 isHubHingeOpening = true
-                hingeProgress.animateTo(1f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+                hingeProgress.animateTo(1f, animationSpec = quickSpec(280))
             } else if (targetHub != null) {
                 activeHub = targetHub
                 isHubHingeOpening = true
@@ -238,7 +266,7 @@ fun LauncherScreen(
     LaunchedEffect(navState.isSplitMode) {
         if (navState.isSplitMode) {
             splitAnimProgress.snapTo(0f)
-            splitAnimProgress.animateTo(1f, animationSpec = tween(400, easing = FastOutSlowInEasing))
+            splitAnimProgress.animateTo(1f, animationSpec = quickSpec(400))
         } else {
             splitAnimProgress.snapTo(0f)
         }
@@ -403,7 +431,9 @@ fun LauncherScreen(
                         }
                         continue
                     }
-                    if (event.changes.size != 2) {
+                    // Two fingers already busy with a list, a browser page or a pinch belong
+                    // to it: a child that consumed any of them has claimed the gesture.
+                    if (event.changes.size != 2 || event.changes.any { it.isConsumed }) {
                         travelY = 0f
                         travelX = 0f
                         continue
@@ -427,7 +457,7 @@ fun LauncherScreen(
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent()
-                    if (event.changes.size >= 4) {
+                    if (event.changes.size >= 4 && event.changes.none { it.isConsumed }) {
                         var totalDragX = 0f
                         var hasRightDrag = false
                         event.changes.forEach { change ->
@@ -459,11 +489,53 @@ fun LauncherScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (!solidBackgroundEnabled) {
-                    ZuneWallpaperOverlay(alpha = wallpaperOverlayAlpha)
+                    ZuneWallpaperOverlay()
                 }
 
                 val messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel = viewModel()
                 val screenWidthPx = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+
+                // The Start page is the same page whichever pane it is drawn in, so it is given
+                // the same ways out: the two split layouts used to leave it unable to swipe to
+                // the social page, the app list or quickplay.
+                val startPage: @Composable (isHubOpenHere: Boolean) -> Unit = { isHubOpenHere ->
+                    HomeHubScreen(
+                        isHubOpen = isHubOpenHere,
+                        isCurrentPage = pagerState.currentPage == 1,
+                        onNavigateToSocialHub = {
+                            coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                        },
+                        onNavigateToAppsHub = {
+                            coroutineScope.launch { pagerState.animateScrollToPage(appsPage) }
+                        },
+                        onNavigateNext = {
+                            coroutineScope.launch { pagerState.animateScrollToPage(2) }
+                        },
+                        onHubSelected = { hub -> if (hub != HubType.HOME) navState.openHub(hub) },
+                        homeResetSignal = homeResetSignal,
+                        runningHubs = navState.backgroundHubs,
+                        onStopHub = { hub -> navState.stopHub(hub) },
+                        onStopAllHubs = { navState.stopAllHubs() },
+                        timeFormat = timeFormat,
+                        dateFormat = dateFormat
+                    )
+                }
+
+                /** A hub's own ground inside whichever pane it is drawn in. */
+                val hubBackground: @Composable (content: @Composable () -> Unit) -> Unit = { content ->
+                    ZuneBackground(
+                        mode = effectiveHubMode,
+                        accentColor = zuneColors.accentColor,
+                        customWallpaperPathOverride = hubBackdrop.customPath,
+                        systemWallpaper = hubBackdrop.systemWallpaper,
+                        forceModeOverride = effectiveHubMode
+                    ) {
+                        if (effectiveHubMode != BackgroundMode.SOLID) {
+                            ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
+                        }
+                        content()
+                    }
+                }
 
                 // Every open hub is composed exactly once and stays composed for as long as it is
                 // open — that is what lets a hub the Home key put away keep its page, its scroll
@@ -562,14 +634,7 @@ fun LauncherScreen(
                                     ) { page ->
                                         when (page) {
                                             0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
-                                            1 -> HomeHubScreen(
-                                                isHubOpen = false,
-                                                isCurrentPage = pagerState.currentPage == 1,
-                                                onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
-                                                onHubSelected = { hub -> navState.openHub(hub) },
-                                                timeFormat = timeFormat,
-                                                dateFormat = dateFormat
-                                            )
+                                            1 -> startPage(false)
                                             2 -> if (hasQuickplay) {
                                                 QuickplayScreen(
                                                     isCurrentPage = pagerState.currentPage == 2,
@@ -586,17 +651,7 @@ fun LauncherScreen(
                             } else {
                                 // Left Docked Hub (Forced to Phone Design Mode)
                                 CompositionLocalProvider(LocalIsWideScreen provides false) {
-                                    ZuneBackground(
-                                        mode = effectiveHubMode,
-                                        accentColor = zuneColors.accentColor,
-                                        customWallpaperPathOverride = effectiveHubCustomPath,
-                                        forceModeOverride = effectiveHubMode
-                                    ) {
-                                        if (effectiveHubMode != BackgroundMode.SOLID) {
-                                            ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
-                                        }
-                                        hubContentFor(navState.leftHub!!)()
-                                    }
+                                    hubBackground { hubContentFor(navState.leftHub!!)() }
                                 }
 
                                 // Action Buttons (Maximize & Close) for Left Hub
@@ -659,17 +714,7 @@ fun LauncherScreen(
                             if (navState.rightHub != null) {
                                 // Right Docked Hub (Forced to Phone Design Mode)
                                 CompositionLocalProvider(LocalIsWideScreen provides false) {
-                                    ZuneBackground(
-                                        mode = effectiveHubMode,
-                                        accentColor = zuneColors.accentColor,
-                                        customWallpaperPathOverride = effectiveHubCustomPath,
-                                        forceModeOverride = effectiveHubMode
-                                    ) {
-                                        if (effectiveHubMode != BackgroundMode.SOLID) {
-                                            ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
-                                        }
-                                        hubContentFor(navState.rightHub!!)()
-                                    }
+                                    hubBackground { hubContentFor(navState.rightHub!!)() }
                                 }
 
                                 // Action Buttons (Maximize & Close) for Right Hub
@@ -730,20 +775,7 @@ fun LauncherScreen(
                                 .graphicsLayer { alpha = splitAnimProgress.value }
                         ) {
                             if (navState.rightHub != null) {
-                                ZuneBackground(
-                                    mode = effectiveHubMode,
-                                    accentColor = zuneColors.accentColor,
-                                    customWallpaperPathOverride = effectiveHubCustomPath,
-                                    forceModeOverride = effectiveHubMode
-                                ) {
-                                    if (effectiveHubMode != BackgroundMode.SOLID) {
-                                        ZuneWallpaperOverlay(
-                                            alpha = hubBackgroundOpacity,
-                                            isHubOverlay = true
-                                        )
-                                    }
-                                    hubContentFor(navState.rightHub!!)()
-                                }
+                                hubBackground { hubContentFor(navState.rightHub!!)() }
                                 SplitPaneButtons(
                                     onExpand = { navState.expandRightSplitHubToFullscreen() },
                                     onClose = { navState.closeRightSplitHub() },
@@ -759,20 +791,7 @@ fun LauncherScreen(
                                 .graphicsLayer { alpha = splitAnimProgress.value }
                         ) {
                             if (navState.leftHub != null) {
-                                ZuneBackground(
-                                    mode = effectiveHubMode,
-                                    accentColor = zuneColors.accentColor,
-                                    customWallpaperPathOverride = effectiveHubCustomPath,
-                                    forceModeOverride = effectiveHubMode
-                                ) {
-                                    if (effectiveHubMode != BackgroundMode.SOLID) {
-                                        ZuneWallpaperOverlay(
-                                            alpha = hubBackgroundOpacity,
-                                            isHubOverlay = true
-                                        )
-                                    }
-                                    hubContentFor(navState.leftHub!!)()
-                                }
+                                hubBackground { hubContentFor(navState.leftHub!!)() }
                                 SplitPaneButtons(
                                     onExpand = { navState.expandLeftSplitHubToFullscreen() },
                                     onClose = { navState.closeLeftSplitHub() },
@@ -785,17 +804,7 @@ fun LauncherScreen(
                                 ) { page ->
                                     when (page) {
                                         0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
-                                        1 -> HomeHubScreen(
-                                            isHubOpen = false,
-                                            isCurrentPage = pagerState.currentPage == 1,
-                                            onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
-                                            onHubSelected = { hub -> navState.openHub(hub) },
-                                            runningHubs = navState.backgroundHubs,
-                                            onStopHub = { hub -> navState.stopHub(hub) },
-                                            onStopAllHubs = { navState.stopAllHubs() },
-                                            timeFormat = timeFormat,
-                                            dateFormat = dateFormat
-                                        )
+                                        1 -> startPage(false)
                                         2 -> if (hasQuickplay) {
                                             QuickplayScreen(
                                                 isCurrentPage = pagerState.currentPage == 2,
@@ -844,10 +853,10 @@ fun LauncherScreen(
                                 rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * progress
                                 transformOrigin = TransformOrigin(0f, 0.5f)
                                 cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
-                                alpha = (1f - progress * 1.5f).coerceIn(0f, 1f)
+                                alpha = if (layoutReady) (1f - progress * 1.5f).coerceIn(0f, 1f) else 0f
                             }
                             .drawWithContent {
-                                if ((1f - hingeProgress.value * 1.5f) > 0f) drawContent()
+                                if (layoutReady && (1f - hingeProgress.value * 1.5f) > 0f) drawContent()
                             }
                     ) {
                         // On a tablet a page is a long way across: the pager's own rule — half
@@ -864,38 +873,7 @@ fun LauncherScreen(
                         ) { page ->
                             when (page) {
                                 0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
-                                1 -> HomeHubScreen(
-                                    isHubOpen = isHubOpen,
-                                    isCurrentPage = pagerState.currentPage == 1,
-                                    onExpandProgressChange = { _ -> wallpaperOverlayAlpha = 1f },
-                                    onNavigateToSocialHub = {
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(0)
-                                        }
-                                    },
-                                    onNavigateToAppsHub = {
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(appsPage)
-                                        }
-                                    },
-                                    onNavigateNext = {
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(2)
-                                        }
-                                    },
-                                    onHubSelected = { hub ->
-                                        when (hub) {
-                                            HubType.HOME -> { /* Already on home */ }
-                                            else -> navState.openHub(hub)
-                                        }
-                                    },
-                                    homeResetSignal = homeResetSignal,
-                                    runningHubs = navState.backgroundHubs,
-                                    onStopHub = { hub -> navState.stopHub(hub) },
-                                    onStopAllHubs = { navState.stopAllHubs() },
-                                    timeFormat = timeFormat,
-                                    dateFormat = dateFormat
-                                )
+                                1 -> startPage(isHubOpen)
                                 2 -> if (hasQuickplay) {
                                     QuickplayScreen(
                                         isCurrentPage = pagerState.currentPage == 2,
@@ -929,17 +907,7 @@ fun LauncherScreen(
                                     alpha = (progress * 1.5f - 0.2f).coerceIn(0f, 1f)
                                 }
                         ) {
-                            ZuneBackground(
-                                mode = effectiveHubMode,
-                                accentColor = zuneColors.accentColor,
-                                customWallpaperPathOverride = effectiveHubCustomPath,
-                                forceModeOverride = effectiveHubMode
-                            ) {
-                                if (effectiveHubMode != BackgroundMode.SOLID) {
-                                    ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
-                                }
-                                hubContentFor(visibleHub)()
-                            }
+                            hubBackground { hubContentFor(visibleHub)() }
                         }
                     }
                 }
@@ -1109,6 +1077,9 @@ private const val DOUBLE_PRESS_MILLIS = 450L
 
 /** How far two fingers have to be drawn up a phone before the hub steps into the top half. */
 private const val SPLIT_PULL_PX = 400f
+
+/** The longest the pager stays hidden waiting for the stored Start layout on a cold start. */
+private const val LAYOUT_WAIT_MILLIS = 1_500L
 
 /**
  * The two buttons a docked hub carries: fill the screen with it, or send it away.

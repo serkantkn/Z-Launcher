@@ -24,8 +24,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -106,6 +114,13 @@ val LocalTileCustomize = staticCompositionLocalOf<(() -> Unit)?> { null }
 
 /** Turns a [TileIcon] a tile was given into something drawable; null when it cannot be. */
 val LocalTileIconResolver = staticCompositionLocalOf<(TileIcon) -> TileIconFace?> { { null } }
+
+/**
+ * Puts the tile back on the board from the folder it is in. Provided around each tile of an open
+ * folder, null everywhere else; the tile draws the button with its other edit buttons, so the
+ * folder does not have to lay one over the tile and over whatever the tile put in that corner.
+ */
+val LocalTileTakeOut = staticCompositionLocalOf<(() -> Unit)?> { null }
 
 /**
  * True inside the customise page's preview: the tile is drawn with its look but without its edit
@@ -230,6 +245,7 @@ fun W10MTileSurface(
     val look = LocalTileLook.current
     val preview = LocalTileIsPreview.current
     val customize = LocalTileCustomize.current
+    val takeOut = LocalTileTakeOut.current
     val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -279,13 +295,14 @@ fun W10MTileSurface(
             TileCornerStyle.ROUNDED -> RoundedCornerShape(8.dp)
         }
     }
-    // The outline is what draws a see-through tile; it fades away as the fill takes over.
+    // The outline is what draws a see-through tile; it fades away as the fill takes over. It is
+    // the theme's ink: a white outline on the light theme's white ground drew nothing.
     val strokeAlpha = (1f - fillOpacity).coerceIn(0f, 1f)
     val strokeColor = when {
-        highlighted -> Color.White
+        highlighted -> if (zuneColors.isDark) Color.White else Color.Black
         isEditing -> zuneColors.accentColor
         zuneColors.isDark -> Color.White.copy(alpha = 0.20f + 0.25f * strokeAlpha)
-        else -> Color.White.copy(alpha = 0.35f + 0.35f * strokeAlpha)
+        else -> Color.Black.copy(alpha = 0.22f + 0.30f * strokeAlpha)
     }
     val flipRotation = if (animation == TileAnimation.FLIP) -180f * turn else 0f
 
@@ -324,64 +341,151 @@ fun W10MTileSurface(
         }
 
         if (isEditing) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .clickable(onClick = onRemoveClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.notes_remove_cap),
-                    tint = Color.Black,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, Color.White, CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable(onClick = onResizeClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = stringResource(R.string.notes_resize_cap),
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+            TileEditButtons(
+                span = span,
+                gridColumns = gridColumns,
+                onRemove = onRemoveClick,
+                onResize = onResizeClick,
+                onCustomize = customize,
+                onTakeOut = takeOut
+            )
+        }
+    }
+}
 
-            if (customize != null) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(4.dp)
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .border(1.dp, Color.White, CircleShape)
-                        .background(Color.Black.copy(alpha = 0.5f))
-                        .clickable(onClick = customize),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Brush,
-                        contentDescription = stringResource(R.string.tile_look_title),
-                        tint = Color.White,
-                        modifier = Modifier.size(14.dp)
-                    )
+/**
+ * The buttons a tile carries while the board is edited, laid out the same on the phone grid, the
+ * Windows 8 board and inside a folder.
+ *
+ * A small tile has room for two: the cross, and a "…" that opens the rest as a menu — one above
+ * the other, since a small tile on the phone's eight-cell grid is only forty dp across. Anything
+ * bigger keeps its buttons on the top row — three of them used to stand in three corners and the
+ * one at the bottom-left sat on the tile's name. Taking a tile out of its folder goes bottom-right,
+ * where the name leaves room for the count.
+ */
+@Composable
+private fun BoxScope.TileEditButtons(
+    span: Int,
+    gridColumns: Int,
+    onRemove: () -> Unit,
+    onResize: () -> Unit,
+    onCustomize: (() -> Unit)?,
+    onTakeOut: (() -> Unit)?
+) {
+    val compact = isCompactTile(span, gridColumns)
+    val tiny = span == 1 && gridColumns >= 8
+    val size = when {
+        tiny -> 16.dp
+        compact -> 22.dp
+        else -> 24.dp
+    }
+    val inset = when {
+        tiny -> 2.dp
+        compact -> 3.dp
+        else -> 4.dp
+    }
+
+    TileEditButton(
+        icon = Icons.Default.Close,
+        label = stringResource(R.string.notes_remove_cap),
+        size = size,
+        solid = true,
+        onClick = onRemove,
+        modifier = Modifier.align(Alignment.TopEnd).padding(inset)
+    )
+
+    if (span == 1) {
+        var menuOpen by remember { mutableStateOf(false) }
+        Box(modifier = Modifier.align(Alignment.BottomEnd).padding(inset)) {
+            TileEditButton(
+                icon = Icons.Default.MoreHoriz,
+                label = stringResource(R.string.tile_more_actions),
+                size = size,
+                onClick = { menuOpen = true }
+            )
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                containerColor = Color(0xFF1F1F1F)
+            ) {
+                TileMenuItem(stringResource(R.string.notes_resize_cap)) { menuOpen = false; onResize() }
+                if (onCustomize != null) {
+                    TileMenuItem(stringResource(R.string.tile_look_title)) { menuOpen = false; onCustomize() }
+                }
+                if (onTakeOut != null) {
+                    TileMenuItem(stringResource(R.string.start_folder_take_out)) { menuOpen = false; onTakeOut() }
                 }
             }
         }
+        return
     }
+
+    TileEditButton(
+        icon = Icons.Default.KeyboardArrowRight,
+        label = stringResource(R.string.notes_resize_cap),
+        size = size,
+        onClick = onResize,
+        modifier = Modifier.align(Alignment.TopEnd).padding(top = inset, end = inset + size + inset)
+    )
+    if (onCustomize != null) {
+        TileEditButton(
+            icon = Icons.Default.Brush,
+            label = stringResource(R.string.tile_look_title),
+            size = size,
+            onClick = onCustomize,
+            modifier = Modifier.align(Alignment.TopStart).padding(inset)
+        )
+    }
+    if (onTakeOut != null) {
+        TileEditButton(
+            icon = Icons.Default.DriveFileMove,
+            label = stringResource(R.string.start_folder_take_out),
+            size = size,
+            onClick = onTakeOut,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(inset)
+        )
+    }
+}
+
+@Composable
+private fun TileEditButton(
+    icon: ImageVector,
+    label: String,
+    size: Dp,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** The cross is solid white; the rest are rings, so the cross is the one found first. */
+    solid: Boolean = false
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .then(if (solid) Modifier.background(Color.White) else Modifier.border(1.dp, Color.White, CircleShape).background(Color.Black.copy(alpha = 0.5f)))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = if (solid) Color.Black else Color.White,
+            modifier = Modifier.size(size * 0.62f)
+        )
+    }
+}
+
+@Composable
+private fun TileMenuItem(text: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
+                color = Color.White
+            )
+        },
+        onClick = onClick
+    )
 }
 
 /**

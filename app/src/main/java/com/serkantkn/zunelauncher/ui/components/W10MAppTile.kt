@@ -75,7 +75,21 @@ fun W10MAppTile(
         onRemoveClick = onRemoveClick,
         onResizeClick = onResizeClick,
         modifier = modifier,
-        back = if (hasNotifications) {
+        back = if (hasNotifications && span == 1) {
+            {
+                // A small tile has no room for words: its back is the icon and the count, large.
+                val fg = tileForegroundColor()
+                if (face != TileIconFace.None) {
+                    TileIconImage(face, size = 18.dp, ink = fg, contentDescription = null, modifier = Modifier.align(Alignment.Center))
+                }
+                Text(
+                    text = if (notificationCount > 99) "99+" else notificationCount.toString(),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Light),
+                    color = fg,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(end = 5.dp, top = 2.dp)
+                )
+            }
+        } else if (hasNotifications) {
             {
                 val fg = tileForegroundColor()
                 Column(
@@ -123,11 +137,7 @@ fun W10MAppTile(
                             text = notificationText,
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                             color = fg.copy(alpha = 0.85f),
-                            maxLines = when (span) {
-                                1 -> 1
-                                2 -> 2
-                                else -> 3
-                            },
+                            maxLines = if (span == 2) 2 else 3,
                             overflow = TextOverflow.Ellipsis
                         )
                     }

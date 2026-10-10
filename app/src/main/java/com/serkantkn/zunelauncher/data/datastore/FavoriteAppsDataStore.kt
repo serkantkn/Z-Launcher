@@ -35,11 +35,44 @@ class FavoriteAppsDataStore(private val context: Context) {
         private val LEGACY_DELIMITED_KEY = stringPreferencesKey("favorite_apps_data_v2")
         /** v3: JSON array of {"packageName","span"} objects, order preserved. */
         private val FAVORITE_APPS_JSON_KEY = stringPreferencesKey("favorite_apps_json")
+        /** JSON object of tile id → span, for the tiles inside Start folders. */
+        private val FOLDER_TILE_SPANS_KEY = stringPreferencesKey("folder_tile_spans_json")
     }
 
     val favoritePackages: Flow<List<FavoriteAppItem>> = flow {
         migrateLegacyIfNeeded()
         emitAll(context.favoriteAppsDataStore.data.map { preferences -> readList(preferences) })
+    }
+
+    /**
+     * The sizes of tiles inside Start folders, by tile id.
+     *
+     * The board stores a folder's tiles as a list of ids and nothing else, so a tile resized
+     * inside a folder had nowhere to keep its size. It is kept here, in the Start screen's own
+     * preference file, rather than in a third file for one map.
+     */
+    val folderTileSpans: Flow<Map<String, Int>> = context.favoriteAppsDataStore.data
+        .map { preferences -> readFolderSpans(preferences) }
+
+    /** Sets, or with null forgets, the size a tile has while it is inside a folder. */
+    suspend fun setFolderTileSpan(tileId: String, span: Int?) {
+        context.favoriteAppsDataStore.edit { preferences ->
+            val current = readFolderSpans(preferences)
+            val updated = if (span == null) current - tileId else current + (tileId to span)
+            if (updated == current) return@edit
+            preferences[FOLDER_TILE_SPANS_KEY] = org.json.JSONObject(updated).toString()
+        }
+    }
+
+    private fun readFolderSpans(preferences: Preferences): Map<String, Int> {
+        val json = preferences[FOLDER_TILE_SPANS_KEY] ?: return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            buildMap { obj.keys().forEach { key -> put(key, obj.getInt(key)) } }
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "folder tile spans unreadable; sizes fall back to medium", e)
+            emptyMap()
+        }
     }
 
     suspend fun addFavorite(packageName: String) {

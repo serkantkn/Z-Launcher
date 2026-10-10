@@ -16,6 +16,7 @@ import com.serkantkn.zunelauncher.data.model.CalendarEvent
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
 import com.serkantkn.zunelauncher.data.model.ContactModel
+import com.serkantkn.zunelauncher.data.datastore.FavoriteAppsDataStore
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.data.model.TemperatureUnit
@@ -39,6 +40,10 @@ import android.net.Uri
 import com.serkantkn.zunelauncher.data.model.MediaImage
 import com.serkantkn.zunelauncher.data.model.Note
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.StateFlow
@@ -167,10 +172,25 @@ sealed interface StartTileUIModel {
         val children: List<StartTileUIModel>,
         override val span: Int
     ) : StartTileUIModel
+
+    /** The same tile at another size. */
+    fun withSpan(span: Int): StartTileUIModel = when (this) {
+        is Hub -> copy(span = span)
+        is App -> copy(span = span)
+        is NoteTile -> copy(span = span)
+        is Web -> copy(span = span)
+        is Album -> copy(span = span)
+        is MusicAlbum -> copy(span = span)
+        is Person -> copy(span = span)
+        is Thread -> copy(span = span)
+        is QuickNote -> copy(span = span)
+        is Folder -> copy(span = span)
+    }
 }
 
 private const val PEOPLE_TILE_FACES = 24
 
+@OptIn(FlowPreview::class)
 class HomeHubViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appRepository = application.appContainer.appRepository
@@ -188,6 +208,13 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     private val iconPackRepository = application.appContainer.iconPackRepository
     private val tileIconFactory = application.appContainer.tileIconFactory
 
+    /**
+     * The Start screen's own store, for the sizes of tiles inside folders. The board keeps a
+     * folder's tiles by id alone, so their sizes have to live somewhere the Start screen owns;
+     * the preference file is shared with the favourites, so there is one such file, not two.
+     */
+    private val favoriteAppsDataStore = FavoriteAppsDataStore(application)
+
     private val _allApps = MutableStateFlow<List<AppInfo>>(emptyList())
     private val _allImages = MutableStateFlow<List<MediaImage>>(emptyList())
 
@@ -196,6 +223,11 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
 
     val hubOrder: StateFlow<List<HubType>> = settingsDataStore.hubOrder
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** The Zune list's order, as the user has just rearranged it. */
+    fun setHubOrder(order: List<HubType>) {
+        viewModelScope.launch { settingsDataStore.setHubOrder(order) }
+    }
 
     /**
      * Live tile text for the Notes hub: rotates through the pinned notes (falling back to the
@@ -350,13 +382,21 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     /** Everyone in the phone book, so a pinned person's tile knows their face and name. */
     private val _allContacts = MutableStateFlow<List<ContactModel>>(emptyList())
 
+    /** The sizes of the tiles inside folders, by tile id. See [favoriteAppsDataStore]. */
+    private val folderTileSpans: StateFlow<Map<String, Int>> = favoriteAppsDataStore.folderTileSpans
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    fun setFolderChildSpan(childId: String, span: Int) {
+        viewModelScope.launch { favoriteAppsDataStore.setFolderTileSpan(childId, span) }
+    }
+
     private val tilesWithoutCovers: Flow<List<StartTileUIModel>> = combine(
-        startTiles,
+        combine(startTiles, folderTileSpans) { tiles, spans -> tiles to spans },
         _allApps,
         appRepository.getFavoritePackages(),
         notesDataStore.notesFlow,
         _allContacts
-    ) { currentStartTiles, apps, favoritePackages, notes, contacts ->
+    ) { (currentStartTiles, childSpans), apps, favoritePackages, notes, contacts ->
         val appMap = apps.associateBy { it.packageName }
         val contactMap = contacts.associateBy { it.id }
         val favPkgMap = favoritePackages.associateBy { it.packageName }
@@ -401,7 +441,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         currentStartTiles.forEach { item ->
             if (item.isFolder) {
                 val children = item.children.mapNotNull { childId ->
-                    resolve(childId, StartTileItem.DEFAULT_SPAN)?.also {
+                    resolve(childId, childSpans[childId] ?: StartTileItem.DEFAULT_SPAN)?.also {
                         if (it is StartTileUIModel.App) includedAppPkgs.add(it.appInfo.packageName)
                     }
                 }
@@ -566,8 +606,14 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val weatherUnit: StateFlow<TemperatureUnit> = application.appContainer.weatherDataStore.temperatureUnit
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TemperatureUnit.CELSIUS)
 
-    val latestNotification = MutableStateFlow<SocialMessageModel?>(null)
     val notificationCounts: StateFlow<Map<String, Int>> = SocialRepository.notificationCounts
+
+    // Which apps' notifications the messaging and phone tiles count: the holders of the two
+    // roles, asked again whenever the launcher comes back to the front.
+    private val _defaultSmsPackage = MutableStateFlow<String?>(null)
+    val defaultSmsPackage: StateFlow<String?> = _defaultSmsPackage.asStateFlow()
+    private val _defaultDialerPackage = MutableStateFlow<String?>(null)
+    val defaultDialerPackage: StateFlow<String?> = _defaultDialerPackage.asStateFlow()
 
     val latestMessages: StateFlow<Map<String, SocialMessageModel>> = SocialRepository.messages
         .map { list ->
@@ -596,30 +642,15 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val taskSwitcherVisible: StateFlow<Boolean> = settingsDataStore.taskSwitcherVisible
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
-    private val _hubCustomSpans = MutableStateFlow<Map<HubType, Int>>(
-        mapOf(
-            HubType.PICTURES to 4,
-            HubType.MUSIC to 4,
-            HubType.PHONE to 2,
-            HubType.MESSAGING to 2,
-            HubType.PEOPLE to 2,
-            HubType.INTERNET to 2,
-            HubType.FILES to 2,
-            HubType.SETTINGS to 2,
-            HubType.CLOCK to 2,
-            HubType.CALENDAR to 2,
-            HubType.NOTES to 2,
-            HubType.EMAIL to 2,
-            HubType.CALCULATOR to 2,
-            HubType.WEATHER to 4,
-            HubType.CAMERA to 2
-        )
-    )
-    val hubCustomSpans: StateFlow<Map<HubType, Int>> = _hubCustomSpans
+    // The providers behind the live tiles are watched, not polled: a message that arrives while
+    // Start is in front used to wait for the launcher to go away and come back. Each observer is
+    // registered once the permission is there — asked again on every refresh, since it may be
+    // granted while the launcher is running.
+    private val resolver = application.contentResolver
+    private val observers = mutableMapOf<Uri, android.database.ContentObserver>()
 
     init {
         loadImages()
-        refreshLiveTiles()
         runCatching { mediaController.startListening() }
             .onFailure { ZuneLog.w("HomeHubViewModel", "media session listening unavailable", it) }
 
@@ -629,75 +660,141 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
+        // The pinned records are only worth looking up while one is pinned — and they were
+        // looked up once, at start-up, when nothing was pinned yet, so their covers never came.
         viewModelScope.launch {
-            SocialRepository.messages.collect { messages ->
-                if (messages.isNotEmpty()) {
-                    val newMsg = messages.first()
-                    if (latestNotification.value?.id != newMsg.id) {
-                        latestNotification.value = newMsg
-                        delay(4000)
-                        if (latestNotification.value?.id == newMsg.id) {
-                            latestNotification.value = null
-                        }
-                    }
-                }
-            }
+            startTiles
+                .map { tiles -> StartFolders.allTileIds(tiles).filter { it.startsWith(StartTileItem.MUSIC_ALBUM_PREFIX) }.toSet() }
+                .distinctUntilChanged()
+                .collect { pinned -> if (pinned.isNotEmpty()) loadMusicAlbums() }
         }
+
+        // The gallery changes behind the launcher's back — a photo taken, a screenshot, a
+        // download. The store says so; its many small changes are taken as one.
+        watch(
+            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        ) { loadImages() }
     }
 
     /**
-     * Re-reads the providers behind the live tiles. Each one is guarded on its own: a launcher
-     * without the contacts or call-log permission simply shows the plain face of that tile.
+     * Watches [uris] for changes, debounced into one call of [onChange], for as long as the view
+     * model lives. Several addresses share one observer so a change the provider announces on
+     * all of them is answered once.
+     */
+    private fun watch(vararg uris: Uri, onChange: suspend () -> Unit) {
+        val wanted = uris.filterNot { observers.containsKey(it) }
+        if (wanted.isEmpty()) return
+        val changes = MutableStateFlow(0L)
+        val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                changes.value = System.nanoTime()
+            }
+        }
+        wanted.forEach { uri ->
+            try {
+                resolver.registerContentObserver(uri, true, observer)
+                observers[uri] = observer
+            } catch (e: Exception) {
+                ZuneLog.w("HomeHubViewModel", "could not watch $uri", e)
+            }
+        }
+        if (wanted.none { observers.containsKey(it) }) return
+        viewModelScope.launch {
+            changes.drop(1).debounce(PROVIDER_SETTLE_MS).collect { onChange() }
+        }
+    }
+
+    private fun hasPermission(permission: String): Boolean =
+        androidx.core.content.ContextCompat.checkSelfPermission(getApplication(), permission) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Re-reads the providers behind the live tiles. Each one is guarded on its own and runs on
+     * its own: a launcher without the contacts or call-log permission simply shows the plain
+     * face of that tile, and the weather's trip to the network holds nothing else up.
      */
     fun refreshLiveTiles() {
-        viewModelScope.launch {
-            val contacts = try {
-                contactRepository.getContacts()
-            } catch (e: Exception) {
-                ZuneLog.w("HomeHubViewModel", "contacts unavailable for the people tile", e)
-                emptyList()
-            }
-            _allContacts.value = contacts
-            _peopleFaces.value = contacts
-                .sortedWith(compareByDescending<ContactModel> { it.isFavorite }.thenByDescending { it.lastTimeContacted })
-                .take(PEOPLE_TILE_FACES)
+        if (hasPermission(android.Manifest.permission.READ_SMS)) {
+            watch(
+                android.provider.Telephony.Sms.CONTENT_URI,
+                android.provider.Telephony.MmsSms.CONTENT_URI
+            ) { refreshMessages() }
+        }
+        if (hasPermission(android.Manifest.permission.READ_CALL_LOG)) {
+            watch(android.provider.CallLog.Calls.CONTENT_URI) { refreshCalls() }
+        }
+        refreshRoleHolders()
+        viewModelScope.launch { refreshContacts() }
+        viewModelScope.launch { refreshCalls() }
+        viewModelScope.launch { refreshWeather() }
+        viewModelScope.launch { refreshMessages() }
+    }
 
-            try {
-                val calls = callLogRepository.getRecentCalls()
-                val missed = calls.takeWhile { it.type == android.provider.CallLog.Calls.MISSED_TYPE }
-                _missedCalls.value = missed.size
-                _lastMissedCaller.value = missed.firstOrNull()?.let { it.name?.takeIf { name -> name.isNotBlank() } ?: it.number }
-            } catch (e: Exception) {
-                ZuneLog.w("HomeHubViewModel", "call log unavailable for the phone tile", e)
-                _missedCalls.value = 0
-                _lastMissedCaller.value = null
-            }
+    private fun refreshRoleHolders() {
+        val context = getApplication<Application>()
+        _defaultSmsPackage.value = runCatching { android.provider.Telephony.Sms.getDefaultSmsPackage(context) }
+            .getOrNull()
+        _defaultDialerPackage.value = runCatching {
+            context.getSystemService(android.telecom.TelecomManager::class.java)?.defaultDialerPackage
+        }.getOrNull()
+    }
 
-            // The weather tile is only worth having if it is current: the same staleness and
-            // allowance rules as the hub decide whether this actually goes to the network.
-            try {
-                val place = weatherRepository.places.first().let { list ->
-                    list.firstOrNull { it.id == weatherRepository.selectedPlaceId.first() } ?: list.firstOrNull()
-                }
-                if (place != null) weatherRepository.refresh(place, force = false)
-            } catch (e: Exception) {
-                ZuneLog.w("HomeHubViewModel", "weather tile refresh skipped", e)
-            }
+    private suspend fun refreshContacts() {
+        val contacts = try {
+            contactRepository.getContacts()
+        } catch (e: Exception) {
+            ZuneLog.w("HomeHubViewModel", "contacts unavailable for the people tile", e)
+            emptyList()
+        }
+        _allContacts.value = contacts
+        _peopleFaces.value = contacts
+            .sortedWith(compareByDescending<ContactModel> { it.isFavorite }.thenByDescending { it.lastTimeContacted })
+            .take(PEOPLE_TILE_FACES)
+    }
 
-            _unreadMessages.value = try {
-                SmsRepository.getConversations(getApplication())
-                    .filter { !it.isRead }
-                    .sortedByDescending { it.timestamp }
-            } catch (e: Exception) {
-                ZuneLog.w("HomeHubViewModel", "messages unavailable for the messaging tile", e)
-                emptyList()
+    private suspend fun refreshCalls() {
+        try {
+            val calls = callLogRepository.getRecentCalls()
+            val missed = calls.takeWhile { it.type == android.provider.CallLog.Calls.MISSED_TYPE }
+            _missedCalls.value = missed.size
+            _lastMissedCaller.value = missed.firstOrNull()?.let { it.name?.takeIf { name -> name.isNotBlank() } ?: it.number }
+        } catch (e: Exception) {
+            ZuneLog.w("HomeHubViewModel", "call log unavailable for the phone tile", e)
+            _missedCalls.value = 0
+            _lastMissedCaller.value = null
+        }
+    }
+
+    private suspend fun refreshWeather() {
+        // The weather tile is only worth having if it is current: the same staleness and
+        // allowance rules as the hub decide whether this actually goes to the network.
+        try {
+            val place = weatherRepository.places.first().let { list ->
+                list.firstOrNull { it.id == weatherRepository.selectedPlaceId.first() } ?: list.firstOrNull()
             }
+            if (place != null) weatherRepository.refresh(place, force = false)
+        } catch (e: Exception) {
+            ZuneLog.w("HomeHubViewModel", "weather tile refresh skipped", e)
+        }
+    }
+
+    private suspend fun refreshMessages() {
+        _unreadMessages.value = try {
+            SmsRepository.getConversations(getApplication())
+                .filter { !it.isRead }
+                .sortedByDescending { it.timestamp }
+        } catch (e: Exception) {
+            ZuneLog.w("HomeHubViewModel", "messages unavailable for the messaging tile", e)
+            emptyList()
         }
     }
 
     override fun onCleared() {
         super.onCleared()
         runCatching { mediaController.stopListening() }
+        observers.values.forEach { runCatching { resolver.unregisterContentObserver(it) } }
+        observers.clear()
     }
 
     fun loadImages() {
@@ -705,15 +802,15 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             try {
                 _allImages.value = mediaRepository.getAllImages()
             } catch (e: Exception) { ZuneLog.w("HomeHubViewModel", "loadImages ignored Exception", e) }
-            // Only worth reading the music library when a record is actually pinned.
-            if (startTiles.value.any { it.isMusicAlbum }) {
-                try {
-                    val songs = musicRepository.getLocalSongs()
-                    _musicAlbums.value = musicRepository.albumsOf(songs)
-                } catch (e: Exception) {
-                    ZuneLog.w("HomeHubViewModel", "the pinned record could not be looked up", e)
-                }
-            }
+        }
+    }
+
+    private suspend fun loadMusicAlbums() {
+        try {
+            val songs = musicRepository.getLocalSongs()
+            _musicAlbums.value = musicRepository.albumsOf(songs)
+        } catch (e: Exception) {
+            ZuneLog.w("HomeHubViewModel", "the pinned record could not be looked up", e)
         }
     }
 
@@ -955,9 +1052,14 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             // A tile can be sitting inside a folder, so it is taken out of both places.
             settingsDataStore.setStartTiles(StartFolders.removeTile(currentList, id))
             if (id.startsWith("app:")) {
+                // Unpinned only if it is pinned: toggling a tile that had already come off the
+                // favourites — one taken out of a folder — put it straight back on.
                 val pkg = id.removePrefix("app:")
-                appRepository.toggleFavorite(pkg)
+                if (appRepository.getFavoritePackages().first().any { it.packageName == pkg }) {
+                    appRepository.toggleFavorite(pkg)
+                }
             }
+            favoriteAppsDataStore.setFolderTileSpan(id, null)
             // Both lists fill themselves in with whatever hub they are missing, so a hub has to
             // be remembered as taken off or it comes straight back on the next read.
             StartTileItem(id).hubType?.let { settingsDataStore.setHubRemoved(it, true) }
@@ -1006,13 +1108,15 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         editTiles { StartFolders.rename(it, folderId, name) }
     }
 
-    /** Takes a tile out of its folder and puts it back on the board next to it. */
+    /** Takes a tile out of its folder and puts it back on the board next to it, at its size. */
     fun removeFromFolder(folderId: String, childId: String) {
-        editTiles { StartFolders.extract(it, folderId, childId, StartTileItem.DEFAULT_SPAN) }
+        val span = folderTileSpans.value[childId] ?: StartTileItem.DEFAULT_SPAN
+        editTiles { StartFolders.extract(it, folderId, childId, span) }
     }
 
     fun dissolveFolder(folderId: String) {
-        editTiles { tiles -> StartFolders.dissolve(tiles, folderId) { StartTileItem.DEFAULT_SPAN } }
+        val spans = folderTileSpans.value
+        editTiles { tiles -> StartFolders.dissolve(tiles, folderId) { spans[it] ?: StartTileItem.DEFAULT_SPAN } }
     }
 
     fun moveWithinFolder(folderId: String, from: Int, to: Int) {
@@ -1023,6 +1127,9 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
 
 /** A tile is never wider than a phone, so a picture this big is already more than it can show. */
 private const val TILE_PICTURE_MAX_PX = 1024
+
+/** How long a provider is given to finish changing before its tile is re-read. */
+private const val PROVIDER_SETTLE_MS = 600L
 
 /** How far ahead the Start tile looks: a fortnight is more than it can ever show. */
 private const val TILE_HORIZON_MS = 14 * 24 * 60 * 60 * 1000L
