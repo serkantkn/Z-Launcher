@@ -93,7 +93,8 @@ class EmailRepository(
         if (account.isGoogleOAuth) GoogleMailAuth.accessToken(context, account.email)
         else secretStore.get(account.id) ?: throw EmailException(R.string.email_error_no_password)
 
-    fun savePassword(accountId: String, password: String) = secretStore.put(accountId, password)
+    /** False when the vault would not take it; the account must not be saved as if it had. */
+    fun savePassword(accountId: String, password: String): Boolean = secretStore.put(accountId, password)
 
     fun forget(accountId: String) {
         secretStore.remove(accountId)
@@ -544,7 +545,10 @@ class EmailRepository(
             val attachmentParts = mutableListOf<MimeBodyPart>()
             for (uriString in draft.attachmentUris) {
                 val uri = Uri.parse(uriString)
-                val (name, bytes, mime) = readUri(uri) ?: continue
+                // An attachment that cannot be read is said so, not left out: a mail that
+                // arrives without the file it was about is worse than one that did not go.
+                val (name, bytes, mime) = readUri(uri)
+                    ?: throw EmailException(R.string.email_error_attachment_unreadable, uri.lastPathSegment ?: uriString)
                 attachmentParts += MimeBodyPart().apply {
                     dataHandler = DataHandler(ByteArrayDataSource(bytes, mime))
                     fileName = MimeUtility.encodeText(name, "UTF-8", null)
@@ -625,6 +629,17 @@ class EmailRepository(
         EmailAddress.parseList(raw).map { InternetAddress(it.address, it.name.ifBlank { null }, "UTF-8") }.toTypedArray()
 
     private fun readUri(uri: Uri): Triple<String, ByteArray, String>? {
+        // A file the launcher copied into its own cache when the share arrived (see
+        // ComposeEmailActivity): read straight off the disk, no provider grant needed.
+        if (uri.scheme == "file") {
+            val file = uri.path?.let { File(it) } ?: return null
+            if (!file.canonicalPath.startsWith(context.cacheDir.canonicalPath)) return null
+            val bytes = runCatching { file.readBytes() }.getOrNull() ?: return null
+            if (bytes.size > MAX_ATTACHMENT_BYTES) throw EmailException(R.string.email_error_attachment_too_large, file.name)
+            val mime = android.webkit.MimeTypeMap.getSingleton()
+                .getMimeTypeFromExtension(file.extension.lowercase()) ?: "application/octet-stream"
+            return Triple(file.name, bytes, mime)
+        }
         val resolver = context.contentResolver
         var name = uri.lastPathSegment ?: "attachment"
         runCatching {

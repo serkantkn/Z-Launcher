@@ -15,6 +15,7 @@ import com.serkantkn.zunelauncher.data.model.EmailMessage
 import com.serkantkn.zunelauncher.data.repository.EmailBridge
 import com.serkantkn.zunelauncher.data.repository.EmailException
 import com.serkantkn.zunelauncher.data.repository.EmailRepository
+import com.serkantkn.zunelauncher.data.service.EmailNotifier
 import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.localizedString
@@ -199,7 +200,9 @@ class EmailHubViewModel(application: Application) : AndroidViewModel(application
                         ?: throw EmailException(R.string.email_error_no_password)
                 }
                 repository.testConnection(account, effectivePassword)
-                if (effectivePassword != null) repository.savePassword(account.id, effectivePassword)
+                if (effectivePassword != null && !repository.savePassword(account.id, effectivePassword)) {
+                    throw EmailException(R.string.email_error_password_store)
+                }
                 emailDataStore.upsertAccount(account)
                 emailDataStore.setSelectedAccountId(account.id)
                 _selectedAccountId.value = account.id
@@ -275,7 +278,7 @@ class EmailHubViewModel(application: Application) : AndroidViewModel(application
                     repository.syncFolder(account, folder)
                     lastSyncAt[key] = System.currentTimeMillis()
                 } catch (e: Exception) {
-                    ZuneLog.e(TAG, "sync failed for ${account.email}/$folder", e)
+                    ZuneLog.e(TAG, "sync failed for ${EmailNotifier.maskedAddress(account.email)}/$folder", e)
                     failure = userText(e)
                 }
             }
@@ -314,6 +317,8 @@ class EmailHubViewModel(application: Application) : AndroidViewModel(application
                 val full = repository.fetchBody(account, message)
                 if (_openMessage.value?.key == message.key) _openMessage.value = full
                 if (!message.isRead) repository.setSeen(account, message.folder, setOf(message.uid), true)
+                // Read here is read: the new-mail notification has nothing left to say.
+                EmailNotifier.cancel(app(), message)
             } catch (e: Exception) {
                 ZuneLog.e(TAG, "open failed", e)
                 _statusMessage.value = userText(e)

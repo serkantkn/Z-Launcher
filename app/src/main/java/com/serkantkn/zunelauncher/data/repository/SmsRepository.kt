@@ -676,13 +676,16 @@ object SmsRepository {
      */
     internal const val MMS_ID_OFFSET = 1_000_000_000L
 
-    /** The LIKE wildcards and the escape itself, each escaped for an `ESCAPE '\\'` clause. */
-    internal fun escapeLike(text: String): String =
-        text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
     private const val MMS_BOX_SENT = 2
     private const val MMS_BOX_OUTBOX = 4
     /** PduHeaders.FROM: the address row that names a picture message's sender. */
     private const val MMS_ADDR_FROM = 137
     private const val SEARCH_LIMIT = 200
 }
+
+/**
+ * The LIKE wildcards and the escape itself, each escaped for an `ESCAPE '\\'` clause.
+ * Top level rather than in the object, so a unit test can reach it without a provider.
+ */
+internal fun escapeLike(text: String): String =
+    text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

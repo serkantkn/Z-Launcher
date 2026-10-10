@@ -9,13 +9,18 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import com.serkantkn.zunelauncher.BuildConfig
 import com.serkantkn.zunelauncher.data.model.ReplyAction
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.data.model.isSocialWorthy
 import com.serkantkn.zunelauncher.data.model.looksSocial
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import com.serkantkn.zunelauncher.util.ZuneLog
-import java.util.Collections
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -25,10 +30,13 @@ import java.util.concurrent.ConcurrentHashMap
  *
  *  - **Counting.** Every app's notifications are counted, so a tile on the Start screen can carry
  *    a number. Nothing is taken away from the phone to do this.
- *  - **The Social hub.** Only the apps the user named as sources are taken over: their message is
- *    kept, shown as a Windows Phone banner, and removed from the system's own shade so the two do
- *    not both announce it. Everything else is left exactly where Android put it — which is what
- *    makes this a social hub rather than a second notification drawer.
+ *  - **The Social hub.** Only the apps the user named as sources are kept: their message is
+ *    held for the hub and shown as a Windows Phone banner. The system's own notification is left
+ *    where it is — taking it away meant a message held only in this process's memory, gone with
+ *    the next restart. Everything else is left exactly where Android put it, which is what makes
+ *    this a social hub rather than a second notification drawer.
+ *
+ * In the free flavour the hub does not exist, so only the counting happens here.
  */
 class SocialNotificationListener : NotificationListenerService() {
 
@@ -37,10 +45,11 @@ class SocialNotificationListener : NotificationListenerService() {
         private const val TAG = "SocialNotificationListener"
     }
 
-    private val selfCanceledKeys = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
-
     /** The app's own icon, which never changes and is asked for once per app rather than per message. */
     private val appIcons = ConcurrentHashMap<String, Bitmap>()
+
+    /** Counting runs here: walking every active notification is not main-thread work. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
@@ -49,6 +58,7 @@ class SocialNotificationListener : NotificationListenerService() {
 
     override fun onDestroy() {
         if (instance == this) instance = null
+        scope.cancel()
         super.onDestroy()
     }
 
@@ -56,11 +66,11 @@ class SocialNotificationListener : NotificationListenerService() {
         super.onListenerConnected()
         instance = this
         try {
-            val active = activeNotifications ?: return
-            active.forEach { sbn ->
-                if (isSocialSource(sbn)) {
-                    SocialRepository.markAsShown(sbn.key)
-                    processAndAddNotification(sbn)
+            if (BuildConfig.IS_PREMIUM) {
+                val active = activeNotifications ?: return
+                active.forEach { sbn ->
+                    // What was already in the shade when we connected has been seen; no banner.
+                    if (isSocialSource(sbn)) processAndAddNotification(sbn, announce = false)
                 }
             }
             updateAllNotificationCounts()
@@ -69,31 +79,26 @@ class SocialNotificationListener : NotificationListenerService() {
         }
     }
 
+    /** The system drops the binding now and then; a stale instance would answer for nobody. */
+    override fun onListenerDisconnected() {
+        if (instance == this) instance = null
+        super.onListenerDisconnected()
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        if (isSocialSource(sbn)) {
-            processAndAddNotification(sbn)
-            // Take it out of the shade: the launcher shows it as a Windows Phone banner instead,
-            // and two announcements of the same message is one too many.
-            try {
-                selfCanceledKeys.add(sbn.key)
-                cancelNotification(sbn.key)
-            } catch (e: Exception) {
-                ZuneLog.e(TAG, "onNotificationPosted failed", e)
+        if (BuildConfig.IS_PREMIUM) {
+            if (isSocialSource(sbn)) {
+                processAndAddNotification(sbn, announce = true)
+            } else {
+                noteIfItLooksSocial(sbn)
             }
-        } else {
-            noteIfItLooksSocial(sbn)
         }
         updateAllNotificationCounts()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        if (selfCanceledKeys.remove(sbn.key)) {
-            // Cancelled by us to replace the Android card with a Windows Phone toast: keep the
-            // message so the tile count, the hub and the banner all still work.
-            updateAllNotificationCounts()
-            return
-        }
-        SocialRepository.removeMessage(sbn.key)
+        // Dismissed in the shade is dismissed in the hub: the two stay one list.
+        if (BuildConfig.IS_PREMIUM) SocialRepository.removeMessage(sbn.key)
         updateAllNotificationCounts()
     }
 
@@ -151,7 +156,7 @@ class SocialNotificationListener : NotificationListenerService() {
             ?: extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
             ?: extras?.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
 
-    private fun processAndAddNotification(sbn: StatusBarNotification) {
+    private fun processAndAddNotification(sbn: StatusBarNotification, announce: Boolean) {
         val notification = sbn.notification ?: return
         val extras = notification.extras ?: return
 
@@ -202,7 +207,7 @@ class SocialNotificationListener : NotificationListenerService() {
             conversationTitle = extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString()
         )
 
-        SocialRepository.addOrUpdateMessage(messageModel, this)
+        SocialRepository.addOrUpdateMessage(messageModel, this, announce = announce)
     }
 
     private fun getAppName(packageName: String): String = try {
@@ -243,27 +248,29 @@ class SocialNotificationListener : NotificationListenerService() {
      * taken out of it — those are counted from what the hub is holding instead.
      */
     private fun updateAllNotificationCounts() {
-        try {
-            val fromShade = (activeNotifications ?: emptyArray())
-                .filter { sbn ->
-                    val n = sbn.notification
-                    n != null &&
-                        (n.flags and Notification.FLAG_ONGOING_EVENT) == 0 &&
-                        (n.flags and Notification.FLAG_GROUP_SUMMARY) == 0
+        scope.launch {
+            try {
+                val fromShade = (activeNotifications ?: emptyArray())
+                    .filter { sbn ->
+                        val n = sbn.notification
+                        n != null &&
+                            (n.flags and Notification.FLAG_ONGOING_EVENT) == 0 &&
+                            (n.flags and Notification.FLAG_GROUP_SUMMARY) == 0
+                    }
+                    .groupingBy { it.packageName }
+                    .eachCount()
+
+                val fromHub = SocialRepository.messages.value
+                    .groupBy { it.packageName }
+                    .mapValues { it.value.size }
+
+                val counts = (fromShade.keys + fromHub.keys).associateWith { packageName ->
+                    maxOf(fromShade[packageName] ?: 0, fromHub[packageName] ?: 0)
                 }
-                .groupingBy { it.packageName }
-                .eachCount()
-
-            val fromHub = SocialRepository.messages.value
-                .groupBy { it.packageName }
-                .mapValues { it.value.size }
-
-            val counts = (fromShade.keys + fromHub.keys).associateWith { packageName ->
-                maxOf(fromShade[packageName] ?: 0, fromHub[packageName] ?: 0)
+                SocialRepository.updateNotificationCounts(counts)
+            } catch (e: Exception) {
+                ZuneLog.e(TAG, "updateAllNotificationCounts failed", e)
             }
-            SocialRepository.updateNotificationCounts(counts)
-        } catch (e: Exception) {
-            ZuneLog.e(TAG, "updateAllNotificationCounts failed", e)
         }
     }
 }

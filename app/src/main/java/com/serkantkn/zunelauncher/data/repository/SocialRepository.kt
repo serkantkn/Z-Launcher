@@ -92,10 +92,19 @@ object SocialRepository {
         shownToastIds.add(id)
     }
 
+    /**
+     * What makes a banner a repeat. Messaging apps keep one notification per chat and rewrite
+     * it as messages come in, so the key alone would silence every message after the first;
+     * the time it was posted and what it says tell a new message from a redraw of the old one.
+     */
+    private fun toastKeyOf(message: SocialMessageModel): String =
+        "${message.id}@${message.timestamp}#${message.text.hashCode()}"
+
     fun addOrUpdateMessage(
         message: SocialMessageModel,
         context: Context? = null,
-        accentColor: androidx.compose.ui.graphics.Color? = null
+        accentColor: androidx.compose.ui.graphics.Color? = null,
+        announce: Boolean = true
     ) {
         val currentList = _messages.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == message.id }
@@ -107,17 +116,21 @@ object SocialRepository {
         currentList.sortByDescending { it.timestamp }
         _messages.value = currentList
 
-        // Only trigger toast popup IF this notification has NOT been shown before
-        if (!shownToastIds.contains(message.id)) {
-            shownToastIds.add(message.id)
+        val toastKey = toastKeyOf(message)
+        if (shownToastIds.add(toastKey) && announce) {
             _latestToastMessage.value = message
             context?.let { ctx -> showOverlayIfPermitted(ctx, message, accentColor) }
+        }
+        // The set would otherwise grow for as long as the process lives.
+        if (shownToastIds.size > SHOWN_KEPT) {
+            val keep = _messages.value.map { toastKeyOf(it) }.toSet()
+            shownToastIds.retainAll(keep)
         }
     }
 
     fun removeMessage(id: String) {
         _messages.value = _messages.value.filter { it.id != id }
-        shownToastIds.remove(id)
+        shownToastIds.removeAll { it.startsWith("$id@") }
         if (_latestToastMessage.value?.id == id) {
             _latestToastMessage.value = null
         }
@@ -199,4 +212,5 @@ object SocialRepository {
     }
 
     private const val TEST_REPLY_KEY = "test_reply_key"
+    private const val SHOWN_KEPT = 400
 }

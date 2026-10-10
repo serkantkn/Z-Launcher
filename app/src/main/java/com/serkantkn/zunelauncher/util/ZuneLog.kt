@@ -29,15 +29,25 @@ object ZuneLog {
         Log.d(PREFIX + tag, message)
     }
 
+    /**
+     * Warnings and errors do go out of a release build — a crash report without them is a
+     * mystery — but without their message, which is where a number, an address or a subject
+     * line would be. The tag and the stack trace are enough to find the line of code.
+     */
     fun w(tag: String, message: String, throwable: Throwable? = null) {
         if (throwable is CancellationException) return
-        Log.w(PREFIX + tag, message, throwable)
+        Log.w(PREFIX + tag, releaseSafe(message), throwable)
     }
 
     fun e(tag: String, message: String, throwable: Throwable? = null) {
         if (throwable is CancellationException) return
-        Log.e(PREFIX + tag, message, throwable)
+        Log.e(PREFIX + tag, releaseSafe(message), throwable)
     }
+
+    private fun releaseSafe(message: String): String =
+        if (BuildConfig.DEBUG) message else REDACTED
+
+    private const val REDACTED = "(details in debug builds)"
 }
 
 /** Short user-facing description of a failure, suitable for empty states and status banners. */

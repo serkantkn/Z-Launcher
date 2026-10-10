@@ -30,10 +30,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +57,9 @@ import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.util.ZuneLog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -80,6 +86,31 @@ internal fun EmailReadScreen(
     var showImages by remember(message.key) { mutableStateOf(false) }
     var showDetails by remember(message.key) { mutableStateOf(false) }
     val hasRemoteImages = remember(message.bodyHtml) { message.bodyHtml?.contains(Regex("(?i)<img[^>]+src=\"?https?://")) == true }
+
+    // Pictures that travelled inside the mail are safe to show without asking: nothing is
+    // fetched. Only the small ones, though — a signature logo, not a ten-megabyte scan.
+    val scope = rememberCoroutineScope()
+    val inlineImages = remember(message.key) { mutableStateMapOf<String, String>() }
+    LaunchedEffect(message.key, message.attachments.size) {
+        if (message.bodyHtml?.contains("cid:", ignoreCase = true) != true) return@LaunchedEffect
+        message.attachments
+            .filter { it.contentId != null && it.mimeType.startsWith("image/") && it.size in 1..MAX_INLINE_IMAGE_BYTES }
+            .forEach { part ->
+                val cid = part.contentId ?: return@forEach
+                if (cid in inlineImages) return@forEach
+                viewModel.downloadAttachment(message, part) { file ->
+                    scope.launch {
+                        val dataUri = withContext(Dispatchers.IO) {
+                            runCatching {
+                                "data:${part.mimeType};base64," +
+                                    android.util.Base64.encodeToString(file.readBytes(), android.util.Base64.NO_WRAP)
+                            }.getOrNull()
+                        }
+                        if (dataUri != null) inlineImages[cid] = dataUri
+                    }
+                }
+            }
+    }
     val folders by viewModel.folders.collectAsState()
     val isTrash = folders.firstOrNull { it.fullName == message.folder }?.type == EmailFolderType.TRASH
 
@@ -151,7 +182,8 @@ internal fun EmailReadScreen(
                 Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(zuneColors.accentColor.copy(alpha = 0.6f)))
                 Spacer(modifier = Modifier.height(14.dp))
 
-                val visibleAttachments = message.attachments
+                // A part that is drawn inside the body is not a file to open as well.
+                val visibleAttachments = message.attachments.filter { it.contentId == null || it.contentId !in inlineImages }
                 if (visibleAttachments.isNotEmpty()) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         visibleAttachments.forEach { attachment ->
@@ -182,7 +214,7 @@ internal fun EmailReadScreen(
                                 modifier = Modifier.clickable { showImages = true }.padding(bottom = 10.dp)
                             )
                         }
-                        EmailHtmlBody(html = message.bodyHtml, showImages = showImages)
+                        EmailHtmlBody(html = message.bodyHtml, showImages = showImages, inlineImages = inlineImages)
                     }
                     else -> {
                         SelectionContainer {
@@ -240,3 +272,6 @@ private fun openFile(context: android.content.Context, file: File, mimeType: Str
         ZuneLog.e("EmailReadScreen", "openFile failed", e)
     }
 }
+
+/** An inline picture bigger than this is left as an attachment chip rather than decoded into the page. */
+private const val MAX_INLINE_IMAGE_BYTES = 512L * 1024

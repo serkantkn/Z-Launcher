@@ -21,12 +21,17 @@ import com.serkantkn.zunelauncher.data.model.EmailMessage
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
 import com.serkantkn.zunelauncher.di.appContainer
+import com.serkantkn.zunelauncher.util.RequestCodes
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.localizedString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Periodic inbox sync without WorkManager: an inexact repeating alarm wakes
@@ -95,21 +100,37 @@ class EmailSyncReceiver : BroadcastReceiver() {
         suspend fun syncAllInboxes(context: Context, notify: Boolean): List<Pair<EmailAccount, EmailMessage>> {
             val container = context.appContainer
             val accounts = container.emailDataStore.accountsFlow.first()
-            val found = mutableListOf<Pair<EmailAccount, EmailMessage>>()
-            for (account in accounts) {
-                try {
-                    if (container.emailCache.loadFolders(account.id).isEmpty()) container.emailRepository.refreshFolders(account)
-                    val result = container.emailRepository.syncFolder(account, EmailFolder.INBOX_NAME)
-                    result.newMessages.forEach { found += account to it }
-                } catch (e: Exception) {
-                    ZuneLog.w("EmailSyncReceiver", "sync failed for ${account.email}", e)
+            // Every account at once, and all of them within the time a broadcast is given: three
+            // slow servers in a row used to run past the receiver's deadline, and the process
+            // was killed with the third still connecting. An account that does not answer in
+            // time is simply tried again on the next alarm.
+            val found = withTimeoutOrNull(SYNC_DEADLINE_MILLIS) {
+                coroutineScope {
+                    accounts.map { account ->
+                        async {
+                            try {
+                                if (container.emailCache.loadFolders(account.id).isEmpty()) container.emailRepository.refreshFolders(account)
+                                val result = container.emailRepository.syncFolder(account, EmailFolder.INBOX_NAME)
+                                result.newMessages.map { account to it }
+                            } catch (e: Exception) {
+                                ZuneLog.w("EmailSyncReceiver", "sync failed for ${EmailNotifier.maskedAddress(account.email)}", e)
+                                emptyList()
+                            }
+                        }
+                    }.awaitAll().flatten()
                 }
+            } ?: run {
+                ZuneLog.w("EmailSyncReceiver", "the inbox sync ran out of time")
+                emptyList()
             }
             if (notify) found.filter { it.first.notificationsEnabled }.forEach { (account, message) ->
                 EmailNotifier.announce(context, account, message)
             }
             return found
         }
+
+        /** Under the ~30 s a receiver has before the system gives up on it. */
+        private const val SYNC_DEADLINE_MILLIS = 25_000L
     }
 }
 
@@ -118,11 +139,30 @@ object EmailNotifier {
 
     private const val CHANNEL_ID = "email_new_mail"
 
+    /** "a…@example.com": enough to tell accounts apart in a log, not enough to write to. */
+    fun maskedAddress(email: String): String {
+        val at = email.indexOf('@')
+        if (at <= 0) return "…"
+        return email.take(1) + "…" + email.substring(at)
+    }
+
+    /** Takes a message's new-mail notification down, for when it has been opened in the hub. */
+    fun cancel(context: Context, message: EmailMessage) {
+        runCatching {
+            val manager = context.applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.cancel(notificationId(message))
+        }
+    }
+
+    private fun notificationId(message: EmailMessage): Int = ("email:" + message.key).hashCode()
+
     fun announce(context: Context, account: EmailAccount, message: EmailMessage) {
         val appContext = context.applicationContext
         val openIntent = PendingIntent.getActivity(
             appContext,
-            (message.uid % Int.MAX_VALUE).toInt(),
+            // One code per message: two mails from one account used to share a target when
+            // their uids happened to agree after the old modulo.
+            RequestCodes.of(RequestCodes.Kind.EMAIL_OPEN, account.id, message.folder, message.uid),
             Intent(appContext, MainActivity::class.java).apply {
                 action = Intent.ACTION_MAIN
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -161,7 +201,7 @@ object EmailNotifier {
             )
         }
         val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_email)
+            .setSmallIcon(R.drawable.ic_wp_mail)
             .setContentTitle(message.from.display)
             .setContentText(subject)
             .setSubText(account.email)
@@ -169,6 +209,6 @@ object EmailNotifier {
             .setAutoCancel(true)
             .setGroup("email_${account.id}")
             .build()
-        manager.notify(("email:" + message.key).hashCode(), notification)
+        manager.notify(notificationId(message), notification)
     }
 }

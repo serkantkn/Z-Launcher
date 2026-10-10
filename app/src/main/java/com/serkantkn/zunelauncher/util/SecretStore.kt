@@ -14,9 +14,15 @@ class SecretStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val cipher = SecretCipher(ALIAS)
 
-    fun put(id: String, secret: String) {
-        val sealed = cipher.seal(secret) ?: return
+    /**
+     * Returns false when the secret could not be sealed — a Keystore that refuses, as some do
+     * after a credential change — so the caller can say so instead of saving an account whose
+     * password is silently missing.
+     */
+    fun put(id: String, secret: String): Boolean {
+        val sealed = cipher.seal(secret) ?: return false
         prefs.edit().putString(id, sealed).apply()
+        return true
     }
 
     fun get(id: String): String? = prefs.getString(id, null)?.let { cipher.open(it) }
