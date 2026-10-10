@@ -82,8 +82,19 @@ class LocalMediaController(private val context: Context) {
     /** Called whenever the queue or position moves, so it can be remembered across restarts. */
     var onPlaybackMoved: ((mediaIds: List<String>, index: Int, positionMillis: Long) -> Unit)? = null
 
+    /**
+     * The queue as last read off the player. Rebuilding it is a walk over every item's metadata,
+     * which is fine once per change and absurd twice a second for the position; so it is read
+     * again only when the player says the timeline changed.
+     */
+    private var cachedQueue: List<QueueEntry> = emptyList()
+    private var queueStale = true
+
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
+            if (events.containsAny(Player.EVENT_TIMELINE_CHANGED, Player.EVENT_MEDIA_METADATA_CHANGED)) {
+                queueStale = true
+            }
             publish()
             if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
                 // Nothing moves while the music is stopped, so nothing needs watching either.
@@ -268,17 +279,24 @@ class LocalMediaController(private val context: Context) {
             durationMillis = player.duration.takeIf { it > 0L } ?: 0L,
             shuffleEnabled = player.shuffleModeEnabled,
             repeatMode = player.repeatMode,
-            queue = (0 until player.mediaItemCount).map { index ->
-                val item = player.getMediaItemAt(index)
-                QueueEntry(
-                    mediaId = item.mediaId,
-                    title = item.mediaMetadata.title?.toString().orEmpty(),
-                    artist = item.mediaMetadata.artist?.toString().orEmpty(),
-                    artworkUri = item.mediaMetadata.artworkUri
-                )
-            },
+            queue = queueOf(player),
             currentIndex = player.currentMediaItemIndex
         )
+    }
+
+    private fun queueOf(player: Player): List<QueueEntry> {
+        if (!queueStale && cachedQueue.size == player.mediaItemCount) return cachedQueue
+        cachedQueue = (0 until player.mediaItemCount).map { index ->
+            val item = player.getMediaItemAt(index)
+            QueueEntry(
+                mediaId = item.mediaId,
+                title = item.mediaMetadata.title?.toString().orEmpty(),
+                artist = item.mediaMetadata.artist?.toString().orEmpty(),
+                artworkUri = item.mediaMetadata.artworkUri
+            )
+        }
+        queueStale = false
+        return cachedQueue
     }
 
     private fun remember() {

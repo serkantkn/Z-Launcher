@@ -95,6 +95,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
+import androidx.compose.runtime.LaunchedEffect
 import java.util.concurrent.TimeUnit
 
 @Composable
@@ -106,6 +107,15 @@ fun MusicHubScreen(
     val mediaState by viewModel.mediaState.collectAsState()
     val dominantColor by viewModel.dominantColor.collectAsState()
     val hasPermission by viewModel.hasPermission.collectAsState()
+
+    val statusMessage by viewModel.statusMessage.collectAsState()
+    val toastContext = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(statusMessage) {
+        statusMessage?.let {
+            android.widget.Toast.makeText(toastContext, it, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearStatus()
+        }
+    }
 
     // Coming back from the system's permission page has to be noticed: the hub is still standing
     // where it was, and nothing else would tell it that the answer changed.
@@ -170,9 +180,17 @@ fun MusicHubScreen(
 
     CompositionLocalProvider(LocalZuneColors provides musicHubColors) {
         ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
-            val backgroundColor = if (mediaState.albumArt != null) Color.Black.copy(alpha = 0.8f) else Color.Transparent
+            // The cover behind the hub is whatever the hub is playing — its own track first, as
+            // the rest of the screen already does — and the scrim over it matches the theme: a
+            // black one under black titles made the light theme unreadable.
+            val hasCover = playback.externalArt != null || playback.artworkUri != null
+            val backgroundColor = when {
+                !hasCover -> Color.Transparent
+                currentZuneColors.isDark -> Color.Black.copy(alpha = 0.8f)
+                else -> Color.White.copy(alpha = 0.7f)
+            }
             Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
-            
+
             // The Zune HD's own signature: the artist's name, enormous and faint, behind the hub.
             if (playback.artist.isNotBlank()) {
                 ZuneArtistBackdrop(
@@ -182,13 +200,20 @@ fun MusicHubScreen(
             }
 
             // Dynamic Album Art Background
-            mediaState.albumArt?.let { bitmap ->
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
+            when {
+                playback.externalArt != null -> Image(
+                    bitmap = playback.externalArt!!.asImageBitmap(),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     alpha = 0.3f // Dim the background
+                )
+                playback.artworkUri != null -> AsyncImage(
+                    model = playback.artworkUri,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.3f
                 )
             }
 

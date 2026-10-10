@@ -119,6 +119,16 @@ class ThirdPartyMediaController(private val context: Context) {
         }
     }
 
+    /**
+     * Pauses the other app's session if it is playing. Returns whether there was one to pause:
+     * the sleep timer has to say so when the music it was set for is not the launcher's to stop.
+     */
+    fun pauseIfPlaying(): Boolean {
+        val controller = activeController ?: return false
+        if (controller.playbackState?.state != PlaybackState.STATE_PLAYING) return false
+        return runCatching { controller.transportControls.pause() }.isSuccess
+    }
+
     fun skipToNext() {
         activeController?.transportControls?.skipToNext()
     }

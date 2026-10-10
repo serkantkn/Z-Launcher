@@ -25,4 +25,7 @@
     <string name="pics_save_failed">the picture could not be saved</string>
     <string name="editor_load_failed">the picture would not open</string>
     <string name="editor_save_failed">the picture could not be saved; try a smaller crop</string>
+
+    <!-- Music hub -->
+    <string name="music_sleep_other_app">the sleep timer could not pause the other app</string>
 </resources>
