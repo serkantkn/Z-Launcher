@@ -86,14 +86,17 @@ fun WpVolumeControl(
                 animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
             )
             isClosing = false
+            // The next showing starts folded up again, as the Windows Phone bar did.
+            isExpanded = false
             onHidden()
         }
     }
 
-    // Auto-dismiss timer (3s) on key presses or touch
+    // Auto-dismiss on key presses or touch: three seconds, or twice that once the bar has been
+    // opened out — it used to stay for good then, over whatever was underneath it.
     LaunchedEffect(volumeState.eventId, volumeState.isVisible, isExpanded) {
-        if (volumeState.isVisible && !isExpanded) {
-            delay(3000L)
+        if (volumeState.isVisible) {
+            delay(if (isExpanded) EXPANDED_HIDE_MILLIS else HIDE_MILLIS)
             VolumeController.hide()
         }
     }
@@ -168,7 +171,7 @@ fun WpVolumeControl(
 
                         // Category Title
                         Text(
-                            text = "MEDYA + UYGULAMALAR",
+                            text = stringResource(R.string.volume_media_apps),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
@@ -296,6 +299,7 @@ private fun WpSquareSlider(
     modifier: Modifier = Modifier
 ) {
     var widthPx by remember { mutableFloatStateOf(1f) }
+    val density = LocalDensity.current
     val fraction = if (maxValue > 0) (value.toFloat() / maxValue.toFloat()).coerceIn(0f, 1f) else 0f
 
     fun updateValueFromX(xPx: Float) {
@@ -341,17 +345,21 @@ private fun WpSquareSlider(
                 .background(Color.White)
         )
 
-        // Sharp Rectangular Metro Thumb (0dp corner radius, solid white block)
+        // Sharp Rectangular Metro Thumb (0dp corner radius, solid white block), centred on the
+        // end of the filled track: half its width back, in dp, not in the six pixels it used to
+        // subtract from a pixel position.
         Box(
             modifier = Modifier
-                .padding(
-                    start = ((widthPx * fraction) - 6f).coerceAtLeast(0f).let {
-                        with(LocalDensity.current) { it.toDp() }
-                    }
-                )
-                .width(12.dp)
+                .padding(start = (with(density) { (widthPx * fraction).toDp() } - ThumbWidth / 2).coerceAtLeast(0.dp))
+                .width(ThumbWidth)
                 .height(20.dp)
                 .background(Color.White)
         )
     }
 }
+
+private val ThumbWidth = 12.dp
+
+/** How long the bar stays up after the last press, and how long once it has been opened out. */
+private const val HIDE_MILLIS = 3_000L
+private const val EXPANDED_HIDE_MILLIS = 6_000L

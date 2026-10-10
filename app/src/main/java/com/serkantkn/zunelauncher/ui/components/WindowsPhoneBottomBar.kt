@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import androidx.compose.ui.res.stringResource
+import com.serkantkn.zunelauncher.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -148,7 +150,7 @@ fun WindowsPhoneBottomBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreHoriz,
-                        contentDescription = "Daha fazla",
+                        contentDescription = stringResource(R.string.bottom_bar_more),
                         tint = if (zuneColors.isDark) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f),
                         modifier = Modifier.size(24.dp)
                     )
