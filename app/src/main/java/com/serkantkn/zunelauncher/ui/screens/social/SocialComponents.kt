@@ -145,7 +145,7 @@ internal fun SocialMessageRow(
 
             if (showAppName) {
                 Text(
-                    text = message.appName.lowercase(Locale.getDefault()),
+                    text = appNameLower(message.appName),
                     style = MaterialTheme.typography.labelSmall,
                     color = zuneColors.textDim,
                     modifier = Modifier.padding(top = 3.dp)
@@ -319,7 +319,7 @@ internal fun SocialAppRule(appName: String, count: Int, onClear: () -> Unit) {
             .padding(top = ZuneDimens.SpacingLg, bottom = ZuneDimens.SpacingSm)
     ) {
         Text(
-            text = appName.lowercase(Locale.getDefault()),
+            text = appNameLower(appName),
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
             color = zuneColors.accentColor,
             maxLines = 1,
@@ -357,3 +357,10 @@ internal fun SocialAppRule(appName: String, count: Int, onClear: () -> Unit) {
 
 private val AVATAR = 48.dp
 private val BADGE = 20.dp
+
+/**
+ * An app's name in the hub's lower case. App names are nearly always written in the Latin way, so
+ * a capital I in one is an i: Turkish rules would turn "Instagram" into "ınstagram". Everything
+ * else - an İ in a Turkish bank's name, say - still follows the phone's language.
+ */
+internal fun appNameLower(name: String): String = name.replace('I', 'i').lowercase(Locale.getDefault())

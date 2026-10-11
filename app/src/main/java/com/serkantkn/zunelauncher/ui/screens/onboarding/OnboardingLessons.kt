@@ -65,7 +65,10 @@ fun SwipeLessonPage(onCompleted: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
-                0 -> SideScreenClone(stringResource(R.string.social_hub))
+                0 -> SideScreenClone(stringResource(R.string.social_hub)) {
+                    // A social page with something on it, so the swipe arrives somewhere.
+                    SampleSocialFeed(modifier = Modifier.padding(top = 20.dp))
+                }
                 1 -> StartScreenClone(editingTile = null, onTileLongPress = { })
                 else -> SideScreenClone(stringResource(R.string.apps_hub))
             }
@@ -83,9 +86,9 @@ fun SwipeLessonPage(onCompleted: () -> Unit) {
     }
 }
 
-/** The screens either side of start, as their name at the top of an empty page. */
+/** The screens either side of start: their name at the top, and whatever is shown under it. */
 @Composable
-private fun SideScreenClone(label: String) {
+private fun SideScreenClone(label: String, content: @Composable () -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -101,6 +104,7 @@ private fun SideScreenClone(label: String) {
             ),
             color = MaterialTheme.colorScheme.onBackground
         )
+        content()
     }
 }
 
@@ -179,15 +183,9 @@ fun PivotLessonPage(onCompleted: () -> Unit) {
                 ),
                 pageSpacing = 24.dp
             ) { page ->
-                Text(
-                    text = stringResource(
-                        if (page == 0) R.string.onboarding_pivot_body_one
-                        else R.string.onboarding_pivot_body_two
-                    ),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
-                    color = zuneColors.textMuted,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // The calendar's own rows, with a few made-up plans in them; the card over the
+                // bottom of the stage is left room under the last one.
+                SampleCalendarPage(page = page, bottomPadding = 220.dp)
             }
         }
 

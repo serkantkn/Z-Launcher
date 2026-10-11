@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -50,6 +51,8 @@ import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.ui.components.W10MHubTile
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubEndPadding
+import com.serkantkn.zunelauncher.ui.components.ZuneWideHubStartPadding
 import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
 import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
 import com.serkantkn.zunelauncher.ui.components.getHubIcon
@@ -236,11 +239,16 @@ fun TabletStartLesson(onCompleted: () -> Unit) {
     }
 }
 
-/** A page beside Start, as its name across the top of an empty page. */
+/** The social page beside Start: its name across the top, and a few made-up messages under it. */
 @Composable
 private fun TabletSideClone(label: String) {
-    Box(modifier = Modifier.fillMaxSize().statusBarsPadding().padding(top = 36.dp)) {
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding().padding(top = 36.dp)) {
         ZuneWideHubTitle(text = label)
+        SampleSocialFeed(
+            modifier = Modifier
+                .padding(start = ZuneWideHubStartPadding, end = ZuneWideHubEndPadding)
+                .widthIn(max = 720.dp)
+        )
     }
 }
 
@@ -387,16 +395,10 @@ fun TabletTileLesson(onCompleted: () -> Unit) {
 @Composable
 fun TabletHubLesson(onCompleted: () -> Unit) {
     val chrome = LocalTourChrome.current ?: return
-    val zuneColors = LocalZuneColors.current
     val tabs = listOf(
         stringResource(R.string.onboarding_pivot_one),
         stringResource(R.string.onboarding_pivot_two),
         stringResource(R.string.onboarding_pivot_three)
-    )
-    val bodies = listOf(
-        stringResource(R.string.onboarding_pivot_body_one),
-        stringResource(R.string.onboarding_pivot_body_two),
-        stringResource(R.string.onboarding_pivot_body_three)
     )
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
     var moved by remember { mutableStateOf(false) }
@@ -422,12 +424,8 @@ fun TabletHubLesson(onCompleted: () -> Unit) {
                 .statusBarsPadding()
                 .padding(bottom = navBottom + reserve)
         ) { index ->
-            Text(
-                text = bodies[index],
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 34.sp),
-                color = zuneColors.textMuted,
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-            )
+            // Today, what comes after it, and the agenda, drawn as the calendar draws them.
+            SampleCalendarPage(page = index, modifier = Modifier.widthIn(max = 720.dp), bottomPadding = 24.dp)
         }
     }
 }

@@ -13,7 +13,6 @@
     <string name="onboarding_thub_line">hubın sayfaları sol tarafta alt alta durur. birine dokun, yanında açılsın.</string>
     <string name="onboarding_thub_try">başka bir başlığa dokun</string>
     <string name="onboarding_pivot_three">ajanda</string>
-    <string name="onboarding_pivot_body_three">ve hepsi tek bir listede</string>
 
     <string name="onboarding_recap_title">aklında kalsın</string>
     <string name="onboarding_recap_sides">yana kaydır</string>
@@ -30,4 +29,26 @@
     <string name="onboarding_recap_home_does">arka planda bıraktığın hublar</string>
     <string name="onboarding_recap_top">üst kenardan aşağı çek</string>
     <string name="onboarding_recap_top_does">bildirimler ve hızlı ayarlar</string>
+
+    <string name="onboarding_sample_from_1">Ayşe</string>
+    <string name="onboarding_sample_text_1">akşam yemeğe geliyor musun? sekize masa ayırttım 🍝</string>
+    <string name="onboarding_sample_from_2">Mert</string>
+    <string name="onboarding_sample_group_2">kitap kulübü</string>
+    <string name="onboarding_sample_text_2">bu ayın kitabını bitiren var mı? cumartesi konuşalım</string>
+    <string name="onboarding_sample_from_3">Zeynep</string>
+    <string name="onboarding_sample_text_3">fotoğrafını beğendi</string>
+    <string name="onboarding_sample_from_4">Can</string>
+    <string name="onboarding_sample_text_4">dosyaları yükledim, bakınca haber ver</string>
+    <string name="onboarding_sample_from_5">Elif</string>
+    <string name="onboarding_sample_text_5">seni bir gönderide etiketledi</string>
+    <string name="onboarding_sample_event_1">Deniz ile kahve</string>
+    <string name="onboarding_sample_place_1">köşedeki kafe</string>
+    <string name="onboarding_sample_event_2">ekip toplantısı</string>
+    <string name="onboarding_sample_place_2">toplantı odası 2</string>
+    <string name="onboarding_sample_event_3">spor salonu</string>
+    <string name="onboarding_sample_event_4">diş hekimi</string>
+    <string name="onboarding_sample_place_4">şehir kliniği</string>
+    <string name="onboarding_sample_event_5">annemin doğum günü</string>
+    <string name="onboarding_sample_event_6">konser</string>
+    <string name="onboarding_sample_place_6">açıkhava tiyatrosu</string>
 </resources>

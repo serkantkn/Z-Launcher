@@ -1720,8 +1720,6 @@
     <string name="onboarding_pivot_line">büyük yazılar birer sayfa. yana kaydır ya da istediğine dokun.</string>
     <string name="onboarding_pivot_one">bugün</string>
     <string name="onboarding_pivot_two">sonra</string>
-    <string name="onboarding_pivot_body_one">şu an olanlar</string>
-    <string name="onboarding_pivot_body_two">ve sonrasında gelenler</string>
     <string name="onboarding_pivot_try">sonraki sayfaya geç</string>
     <string name="onboarding_pivot_hub">takvim</string>
 </resources>

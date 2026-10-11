@@ -15,7 +15,6 @@
     <string name="onboarding_thub_line">a hub\'s pages stand down its left side. tap one and it opens beside them.</string>
     <string name="onboarding_thub_try">tap another heading</string>
     <string name="onboarding_pivot_three">agenda</string>
-    <string name="onboarding_pivot_body_three">and all of it in one list</string>
 
     <!-- The last page's reminder of every move, on both -->
     <string name="onboarding_recap_title">worth remembering</string>
@@ -33,4 +32,27 @@
     <string name="onboarding_recap_home_does">the hubs you left running</string>
     <string name="onboarding_recap_top">pull down from the top</string>
     <string name="onboarding_recap_top_does">notifications and quick settings</string>
+
+    <!-- Made-up messages and plans the lessons' hubs are filled with -->
+    <string name="onboarding_sample_from_1">Ayşe</string>
+    <string name="onboarding_sample_text_1">are you coming to dinner? I booked a table for eight 🍝</string>
+    <string name="onboarding_sample_from_2">Mert</string>
+    <string name="onboarding_sample_group_2">book club</string>
+    <string name="onboarding_sample_text_2">has anyone finished this month\'s book? let\'s talk on saturday</string>
+    <string name="onboarding_sample_from_3">Zeynep</string>
+    <string name="onboarding_sample_text_3">liked your photo</string>
+    <string name="onboarding_sample_from_4">Can</string>
+    <string name="onboarding_sample_text_4">uploaded the files, let me know when you\'ve had a look</string>
+    <string name="onboarding_sample_from_5">Elif</string>
+    <string name="onboarding_sample_text_5">tagged you in a post</string>
+    <string name="onboarding_sample_event_1">coffee with Deniz</string>
+    <string name="onboarding_sample_place_1">the corner café</string>
+    <string name="onboarding_sample_event_2">team meeting</string>
+    <string name="onboarding_sample_place_2">meeting room 2</string>
+    <string name="onboarding_sample_event_3">gym</string>
+    <string name="onboarding_sample_event_4">dentist</string>
+    <string name="onboarding_sample_place_4">city clinic</string>
+    <string name="onboarding_sample_event_5">mum\'s birthday</string>
+    <string name="onboarding_sample_event_6">concert</string>
+    <string name="onboarding_sample_place_6">open-air theatre</string>
 </resources>
