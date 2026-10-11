@@ -101,7 +101,9 @@ internal fun QuickAccessPage(
     onOpenVolume: (StorageVolumeInfo) -> Unit,
     onOpen: (File) -> Unit,
     contentPadding: PaddingValues,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    recycleBinCount: Int = 0,
+    onOpenRecycleBin: () -> Unit = {}
 ) {
     val shortcuts = listOf(
         android.os.Environment.DIRECTORY_DOWNLOADS to stringResource(R.string.files_cat_downloads),
@@ -125,6 +127,7 @@ internal fun QuickAccessPage(
                 onClick = { onOpen(android.os.Environment.getExternalStoragePublicDirectory(directory)) }
             )
         }
+        item { RecycleBinQuickRow(count = recycleBinCount, onClick = onOpenRecycleBin) }
     }
 }
 

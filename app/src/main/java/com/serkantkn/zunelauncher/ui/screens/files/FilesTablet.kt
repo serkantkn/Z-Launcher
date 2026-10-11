@@ -152,6 +152,8 @@ internal fun FilesTabletLayout(
     val cloudAccounts by viewModel.cloudAccounts.collectAsState()
     val activeCloudAccount by viewModel.activeCloudAccount.collectAsState()
     val cloudPath by viewModel.cloudPath.collectAsState()
+    val inRecycleBin by viewModel.inRecycleBin.collectAsState()
+    val recycleBin by viewModel.recycleBin.collectAsState()
 
     val primaryRoot = remember { Environment.getExternalStorageDirectory() }
 
@@ -212,7 +214,7 @@ internal fun FilesTabletLayout(
 
                 PaneSection(stringResource(R.string.files_pane_device))
                 volumes.forEach { volume ->
-                    val here = !inCloud && currentVolume?.root?.absolutePath == volume.root.absolutePath &&
+                    val here = !inCloud && !inRecycleBin && currentVolume?.root?.absolutePath == volume.root.absolutePath &&
                         FilesLibrary.entries.none { isInside(currentDirectory, File(primaryRoot, it.folder)) }
                     VolumeEntry(volume = volume, chosen = here, ink = ink) { goToVolume(volume) }
                 }
@@ -222,7 +224,7 @@ internal fun FilesTabletLayout(
                     val folder = File(primaryRoot, library.folder)
                     PaneEntry(
                         label = stringResource(library.labelRes).lowercase(Locale.getDefault()),
-                        chosen = !inCloud && isInside(currentDirectory, folder),
+                        chosen = !inCloud && !inRecycleBin && isInside(currentDirectory, folder),
                         ink = ink,
                         marker = categoryColor(library.category, zuneColors.accentColor)
                     ) { goTo(folder) }
@@ -246,6 +248,11 @@ internal fun FilesTabletLayout(
                     onInCloudChange(true)
                     onAddCloudAccount()
                 }
+
+                RecycleBinPaneEntry(count = recycleBin.size, chosen = inRecycleBin, ink = ink) {
+                    onInCloudChange(false)
+                    viewModel.openRecycleBin()
+                }
             }
 
             // ── The place itself ──
@@ -255,6 +262,10 @@ internal fun FilesTabletLayout(
                     .fillMaxHeight()
                     .padding(top = 40.dp, end = 40.dp)
             ) {
+                if (inRecycleBin) {
+                    RecycleBinTabletPlace(viewModel = viewModel, ink = ink, bottomPadding = bottomPadding, modifier = Modifier.weight(1f))
+                    return@Column
+                }
                 PlaceHeader(
                     viewModel = viewModel,
                     inCloud = inCloud,

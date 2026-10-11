@@ -183,6 +183,9 @@ fun FilesHubScreen(
     val cloudQuota by viewModel.cloudQuota.collectAsState()
     val cloudSearchResults by viewModel.cloudSearchResults.collectAsState()
     val transfer by viewModel.transfer.collectAsState()
+    val inRecycleBin by viewModel.inRecycleBin.collectAsState()
+    val recycleBinEntries by viewModel.recycleBin.collectAsState()
+    val binUi = rememberRecycleBinUiState()
 
     // ── The flights ────────────────────────────────────────────────────────
     val localZoom = rememberZuneTitleZoomState()
@@ -638,7 +641,9 @@ fun FilesHubScreen(
                 volumes = volumes,
                 onOpenVolume = { viewModel.visitVolume(it) },
                 onOpen = { viewModel.visit(it) },
-                contentPadding = pagePadding
+                contentPadding = pagePadding,
+                recycleBinCount = recycleBinEntries.size,
+                onOpenRecycleBin = { viewModel.openRecycleBin() }
             )
             else -> CloudPage(
                 accounts = cloudAccounts,
@@ -868,7 +873,10 @@ fun FilesHubScreen(
                             viewModel = viewModel,
                             filesView = filesView,
                             inCloud = tabletInCloud,
-                            onInCloudChange = { tabletInCloud = it },
+                            onInCloudChange = {
+                                tabletInCloud = it
+                                if (it) viewModel.closeRecycleBin()
+                            },
                             onBack = { tabletBack() },
                             canGoBack = tabletInCloud || canGoBack || viewModel.parentOfCurrent() != null,
                             permissionGate = { StoragePermissionGate(context, permissionLauncher) },
@@ -907,7 +915,9 @@ fun FilesHubScreen(
                             }
                         }
 
-                        if (inFolder) {
+                        if (inRecycleBin) {
+                            RecycleBinPhonePage(viewModel = viewModel, ui = binUi, bottomPadding = listBottomPadding)
+                        } else if (inFolder) {
                             // ── The folder's page: its name, then its list ──
                             Column(modifier = Modifier.fillMaxSize()) {
                                 FolderHeading(
@@ -1003,22 +1013,24 @@ fun FilesHubScreen(
                     }
 
                     if (isWideScreen) {
+                        val binCommands = recycleBinTabletCommands(viewModel, binUi)
                         Win8CommandBar(
-                            left = tabletLeft,
-                            right = tabletRight,
+                            left = if (inRecycleBin) binCommands.first else tabletLeft,
+                            right = if (inRecycleBin) binCommands.second else tabletRight,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .then(bottomBarModifier)
                                 .graphicsLayer { alpha = contentAlpha.value }
                         )
                     } else {
+                        val binBar = recycleBinPhoneBar(viewModel, binUi)
                         WindowsPhoneBottomBar(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .then(bottomBarModifier)
                                 .graphicsLayer { alpha = contentAlpha.value },
-                            actions = barActions,
-                            menuItems = barMenu
+                            actions = if (inRecycleBin) binBar.first else barActions,
+                            menuItems = if (inRecycleBin) binBar.second else barMenu
                         )
                     }
                 }
@@ -1239,6 +1251,9 @@ fun FilesHubScreen(
                 onDismiss = { deleteSelectionPending = false }
             )
         }
+
+        // ── The recycle bin's sheet, its questions, and Back while it is open ──
+        RecycleBinOverlays(viewModel = viewModel, ui = binUi, isWideScreen = isWideScreen)
 
         cloudSheetTarget?.let { item ->
             MessagingSheet(title = item.name, onDismiss = { cloudSheetTarget = null }) {

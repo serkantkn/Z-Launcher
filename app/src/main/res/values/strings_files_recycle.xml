@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_bin_title">recycle bin</string>
+    <string name="files_bin_is_empty">the recycle bin is empty</string>
+    <string name="files_bin_note">Deleted things wait here for 30 days, then they are deleted permanently.</string>
+    <string name="files_bin_restore">restore</string>
+    <string name="files_bin_delete_forever">delete permanently</string>
+    <string name="files_bin_empty_action">empty bin</string>
+    <string name="files_bin_empty_title">empty the recycle bin</string>
+    <string name="files_bin_empty_confirm">Everything in the recycle bin (%1$d items) will be deleted permanently. This can\'t be undone.</string>
+    <string name="files_bin_forever_confirm">\"%1$s\" will be deleted permanently. This can\'t be undone.</string>
+    <string name="files_bin_forever_many_confirm">%1$d items will be deleted permanently. This can\'t be undone.</string>
+    <string name="files_bin_col_location">original location</string>
+    <string name="files_bin_col_deleted">date deleted</string>
+    <string name="files_bin_deleted_on">deleted %1$s</string>
+    <string name="files_bin_restore_partial">%1$d items could not be restored.</string>
+    <string name="files_trash_failed">%1$s could not be moved to the recycle bin</string>
+</resources>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_bin_title">geri dönüşüm kutusu</string>
+    <string name="files_bin_is_empty">geri dönüşüm kutusu boş</string>
+    <string name="files_bin_note">Silinenler burada 30 gün bekler, sonra kalıcı olarak silinir.</string>
+    <string name="files_bin_restore">geri yükle</string>
+    <string name="files_bin_delete_forever">kalıcı olarak sil</string>
+    <string name="files_bin_empty_action">kutuyu boşalt</string>
+    <string name="files_bin_empty_title">kutuyu boşalt</string>
+    <string name="files_bin_empty_confirm">Geri dönüşüm kutusundaki her şey (%1$d öğe) kalıcı olarak silinecek. Bu geri alınamaz.</string>
+    <string name="files_bin_forever_confirm">\"%1$s\" kalıcı olarak silinecek. Bu geri alınamaz.</string>
+    <string name="files_bin_forever_many_confirm">%1$d öğe kalıcı olarak silinecek. Bu geri alınamaz.</string>
+    <string name="files_bin_col_location">özgün konum</string>
+    <string name="files_bin_col_deleted">silinme tarihi</string>
+    <string name="files_bin_deleted_on">%1$s tarihinde silindi</string>
+    <string name="files_bin_restore_partial">%1$d öğe geri yüklenemedi.</string>
+    <string name="files_trash_failed">%1$s geri dönüşüm kutusuna taşınamadı</string>
+</resources>
