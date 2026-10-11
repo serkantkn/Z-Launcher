@@ -70,6 +70,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.rememberUpdatedState
+import com.serkantkn.zunelauncher.ui.components.getHubIcon
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.geometry.Rect
+import com.serkantkn.zunelauncher.ui.animation.win8TileMotion
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -310,6 +315,15 @@ private fun HomeHubScreenContent(
         if (!isFavoritesExpanded) isEditMode = false
     }
 
+    // The tablet board moves the Windows 8 way (see Win8Motion): the tiles slide in from the
+    // right, and a launch flips the chosen tile into a splash that fills the screen.
+    val win8Mode = homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE && isWideScreen
+    val win8Bounds = remember { com.serkantkn.zunelauncher.ui.animation.Win8Motion.Bounds() }
+    /** What each tile would show on its splash: its glyph or its face, and its colour. */
+    val win8Faces = remember { HashMap<String, com.serkantkn.zunelauncher.ui.animation.Win8Splash>() }
+    var win8Splash by remember { mutableStateOf<com.serkantkn.zunelauncher.ui.animation.Win8Splash?>(null) }
+    val hubOpenNow by rememberUpdatedState(isHubOpen)
+
     // ── Staggered entrance animation ──
     val animationProgress = remember { Animatable(0f) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -327,6 +341,8 @@ private fun HomeHubScreenContent(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) viewModel.refreshLiveTiles()
             if (event == Lifecycle.Event.ON_START && hasRunInitialAnimation) {
+                // Back from an app the splash went into: Start comes in again from clean.
+                win8Splash = null
                 coroutineScope.launch {
                     animationProgress.snapTo(0f)
                     animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
@@ -339,6 +355,7 @@ private fun HomeHubScreenContent(
     }
 
     var clickedItemKey by remember { mutableStateOf<String?>(null) }
+
     // Set while a tap is on its way out: the turnstile takes most of a second, and two quick
     // taps used to open both things one after the other.
     var launching by remember { mutableStateOf(false) }
@@ -349,6 +366,7 @@ private fun HomeHubScreenContent(
         if (!isCurrentPage) {
             clickedItemKey = null
             launching = false
+            win8Splash = null
             animationProgress.snapTo(1f)
             isEditMode = false
             isFavoritesExpanded = false
@@ -356,6 +374,11 @@ private fun HomeHubScreenContent(
     }
 
     LaunchedEffect(isHubOpen) {
+        // The hub comes up over the splash; once it has, the splash has done its work.
+        if (isHubOpen && win8Splash != null) {
+            delay(WIN8_SPLASH_LINGER_MILLIS)
+            win8Splash = null
+        }
         if (!isHubOpen && animationProgress.value > 1f) {
             clickedItemKey = null
             launching = false
@@ -374,6 +397,35 @@ private fun HomeHubScreenContent(
             return
         }
         launching = true
+        if (win8Mode) {
+            win8Splash = win8Faces[key]?.let { face ->
+                win8Bounds.byKey[key]?.let { from ->
+                    com.serkantkn.zunelauncher.ui.animation.Win8Splash(from, face.color, face.glyph, face.face)
+                }
+            }
+            val splash = win8Splash
+            coroutineScope.launch {
+                animationProgress.animateTo(
+                    2f,
+                    tween(com.serkantkn.zunelauncher.ui.animation.Win8Motion.LAUNCH_MILLIS, easing = LinearEasing)
+                )
+                openFolderId = null
+                action()
+                launching = false
+                // An app that never came up (or a hub that points at one) would leave the screen
+                // covered; Start comes back if nothing has taken its place by then.
+                delay(WIN8_SPLASH_GIVE_UP_MILLIS)
+                if (win8Splash === splash && splash != null && !hubOpenNow &&
+                    lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+                ) {
+                    win8Splash = null
+                    clickedItemKey = null
+                    animationProgress.snapTo(0f)
+                    animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
+                }
+            }
+            return
+        }
         coroutineScope.launch {
             // Turnstile feather out (1f -> 2f). The launch itself fires slightly before the
             // chosen tile has fully turned away so the hub's hinge-in overlaps it, WP style.
@@ -778,13 +830,35 @@ private fun HomeHubScreenContent(
             is StartTileUIModel.Thread -> "sms_${model.threadId}"
             is StartTileUIModel.Folder -> "folder_${model.id}"
         }
-        val animated = tileModifier.w10mStaggeredAnimation(
-            progress = { animationProgress.value },
-            index = index,
-            isClicked = clickedItemKey == launchKey
-        )
+        val animated = if (win8Mode) {
+            tileModifier.win8TileMotion(
+                progress = { animationProgress.value },
+                isClicked = clickedItemKey == launchKey,
+                key = launchKey,
+                bounds = win8Bounds
+            )
+        } else {
+            tileModifier.w10mStaggeredAnimation(
+                progress = { animationProgress.value },
+                index = index,
+                isClicked = clickedItemKey == launchKey
+            )
+        }
         val onResize = { resizeTargetId = model.id }
         val look = tileLooks[model.id] ?: TileLook.DEFAULT
+        if (win8Mode) {
+            val splashColor = look.color?.let { Color(it) } ?: zuneColors.accentColor
+            val splashFace = when (model) {
+                is StartTileUIModel.Hub -> com.serkantkn.zunelauncher.ui.animation.Win8Splash(
+                    Rect.Zero, splashColor, glyph = getHubIcon(model.hubType)
+                )
+                is StartTileUIModel.App -> com.serkantkn.zunelauncher.ui.animation.Win8Splash(
+                    Rect.Zero, splashColor, face = tileFace(model.appInfo)
+                )
+                else -> com.serkantkn.zunelauncher.ui.animation.Win8Splash(Rect.Zero, splashColor)
+            }
+            SideEffect { win8Faces[launchKey] = splashFace }
+        }
         val preview = LocalTileIsPreview.current
         CompositionLocalProvider(
             LocalTileLook provides look,
@@ -1232,6 +1306,11 @@ private fun HomeHubScreenContent(
                         onDone = { isEditMode = false },
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
+                }
+
+                // The launch splash, over the board, until the hub or the app is up over it.
+                win8Splash?.let { splash ->
+                    com.serkantkn.zunelauncher.ui.animation.Win8LaunchSplash(splash) { animationProgress.value }
                 }
 
                 // The app list, coming up from under Start
@@ -1913,6 +1992,12 @@ private fun HomeHubScreenContent(
 }
 
 
+
+/** How long the splash stays under a hub that has come up over it. */
+private const val WIN8_SPLASH_LINGER_MILLIS = 450L
+
+/** How long a splash may cover the screen with nothing coming up over it. */
+private const val WIN8_SPLASH_GIVE_UP_MILLIS = 2_000L
 
 /**
  * What stands where the favourites would be before there are any.

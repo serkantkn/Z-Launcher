@@ -105,9 +105,19 @@ fun LauncherScreen(
     val homeScreenLayout by settingsViewModel.homeScreenLayout.collectAsState()
     val hasQuickplay = homeScreenLayout == HomeScreenLayout.ZUNE
     val appsPage = if (hasQuickplay) 3 else 2
+    // The tablet's Windows 8 Start has its app list under it (a swipe up), not beside it: the
+    // pager stops at Start there, or a sideways drag on the empty band above or below the tiles
+    // turned up the phone's app list instead.
+    val tabletStart = LocalIsWideScreen.current && homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE
     val pagerState = rememberPagerState(
         initialPage = 1,
-        pageCount = { if (homeScreenLayout == HomeScreenLayout.ZUNE) 4 else 3 }
+        pageCount = {
+            when {
+                homeScreenLayout == HomeScreenLayout.ZUNE -> 4
+                tabletStart -> 2
+                else -> 3
+            }
+        }
     )
 
     // Both view models answer "Zune" until the preference has been read, so a phone set to the
@@ -252,10 +262,12 @@ fun LauncherScreen(
             } else if (targetHub != null) {
                 activeHub = targetHub
                 isHubHingeOpening = true
-                hingeProgress.animateTo(1f, animationSpec = hingeSpec)
+                // On the tablet the splash has already covered the screen; the hub only has to
+                // come up over it.
+                hingeProgress.animateTo(1f, animationSpec = if (tabletStart) quickSpec(WIN8_HUB_FADE_IN_MILLIS) else hingeSpec)
             } else {
                 isHubHingeOpening = false
-                hingeProgress.animateTo(0f, animationSpec = hingeSpec)
+                hingeProgress.animateTo(0f, animationSpec = if (tabletStart) quickSpec(WIN8_HUB_FADE_OUT_MILLIS) else hingeSpec)
                 activeHub = null
             }
         }
@@ -860,13 +872,19 @@ fun LauncherScreen(
                             .zIndex(1f)
                             .graphicsLayer {
                                 val progress = hingeProgress.value
+                                if (tabletStart) {
+                                    // Windows 8: Start does not turn away; the hub comes up over it.
+                                    alpha = if (layoutReady) 1f else 0f
+                                    return@graphicsLayer
+                                }
                                 rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * progress
                                 transformOrigin = TransformOrigin(0f, 0.5f)
                                 cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
                                 alpha = if (layoutReady) (1f - progress * 1.5f).coerceIn(0f, 1f) else 0f
                             }
                             .drawWithContent {
-                                if (layoutReady && (1f - hingeProgress.value * 1.5f) > 0f) drawContent()
+                                val seen = if (tabletStart) hingeProgress.value < 1f else (1f - hingeProgress.value * 1.5f) > 0f
+                                if (layoutReady && seen) drawContent()
                             }
                     ) {
                         // On a tablet a page is a long way across: the pager's own rule — half
@@ -909,6 +927,13 @@ fun LauncherScreen(
                                 .zIndex(2f)
                                 .graphicsLayer {
                                     val progress = hingeProgress.value
+                                    if (tabletStart) {
+                                        // Windows 8: the hub fades up over the launch splash, and
+                                        // fades away again over Start's tiles coming back in; one
+                                        // hub gives way to another the same way.
+                                        alpha = progress
+                                        return@graphicsLayer
+                                    }
                                     // Opening: -90° (outside, in front) -> 0°. Closing: 0° -> +90° (into the depth).
                                     val direction = if (isHubHingeOpening) -1f else 1f
                                     rotationY = direction * HingeAnimation.MAX_ROTATION_DEGREES * (1f - progress)
@@ -1110,6 +1135,10 @@ private const val SHADE_PULL_DP = 20f
 
 /** Two presses of Home closer together than this ask for the switcher, not for Start. */
 private const val DOUBLE_PRESS_MILLIS = 450L
+
+/** The tablet's hub coming up over the launch splash, and going away over Start. */
+private const val WIN8_HUB_FADE_IN_MILLIS = 220
+private const val WIN8_HUB_FADE_OUT_MILLIS = 240
 
 /** Long enough for the hinge to have put the hub away before the balloon comes. */
 private const val SWITCHER_TIP_DELAY_MILLIS = 600L
