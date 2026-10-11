@@ -99,6 +99,7 @@ import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.components.W10MAppTile
 import com.serkantkn.zunelauncher.ui.components.LocalTileStyle
 import com.serkantkn.zunelauncher.ui.components.LocalTileLook
+import com.serkantkn.zunelauncher.ui.components.LocalTileRunning
 import com.serkantkn.zunelauncher.ui.components.LocalTileCustomize
 import com.serkantkn.zunelauncher.ui.components.LocalTileIconResolver
 import com.serkantkn.zunelauncher.ui.components.LocalTileIsPreview
@@ -170,6 +171,8 @@ fun HomeHubScreen(
     onNavigateNext: () -> Unit = onNavigateToAppsHub,
     /** Bumped when the Home key is pressed while Start is already in front. */
     homeResetSignal: Int = 0,
+    /** The hubs left running; their tiles and names carry the running mark. */
+    runningHubs: Set<HubType> = emptySet(),
     timeFormat: String = "HH:mm",
     dateFormat: String = "EEEE, MMMM d",
     modifier: Modifier = Modifier,
@@ -193,6 +196,7 @@ fun HomeHubScreen(
             onNavigateToAppsHub = onNavigateToAppsHub,
             onNavigateNext = onNavigateNext,
             homeResetSignal = homeResetSignal,
+            runningHubs = runningHubs,
             timeFormat = timeFormat,
             dateFormat = dateFormat,
             modifier = modifier,
@@ -211,6 +215,7 @@ private fun HomeHubScreenContent(
     onNavigateToAppsHub: () -> Unit,
     onNavigateNext: () -> Unit,
     homeResetSignal: Int,
+    runningHubs: Set<HubType>,
     timeFormat: String,
     dateFormat: String,
     modifier: Modifier,
@@ -783,6 +788,7 @@ private fun HomeHubScreenContent(
         val preview = LocalTileIsPreview.current
         CompositionLocalProvider(
             LocalTileLook provides look,
+            LocalTileRunning provides (model is StartTileUIModel.Hub && model.hubType in runningHubs),
             // The preview on the customise page is not a way into another customise page.
             LocalTileCustomize provides if (preview) null else ({ lookTargetId = model.id })
         ) {
@@ -1513,7 +1519,13 @@ private fun HomeHubScreenContent(
                                     isClicked = clickedItemKey == key
                                 )
                             ) {
-                                Row(verticalAlignment = Alignment.Top) {
+                                Row(
+                                    verticalAlignment = Alignment.Top,
+                                    modifier = Modifier.zuneRunningMark(
+                                        running = hubType in runningHubs && !isEditMode,
+                                        color = zuneColors.accentColor
+                                    )
+                                ) {
                                     ZuneHubTitle(
                                         title = stringResource(hubType.titleRes),
                                         accentColor = rememberHubNameColour(line.hasNews, ink),

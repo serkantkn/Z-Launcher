@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -291,5 +292,32 @@ fun ZunePinnedBoard(
                 }
             }
         }
+    }
+}
+
+/**
+ * The running mark on the Zune list: an upright bar in the accent, standing in the gutter just
+ * left of a hub's name, so the names stay lined up whether their hub is running or not. It
+ * reaches over the height of the letters, not the whole line, the way Zune marked what was
+ * playing.
+ */
+@Composable
+fun Modifier.zuneRunningMark(running: Boolean, color: Color): Modifier {
+    val shown by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (running) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 220),
+        label = "zune_running_mark"
+    )
+    return this.drawBehind {
+        if (shown <= 0f) return@drawBehind
+        val width = 4.dp.toPx()
+        val gap = 9.dp.toPx()
+        val top = size.height * 0.30f
+        val bottom = size.height * 0.80f
+        drawRect(
+            color = color.copy(alpha = color.alpha * shown),
+            topLeft = androidx.compose.ui.geometry.Offset(-gap - width, top),
+            size = androidx.compose.ui.geometry.Size(width, bottom - top)
+        )
     }
 }

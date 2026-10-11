@@ -525,6 +525,7 @@ fun LauncherScreen(
                         },
                         onHubSelected = { hub -> if (hub != HubType.HOME) navState.openHub(hub) },
                         homeResetSignal = homeResetSignal,
+                        runningHubs = navState.backgroundHubs.toSet(),
                         timeFormat = timeFormat,
                         dateFormat = dateFormat
                     )

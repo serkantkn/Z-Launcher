@@ -128,6 +128,9 @@ val LocalTileTakeOut = staticCompositionLocalOf<(() -> Unit)?> { null }
  */
 val LocalTileIsPreview = staticCompositionLocalOf { false }
 
+/** True on the tile of a hub that was left running, which then carries the running mark. */
+val LocalTileRunning = compositionLocalOf { false }
+
 /** The icon a tile was given, ready to draw, or null when it should draw its own. */
 @Composable
 fun customTileFace(): TileIconFace? {
@@ -338,6 +341,7 @@ fun W10MTileSurface(
                 TilePicture(path = picture, shadeBottom = look.showLabel)
             }
             TileFaces(animation = animation, turn = turn, front = front, back = back)
+            RunningMark(visible = LocalTileRunning.current && !isEditing && !preview)
         }
 
         if (isEditing) {
@@ -351,6 +355,36 @@ fun W10MTileSurface(
             )
         }
     }
+}
+
+/**
+ * The mark of a hub left running: a short dash in the bottom-right corner, in the tile's own ink.
+ * The name keeps the bottom-left and a count the top-right, so the corner is free; and a flat
+ * dash is what Windows put under a running program on the taskbar, where a dot is someone
+ * else's idiom.
+ */
+@Composable
+private fun BoxScope.RunningMark(visible: Boolean) {
+    val shown by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "tile_running_mark"
+    )
+    if (shown <= 0f) return
+    val ink = tileForegroundColor()
+    // A thin halo in the opposite tone keeps the dash readable over a photo, which the tile's
+    // ink alone is not: the pictures tile writes its name in white over a dark-shaded picture.
+    val halo = if (ink.luminance() > 0.5f) Color.Black else Color.White
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 7.dp, bottom = 8.dp)
+            .size(width = 16.dp, height = 5.dp)
+            .graphicsLayer { alpha = shown }
+            .background(halo.copy(alpha = 0.35f))
+            .padding(1.dp)
+            .background(ink)
+    )
 }
 
 /**
