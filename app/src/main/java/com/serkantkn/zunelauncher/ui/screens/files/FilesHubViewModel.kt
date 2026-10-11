@@ -644,6 +644,9 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     private var loadJob: Job? = null
 
     fun loadDirectory(directory: File) {
+        // A search is of the folder it was typed in: carried into the next one it hid that
+        // folder's whole contents behind "nothing found". Reloading the same folder keeps it.
+        if (directory.absolutePath != _currentDirectory.value.absolutePath) _searchQuery.value = ""
         clearDeepSearch()
         clearSelection()
         // Two folders opened in quick succession used to race: the slower listing landed last
