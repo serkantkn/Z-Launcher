@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- "klasörüne" and "konumuna" carry the case ending, so the name itself needs no suffix. -->
+    <string name="files_drop_move_folder">%1$s klasörüne taşı</string>
+    <string name="files_drop_copy_folder">%1$s klasörüne kopyala</string>
+    <string name="files_drop_move_place">%1$s konumuna taşı</string>
+    <string name="files_drop_copy_place">%1$s konumuna kopyala</string>
+</resources>

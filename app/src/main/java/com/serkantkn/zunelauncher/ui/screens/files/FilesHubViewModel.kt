@@ -23,9 +23,11 @@ import com.serkantkn.zunelauncher.data.model.CloudTransfer
 import com.serkantkn.zunelauncher.data.model.FileItemModel
 import com.serkantkn.zunelauncher.data.model.StorageVolumeInfo
 import com.serkantkn.zunelauncher.di.appContainer
+import com.serkantkn.zunelauncher.util.DropAction
 import com.serkantkn.zunelauncher.util.FileSort
 import com.serkantkn.zunelauncher.util.PackageInstall
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.util.dropActionFor
 import com.serkantkn.zunelauncher.util.isAlreadyThere
 import com.serkantkn.zunelauncher.util.isInsideItself
 import com.serkantkn.zunelauncher.util.localizedString
@@ -769,6 +771,34 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     )
 
     private fun application(): Application = getApplication()
+
+    // ── Dragging things ─────────────────────────────────────────────────────
+
+    /** What letting go of [paths] over [destination] would do; the ghost says it before the drop. */
+    fun dropActionOnto(paths: List<String>, destination: File): DropAction {
+        // A library the phone never made (no Documents folder yet, say) has nowhere to put things.
+        if (!destination.isDirectory) return DropAction.REFUSED
+        return dropActionFor(paths, destination.absolutePath, _volumes.value.map { it.root.absolutePath })
+    }
+
+    /**
+     * Files dragged onto a folder. They go through the clipboard and [paste] like any other paste,
+     * so a drop gets the same safety, names and progress as cut-and-paste — there is one engine
+     * for putting files somewhere, not two. Whatever was on the clipboard before is replaced, as
+     * it would be on Windows by a drag that ends in a paste.
+     *
+     * [copy] comes from [dropActionOnto] — a copy across volumes, a move within one — and a drop
+     * that rule refuses (a folder into itself, things onto the folder they are in) does nothing.
+     * While another paste is still going the drop is refused too: the running one would empty
+     * the clipboard under it when it finished.
+     */
+    fun dropOnto(paths: List<String>, destination: File, copy: Boolean) {
+        if (dropActionOnto(paths, destination) == DropAction.REFUSED) return
+        if (pasteJob?.isActive == true) return
+        _clipboard.value = Clipboard(paths, isMove = !copy)
+        clearSelection()
+        paste(destination)
+    }
 
     // ── Cloud storage ───────────────────────────────────────────────────────
 

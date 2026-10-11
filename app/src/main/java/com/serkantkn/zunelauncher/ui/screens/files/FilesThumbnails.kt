@@ -161,11 +161,14 @@ internal fun FileTile(
     val zuneColors = LocalZuneColors.current
     val source = remember { MutableInteractionSource() }
     val folderLabel = stringResource(R.string.files_folder)
+    // Held and moved, it is dragged (and a folder takes drops); see FilesDragDrop.kt.
+    val drag = rememberFileDragSource(item, onLongClick, DropHighlight.TILE)
     Column(
         modifier = modifier
+            .then(drag?.modifier ?: Modifier)
             .then(if (tileSize != null) Modifier.width(tileSize) else Modifier.fillMaxWidth())
             .wpTilt(interactionSource = source)
-            .combinedClickable(interactionSource = source, indication = null, onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(interactionSource = source, indication = null, onClick = onClick, onLongClick = drag?.onHold ?: onLongClick)
     ) {
         Box(
             modifier = if (tileSize != null) Modifier.size(tileSize) else Modifier.fillMaxWidth().aspectRatio(1f)

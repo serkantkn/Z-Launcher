@@ -86,15 +86,18 @@ internal fun FileRow(
         if (item.isDirectory) folderLabel else formatFileSize(item.size)
     }
 
+    // Held and moved, it is dragged (and a folder takes drops); see FilesDragDrop.kt.
+    val drag = rememberFileDragSource(item, onLongClick, DropHighlight.ROW)
     Row(
         modifier = modifier
+            .then(drag?.modifier ?: Modifier)
             .fillMaxWidth()
             .wpTilt(interactionSource)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
-                onLongClick = onLongClick
+                onLongClick = drag?.onHold ?: onLongClick
             )
             .padding(vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically

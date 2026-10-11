@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Over the ghost of dragged files: what letting go here will do. -->
+    <string name="files_drop_move_folder">Move to %1$s</string>
+    <string name="files_drop_copy_folder">Copy to %1$s</string>
+    <string name="files_drop_move_place">Move to %1$s</string>
+    <string name="files_drop_copy_place">Copy to %1$s</string>
+</resources>
