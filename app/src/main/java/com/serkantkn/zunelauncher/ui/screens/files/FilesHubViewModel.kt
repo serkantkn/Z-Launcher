@@ -213,6 +213,11 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         _selection.value = emptySet()
     }
 
+    /** Chooses exactly [paths]: a Shift range, a right-click on something not yet chosen. */
+    fun setSelection(paths: Collection<String>) {
+        _selection.value = paths.toSet()
+    }
+
     /** What is on screen: the search's hits while a search is showing, the folder otherwise. */
     private fun visibleItems(): List<FileItemModel> = _deepResults.value ?: _fileItems.value
 
