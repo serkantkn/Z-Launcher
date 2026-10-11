@@ -50,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Arrangement
@@ -551,6 +552,10 @@ fun FilesHubScreen(
             )
         }
 
+        // The crumbs are the first slot in either view; the files start after them.
+        if (filesView == FilesView.THUMBNAILS) FilesCursorFollower(shown, gridState, firstItem = 1)
+        else FilesCursorFollower(shown, listState, firstItem = 1)
+
         if (filesView == FilesView.THUMBNAILS) {
             // The same folder as pictures, three or so to a row; the word still flies from a
             // tile's name to the heading and back.
@@ -581,7 +586,7 @@ fun FilesHubScreen(
                             }
                         },
                         onLongClick = { sheetTarget = item },
-                        modifier = Modifier.w10mStaggeredAnimation({ listEntry.value }, index)
+                        modifier = Modifier.w10mStaggeredAnimation({ listEntry.value }, index).filesItem(item)
                     )
                 }
                 if (deepResults == null && searchQuery.isNotBlank() && shown.isNotEmpty()) {
@@ -624,7 +629,7 @@ fun FilesHubScreen(
                         }
                     },
                     onLongClick = { sheetTarget = item },
-                    modifier = Modifier.w10mStaggeredAnimation({ listEntry.value }, index)
+                    modifier = Modifier.w10mStaggeredAnimation({ listEntry.value }, index).filesItem(item)
                 )
             }
 
@@ -859,7 +864,150 @@ fun FilesHubScreen(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    // ── A keyboard and a mouse (FilesKeyboard.kt): the same keys on phone and tablet ──
+    val keyboard = remember { FilesKeyboard() }
+    // What the keys work on is exactly what is on screen, the search box's filter included, so
+    // Ctrl+A never chooses something hidden that Delete would then take with it.
+    val keyItems = deepResults ?: fileItems.filter {
+        searchQuery.isBlank() || com.serkantkn.zunelauncher.util.matchesFileQuery(it.name, searchQuery)
+    }
+    val keyPaths = keyItems.map { it.file.absolutePath }
+    val browsingFiles = hasPermission && if (isWideScreen) !tabletInCloud else inFolder || pager.currentPage == BROWSE_TAB
+    LaunchedEffect(currentDirectory, deepResults) { keyboard.reset() }
+
+    fun keyFocusedItem(): FileItemModel? =
+        keyboard.focusedPath?.takeIf { keyboard.cursorShown }?.let { path -> keyItems.firstOrNull { it.file.absolutePath == path } }
+
+    /** Enter: what the bar's "open" does, a folder by the same jump a tap makes. */
+    fun openFromKeys(item: FileItemModel) {
+        viewModel.clearSelection()
+        val anchor = rowAnchors[item.file.absolutePath]
+        when {
+            !item.isDirectory -> openItem(item)
+            !isWideScreen && anchor != null -> enterFolder(item, anchor)
+            else -> viewModel.visit(item.file)
+        }
+    }
+
+    /** Escape: the first half of Back's order, the putting away; it never leaves a folder. */
+    fun dismissFromKeys() {
+        when {
+            deleteTarget != null -> deleteTarget = null
+            deleteSelectionPending -> deleteSelectionPending = false
+            viewerTarget != null -> closeSubScreen { viewerTarget = null }
+            detailsTarget != null -> if (isWideScreen) detailsTarget = null else closeSubScreen { detailsTarget = null }
+            textPrompt != null -> closeSubScreen { textPrompt = null }
+            sheetTarget != null -> sheetTarget = null
+            cloudSheetTarget != null -> cloudSheetTarget = null
+            showSortSheet -> showSortSheet = false
+            showVolumeSheet -> showVolumeSheet = false
+            selection.isNotEmpty() -> viewModel.clearSelection()
+            deepResults != null -> viewModel.clearDeepSearch()
+            isSearchOpen -> { isSearchOpen = false; viewModel.updateSearchQuery("") }
+            isWideScreen && searchQuery.isNotBlank() -> viewModel.updateSearchQuery("")
+            else -> keyboard.cursorShown = false
+        }
+    }
+
+    fun onKey(command: FilesKeyCommand): Boolean {
+        if (command == FilesKeyCommand.Dismiss) {
+            dismissFromKeys()
+            return true
+        }
+        // A viewer, a page or a sheet over the folder has the screen; only Escape reaches past it.
+        val covered = viewerTarget != null || sheetTarget != null || cloudSheetTarget != null ||
+            showSortSheet || showVolumeSheet || (!isWideScreen && (detailsTarget != null || textPrompt != null))
+        if (covered) return false
+        when (command) {
+            FilesKeyCommand.Back -> return when {
+                isWideScreen -> { tabletBack(); true }
+                inCloud -> { viewModel.cloudNavigateUp(); true }
+                browsingFiles -> { leaveFolder(); true }
+                else -> false
+            }
+            FilesKeyCommand.Refresh -> {
+                if (inCloud) viewModel.reloadCloudFolder() else viewModel.reload()
+                return true
+            }
+            FilesKeyCommand.Search -> {
+                if (!isWideScreen) isSearchOpen = true
+                keyboard.searchWanted = true
+                return true
+            }
+            else -> Unit
+        }
+        if (!browsingFiles) return false
+        val focused = keyFocusedItem()
+        when (command) {
+            FilesKeyCommand.Copy -> if (selection.isNotEmpty()) viewModel.copySelection() else viewModel.copyItem(focused ?: return false)
+            FilesKeyCommand.Cut -> if (selection.isNotEmpty()) viewModel.cutSelection() else viewModel.cutItem(focused ?: return false)
+            FilesKeyCommand.Paste -> if (clipboard != null) viewModel.paste() else return false
+            FilesKeyCommand.SelectAll -> viewModel.setSelection(keyPaths)
+            FilesKeyCommand.Delete, FilesKeyCommand.DeletePermanently -> when {
+                selection.isNotEmpty() -> deleteSelectionPending = true
+                focused != null -> deleteTarget = focused
+                else -> return false
+            }
+            FilesKeyCommand.Rename -> {
+                val item = singleSelected ?: focused?.takeIf { selection.isEmpty() } ?: return false
+                textPrompt = TextPrompt.Rename(item)
+                if (!isWideScreen) openSubScreen()
+            }
+            FilesKeyCommand.Open -> openFromKeys(focused ?: singleSelected ?: return false)
+            FilesKeyCommand.Up -> {
+                val parent = viewModel.parentOfCurrent() ?: return true
+                // On the phone the word flies back down when the step back is the folder above.
+                if (!isWideScreen && viewModel.backTarget()?.absolutePath == parent.absolutePath) leaveFolder()
+                else viewModel.visit(parent)
+            }
+            FilesKeyCommand.Toggle -> {
+                val item = focused ?: return false
+                viewModel.toggleSelection(item)
+                keyboard.anchorPath = item.file.absolutePath
+            }
+            is FilesKeyCommand.Move -> {
+                if (keyPaths.isEmpty()) return true
+                val from = keyboard.focusedPath?.let { keyPaths.indexOf(it) } ?: -1
+                // The first arrow starts from what is chosen, or the first item.
+                val to = if (from < 0) {
+                    keyPaths.indexOfFirst { it in selection }.coerceAtLeast(0)
+                } else {
+                    moveCursor(from, keyPaths.size, command.direction, keyboard.shape)
+                }
+                val path = keyPaths[to]
+                keyboard.cursorShown = true
+                keyboard.moveTo(path, extend = command.extend)
+                if (command.extend) viewModel.setSelection(rangeBetween(keyPaths, keyboard.anchorPath, path))
+            }
+            else -> return false
+        }
+        return true
+    }
+
+    // The mouse: the second button is the long press — the tablet chooses the thing so its bar
+    // shows what can be done with it, the phone opens its sheet — and Ctrl and Shift choose.
+    SideEffect {
+        keyboard.onSecondaryClick = { item ->
+            val path = item.file.absolutePath
+            if (isWideScreen) {
+                if (path !in viewModel.selection.value) viewModel.setSelection(listOf(path))
+            } else {
+                sheetTarget = item
+            }
+            keyboard.moveTo(path)
+        }
+        keyboard.onCtrlClick = { item ->
+            viewModel.toggleSelection(item)
+            keyboard.moveTo(item.file.absolutePath)
+        }
+        keyboard.onShiftClick = { item ->
+            val path = item.file.absolutePath
+            viewModel.setSelection(rangeBetween(keyPaths, keyboard.anchorPath ?: keyboard.focusedPath, path))
+            keyboard.focusedPath = path
+        }
+    }
+
+    FilesKeyboardRoot(keyboard = keyboard, onKey = ::onKey, modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -916,7 +1064,7 @@ fun FilesHubScreen(
                                     modifier = Modifier.padding(
                                         horizontal = ZuneDimens.ScreenPaddingHorizontal,
                                         vertical = 6.dp
-                                    )
+                                    ).filesTypingField(search = true)
                                 )
                             }
                         }
@@ -1451,7 +1599,8 @@ private fun TextPromptScreen(
             MetroTextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = stringResource(R.string.files_name_hint)
+                placeholder = stringResource(R.string.files_name_hint),
+                modifier = Modifier.filesTypingField()
             )
             Text(
                 text = stringResource(R.string.common_save_cap).lowercase(Locale.getDefault()),

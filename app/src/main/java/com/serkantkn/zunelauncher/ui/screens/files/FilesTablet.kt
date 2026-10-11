@@ -66,6 +66,7 @@ import com.serkantkn.zunelauncher.util.FilesView
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -572,7 +573,8 @@ private fun PlaceHeader(
                 SearchBox(
                     query = searchQuery,
                     onQueryChange = viewModel::updateSearchQuery,
-                    ink = ink
+                    ink = ink,
+                    modifier = Modifier.filesTypingField(search = true)
                 )
             } else {
                 SearchBox(
@@ -581,7 +583,8 @@ private fun PlaceHeader(
                         viewModel.updateSearchQuery(it)
                         viewModel.searchCloud(it)
                     },
-                    ink = ink
+                    ink = ink,
+                    modifier = Modifier.filesTypingField(search = true)
                 )
             }
         }
@@ -647,11 +650,11 @@ private fun PlaceHeader(
 
 /** Windows 8.1's search box: a plain rectangle, a magnifier at its end. */
 @Composable
-private fun SearchBox(query: String, onQueryChange: (String) -> Unit, ink: Color) {
+private fun SearchBox(query: String, onQueryChange: (String) -> Unit, ink: Color, modifier: Modifier = Modifier) {
     val zuneColors = LocalZuneColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
             .width(SEARCH_WIDTH)
             .height(36.dp)
             .border(1.5.dp, ink.copy(alpha = 0.35f))
@@ -738,6 +741,7 @@ private fun DetailsView(
             return@Column
         }
 
+        FilesCursorFollower(items, listState)
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -763,6 +767,7 @@ private fun DetailsView(
                         .fillMaxWidth()
                         .height(ROW_HEIGHT)
                         .background(if (selected) zuneColors.accentColor.copy(alpha = 0.18f) else Color.Transparent)
+                        .filesItem(item)
                         .combinedClickable(
                             interactionSource = source,
                             indication = null,
@@ -815,6 +820,7 @@ private fun ThumbnailsView(
     val selection by viewModel.selection.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val gridState = rememberLazyGridState()
     if (items.isEmpty()) {
         Box(modifier = Modifier.padding(start = 60.dp)) {
             MetroEmpty(
@@ -832,9 +838,11 @@ private fun ThumbnailsView(
         // Exactly as tall as its rows: a grid given the whole height shares it out between them,
         // and each tile then sat at the top of a cell with a gap under it.
         val gridHeight = (TILE_SIZE + TILE_CAPTION) * rows + TILE_GAP * (rows - 1) + 6.dp
+        FilesCursorFollower(items, gridState)
         LazyHorizontalGrid(
+            state = gridState,
             rows = GridCells.Fixed(rows),
-            modifier = Modifier.fillMaxWidth().height(gridHeight),
+            modifier = Modifier.fillMaxWidth().height(gridHeight).filesWheelScrollsSideways(gridState),
             horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalArrangement = Arrangement.spacedBy(TILE_GAP),
             contentPadding = PaddingValues(top = 6.dp, end = 40.dp)
@@ -845,7 +853,8 @@ private fun ThumbnailsView(
                     selected = item.file.absolutePath in selection,
                     tileSize = TILE_SIZE,
                     onClick = { onOpen(item) },
-                    onLongClick = { onLongClick(item) }
+                    onLongClick = { onLongClick(item) },
+                    modifier = Modifier.filesItem(item)
                 )
             }
         }
