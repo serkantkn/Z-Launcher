@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_pane_device">bu cihaz</string>
+    <string name="files_pane_libraries">kitaplıklar</string>
+    <string name="files_pane_add_account">hesap ekle</string>
+    <string name="files_free_of">%1$s boş · %2$s</string>
+    <string name="files_col_name">ad</string>
+    <string name="files_col_modified">değiştirme tarihi</string>
+    <string name="files_col_type">tür</string>
+    <string name="files_col_size">boyut</string>
+    <string name="files_type_file">%1$s dosyası</string>
+    <string name="files_type_plain">dosya</string>
+    <plurals name="files_item_count">
+        <item quantity="one">%d öğe</item>
+        <item quantity="other">%d öğe</item>
+    </plurals>
+    <string name="files_back">geri</string>
+    <string name="files_path_menu">üst klasörler</string>
+</resources>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_pane_device">this device</string>
+    <string name="files_pane_libraries">libraries</string>
+    <string name="files_pane_add_account">add account</string>
+    <string name="files_free_of">%1$s free of %2$s</string>
+    <string name="files_col_name">name</string>
+    <string name="files_col_modified">date modified</string>
+    <string name="files_col_type">type</string>
+    <string name="files_col_size">size</string>
+    <string name="files_type_file">%1$s file</string>
+    <string name="files_type_plain">file</string>
+    <plurals name="files_item_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <string name="files_back">back</string>
+    <string name="files_path_menu">folders above</string>
+</resources>

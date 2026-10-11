@@ -886,6 +886,11 @@ fun LauncherScreen(
                                 val seen = if (tabletStart) hingeProgress.value < 1f else (1f - hingeProgress.value * 1.5f) > 0f
                                 if (layoutReady && seen) drawContent()
                             }
+                            // Behind an open hub Start must not answer touches. On the phone it is
+                            // turned edge-on and out of reach; on the tablet it stays where it is
+                            // (the hub only fades up over it), so a tap on an empty part of the
+                            // hub fell through to the tile underneath and opened that instead.
+                            .then(if (isHubOpen) Modifier.blockPointerInput() else Modifier)
                     ) {
                         // On a tablet a page is a long way across: the pager's own rule — half
                         // the page, or a throw — asks for a drag the width of a hand. There a
@@ -1181,6 +1186,16 @@ private fun SplitPaneButtons(
                 contentDescription = stringResource(R.string.launcher_close_hub),
                 tint = Color.White
             )
+        }
+    }
+}
+
+/** Takes every touch before anything inside can, so nothing under it answers. */
+private fun Modifier.blockPointerInput(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                .changes.forEach { it.consume() }
         }
     }
 }

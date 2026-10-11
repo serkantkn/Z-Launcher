@@ -45,6 +45,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -271,6 +272,29 @@ fun FilesHubScreen(
     )
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
 
+    // The tablet has no pivot: the cloud is a place in its left column, and its back arrow walks
+    // back through the places visited rather than only up the folder tree.
+    var tabletInCloud by remember { mutableStateOf(false) }
+    val tabletHistory = remember { mutableStateListOf<FilesStop>() }
+
+    /** The tablet's step back; false when there is nowhere left to go but out of the hub. */
+    fun tabletBack(): Boolean {
+        if (tabletInCloud) {
+            if (!viewModel.cloudNavigateUp()) tabletInCloud = false
+            return true
+        }
+        val stop = tabletHistory.removeLastOrNull()
+        if (stop != null) {
+            val volume = stop.volume
+            if (volume != null && volume.root.absolutePath != currentVolume?.root?.absolutePath) {
+                viewModel.openVolume(volume)
+            }
+            viewModel.navigateTo(stop.directory)
+            return true
+        }
+        return viewModel.navigateUp()
+    }
+
     // Inside a folder the page is the folder's: one large word and its list. At the top of a
     // volume it is the pivot.
     val volumeRootPath = currentVolume?.root?.absolutePath ?: Environment.getExternalStorageDirectory().absolutePath
@@ -359,7 +383,7 @@ fun FilesHubScreen(
     }
 
     BackHandler {
-        val browsingCloud = activeCloudAccount != null && pager.currentPage == CLOUD_TAB
+        val browsingCloud = !isWideScreen && activeCloudAccount != null && pager.currentPage == CLOUD_TAB
         when {
             deleteTarget != null -> deleteTarget = null
             deleteSelectionPending -> deleteSelectionPending = false
@@ -373,6 +397,8 @@ fun FilesHubScreen(
             selection.isNotEmpty() -> viewModel.clearSelection()
             deepResults != null -> viewModel.clearDeepSearch()
             isSearchOpen -> { isSearchOpen = false; viewModel.updateSearchQuery("") }
+            isWideScreen && searchQuery.isNotBlank() -> viewModel.updateSearchQuery("")
+            isWideScreen -> if (!tabletBack()) onClose()
             browsingCloud && viewModel.cloudNavigateUp() -> Unit
             browsingCloud -> viewModel.closeCloudAccount()
             !leaveFolder() -> onClose()
@@ -553,7 +579,7 @@ fun FilesHubScreen(
     }
 
     // ── The bar ────────────────────────────────────────────────────────────
-    val inCloud = pager.currentPage == CLOUD_TAB
+    val inCloud = if (isWideScreen) tabletInCloud else pager.currentPage == CLOUD_TAB
     val barActions = when {
         selection.isNotEmpty() -> listOf(
             WpBarAction(Icons.Default.ContentCopy, stringResource(R.string.files_copy)) { viewModel.copySelection() },
@@ -572,7 +598,7 @@ fun FilesHubScreen(
             WpBarAction(Icons.Default.Refresh, stringResource(R.string.common_refresh)) {
                 viewModel.reloadCloudFolder()
             }
-        )
+        ).filter { !isWideScreen || it.icon != Icons.Default.Search }
 
         inCloud -> emptyList()
 
@@ -586,7 +612,7 @@ fun FilesHubScreen(
                 if (!isSearchOpen) viewModel.updateSearchQuery("")
             },
             WpBarAction(Icons.Default.Sort, stringResource(R.string.files_sort)) { showSortSheet = true }
-        ) + if (clipboard != null) {
+        ).filter { !isWideScreen || it.icon != Icons.Default.Search } + if (clipboard != null) {
             listOf(WpBarAction(Icons.Default.ContentPaste, stringResource(R.string.files_paste)) { viewModel.paste() })
         } else {
             emptyList()
@@ -633,123 +659,142 @@ fun FilesHubScreen(
         ) {
             ZuneHubEntranceLayout { bottomBarModifier ->
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // The heading's place, measured whether or not a folder is open.
-                    FolderHeading(
-                        text = browsingLabel,
-                        alpha = 0f,
-                        anchor = headingAnchor,
-                        onClick = null
-                    )
-
-                    @Composable
-                    fun SearchField() {
-                        AnimatedVisibility(visible = isSearchOpen) {
-                            ZuneSearchBar(
-                                query = searchQuery,
-                                onQueryChange = {
-                                    viewModel.updateSearchQuery(it)
-                                    if (inCloud) viewModel.searchCloud(it)
-                                },
-                                placeholder = stringResource(R.string.files_search_hint),
-                                modifier = Modifier.padding(
-                                    horizontal = ZuneDimens.ScreenPaddingHorizontal,
-                                    vertical = 6.dp
-                                )
-                            )
-                        }
-                    }
-
-                    if (inFolder) {
-                        // ── The folder's page: its name, then its list ──
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            FolderHeading(
-                                text = currentDirectory.name,
-                                alpha = localZoom.titleAlpha,
-                                anchor = headingAnchor,
-                                onClick = { leaveFolder() }
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .graphicsLayer { alpha = contentAlpha.value }
-                            ) {
-                                SearchField()
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth()
-                                        .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
-                                ) {
-                                    BrowsePage()
-                                }
-                                Spacer(modifier = Modifier.height(72.dp))
-                            }
-                        }
+                    if (isWideScreen) {
+                        FilesTabletLayout(
+                            viewModel = viewModel,
+                            inCloud = tabletInCloud,
+                            onInCloudChange = { tabletInCloud = it },
+                            history = tabletHistory,
+                            onBack = { tabletBack() },
+                            canGoBack = tabletInCloud || tabletHistory.isNotEmpty() || viewModel.parentOfCurrent() != null,
+                            permissionGate = { StoragePermissionGate(context, permissionLauncher) },
+                            cloudPage = { PageAt(CLOUD_TAB) },
+                            onOpenFile = { openItem(it) },
+                            onItemLongClick = { sheetTarget = it },
+                            onAddCloudAccount = { startGoogleSignIn() },
+                            bottomPadding = listBottomPadding,
+                            modifier = Modifier.graphicsLayer { alpha = contentAlpha.value }
+                        )
                     } else {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer { alpha = contentAlpha.value }
-                        ) {
-                            if (isWideScreen) {
-                                ZuneWideHubTitle(text = stringResource(R.string.hub_files))
-                            } else {
-                                Text(
-                                    text = stringResource(R.string.hub_files),
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 18.sp,
-                                        letterSpacing = 1.sp
-                                    ),
-                                    color = if (zuneColors.isDark) {
-                                        Color.White.copy(alpha = 0.9f)
-                                    } else {
-                                        Color.Black.copy(alpha = 0.85f)
+                        // The heading's place, measured whether or not a folder is open.
+                        FolderHeading(
+                            text = browsingLabel,
+                            alpha = 0f,
+                            anchor = headingAnchor,
+                            onClick = null
+                        )
+
+                        @Composable
+                        fun SearchField() {
+                            AnimatedVisibility(visible = isSearchOpen) {
+                                ZuneSearchBar(
+                                    query = searchQuery,
+                                    onQueryChange = {
+                                        viewModel.updateSearchQuery(it)
+                                        if (inCloud) viewModel.searchCloud(it)
                                     },
-                                    maxLines = 1,
-                                    modifier = Modifier.padding(
-                                        start = ZuneDimens.ScreenPaddingHorizontal,
-                                        top = 48.dp,
-                                        bottom = 4.dp
-                                    )
-                                )
-                            }
-
-                            ZunePivotTabs(
-                                tabs = tabs,
-                                state = pager,
-                                startPadding = if (isWideScreen) 48.dp else ZuneDimens.ScreenPaddingHorizontal
-                            )
-
-                            SearchField()
-
-                            transfer?.let { active ->
-                                TransferBar(
-                                    transfer = active,
-                                    onCancel = { viewModel.cancelTransfer() },
+                                    placeholder = stringResource(R.string.files_search_hint),
                                     modifier = Modifier.padding(
                                         horizontal = ZuneDimens.ScreenPaddingHorizontal,
                                         vertical = 6.dp
                                     )
                                 )
                             }
+                        }
 
-                            ZuneLoopingPager(
-                                state = pager,
-                                modifier = Modifier.weight(1f).fillMaxWidth()
-                            ) { page ->
-                                Box(
+                        if (inFolder) {
+                            // ── The folder's page: its name, then its list ──
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                FolderHeading(
+                                    text = currentDirectory.name,
+                                    alpha = localZoom.titleAlpha,
+                                    anchor = headingAnchor,
+                                    onClick = { leaveFolder() }
+                                )
+                                Column(
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                        .graphicsLayer { alpha = contentAlpha.value }
                                 ) {
-                                    PageAt(page)
+                                    SearchField()
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                                    ) {
+                                        BrowsePage()
+                                    }
+                                    Spacer(modifier = Modifier.height(72.dp))
                                 }
                             }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer { alpha = contentAlpha.value }
+                            ) {
+                                if (isWideScreen) {
+                                    ZuneWideHubTitle(text = stringResource(R.string.hub_files))
+                                } else {
+                                    Text(
+                                        text = stringResource(R.string.hub_files),
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 18.sp,
+                                            letterSpacing = 1.sp
+                                        ),
+                                        color = if (zuneColors.isDark) {
+                                            Color.White.copy(alpha = 0.9f)
+                                        } else {
+                                            Color.Black.copy(alpha = 0.85f)
+                                        },
+                                        maxLines = 1,
+                                        modifier = Modifier.padding(
+                                            start = ZuneDimens.ScreenPaddingHorizontal,
+                                            top = 48.dp,
+                                            bottom = 4.dp
+                                        )
+                                    )
+                                }
 
-                            Spacer(modifier = Modifier.height(72.dp))
+                                ZunePivotTabs(
+                                    tabs = tabs,
+                                    state = pager,
+                                    startPadding = if (isWideScreen) 48.dp else ZuneDimens.ScreenPaddingHorizontal
+                                )
+
+                                SearchField()
+
+                                transfer?.let { active ->
+                                    TransferBar(
+                                        transfer = active,
+                                        onCancel = { viewModel.cancelTransfer() },
+                                        modifier = Modifier.padding(
+                                            horizontal = ZuneDimens.ScreenPaddingHorizontal,
+                                            vertical = 6.dp
+                                        )
+                                    )
+                                }
+
+                                ZuneLoopingPager(
+                                    state = pager,
+                                    modifier = Modifier.weight(1f).fillMaxWidth()
+                                ) { page ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                                    ) {
+                                        PageAt(page)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(72.dp))
+                            }
                         }
+
                     }
 
                     WindowsPhoneBottomBar(
