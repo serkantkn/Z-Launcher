@@ -171,7 +171,17 @@ internal fun FileTile(
             modifier = if (tileSize != null) Modifier.size(tileSize) else Modifier.fillMaxWidth().aspectRatio(1f)
         ) {
             FileThumb(item, modifier = Modifier.fillMaxSize(), glyphSize = tileSize?.times(0.3f) ?: 36.dp)
-            if (selected) SelectionMark(zuneColors.accentColor)
+            // A folder's square is the accent already; its mark is drawn in the ink instead, or
+            // the frame vanishes into the tile and only the corner says it is chosen.
+            if (selected) {
+                val ink = if (zuneColors.isDark) Color.White else Color.Black
+                if (item.isDirectory) {
+                    // The check is the opposite of the ink, so it reads on the corner.
+                    SelectionMark(ink, tick = if (zuneColors.isDark) Color.Black else Color.White)
+                } else {
+                    SelectionMark(zuneColors.accentColor)
+                }
+            }
         }
         Text(
             text = item.name,
@@ -194,7 +204,7 @@ internal fun FileTile(
 
 /** Windows 8's selection mark: a frame in the accent and a check in a corner triangle. */
 @Composable
-private fun SelectionMark(accent: Color) {
+private fun SelectionMark(accent: Color, tick: Color = Color.White) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -209,12 +219,12 @@ private fun SelectionMark(accent: Color) {
                     close()
                 }
                 drawPath(triangle, accent)
-                val tick = Path().apply {
+                val check = Path().apply {
                     moveTo(size.width - corner * 0.45f, corner * 0.28f)
                     lineTo(size.width - corner * 0.30f, corner * 0.43f)
                     lineTo(size.width - corner * 0.10f, corner * 0.16f)
                 }
-                drawPath(tick, Color.White, style = Stroke(width = 2.dp.toPx()))
+                drawPath(check, tick, style = Stroke(width = 2.dp.toPx()))
             }
     )
 }

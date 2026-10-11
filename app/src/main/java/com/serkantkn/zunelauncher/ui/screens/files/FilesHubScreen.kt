@@ -432,7 +432,7 @@ fun FilesHubScreen(
             deleteTarget != null -> deleteTarget = null
             deleteSelectionPending -> deleteSelectionPending = false
             viewerTarget != null -> closeSubScreen { viewerTarget = null }
-            detailsTarget != null -> closeSubScreen { detailsTarget = null }
+            detailsTarget != null -> if (isWideScreen) detailsTarget = null else closeSubScreen { detailsTarget = null }
             textPrompt != null -> closeSubScreen { textPrompt = null }
             sheetTarget != null -> sheetTarget = null
             cloudSheetTarget != null -> cloudSheetTarget = null
@@ -775,8 +775,8 @@ fun FilesHubScreen(
                 textPrompt = TextPrompt.Rename(item)
             })
             add(Win8Command(Icons.Default.Info, stringResource(R.string.files_details).lowercase(locale)) {
+                // The tablet's details slide in from the right edge (FileDetailsPanel below).
                 detailsTarget = item
-                openSubScreen()
             })
             if (item.isDirectory && clipboard != null) {
                 add(Win8Command(Icons.Default.ContentPaste, stringResource(R.string.files_paste_here)) {
@@ -1032,7 +1032,8 @@ fun FilesHubScreen(
         // ── Sub-screens on the hinge ──
         // On the tablet a name is asked for in Windows 8's band instead (below).
         val prompt = textPrompt.takeIf { !isWideScreen }
-        if (prompt != null || viewerTarget != null || detailsTarget != null || subScreenHinge.value > 0f) {
+        val phoneDetails = detailsTarget.takeIf { !isWideScreen }
+        if (prompt != null || viewerTarget != null || phoneDetails != null || subScreenHinge.value > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1044,7 +1045,7 @@ fun FilesHubScreen(
                         alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
                     }
             ) {
-                val details = detailsTarget
+                val details = phoneDetails
                 val viewing = viewerTarget
                 when {
                     viewing != null -> FileViewerScreen(
@@ -1139,6 +1140,21 @@ fun FilesHubScreen(
                     sheetTarget = null
                 }
             }
+        }
+
+        // ── The tablet's details, from the right edge ──
+        if (isWideScreen) {
+            FileDetailsPanel(
+                item = detailsTarget,
+                measure = { viewModel.measure(it) },
+                onOpen = { item ->
+                    detailsTarget = null
+                    viewModel.clearSelection()
+                    if (item.isDirectory) viewModel.visit(item.file) else openItem(item)
+                },
+                onShare = { item -> viewModel.shareFile(context, item.file) },
+                onClose = { detailsTarget = null }
+            )
         }
 
         // ── The tablet asks for a name in Windows 8's band ──

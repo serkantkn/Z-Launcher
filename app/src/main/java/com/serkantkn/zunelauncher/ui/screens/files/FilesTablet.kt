@@ -59,6 +59,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.WindowInsets
 import com.serkantkn.zunelauncher.util.FilesView
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -890,3 +893,113 @@ private val TILE_SIZE = 150.dp
 private val TILE_CAPTION = 48.dp
 private val TILE_GAP = 14.dp
 private const val ENTRANCE_MILLIS = 300
+
+// ════════════════════════════════════════════════════════════
+// DETAILS
+// ════════════════════════════════════════════════════════════
+
+/**
+ * A file's details on the tablet: a panel that slides in from the right edge, as Windows 8's
+ * settings did, over the folder dimmed behind it — what the file holds, then the facts, then
+ * open and share at its foot. A tap on the dimmed folder, or Back, puts it away.
+ */
+@Composable
+internal fun FileDetailsPanel(
+    item: FileItemModel?,
+    measure: suspend (FileItemModel) -> Pair<Long, Int>,
+    onOpen: (FileItemModel) -> Unit,
+    onShare: (FileItemModel) -> Unit,
+    onClose: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    val ink = if (zuneColors.isDark) Color.White else Color.Black
+    // The panel keeps the last file while it slides away, so it does not empty as it goes.
+    var shown by remember { mutableStateOf(item) }
+    if (item != null) shown = item
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(item) {
+        progress.animateTo(if (item != null) 1f else 0f, tween(PANEL_MILLIS, easing = FastOutSlowInEasing))
+    }
+    val current = shown ?: return
+    if (item == null && progress.value == 0f) return
+
+    var measured by remember(current.file.absolutePath) { mutableStateOf<Pair<Long, Int>?>(null) }
+    LaunchedEffect(current.file.absolutePath) { measured = measure(current) }
+    val facts = fileFacts(current, measured)
+    val panelPx = with(LocalDensity.current) { PANEL_WIDTH.toPx() }
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = progress.value }
+                .background(Color.Black.copy(alpha = 0.4f))
+                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onClose)
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .width(PANEL_WIDTH)
+                .fillMaxHeight()
+                .graphicsLayer { translationX = (1f - progress.value) * panelPx }
+                .background(if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFF7F7F7))
+                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+                .verticalScroll(rememberScrollState())
+                .padding(start = 28.dp, end = 28.dp, top = 40.dp, bottom = navBottom + 24.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.files_details).lowercase(Locale.getDefault()),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 18.sp, letterSpacing = 1.sp),
+                color = ink.copy(alpha = 0.9f)
+            )
+            Text(
+                text = current.name,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light, fontSize = 26.sp),
+                color = ink,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+            )
+            FilePreview(current, modifier = Modifier.fillMaxWidth().height(PREVIEW_HEIGHT))
+            facts.forEach { (label, value) ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = zuneColors.textMuted,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+                    color = ink
+                )
+            }
+            Row(modifier = Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                if (!current.isDirectory) {
+                    PanelLink(stringResource(R.string.files_open).lowercase(Locale.getDefault())) { onOpen(current) }
+                    PanelLink(stringResource(R.string.files_share).lowercase(Locale.getDefault())) { onShare(current) }
+                } else {
+                    PanelLink(stringResource(R.string.files_open).lowercase(Locale.getDefault())) { onOpen(current) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PanelLink(text: String, onClick: () -> Unit) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
+        color = LocalZuneColors.current.accentLink,
+        modifier = Modifier
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onClick)
+            .padding(vertical = 6.dp)
+    )
+}
+
+private val PANEL_WIDTH = 400.dp
+private val PREVIEW_HEIGHT = 240.dp
+private const val PANEL_MILLIS = 260
+

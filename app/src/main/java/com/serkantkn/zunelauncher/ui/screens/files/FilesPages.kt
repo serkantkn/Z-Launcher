@@ -387,19 +387,15 @@ private fun CloudAccountRow(
 // ── What a file is ──────────────────────────────────────────────────────────
 
 /** Everything the phone knows about one file, including how big a folder really is. */
+/**
+ * What the details say about a file, as label and value: where it is, how big (a folder's is
+ * measured, and says so meanwhile), what is in a folder, when it changed, its kind, whether it
+ * can be written. Shared by the phone's details page and the tablet's side panel.
+ */
 @Composable
-internal fun FileDetailsScreen(
-    item: FileItemModel,
-    measure: suspend () -> Pair<Long, Int>,
-    onClose: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val zuneColors = LocalZuneColors.current
-    var measured by remember(item.file.absolutePath) { mutableStateOf<Pair<Long, Int>?>(null) }
-    LaunchedEffect(item.file.absolutePath) { measured = measure() }
-
+internal fun fileFacts(item: FileItemModel, measured: Pair<Long, Int>?): List<Pair<String, String>> {
     val measuring = stringResource(R.string.files_measuring)
-    val rows: List<Pair<String, String>> = buildList {
+    return buildList {
         add(stringResource(R.string.files_details_path) to item.file.absolutePath)
         add(
             stringResource(R.string.files_details_size) to
@@ -416,7 +412,7 @@ internal fun FileDetailsScreen(
                 SimpleDateFormat("d MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(item.lastModified))
         )
         if (!item.isDirectory && item.extension.isNotBlank()) {
-            add(stringResource(R.string.files_details_kind) to item.extension.uppercase(Locale.getDefault()))
+            add(stringResource(R.string.files_details_kind) to item.extension.uppercase(Locale.ROOT))
         }
         add(
             stringResource(R.string.files_details_readable) to stringResource(
@@ -424,6 +420,20 @@ internal fun FileDetailsScreen(
             )
         )
     }
+}
+
+@Composable
+internal fun FileDetailsScreen(
+    item: FileItemModel,
+    measure: suspend () -> Pair<Long, Int>,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val zuneColors = LocalZuneColors.current
+    var measured by remember(item.file.absolutePath) { mutableStateOf<Pair<Long, Int>?>(null) }
+    LaunchedEffect(item.file.absolutePath) { measured = measure() }
+
+    val rows = fileFacts(item, measured)
 
     MetroSubScreen(
         breadcrumb = stringResource(R.string.hub_files),
@@ -432,6 +442,13 @@ internal fun FileDetailsScreen(
         modifier = modifier
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = padding) {
+            item(key = "preview") {
+                // What the file holds, as the tablet's panel shows it.
+                FilePreview(
+                    item = item,
+                    modifier = Modifier.fillMaxWidth().height(220.dp).padding(bottom = 16.dp)
+                )
+            }
             item(key = "name") {
                 Text(
                     text = item.name,
