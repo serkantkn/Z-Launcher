@@ -78,6 +78,19 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.BuildConfig
 import com.serkantkn.zunelauncher.R
+import kotlinx.coroutines.delay
+import com.serkantkn.zunelauncher.util.TileIconFace
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
+import com.serkantkn.zunelauncher.ui.animation.win8FlipAway
+import com.serkantkn.zunelauncher.ui.animation.win8FallBack
+import com.serkantkn.zunelauncher.ui.animation.Win8Splash
+import com.serkantkn.zunelauncher.ui.animation.Win8Motion
+import com.serkantkn.zunelauncher.ui.animation.Win8LaunchSplash
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Animatable
 import com.serkantkn.zunelauncher.data.model.AppInfo
 import com.serkantkn.zunelauncher.ui.components.ZuneSearchBar
 import com.serkantkn.zunelauncher.ui.screens.home.Win8CircleButton
@@ -131,8 +144,51 @@ fun Windows8AppsScreen(
     var selected by remember { mutableStateOf<AppInfo?>(null) }
     val listState = rememberLazyListState()
 
+    // ── Launching, the Windows 8 way (see Win8Motion) ──
+    // The app's icon flips edge-on, the rest of the view falls back and fades, and a splash
+    // with the icon on it turns flat as it grows from the icon to the whole screen; the app then
+    // comes up over it. 1 is at rest, 2 is the screen covered.
+    val animationsOn = LocalAnimationsEnabled.current
+    val launch = remember { Animatable(1f) }
+    val launchProgress: () -> Float = { launch.value }
+    var launchingKey by remember { mutableStateOf<String?>(null) }
+    var splash by remember { mutableStateOf<Win8Splash?>(null) }
+    val iconBounds = remember { HashMap<String, Rect>() }
+
+    fun settleLaunch() {
+        launchingKey = null
+        splash = null
+        scope.launch { launch.snapTo(1f) }
+    }
+
+    fun launchApp(app: AppInfo, icon: Drawable?) {
+        if (launchingKey != null) return
+        val from = iconBounds[app.key]
+        if (!animationsOn || from == null) {
+            viewModel.launchApp(app)
+            return
+        }
+        val face = icon?.let { TileIconFace.Picture(it.toSquareImageBitmap()) }
+            ?: TileIconFace.Letter(app.label.take(1).uppercase(Locale.getDefault()))
+        val mine = Win8Splash(from, zuneColors.accentColor, face = face)
+        launchingKey = app.key
+        splash = mine
+        scope.launch {
+            launch.snapTo(1f)
+            launch.animateTo(2f, tween(Win8Motion.LAUNCH_MILLIS, easing = LinearEasing))
+            viewModel.launchApp(app)
+            // An app that never came up would leave the screen covered.
+            delay(WIN8_SPLASH_GIVE_UP_MILLIS)
+            if (splash === mine) settleLaunch()
+        }
+    }
+
     LaunchedEffect(searchRequests) { if (searchRequests > 0) isSearchActive = true }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshUsage() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshUsage()
+        // Back from the app the splash went into: the list is as it was.
+        if (launchingKey != null) settleLaunch()
+    }
 
     // The sections, cut afresh when the order or the apps change. "Today" is dated from the
     // moment the view is composed, which is close enough for a list of installs.
@@ -187,6 +243,7 @@ fun Windows8AppsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(HEADER_HEIGHT)
+                    .win8FallBack(launchProgress)
                     .padding(start = SIDE_PADDING, end = SIDE_PADDING, top = 18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -284,8 +341,11 @@ fun Windows8AppsScreen(
                                 selected = selected?.key == app.key,
                                 dimmed = app.packageName in hiddenApps && !showingHidden,
                                 fg = fg,
+                                launching = launchingKey == app.key,
+                                launchProgress = launchProgress,
+                                onIconPlaced = { iconBounds[app.key] = it },
                                 onClick = {
-                                    if (selected != null) selected = null else viewModel.launchApp(app)
+                                    if (selected != null) selected = null else launchApp(app, icon)
                                 },
                                 onLongClick = { selected = app }
                             )
@@ -307,6 +367,7 @@ fun Windows8AppsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(FOOTER_HEIGHT)
+                    .win8FallBack(launchProgress)
                     .padding(horizontal = SIDE_PADDING),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -362,8 +423,13 @@ fun Windows8AppsScreen(
                 onDismiss = { jumpListOpen = false }
             )
         }
+
+        splash?.let { Win8LaunchSplash(it, launchProgress) }
     }
 }
+
+/** How long a splash may cover the screen with no app coming up over it. */
+private const val WIN8_SPLASH_GIVE_UP_MILLIS = 2_000L
 
 // ════════════════════════════════════════════════════════════
 // PARTS
@@ -419,6 +485,9 @@ private fun Win8AppRow(
     selected: Boolean,
     dimmed: Boolean,
     fg: Color,
+    launching: Boolean,
+    launchProgress: () -> Float,
+    onIconPlaced: (Rect) -> Unit,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -428,6 +497,8 @@ private fun Win8AppRow(
         modifier = Modifier
             .width(COLUMN_WIDTH)
             .height(ROW_HEIGHT)
+            // The chosen row keeps still while its icon flips; every other row falls back.
+            .then(if (launching) Modifier else Modifier.win8FallBack(launchProgress))
             .then(if (selected) Modifier.border(2.dp, accent) else Modifier)
             .combinedClickable(
                 indication = null,
@@ -438,15 +509,21 @@ private fun Win8AppRow(
             .padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Win8AppIcon(app, icon, ICON_SIZE)
+        Box(
+            modifier = Modifier
+                .onGloballyPositioned { onIconPlaced(it.boundsInRoot()) }
+                .then(if (launching) Modifier.win8FlipAway(launchProgress) else Modifier)
+        ) {
+            Win8AppIcon(app, icon, ICON_SIZE)
+        }
         Spacer(modifier = Modifier.width(12.dp))
         Text(
+            modifier = if (launching) Modifier.weight(1f).win8FallBack(launchProgress) else Modifier.weight(1f),
             text = app.label,
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
             color = fg.copy(alpha = if (dimmed) 0.45f else 0.95f),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            overflow = TextOverflow.Ellipsis
         )
         if (selected) {
             Box(

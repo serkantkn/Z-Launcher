@@ -180,3 +180,26 @@ private fun stageOf(value: Float): Float {
 }
 
 private fun lerp(a: Float, b: Float, t: Float) = a + (b - a) * t
+
+/**
+ * The launch envelope's "everything else" for screens other than the tile board: during 1 → 2
+ * the thing falls back a little and fades, as the board's other tiles do.
+ */
+fun Modifier.win8FallBack(progress: () -> Float): Modifier = graphicsLayer {
+    val x = (progress() - 1f).coerceIn(0f, 1f)
+    if (x == 0f) return@graphicsLayer
+    val t = (x / Win8Motion.FALL_BACK_END).coerceIn(0f, 1f)
+    alpha = 1f - t
+    scaleX = 1f - 0.08f * t
+    scaleY = 1f - 0.08f * t
+}
+
+/** The launch envelope's chosen thing: it flips edge-on about its upright axis, as a tile does. */
+fun Modifier.win8FlipAway(progress: () -> Float): Modifier = graphicsLayer {
+    val x = (progress() - 1f).coerceIn(0f, 1f)
+    if (x == 0f) return@graphicsLayer
+    val t = (x / Win8Motion.FLIP_END).coerceIn(0f, 1f)
+    rotationY = 90f * Win8Motion.FlipInEasing.transform(t)
+    cameraDistance = 14f * density
+    alpha = if (t >= 1f) 0f else 1f
+}
