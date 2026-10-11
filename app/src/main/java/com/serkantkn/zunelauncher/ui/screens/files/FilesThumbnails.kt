@@ -207,7 +207,7 @@ internal fun FileTile(
 
 /** Windows 8's selection mark: a frame in the accent and a check in a corner triangle. */
 @Composable
-private fun SelectionMark(accent: Color, tick: Color = Color.White) {
+internal fun SelectionMark(accent: Color, tick: Color = Color.White) {
     Box(
         modifier = Modifier
             .fillMaxSize()

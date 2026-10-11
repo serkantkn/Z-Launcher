@@ -68,4 +68,40 @@ class CloudApiParsingTest {
         assertEquals(CloudService.GOOGLE_DRIVE, CloudService.fromId("google_drive"))
         assertNull(CloudService.fromId("nope"))
     }
+
+    @Test
+    fun shortcutsOpenWhatTheyPointAtAndUnexportableGoogleFilesOpenOnTheWeb() {
+        val response = JSONObject(
+            """
+            {"files":[
+              {"id":"s1","name":"Ortak klasör","mimeType":"application/vnd.google-apps.shortcut",
+               "shortcutDetails":{"targetId":"f9","targetMimeType":"application/vnd.google-apps.folder"}},
+              {"id":"s2","name":"Tablo","mimeType":"application/vnd.google-apps.shortcut",
+               "shortcutDetails":{"targetId":"t7","targetMimeType":"application/vnd.google-apps.spreadsheet"}},
+              {"id":"f1","name":"Anket","mimeType":"application/vnd.google-apps.form","webViewLink":"https://docs.google.com/forms/d/f1"},
+              {"id":"p1","name":"Rapor.pdf","mimeType":"application/pdf"}
+            ]}
+            """.trimIndent()
+        )
+        val items = GoogleDriveApi.parse(response).items
+
+        // A shortcut to a folder is a folder, listed by its target; renaming it stays with the shortcut.
+        assertTrue(items[0].isFolder)
+        assertEquals("f9", items[0].contentId)
+        assertEquals("s1", items[0].id)
+
+        // A shortcut to a spreadsheet exports the spreadsheet.
+        assertTrue(items[1].isGoogleDocument)
+        assertEquals("t7", items[1].contentId)
+
+        // A form cannot be exported; it only opens on its page.
+        assertTrue(items[2].isWebOnly)
+        assertFalse(items[2].isGoogleDocument)
+        assertEquals("https://docs.google.com/forms/d/f1", GoogleDriveApi.webUrlOf(items[2]))
+
+        // An ordinary file is its own content, and a Google file downloads as a PDF.
+        assertEquals("p1", items[3].contentId)
+        assertNull(items[3].targetId)
+        assertEquals("application/pdf", GoogleDriveApi.downloadMime(items[1]))
+    }
 }

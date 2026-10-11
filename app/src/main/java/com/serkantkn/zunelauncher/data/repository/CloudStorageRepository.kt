@@ -113,20 +113,39 @@ class CloudStorageRepository(
         withContext(Dispatchers.IO) { apiOf(account).delete(tokenOf(account), item) }
 
     /**
-     * Downloads the document and hands it to whichever app can show it. Cloud files have no local
-     * bytes, so a copy goes into the app's cache first and travels as a FileProvider uri.
+     * Opens the document. Google's own formats — Docs, Sheets, Slides, and the forms and maps that
+     * cannot be exported at all — open on their page, where Google's apps or the browser can read
+     * and edit them; a PDF copy of a spreadsheet was the most a download could give. Everything
+     * else is downloaded into the app's cache and handed, as a FileProvider uri, to whichever app
+     * can show it, with the type it really is.
      */
-    suspend fun open(account: CloudAccount, item: CloudItem) {
-        val file = downloadToCache(account, item)
-        startWithGrant(Intent(Intent.ACTION_VIEW), file, item)
+    suspend fun open(account: CloudAccount, item: CloudItem, onProgress: (Long, Long) -> Unit = { _, _ -> }) {
+        if (item.isGoogleDocument || item.isWebOnly) {
+            openWeb(account, item)
+            return
+        }
+        val file = downloadToCache(account, item, onProgress)
+        startWithGrant(Intent(Intent.ACTION_VIEW), file, apiOf(account).downloadMime(item))
     }
 
-    suspend fun share(account: CloudAccount, item: CloudItem) {
-        val file = downloadToCache(account, item)
+    /** Opens the item's page on the service's website, in Google's app for it or the browser. */
+    fun openWeb(account: CloudAccount, item: CloudItem) {
+        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(apiOf(account).webUrlOf(item)))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            ZuneLog.e(TAG, "nothing could open the page", e)
+            throw CloudException(R.string.cloud_error_no_app, e.message, e)
+        }
+    }
+
+    suspend fun share(account: CloudAccount, item: CloudItem, onProgress: (Long, Long) -> Unit = { _, _ -> }) {
+        val file = downloadToCache(account, item, onProgress)
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         val intent = Intent(Intent.ACTION_SEND).apply {
             putExtra(Intent.EXTRA_STREAM, uri)
-            type = item.mimeType.ifBlank { "*/*" }
+            type = apiOf(account).downloadMime(item)
         }
         startChooser(intent)
     }
@@ -144,7 +163,7 @@ class CloudStorageRepository(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = ContentValues().apply {
                     put(MediaStore.Downloads.DISPLAY_NAME, name)
-                    put(MediaStore.Downloads.MIME_TYPE, item.mimeType.ifBlank { "application/octet-stream" })
+                    put(MediaStore.Downloads.MIME_TYPE, api.downloadMime(item).takeIf { it != "*/*" } ?: "application/octet-stream")
                     put(MediaStore.Downloads.IS_PENDING, 1)
                 }
                 val target = context.contentResolver
@@ -165,25 +184,39 @@ class CloudStorageRepository(
             name
         }
 
-    private suspend fun downloadToCache(account: CloudAccount, item: CloudItem): File =
+    private suspend fun downloadToCache(
+        account: CloudAccount,
+        item: CloudItem,
+        onProgress: (Long, Long) -> Unit = { _, _ -> }
+    ): File =
         withContext(Dispatchers.IO) {
             val api = apiOf(account)
-            val directory = File(context.cacheDir, "cloud").apply { mkdirs() }
-            // One cache file per document, replaced on every open so edits elsewhere show up.
+            // One folder per document: two files of the same name in different folders of the
+            // drive used to overwrite each other's copy while the first was still open.
+            val directory = File(File(context.cacheDir, "cloud"), item.contentId.replace(File.separatorChar, '_'))
+                .apply { mkdirs() }
+            // Replaced on every open so edits made elsewhere show up.
             val target = File(directory, api.downloadName(item).replace(File.separatorChar, '_'))
-            target.outputStream().use { output -> api.download(tokenOf(account), item, output) }
+            try {
+                target.outputStream().use { output -> api.download(tokenOf(account), item, output, onProgress) }
+            } catch (e: Exception) {
+                // A half-written copy must not be opened next time as if it were whole.
+                target.delete()
+                throw e
+            }
             target
         }
 
-    private fun startWithGrant(intent: Intent, file: File, item: CloudItem) {
+    private fun startWithGrant(intent: Intent, file: File, mimeType: String) {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        intent.setDataAndType(uri, item.mimeType.ifBlank { "*/*" })
-        startChooser(intent)
+        intent.setDataAndType(uri, mimeType)
+        startChooser(intent, R.string.files_open_with)
     }
 
-    private fun startChooser(intent: Intent) {
+    /** [title] says what the chooser is for: opening a file, or sending it somewhere. */
+    private fun startChooser(intent: Intent, title: Int = R.string.files_share_chooser) {
         try {
-            val chooser = Intent.createChooser(intent, context.localizedString(R.string.files_share_chooser))
+            val chooser = Intent.createChooser(intent, context.localizedString(title))
             context.startActivity(
                 chooser.apply {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

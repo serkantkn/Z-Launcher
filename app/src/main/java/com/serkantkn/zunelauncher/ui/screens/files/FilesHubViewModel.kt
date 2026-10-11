@@ -1183,7 +1183,7 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun openCloudFolder(item: CloudItem) {
         if (!item.isFolder) return
-        _cloudPath.value = _cloudPath.value + CloudCrumb(item.id, item.name)
+        _cloudPath.value = _cloudPath.value + CloudCrumb(item.contentId, item.name)
         loadCloudFolder()
     }
 
@@ -1257,16 +1257,47 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         cloudRepository.delete(account, item)
     }
 
+    /**
+     * Opens a file on the drive. Downloading it takes a while on a slow connection, and a tap
+     * with nothing to show for it looked like a file that would not open, so the download runs
+     * under the same bar as a save, and can be stopped.
+     */
     fun openCloudItem(item: CloudItem) {
         if (item.isFolder) {
             openCloudFolder(item)
             return
         }
-        withCloudAccount { account -> cloudRepository.open(account, item) }
+        cloudTransfer(item) { account, progress -> cloudRepository.open(account, item, progress) }
     }
 
     fun shareCloudItem(item: CloudItem) =
-        withCloudAccount { account -> cloudRepository.share(account, item) }
+        cloudTransfer(item) { account, progress -> cloudRepository.share(account, item, progress) }
+
+    /** Opens the item's page on the drive's website, whatever kind of file it is. */
+    fun openCloudItemOnWeb(item: CloudItem) =
+        withCloudAccount { account -> cloudRepository.openWeb(account, item) }
+
+    private fun cloudTransfer(item: CloudItem, block: suspend (CloudAccount, (Long, Long) -> Unit) -> Unit) {
+        val account = _activeCloudAccount.value ?: return
+        transferJob?.cancel()
+        transferJob = viewModelScope.launch {
+            // A Google document opens on the web at once; only a download shows a bar.
+            if (!item.isGoogleDocument && !item.isWebOnly) {
+                _transfer.value = CloudTransfer(item.name, isUpload = false, transferredBytes = 0L, totalBytes = item.size)
+            }
+            try {
+                block(account) { moved, total -> _transfer.value = CloudTransfer(item.name, false, moved, total) }
+                _cloudMessage.value = null
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ZuneLog.w(TAG, "could not open ${item.name} (${item.mimeType})", e)
+                _cloudMessage.value = cloudMessageOf(e)
+            } finally {
+                _transfer.value = null
+            }
+        }
+    }
 
     /** Downloads into the device's Downloads folder, with a bar and a way to stop it. */
     fun saveCloudItemToDevice(item: CloudItem) {

@@ -55,6 +55,8 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -277,6 +279,10 @@ fun FilesHubScreen(
     var isSearchOpen by remember { mutableStateOf(false) }
     var sheetTarget by remember { mutableStateOf<FileItemModel?>(null) }
     var cloudSheetTarget by remember { mutableStateOf<CloudItem?>(null) }
+    // The tablet chooses a file on the drive with a hold, as it does on the device.
+    var cloudSelected by remember { mutableStateOf<CloudItem?>(null) }
+    var cloudDeleteTarget by remember { mutableStateOf<CloudItem?>(null) }
+    LaunchedEffect(cloudPath, activeCloudAccount) { cloudSelected = null }
     var showSortSheet by remember { mutableStateOf(false) }
     var showVolumeSheet by remember { mutableStateOf(false) }
     var textPrompt by remember { mutableStateOf<TextPrompt?>(null) }
@@ -437,6 +443,8 @@ fun FilesHubScreen(
         when {
             deleteTarget != null -> deleteTarget = null
             deleteSelectionPending -> deleteSelectionPending = false
+            cloudDeleteTarget != null -> cloudDeleteTarget = null
+            cloudSelected != null -> cloudSelected = null
             viewerTarget != null -> closeSubScreen { viewerTarget = null }
             detailsTarget != null -> if (isWideScreen) detailsTarget = null else closeSubScreen { detailsTarget = null }
             textPrompt != null -> closeSubScreen { textPrompt = null }
@@ -772,7 +780,22 @@ fun FilesHubScreen(
     }
 
     // ── The tablet's bar: Windows 8's, what is chosen on the left and the page's own on the right ──
-    val tabletLeft: List<Win8Command> = if (!isWideScreen || inCloud || selection.isEmpty()) emptyList() else buildList {
+    val cloudChosen = cloudSelected
+    val tabletLeft: List<Win8Command> = if (isWideScreen && inCloud && cloudChosen != null) buildList {
+        add(Win8Command(Icons.Default.FolderOpen, stringResource(R.string.files_open).lowercase(locale)) {
+            cloudSelected = null
+            viewModel.openCloudItem(cloudChosen)
+        })
+        if (!cloudChosen.isFolder) {
+            add(Win8Command(Icons.Default.Language, stringResource(R.string.files_cloud_open_web)) { viewModel.openCloudItemOnWeb(cloudChosen) })
+            if (!cloudChosen.isWebOnly) {
+                add(Win8Command(Icons.Default.Download, stringResource(R.string.files_cloud_save_short)) { viewModel.saveCloudItemToDevice(cloudChosen) })
+                add(Win8Command(Icons.Default.Share, stringResource(R.string.files_share).lowercase(locale)) { viewModel.shareCloudItem(cloudChosen) })
+            }
+        }
+        add(Win8Command(Icons.Default.Edit, stringResource(R.string.files_rename).lowercase(locale)) { textPrompt = TextPrompt.RenameCloud(cloudChosen) })
+        add(Win8Command(Icons.Default.Delete, stringResource(R.string.common_delete).lowercase(locale)) { cloudDeleteTarget = cloudChosen })
+    } else if (!isWideScreen || inCloud || selection.isEmpty()) emptyList() else buildList {
         singleSelected?.let { item ->
             add(Win8Command(Icons.Default.FolderOpen, stringResource(R.string.files_open).lowercase(locale)) {
                 viewModel.clearSelection()
@@ -808,10 +831,17 @@ fun FilesHubScreen(
     }
     val tabletRight: List<Win8Command> = when {
         !isWideScreen -> emptyList()
+        inCloud && cloudChosen != null -> listOf(
+            Win8Command(Icons.Default.Deselect, stringResource(R.string.files_bar_clear_selection)) { cloudSelected = null }
+        )
         inCloud && activeCloudAccount != null -> listOf(
             Win8Command(Icons.Default.CreateNewFolder, stringResource(R.string.files_new_folder)) { textPrompt = TextPrompt.NewCloudFolder },
             Win8Command(Icons.Default.Upload, stringResource(R.string.files_bar_upload)) { uploadPicker.launch("*/*") },
             Win8Command(Icons.Default.Refresh, stringResource(R.string.common_refresh).lowercase(locale)) { viewModel.reloadCloudFolder() },
+            Win8Command(
+                if (filesView == FilesView.THUMBNAILS) Icons.Default.GridView else Icons.AutoMirrored.Filled.ViewList,
+                stringResource(R.string.files_bar_view)
+            ) { viewModel.setView(if (filesView == FilesView.THUMBNAILS) FilesView.LIST else FilesView.THUMBNAILS) },
             Win8Command(Icons.AutoMirrored.Filled.Logout, stringResource(R.string.files_bar_close_drive)) {
                 viewModel.closeCloudAccount()
                 tabletInCloud = false
@@ -894,6 +924,8 @@ fun FilesHubScreen(
         when {
             deleteTarget != null -> deleteTarget = null
             deleteSelectionPending -> deleteSelectionPending = false
+            cloudDeleteTarget != null -> cloudDeleteTarget = null
+            cloudSelected != null -> cloudSelected = null
             viewerTarget != null -> closeSubScreen { viewerTarget = null }
             detailsTarget != null -> if (isWideScreen) detailsTarget = null else closeSubScreen { detailsTarget = null }
             textPrompt != null -> closeSubScreen { textPrompt = null }
@@ -1038,7 +1070,20 @@ fun FilesHubScreen(
                             onBack = { tabletBack() },
                             canGoBack = tabletInCloud || canGoBack || viewModel.parentOfCurrent() != null,
                             permissionGate = { StoragePermissionGate(context, permissionLauncher) },
-                            cloudPage = { PageAt(CLOUD_TAB) },
+                            cloudPage = { padding ->
+                                TabletCloudPage(
+                                    viewModel = viewModel,
+                                    filesView = filesView,
+                                    selected = cloudSelected,
+                                    bottomPadding = padding.calculateBottomPadding(),
+                                    onOpen = { item ->
+                                        cloudSelected = null
+                                        viewModel.openCloudItem(item)
+                                    },
+                                    onLongClick = { item -> cloudSelected = if (cloudSelected?.id == item.id) null else item },
+                                    onOpenAccount = { viewModel.openCloudAccount(it) }
+                                )
+                            },
                             onOpenFile = { openItem(it) },
                             // Windows 8: holding a thing chooses it, and the bar shows what can be done.
                             onItemLongClick = { viewModel.toggleSelection(it) },
@@ -1327,6 +1372,36 @@ fun FilesHubScreen(
             )
         }
 
+        // ── Deleting from a drive asks first; it goes to the drive's own bin ──
+        cloudDeleteTarget?.let { item ->
+            val message = stringResource(R.string.files_cloud_delete_confirm, item.name)
+            if (isWideScreen) {
+                Win8MessageDialog(
+                    title = stringResource(R.string.files_cloud_delete_title),
+                    confirmLabel = stringResource(R.string.common_delete),
+                    dismissLabel = stringResource(R.string.common_cancel),
+                    destructive = true,
+                    onConfirm = {
+                        viewModel.deleteCloudItem(item)
+                        cloudDeleteTarget = null
+                        cloudSelected = null
+                    },
+                    onDismiss = { cloudDeleteTarget = null }
+                ) {
+                    Text(message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
+                }
+            } else {
+                DeleteConfirmDialog(
+                    message = message,
+                    onConfirm = {
+                        viewModel.deleteCloudItem(item)
+                        cloudDeleteTarget = null
+                    },
+                    onDismiss = { cloudDeleteTarget = null }
+                )
+            }
+        }
+
         // ── The tablet asks for a name in Windows 8's band ──
         if (isWideScreen) {
             textPrompt?.let { asking ->
@@ -1433,11 +1508,18 @@ fun FilesHubScreen(
                     cloudSheetTarget = null
                     openSubScreen()
                 }
+                if (!item.isFolder) {
+                    SheetAction(label = stringResource(R.string.files_cloud_open_web)) {
+                        viewModel.openCloudItemOnWeb(item)
+                        cloudSheetTarget = null
+                    }
+                }
                 SheetAction(
                     label = stringResource(R.string.common_delete),
                     color = MaterialTheme.colorScheme.error
                 ) {
-                    viewModel.deleteCloudItem(item)
+                    // Asked first, on both layouts: a drive's delete used to happen at the tap.
+                    cloudDeleteTarget = item
                     cloudSheetTarget = null
                 }
             }

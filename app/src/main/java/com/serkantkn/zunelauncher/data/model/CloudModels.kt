@@ -60,8 +60,23 @@ data class CloudItem(
     /** Google Docs, Sheets and Slides have no bytes of their own; they are exported instead. */
     val isGoogleDocument: Boolean = false,
     /** A small picture of the file, where the service offers one. */
-    val thumbnailUrl: String? = null
-)
+    val thumbnailUrl: String? = null,
+    /** The file's own page on the web, where Google's formats are read and edited. */
+    val webUrl: String? = null,
+    /**
+     * For a shortcut, the file or folder it points at. Opening, saving and listing use it; a
+     * rename or a delete stays with the shortcut itself, never the thing it points at.
+     */
+    val targetId: String? = null,
+    /**
+     * A Google format that cannot be exported at all — a form, a map, a site — and so can only
+     * be opened on the web.
+     */
+    val isWebOnly: Boolean = false
+) {
+    /** Whose bytes, or whose folder listing, this item stands for. */
+    val contentId: String get() = targetId ?: id
+}
 
 /**
  * One answer from a drive's "what is in this folder" call.

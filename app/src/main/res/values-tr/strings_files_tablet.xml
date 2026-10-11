@@ -56,4 +56,12 @@
         <item quantity="one">tümü için uygula (%d daha)</item>
         <item quantity="other">tümü için uygula (%d daha)</item>
     </plurals>
+    <string name="cloud_error_web_only">bu Google dosyası yalnızca webde açılabilir</string>
+    <string name="files_cloud_delete_title">sürücüden sil</string>
+    <string name="files_cloud_delete_confirm">"%1$s" Drive\'ın çöp kutusuna taşınacak; orada 30 gün bekler.</string>
+    <string name="files_cloud_open_web">webde aç</string>
+    <string name="files_cloud_save_short">cihaza kaydet</string>
+    <string name="files_cloud_kind_folder">klasör</string>
+    <string name="files_cloud_kind_google">Google dosyası</string>
+    <string name="files_cloud_none">henüz bir hesap yok. Soldaki "hesap ekle" ile Google Drive\'ı bağla.</string>
 </resources>

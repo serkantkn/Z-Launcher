@@ -44,6 +44,20 @@ internal interface CloudApi {
 
     /** File name a download should get, which may differ for exported documents. */
     fun downloadName(item: CloudItem): String = item.name
+
+    /**
+     * What kind of file a download is, for the app that is to open it: an exported document is
+     * a PDF whatever Google calls it, and a file a drive only knows as "bytes" goes by its name.
+     */
+    fun downloadMime(item: CloudItem): String {
+        val declared = item.mimeType
+        if (declared.isNotBlank() && declared != "application/octet-stream") return declared
+        val extension = downloadName(item).substringAfterLast('.', "").lowercase()
+        return android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
+    }
+
+    /** The item's page on the service's own website. */
+    fun webUrlOf(item: CloudItem): String
 }
 
 /** Google Drive, REST API v3. */
@@ -53,10 +67,20 @@ internal object GoogleDriveApi : CloudApi {
     private const val BASE = "https://www.googleapis.com/drive/v3"
     private const val FOLDER_MIME = "application/vnd.google-apps.folder"
     private const val EXPORT_MIME = "application/pdf"
+    private const val SHORTCUT_MIME = "application/vnd.google-apps.shortcut"
+    private const val GOOGLE_PREFIX = "application/vnd.google-apps."
+
+    /** The Google formats Drive can export as a PDF; every other one only opens on the web. */
+    private val EXPORTABLE = setOf(
+        "application/vnd.google-apps.document",
+        "application/vnd.google-apps.spreadsheet",
+        "application/vnd.google-apps.presentation",
+        "application/vnd.google-apps.drawing"
+    )
     private const val UPLOAD = "https://www.googleapis.com/upload/drive/v3"
     private const val PAGE_SIZE = 200
     private val FIELDS = CloudHttp.encode(
-        "nextPageToken,files(id,name,mimeType,size,modifiedTime,thumbnailLink)"
+        "nextPageToken,files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,shortcutDetails)"
     )
 
     override val rootId: String = "root"
@@ -96,7 +120,11 @@ internal object GoogleDriveApi : CloudApi {
         val files = response.optJSONArray("files") ?: return CloudPage(emptyList())
         val items = (0 until files.length()).mapNotNull { index ->
             val json = files.optJSONObject(index) ?: return@mapNotNull null
-            val mimeType = json.optString("mimeType")
+            val ownMime = json.optString("mimeType")
+            // A shortcut is shown as what it points at: a folder opens, a document opens.
+            val shortcut = json.optJSONObject("shortcutDetails")?.takeIf { ownMime == SHORTCUT_MIME }
+            val mimeType = shortcut?.optString("targetMimeType")?.ifBlank { null } ?: ownMime
+            val google = mimeType.startsWith(GOOGLE_PREFIX) && mimeType != FOLDER_MIME
             CloudItem(
                 id = json.optString("id").ifBlank { return@mapNotNull null },
                 name = json.optString("name"),
@@ -104,8 +132,11 @@ internal object GoogleDriveApi : CloudApi {
                 size = json.optString("size").toLongOrNull() ?: 0L,
                 lastModified = parseTimestamp(json.optString("modifiedTime")),
                 mimeType = mimeType,
-                isGoogleDocument = mimeType.startsWith("application/vnd.google-apps.") && mimeType != FOLDER_MIME,
-                thumbnailUrl = json.optString("thumbnailLink").ifBlank { null }
+                isGoogleDocument = google && mimeType in EXPORTABLE,
+                thumbnailUrl = json.optString("thumbnailLink").ifBlank { null },
+                webUrl = json.optString("webViewLink").ifBlank { null },
+                targetId = shortcut?.optString("targetId")?.ifBlank { null },
+                isWebOnly = google && mimeType !in EXPORTABLE
             )
         }
         return CloudPage(items, response.optString("nextPageToken").ifBlank { null })
@@ -126,8 +157,13 @@ internal object GoogleDriveApi : CloudApi {
         CloudHttp.patchJson("$BASE/files/${item.id}?supportsAllDrives=true", token, JSONObject().put("name", newName))
     }
 
+    /**
+     * Moves the item to Drive's own bin rather than deleting it: files.delete skips the bin and
+     * is gone for good, and a tap in a list is no way to lose a file forever. Drive empties its
+     * bin after thirty days, as the hub's own bin does.
+     */
     override fun delete(token: String, item: CloudItem) {
-        CloudHttp.delete("$BASE/files/${item.id}?supportsAllDrives=true", token)
+        CloudHttp.patchJson("$BASE/files/${item.id}?supportsAllDrives=true", token, JSONObject().put("trashed", true))
     }
 
     override fun download(
@@ -136,10 +172,11 @@ internal object GoogleDriveApi : CloudApi {
         output: OutputStream,
         onProgress: (Long, Long) -> Unit
     ) {
+        if (item.isWebOnly) throw CloudException(R.string.cloud_error_web_only)
         val url = if (item.isGoogleDocument) {
-            "$BASE/files/${item.id}/export?mimeType=${CloudHttp.encode(EXPORT_MIME)}"
+            "$BASE/files/${item.contentId}/export?mimeType=${CloudHttp.encode(EXPORT_MIME)}"
         } else {
-            "$BASE/files/${item.id}?alt=media&supportsAllDrives=true"
+            "$BASE/files/${item.contentId}?alt=media&supportsAllDrives=true"
         }
         // An exported document has no size of its own until it arrives, so the known total is the
         // file's own size and zero for a Google format — the bar simply counts up instead.
@@ -172,6 +209,12 @@ internal object GoogleDriveApi : CloudApi {
             onProgress = onProgress
         )
     }
+
+    override fun downloadMime(item: CloudItem): String =
+        if (item.isGoogleDocument) EXPORT_MIME else super.downloadMime(item)
+
+    override fun webUrlOf(item: CloudItem): String =
+        item.webUrl ?: "https://drive.google.com/open?id=${CloudHttp.encode(item.contentId)}"
 
     override fun downloadName(item: CloudItem): String =
         if (item.isGoogleDocument && !item.name.endsWith(".pdf", ignoreCase = true)) "${item.name}.pdf" else item.name
