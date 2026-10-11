@@ -1676,7 +1676,7 @@
     <string name="onboarding_back">back</string>
     <string name="onboarding_finish">start</string>
     <string name="onboarding_welcome_title">hello</string>
-    <string name="onboarding_welcome_line">this is your phone, the way Windows Phone did it. a minute to show you around.</string>
+    <string name="onboarding_welcome_line">your phone is about to look a little different. live tiles instead of icons, and hubs that bring your people, music and photos together instead of a drawer full of apps. the clean, bold language of Windows Phone and Zune, with everything Android can do underneath.</string>
     <string name="onboarding_theme_title">your colour</string>
     <string name="onboarding_theme_line">everything takes the colour you pick. change it whenever you like.</string>
     <string name="onboarding_default_title">home button</string>
@@ -1704,7 +1704,7 @@
     <string name="onboarding_perm_contacts">contacts</string>
     <string name="onboarding_perm_contacts_why">so the people tile has faces on it</string>
     <string name="onboarding_language_title">language</string>
-    <string name="onboarding_language_line">the launcher can speak the phone\'s language, or one you pick.</string>
+    <string name="onboarding_language_line">the launcher can speak your device\'s language, or one you pick.</string>
     <string name="onboarding_accent_line">and a colour to go with it</string>
     <string name="onboarding_perm_allow">allow</string>
     <string name="onboarding_perm_granted">given</string>

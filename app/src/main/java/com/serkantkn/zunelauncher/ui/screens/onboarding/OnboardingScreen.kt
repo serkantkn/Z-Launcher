@@ -93,6 +93,14 @@ fun OnboardingScreen(
         onNext()
     }
 
+    // A tablet is shown Windows 8's first run instead: the same pages, its own frame.
+    if (isWide) {
+        TabletTour(tour = tour, onNext = onNext, onBack = onBack, onSkip = onSkip) { step ->
+            OnboardingStepContent(step, viewModel, onLessonDone)
+        }
+        return
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -261,7 +269,10 @@ private fun OnboardingStepContent(
             )
         }
 
-        OnboardingStep.WELCOME -> WelcomeStepPage()
+        OnboardingStep.WELCOME -> {
+            val chrome = LocalTourChrome.current
+            if (chrome != null) TabletWelcomePage(chrome) else WelcomeStepPage()
+        }
 
         OnboardingStep.DEFAULT_LAUNCHER -> {
             // Coming back from the system's screen is the only way to learn the answer.
@@ -297,16 +308,22 @@ private fun OnboardingStepContent(
             )
         }
 
-        OnboardingStep.GESTURE_SWIPE -> SwipeLessonPage(onLessonDone)
+        // The tablet practises the tablet's own moves on the tablet's own Start.
+        OnboardingStep.GESTURE_SWIPE ->
+            if (LocalTourChrome.current != null) TabletStartLesson(onLessonDone) else SwipeLessonPage(onLessonDone)
 
-        OnboardingStep.GESTURE_TILE -> TileLessonPage(onLessonDone)
+        OnboardingStep.GESTURE_TILE ->
+            if (LocalTourChrome.current != null) TabletTileLesson(onLessonDone) else TileLessonPage(onLessonDone)
 
-        OnboardingStep.GESTURE_PIVOT -> PivotLessonPage(onLessonDone)
+        OnboardingStep.GESTURE_PIVOT ->
+            if (LocalTourChrome.current != null) TabletHubLesson(onLessonDone) else PivotLessonPage(onLessonDone)
 
         OnboardingStep.DONE -> OnboardingPage(
             title = stringResource(R.string.onboarding_done_title),
             line = stringResource(R.string.onboarding_done_line)
-        )
+        ) {
+            RecapList(tablet = LocalTourChrome.current != null)
+        }
     }
 }
 
@@ -317,6 +334,10 @@ fun OnboardingPage(
     line: String,
     content: @Composable () -> Unit = {}
 ) {
+    LocalTourChrome.current?.let { chrome ->
+        TabletOnboardingPage(chrome = chrome, title = title, line = line, content = content)
+        return
+    }
     val zuneColors = LocalZuneColors.current
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(24.dp))

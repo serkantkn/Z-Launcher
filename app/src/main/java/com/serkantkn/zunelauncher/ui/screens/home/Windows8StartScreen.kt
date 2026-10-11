@@ -45,6 +45,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -147,6 +148,8 @@ fun Windows8StartScreen(
     scrollState: ScrollState = rememberScrollState(),
     /** Room kept under the board for whatever Start lays over its bottom edge. */
     bottomReserve: Dp = 0.dp,
+    /** Told whenever the board zooms out to its groups or back in; the tour listens for it. */
+    onZoomChange: (zoomedOut: Boolean) -> Unit = {},
     tile: @Composable (
         model: StartTileUIModel,
         flatIndex: Int,
@@ -163,6 +166,8 @@ fun Windows8StartScreen(
 
     var zoomedOut by remember { mutableStateOf(false) }
     val drag = rememberStartDragState()
+    val currentOnZoomChange by rememberUpdatedState(onZoomChange)
+    LaunchedEffect(zoomedOut) { currentOnZoomChange(zoomedOut) }
 
     val currentTiles by rememberUpdatedState(tiles)
     val currentCanMerge by rememberUpdatedState(canMerge)

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_welcome_more">önce birkaç tercih, ardından kısa bir alıştırma. iki dakika sürmez; istediğin an geçebilirsin.</string>
+    <string name="onboarding_welcome_line_tablet">tabletin artık biraz farklı görünecek. kenardan kenara uzanan bir başlangıç ekranı, canlı karolar ve kişileri, müziği, fotoğrafları bir araya toplayan hublar. Windows 8 ve Zune\'un sade, cesur dili, altında Android\'in yapabildiği her şeyle.</string>
+
+    <string name="onboarding_tstart_title">başlangıç</string>
+    <string name="onboarding_tstart_line">karoların yana doğru, doldurduğun kadar uzanır. gerisi bir kaydırma uzağında: uygulamaların hemen altta bekler, sosyal ise sol kenardan çekilir.</string>
+    <string name="onboarding_tstart_apps">uygulamalar için yukarı kaydır</string>
+    <string name="onboarding_tstart_social">sosyal için sağa çek</string>
+    <string name="onboarding_ttile_title">karolar</string>
+    <string name="onboarding_ttile_line">bir karoyu basılı tut; taşıyabilir, boyutunu değiştirebilir ya da kaldırabilirsin. iki parmakla sıkıştırınca bütün gruplar tek ekrana sığar.</string>
+    <string name="onboarding_ttile_pinch">iki parmakla sıkıştır</string>
+    <string name="onboarding_thub_line">hubın sayfaları sol tarafta alt alta durur. birine dokun, yanında açılsın.</string>
+    <string name="onboarding_thub_try">başka bir başlığa dokun</string>
+    <string name="onboarding_pivot_three">ajanda</string>
+    <string name="onboarding_pivot_body_three">ve hepsi tek bir listede</string>
+
+    <string name="onboarding_recap_title">aklında kalsın</string>
+    <string name="onboarding_recap_sides">yana kaydır</string>
+    <string name="onboarding_recap_sides_does">solda sosyal, sağda uygulamaların</string>
+    <string name="onboarding_recap_up">yukarı kaydır</string>
+    <string name="onboarding_recap_up_does">başlangıcın altındaki tüm uygulamalar</string>
+    <string name="onboarding_recap_pull">başlangıcı sağa çek</string>
+    <string name="onboarding_recap_pull_does">sosyal</string>
+    <string name="onboarding_recap_hold">karoyu basılı tut</string>
+    <string name="onboarding_recap_hold_does">taşı, boyutlandır ya da kaldır</string>
+    <string name="onboarding_recap_pinch">başlangıcı sıkıştır</string>
+    <string name="onboarding_recap_pinch_does">bütün gruplar tek ekranda</string>
+    <string name="onboarding_recap_home">ana ekran tuşuna iki kez bas</string>
+    <string name="onboarding_recap_home_does">arka planda bıraktığın hublar</string>
+    <string name="onboarding_recap_top">üst kenardan aşağı çek</string>
+    <string name="onboarding_recap_top_does">bildirimler ve hızlı ayarlar</string>
+</resources>

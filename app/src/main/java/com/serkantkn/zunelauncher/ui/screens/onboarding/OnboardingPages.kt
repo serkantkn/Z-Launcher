@@ -140,14 +140,16 @@ private fun AccentSquares(selected: AccentColor, onSelect: (AccentColor) -> Unit
         }
     }
 
+    // A tablet's squares are bigger and sit seven to a row, as Windows 8's colour picker did.
+    val tablet = LocalTourChrome.current != null
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        offered.chunked(6).forEach { row ->
+        offered.chunked(if (tablet) 7 else 6).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { colour ->
                     val isSelected = colour == selected
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(if (tablet) 56.dp else 44.dp)
                             .background(colour.toColor())
                             .then(
                                 if (isSelected) {
@@ -198,6 +200,14 @@ fun WelcomeStepPage() {
                 .padding(top = 18.dp)
                 .w10mStaggeredAnimation(progress = { entrance.value }, index = 1)
         )
+        Text(
+            text = stringResource(R.string.onboarding_welcome_more),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
+            color = LocalZuneColors.current.textDim,
+            modifier = Modifier
+                .padding(top = 14.dp)
+                .w10mStaggeredAnimation(progress = { entrance.value }, index = 2)
+        )
     }
 }
 
@@ -222,7 +232,7 @@ fun ChoiceRow(
     ) {
         Box(
             modifier = Modifier
-                .size(22.dp)
+                .size(if (LocalTourChrome.current != null) 26.dp else 22.dp)
                 .border(2.dp, if (selected) zuneColors.accentColor else zuneColors.textDim)
                 .padding(4.dp)
                 .background(if (selected) zuneColors.accentColor else Color.Transparent)
@@ -348,5 +358,58 @@ fun ActionButton(label: String, onClick: () -> Unit) {
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
             color = MaterialTheme.colorScheme.onBackground
         )
+    }
+}
+
+// -- The last page ----------------------------------------------------------
+
+/**
+ * Every move the launcher has, one to a line, so the last page leaves somebody with something
+ * to keep rather than a pat on the back. The lessons taught three; the rest - the hubs left
+ * running, the action center - are as much a part of it and nowhere else written down. Each
+ * device lists its own: a tablet's Start has the apps under it and social to the left, a phone's
+ * has them either side.
+ */
+@Composable
+fun RecapList(tablet: Boolean) {
+    val zuneColors = LocalZuneColors.current
+    val moves = if (tablet) {
+        listOf(
+            R.string.onboarding_recap_up to R.string.onboarding_recap_up_does,
+            R.string.onboarding_recap_pull to R.string.onboarding_recap_pull_does,
+            R.string.onboarding_recap_hold to R.string.onboarding_recap_hold_does,
+            R.string.onboarding_recap_pinch to R.string.onboarding_recap_pinch_does,
+            R.string.onboarding_recap_home to R.string.onboarding_recap_home_does,
+            R.string.onboarding_recap_top to R.string.onboarding_recap_top_does
+        )
+    } else {
+        listOf(
+            R.string.onboarding_recap_sides to R.string.onboarding_recap_sides_does,
+            R.string.onboarding_recap_hold to R.string.onboarding_recap_hold_does,
+            R.string.onboarding_recap_home to R.string.onboarding_recap_home_does,
+            R.string.onboarding_recap_top to R.string.onboarding_recap_top_does
+        )
+    }
+    Text(
+        text = stringResource(R.string.onboarding_recap_title),
+        style = MaterialTheme.typography.bodyMedium,
+        color = zuneColors.textMuted,
+        modifier = Modifier.padding(bottom = 12.dp)
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(if (tablet) 16.dp else 12.dp)) {
+        moves.forEach { (move, does) ->
+            Column {
+                Text(
+                    text = stringResource(move),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = stringResource(does),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = zuneColors.textMuted
+                )
+            }
+        }
     }
 }

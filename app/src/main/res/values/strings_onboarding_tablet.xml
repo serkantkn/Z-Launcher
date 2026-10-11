@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The greeting's second paragraph, on both, and the tablet's own first one. -->
+    <string name="onboarding_welcome_more">a few choices first, then a little practice. it takes under two minutes, and you can skip ahead whenever you like.</string>
+    <string name="onboarding_welcome_line_tablet">your tablet is about to look a little different. a start screen that runs from edge to edge, live tiles, and hubs that bring your people, music and photos together. the clean, bold language of Windows 8 and Zune, with everything Android can do underneath.</string>
+
+    <!-- The tablet's lessons -->
+    <string name="onboarding_tstart_title">start</string>
+    <string name="onboarding_tstart_line">your tiles run sideways, as far as you fill them. everything else is one swipe away: your apps wait underneath, and social is pulled out from the left edge.</string>
+    <string name="onboarding_tstart_apps">swipe up for apps</string>
+    <string name="onboarding_tstart_social">pull right for social</string>
+    <string name="onboarding_ttile_title">tiles</string>
+    <string name="onboarding_ttile_line">hold a tile to move it, resize it or take it off. pinch the board with two fingers and every group fits on one screen.</string>
+    <string name="onboarding_ttile_pinch">pinch the board</string>
+    <string name="onboarding_thub_line">a hub\'s pages stand down its left side. tap one and it opens beside them.</string>
+    <string name="onboarding_thub_try">tap another heading</string>
+    <string name="onboarding_pivot_three">agenda</string>
+    <string name="onboarding_pivot_body_three">and all of it in one list</string>
+
+    <!-- The last page's reminder of every move, on both -->
+    <string name="onboarding_recap_title">worth remembering</string>
+    <string name="onboarding_recap_sides">swipe sideways</string>
+    <string name="onboarding_recap_sides_does">social on the left, your apps on the right</string>
+    <string name="onboarding_recap_up">swipe up</string>
+    <string name="onboarding_recap_up_does">all your apps, under start</string>
+    <string name="onboarding_recap_pull">pull start to the right</string>
+    <string name="onboarding_recap_pull_does">social</string>
+    <string name="onboarding_recap_hold">hold a tile</string>
+    <string name="onboarding_recap_hold_does">move it, resize it or take it off</string>
+    <string name="onboarding_recap_pinch">pinch start</string>
+    <string name="onboarding_recap_pinch_does">every group on one screen</string>
+    <string name="onboarding_recap_home">press home twice</string>
+    <string name="onboarding_recap_home_does">the hubs you left running</string>
+    <string name="onboarding_recap_top">pull down from the top</string>
+    <string name="onboarding_recap_top_does">notifications and quick settings</string>
+</resources>
