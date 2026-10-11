@@ -63,6 +63,17 @@ object WallpaperImages {
     }
 
     /**
+     * A small copy of the wallpaper the launcher draws, for reading its colours: a couple of
+     * hundred pixels carry every colour that matters, and it is not kept.
+     */
+    suspend fun sample(context: Context, customPath: String?): Bitmap? = withContext(Dispatchers.IO) {
+        runCatching { decode(context, customPath, SAMPLE_WIDTH, SAMPLE_HEIGHT) }.getOrNull()
+    }
+
+    private const val SAMPLE_WIDTH = 160
+    private const val SAMPLE_HEIGHT = 320
+
+    /**
      * Forgets the decoded wallpaper. The next background that asks reads it again.
      *
      * Nothing is recycled here on purpose: a background that is still on screen is holding the

@@ -135,7 +135,9 @@ internal fun AccentColorChoiceRow(
     selectedColor: AccentColor,
     customThemeColor: Int?,
     onSelected: (AccentColor) -> Unit,
-    onCustomColorSelected: (Int) -> Unit
+    onCustomColorSelected: (Int) -> Unit,
+    /** The colour taken from the wallpaper, shown in the middle of the automatic choice. */
+    dynamicThemeColor: Int? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var showColorPicker by remember { mutableStateOf(false) }
@@ -215,7 +217,13 @@ internal fun AccentColorChoiceRow(
                         modifier = coloredModifier,
                         contentAlignment = Alignment.Center
                     ) {
-                        if (color == AccentColor.CUSTOM) {
+                        if (color == AccentColor.DYNAMIC && dynamicThemeColor != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isSelected) 28.dp else 22.dp)
+                                    .background(Color(dynamicThemeColor), CircleShape)
+                            )
+                        } else if (color == AccentColor.CUSTOM) {
                             val customColor = if (customThemeColor != null) Color(customThemeColor) else Color.Gray
                             Box(
                                 modifier = Modifier

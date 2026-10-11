@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.collectLatest
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.VolumeBarStyle
 import com.serkantkn.zunelauncher.ui.screens.LauncherScreen
@@ -46,6 +47,9 @@ class MainActivity : FragmentActivity() {
         /** Set by the keyboard's quick settings; carries the name of a SettingsTab entry. */
         const val EXTRA_OPEN_SETTINGS_TAB = "open_settings_tab"
 
+        /** How long a wallpaper change is given to settle before its colour is read. */
+        private const val WALLPAPER_SETTLE_MILLIS = 600L
+
         /** Set by a message notification being tapped; carries the conversation to open. */
         const val EXTRA_OPEN_MESSAGE_THREAD = "open_message_thread"
 
@@ -61,6 +65,49 @@ class MainActivity : FragmentActivity() {
 
     private var currentVolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
 
+    private val wallpaperChanges = kotlinx.coroutines.flow.MutableStateFlow(0)
+    private val wallpaperReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: Intent) {
+            wallpaperChanges.value++
+        }
+    }
+
+    /**
+     * The automatic theme colour follows the wallpaper the launcher draws: worked out when the
+     * launcher starts, when the wallpaper changes — from here or from the system — and when the
+     * automatic colour is chosen. It used to be worked out only when a wallpaper was cropped in
+     * the launcher, so a wallpaper set anywhere else never changed it.
+     */
+    private fun followWallpaperAccent(settingsDataStore: com.serkantkn.zunelauncher.data.datastore.SettingsDataStore) {
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            wallpaperReceiver,
+            android.content.IntentFilter(Intent.ACTION_WALLPAPER_CHANGED),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        lifecycleScope.launch {
+            kotlinx.coroutines.flow.combine(
+                settingsDataStore.accentColor,
+                settingsDataStore.customWallpaperPath,
+                wallpaperChanges
+            ) { accent, path, _ -> accent to path }
+                .collectLatest { (accent, path) ->
+                    if (accent != com.serkantkn.zunelauncher.data.model.AccentColor.DYNAMIC) return@collectLatest
+                    // A wallpaper set from outside clears the launcher's own picture a moment
+                    // later (see ZuneBackground); the colour is read once that has settled.
+                    kotlinx.coroutines.delay(WALLPAPER_SETTLE_MILLIS)
+                    val color = com.serkantkn.zunelauncher.util.WallpaperAccent.fromWallpaper(applicationContext, path)
+                        ?: return@collectLatest
+                    settingsDataStore.setDynamicThemeColor(color)
+                }
+        }
+    }
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(wallpaperReceiver) }
+        super.onDestroy()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -70,6 +117,8 @@ class MainActivity : FragmentActivity() {
                 currentVolumeBarStyle = style
             }
         }
+
+        followWallpaperAccent(settingsDataStore)
 
         // A call has to be answerable without unlocking the phone, and has to wake the screen.
         lifecycleScope.launch {

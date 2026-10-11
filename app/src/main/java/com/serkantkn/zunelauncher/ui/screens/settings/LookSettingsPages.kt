@@ -149,6 +149,7 @@ private fun ThemeGroups(viewModel: SettingsViewModel) {
     val themeMode by viewModel.themeMode.collectAsState()
     val accentColor by viewModel.accentColor.collectAsState()
     val customThemeColor by viewModel.customThemeColor.collectAsState()
+    val dynamicThemeColor by viewModel.dynamicThemeColor.collectAsState()
 
     SettingGroup(title = stringResource(R.string.theme_setting)) {
         ThemeChoiceRow(selectedMode = themeMode, onSelected = viewModel::setThemeMode)
@@ -164,7 +165,8 @@ private fun ThemeGroups(viewModel: SettingsViewModel) {
             onCustomColorSelected = { colorInt ->
                 viewModel.setCustomThemeColor(colorInt)
                 viewModel.setAccentColor(AccentColor.CUSTOM)
-            }
+            },
+            dynamicThemeColor = dynamicThemeColor
         )
     }
 }

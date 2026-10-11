@@ -65,31 +65,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val tileIconFactory = application.appContainer.tileIconFactory
 
-    init {
-        viewModelScope.launch {
-            val path = settingsDataStore.customWallpaperPath.firstOrNull()
-            val color = settingsDataStore.dynamicThemeColor.firstOrNull()
-            if (path != null && color == null) {
-                try {
-                    val file = java.io.File(path)
-                    if (file.exists()) {
-                        val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
-                        if (bitmap != null) {
-                            androidx.palette.graphics.Palette.from(bitmap).generate { palette ->
-                                val swatch = palette?.dominantSwatch ?: palette?.vibrantSwatch ?: palette?.swatches?.maxByOrNull { it.population }
-                                if (swatch != null) {
-                                    viewModelScope.launch {
-                                        settingsDataStore.setDynamicThemeColor(swatch.rgb)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) { ZuneLog.w("SettingsViewModel", "init ignored Exception", e) }
-            }
-        }
-    }
-
     private val systemSettings = SystemSettingsManager(application)
 
     private val _appLanguage = MutableStateFlow(AppLocale.current(application))
@@ -790,14 +765,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
                 settingsDataStore.setCustomWallpaperPath(file.absolutePath)
 
-                // Extract dominant color
-                androidx.palette.graphics.Palette.from(bitmap).generate { palette ->
-                    val swatch = palette?.dominantSwatch ?: palette?.vibrantSwatch ?: palette?.swatches?.maxByOrNull { it.population }
-                    val dominantColor = swatch?.rgb
-                    viewModelScope.launch {
-                        settingsDataStore.setDynamicThemeColor(dominantColor)
-                    }
-                }
+                // The automatic theme colour from the new picture. The file keeps its name, so the
+                // launcher's watch on the wallpaper path would not notice it changing.
+                com.serkantkn.zunelauncher.util.WallpaperAccent.fromWallpaper(context, file.absolutePath)
+                    ?.let { settingsDataStore.setDynamicThemeColor(it) }
 
                 // Also attempt to set the system wallpaper
                 withContext(Dispatchers.IO) {
