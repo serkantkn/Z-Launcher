@@ -89,6 +89,23 @@ beyaz bir çizgi menüye açılır.
   <img src="docs/img/dosyalar.png" width="180" alt="Dosyalar hub'ında bir klasör">
 </p>
 
+## Eylem merkezi
+
+Durum çubuğundan aşağı çekince Android'in paneli yerine Windows 10 Mobile'ın eylem merkezi iner: saat,
+hızlı eylemler (wi-fi, bluetooth, fener, döndürme kilidi; genişletince mobil veri, uçak modu, konum, sessiz
+saatler), ince parlaklık çubuğu, çalan müzik ve uygulamaya göre gruplu bildirimler. Bildirime dokun aç, sağa
+kaydır sil, mesajlara yerinde yanıt ver. Başlatıcının kendi bildirimleri e-posta, mesajlar, telefon diye
+hub'ına göre ayrılır. Tablette sağ kenardan bir sütun olarak gelir. Bir erişilebilirlik servisiyle çalışır;
+kilit ekranında Android'in kendi paneli kalır, böylece bildirimler kilitliyken görünmez.
+
+<p align="center">
+  <img src="docs/img/eylem-merkezi.gif" width="240" alt="Durum çubuğundan çekince eylem merkezi iner">
+  <img src="docs/img/eylem-merkezi.png" width="240" alt="Telefonda eylem merkezi">
+</p>
+<p align="center">
+  <img src="docs/img/tablet-eylem-merkezi.jpg" width="480" alt="Tablette sağdan gelen eylem merkezi">
+</p>
+
 ## Tablet
 
 Geniş ekranda başlangıç, Windows 8'in başlangıcıdır: tam ekran, gruplu karolar, yana doğru akan bir pano.
@@ -175,6 +192,10 @@ turnstile animations and Zune's thin type, running on today's Android — and se
 - **Tablet.** Windows 8's Start, full screen and grouped; a swipe up slides it off while the app list rises from
   below — apps under their letters in columns, scrolling sideways, ordered by name, install date or use, with
   the Windows 8 app bar on a hold. Pulling the board past its first group opens the social hub.
+- **Action center.** A pull from the status bar brings down Windows 10 Mobile's action center instead of
+  Android's shade: quick actions, a thin brightness slider, the music playing, and notifications grouped by
+  app — the launcher's own by hub — to open, swipe away or answer in place. On a tablet it is a column from
+  the right edge. It runs on an accessibility service, and the lock screen keeps Android's own shade.
 - **Hubs, all in-app.** Phone, Messaging, People, Pictures, Music, Internet, Email, Notes, Files (copy, cut,
   paste, rename, delete, details; opens text, pictures, sound, video and PDF itself; cloud drives), Social,
   Clock, Calendar, Weather, Calculator, Camera. Hubs left with Home keep running and come back from the
