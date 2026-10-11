@@ -45,14 +45,25 @@ import com.serkantkn.zunelauncher.util.localized
  * How far down it is lives in [progress] — 0 put away, 1 fully open. A pull on the status-bar
  * strip drives it directly ([beginDrag], [dragTo], [endDrag]); the launcher's own pull, a tap
  * that should open it, and the safety net that catches the system shade use [open].
+ *
+ * Building the window and composing the panel takes a few hundred milliseconds on a slower
+ * tablet — long enough for the pull to look ignored. So while the accessibility service runs
+ * the window is built once, ahead of time ([prepare]), and kept hidden between uses: a pull
+ * only has to show it.
  */
 object ActionCenterOverlay {
 
     private const val TAG = "ActionCenter"
     private const val SETTLE_MILLIS = 260L
+    private const val COVER_HOLD_MILLIS = 700L
+    private const val COVER_FADE_MILLIS = 350L
 
     /** 0 = away, 1 = open. Read by the panel to place itself. */
     val progress = mutableFloatStateOf(0f)
+
+    /** How dark the dimmed part of the screen is held while Android's shade is pushed away. */
+    private val cover = mutableFloatStateOf(0f)
+    private var coverAnimator: ValueAnimator? = null
 
     private var windowManager: WindowManager? = null
     private var root: FrameLayout? = null
@@ -60,9 +71,15 @@ object ActionCenterOverlay {
     private var owner: OverlayLifecycleOwner? = null
     private var animator: ValueAnimator? = null
     private var heightPx = 1f
+    private var showing = false
+    private var keptByService = false
+    private var panelLocale: java.util.Locale? = null
 
-    val isShowing: Boolean get() = root != null
-    val isOpen: Boolean get() = root != null && progress.floatValue > 0f
+    /** Whether the panel is in use; while it is not, its clock and music card stand still. */
+    private val active = androidx.compose.runtime.mutableStateOf(false)
+
+    val isShowing: Boolean get() = showing
+    val isOpen: Boolean get() = showing && progress.floatValue > 0f
 
     /** Whether anything at all can draw the panel from [context] right now. */
     fun isAvailable(context: Context): Boolean =
@@ -76,12 +93,12 @@ object ActionCenterOverlay {
     }
 
     fun dragTo(rawY: Float) {
-        if (root == null) return
+        if (!showing) return
         progress.floatValue = (rawY / heightPx).coerceIn(0f, 1f)
     }
 
     fun endDrag(velocityY: Float) {
-        if (root == null) return
+        if (!showing) return
         val open = when {
             velocityY > FLING -> true
             velocityY < -FLING -> false
@@ -100,14 +117,73 @@ object ActionCenterOverlay {
         return true
     }
 
+    /**
+     * Android's shade has the finger and is coming down under the panel; on a tablet it would
+     * show through the dimmed part of the screen. That part goes nearly black until the shade
+     * has been pushed back up, then lightens again.
+     */
+    fun coverShade() {
+        coverAnimator?.cancel()
+        cover.floatValue = 1f
+        coverAnimator = ValueAnimator.ofFloat(1f, 0f).apply {
+            startDelay = COVER_HOLD_MILLIS
+            duration = COVER_FADE_MILLIS
+            addUpdateListener { cover.floatValue = it.animatedValue as Float }
+            start()
+        }
+    }
+
     fun close() {
-        if (root == null) return
+        if (!showing) return
         settle(0f)
     }
 
     // ── Window ──────────────────────────────────────────────────────────────────
 
+    /** Builds the hidden window ahead of the first pull. Called by the accessibility service. */
+    fun prepare(context: Context) {
+        ensureWindow(context)
+    }
+
+    /** Takes the window down for good: the service is going, or the action center was switched off. */
+    fun release() {
+        animator?.cancel()
+        animator = null
+        val wm = windowManager
+        val view = root
+        val lifecycle = owner
+        root = null
+        params = null
+        owner = null
+        windowManager = null
+        showing = false
+        keptByService = false
+        active.value = false
+        progress.floatValue = 0f
+        if (wm != null && view != null) {
+            runCatching { wm.removeViewImmediate(view) }
+                .onFailure { ZuneLog.e(TAG, "release failed", it) }
+        }
+        lifecycle?.onDestroy()
+    }
+
+    /** Shows the (perhaps already built) window, still put away, ready to be pulled down. */
     private fun attach(context: Context): Boolean {
+        if (showing) return true
+        if (!ensureWindow(context)) return false
+        val wm = windowManager ?: return false
+        heightPx = screenHeight(wm, context).toFloat().coerceAtLeast(1f)
+        progress.floatValue = 0f
+        showing = true
+        active.value = true
+        root?.visibility = android.view.View.VISIBLE
+        return true
+    }
+
+    private fun ensureWindow(context: Context): Boolean {
+        // A window built in another language (the user has changed it since) is built again.
+        val locale = appContextLocalized(context).resources.configuration.locales[0]
+        if (root != null && !showing && panelLocale != locale) release()
         if (root != null) return true
         val service = ZuneKeyAccessibilityService.current
         val host: Context = service ?: context.applicationContext
@@ -168,8 +244,10 @@ object ActionCenterOverlay {
                     fontScale = fontScale
                 ) {
                     ActionCenterPanel(
+                        active = active.value,
                         progress = { progress.floatValue },
-                        onDragBy = { dy -> progress.floatValue = (progress.floatValue + dy / heightPx).coerceIn(0f, 1f) },
+                        cover = { cover.floatValue },
+                        onDragBy = { fraction -> progress.floatValue = (progress.floatValue + fraction).coerceIn(0f, 1f) },
                         onDragEnd = { velocity -> endDrag(velocity) },
                         onClose = { close() }
                     )
@@ -182,6 +260,9 @@ object ActionCenterOverlay {
             setViewTreeViewModelStoreOwner(lifecycle)
             setViewTreeSavedStateRegistryOwner(lifecycle)
             addView(compose)
+            // Hidden, the window has no surface on screen, but the panel is still composed and
+            // laid out inside it, which is the slow part.
+            visibility = android.view.View.INVISIBLE
         }
 
         return try {
@@ -191,8 +272,10 @@ object ActionCenterOverlay {
             root = frame
             params = lp
             owner = lifecycle
+            keptByService = service != null
+            panelLocale = locale
             lifecycle.onResume()
-            ZuneLog.d(TAG, "attached (${if (service != null) "accessibility" else "app"} overlay)")
+            ZuneLog.d(TAG, "built (${if (service != null) "accessibility" else "app"} overlay)")
             true
         } catch (e: Exception) {
             ZuneLog.e(TAG, "the action center window could not be added", e)
@@ -201,22 +284,19 @@ object ActionCenterOverlay {
         }
     }
 
+    /** Put away: hidden and kept for next time when the service holds it, taken down otherwise. */
     private fun detach() {
         animator?.cancel()
         animator = null
-        val wm = windowManager
-        val view = root
-        val lifecycle = owner
-        root = null
-        params = null
-        owner = null
-        windowManager = null
         progress.floatValue = 0f
-        if (wm != null && view != null) {
-            runCatching { wm.removeViewImmediate(view) }
-                .onFailure { ZuneLog.e(TAG, "detach failed", it) }
+        showing = false
+        active.value = false
+        setFocusable(false)
+        if (keptByService && ZuneKeyAccessibilityService.current != null) {
+            root?.visibility = android.view.View.INVISIBLE
+        } else {
+            release()
         }
-        lifecycle?.onDestroy()
     }
 
     /** Animates to [target]; put away, the window goes with it. */

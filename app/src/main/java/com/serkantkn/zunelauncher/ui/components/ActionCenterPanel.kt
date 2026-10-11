@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,6 +64,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -113,20 +115,30 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * The Windows Phone action center, as it comes down over whatever is on screen.
+ * The Windows Phone action center, as it comes over whatever is on screen.
  *
- * Across the top the clock, the date and the battery; under them the quick-action squares, four
- * and then four more when expanded, the way Windows 10 Mobile folded them; then brightness, the
- * music that is playing, and the notifications grouped by app — newest app first — each one
- * opened by a tap, swiped away to the right, or answered in place where the app allows it.
+ * On a phone it is Windows 10 Mobile's sheet from the top: the clock, the date and the battery;
+ * the quick-action squares, four and then four more when expanded; brightness, the music that
+ * is playing, and the notifications grouped by app — newest app first — each one opened by a
+ * tap, swiped away to the right, or answered in place where the app allows it.
  *
- * The sheet places itself from [progress] (0 away, 1 open), so the finger on the status bar
- * and the finger on the sheet move the same thing. The header, the bar at the foot and a push
- * up past the end of the list all put it away.
+ * On a tablet a sheet the width of the screen is mostly empty air, so it is Windows 10's action
+ * center from tablet mode instead: a column down the right-hand edge with the notifications on
+ * top and the quick actions, as low wide tiles, at the foot where the thumb is. The rest of the
+ * screen dims, and a tap there puts the column away.
+ *
+ * The panel places itself from [progress] (0 away, 1 open), so the finger on the status bar
+ * and the finger on the panel move the same thing; [onDragBy] takes a change as a fraction of
+ * the way, and [onDragEnd] a velocity in px/s, positive towards open. While it is not [active]
+ * — built ahead of time and waiting hidden — the clock and the music card stand still. [cover]
+ * (0..1) darkens the dimmed part of the screen nearly to black for a moment, to hide Android's
+ * shade while it is being pushed back up underneath.
  */
 @Composable
 fun ActionCenterPanel(
+    active: Boolean,
     progress: () -> Float,
+    cover: () -> Float = { 0f },
     onDragBy: (Float) -> Unit,
     onDragEnd: (Float) -> Unit,
     onClose: () -> Unit
@@ -135,15 +147,14 @@ fun ActionCenterPanel(
     val context = LocalContext.current
     val ink = if (zuneColors.isDark) Color.White else Color.Black
     val sheet = if (zuneColors.isDark) Color(0xFF1B1B1B) else Color(0xFFF2F2F2)
-    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
 
     // A slow tick refreshes the clock and every switch's state, so a square turned on from
     // Android's own sheet shows as on when the panel is looked at again.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var stateTick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(active) {
+        if (!active) return@LaunchedEffect
         Torch.watch(context)
         withContext(Dispatchers.Default) { ActionCenterNotifications.refreshNow() }
         while (true) {
@@ -166,9 +177,9 @@ fun ActionCenterPanel(
 
     // The music card reads the playing session through the notification listener.
     val media = remember { ThirdPartyMediaController(context.applicationContext) }
-    DisposableEffect(media) {
-        runCatching { media.startListening() }
-        onDispose { runCatching { media.stopListening() } }
+    DisposableEffect(media, active) {
+        if (active) runCatching { media.startListening() }
+        onDispose { if (active) runCatching { media.stopListening() } }
     }
     val mediaState by media.mediaState.collectAsState()
 
@@ -177,114 +188,58 @@ fun ActionCenterPanel(
         after()
     }
 
-    val dragState = rememberDraggableState { delta -> onDragBy(delta) }
-    val sheetDrag = Modifier.draggable(
-        state = dragState,
-        orientation = Orientation.Vertical,
-        onDragStopped = { velocity -> onDragEnd(velocity) }
-    )
+    val pressed: (QuickOutcome) -> Unit = { outcome ->
+        if (outcome == QuickOutcome.OPENED_ELSEWHERE) onClose()
+        stateTick++
+    }
 
-    // A push up past the end of the list moves the sheet itself.
-    val listToSheet = remember {
-        object : NestedScrollConnection {
-            var movedSheet = false
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput || available.y >= 0f) return Offset.Zero
-                movedSheet = true
-                onDragBy(available.y)
-                return available
-            }
+    val openAllSettings = {
+        leave {
+            context.startActivity(
+                Intent(context, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    .putExtra(MainActivity.EXTRA_OPEN_HUB, HubType.SETTINGS.name)
+            )
+        }
+    }
 
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                if (!movedSheet) return Velocity.Zero
-                movedSheet = false
-                onDragEnd(available.y)
-                return available
+    // ── The pieces both layouts are built from ──
+
+    val clock: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = TimeText.format(now, locale = locale),
+                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Light, fontSize = 44.sp),
+                color = ink
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = date,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                color = ink.copy(alpha = 0.8f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(bottom = 8.dp).weight(1f)
+            )
+            battery?.let {
+                Text(
+                    text = java.text.NumberFormat.getPercentInstance(locale).format(it / 100.0),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                    color = ink.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
             }
         }
     }
 
-    // Behind the sheet the screen dims as it comes down.
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer { alpha = progress() }
-            .background(Color.Black.copy(alpha = 0.35f))
-    )
+    val expandLink: @Composable () -> Unit = {
+        LinkText(
+            stringResource(if (expanded) R.string.action_center_collapse else R.string.action_center_expand),
+            ink.copy(alpha = 0.75f)
+        ) { expanded = !expanded }
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer { translationY = -(1f - progress()) * size.height }
-            .background(sheet)
-            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
-            .padding(top = statusTop + 8.dp, bottom = navBottom)
-    ) {
-        // ── Clock, date, battery; all settings and expand ──
-        Column(modifier = sheetDrag.padding(horizontal = 16.dp)) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = TimeText.format(now, locale = locale),
-                    style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Light, fontSize = 44.sp),
-                    color = ink
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = date,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
-                    color = ink.copy(alpha = 0.8f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(bottom = 8.dp).weight(1f)
-                )
-                battery?.let {
-                    Text(
-                        text = java.text.NumberFormat.getPercentInstance(locale).format(it / 100.0),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
-                        color = ink.copy(alpha = 0.8f),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
-            }
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp)) {
-                LinkText(stringResource(R.string.action_center_all_settings), zuneColors.accentLink) {
-                    leave {
-                        context.startActivity(
-                            Intent(context, MainActivity::class.java)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                                .putExtra(MainActivity.EXTRA_OPEN_HUB, HubType.SETTINGS.name)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                LinkText(
-                    stringResource(if (expanded) R.string.action_center_collapse else R.string.action_center_expand),
-                    ink.copy(alpha = 0.75f)
-                ) { expanded = !expanded }
-            }
-
-            // ── Quick actions ──
-            QuickRow(QuickAction.FIRST_ROW, stateTick, ink) { outcome ->
-                if (outcome == QuickOutcome.OPENED_ELSEWHERE) onClose()
-                stateTick++
-            }
-            AnimatedVisibility(visible = expanded, enter = expandVertically(tween(200)), exit = shrinkVertically(tween(160))) {
-                Column {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    QuickRow(QuickAction.SECOND_ROW, stateTick, ink) { outcome ->
-                        if (outcome == QuickOutcome.OPENED_ELSEWHERE) onClose()
-                        stateTick++
-                    }
-                }
-            }
-
-            // ── Brightness ──
-            BrightnessRow(stateTick, ink, onAskPermission = { leave { QuickActions.askToWriteSettings(context) } })
-        }
-
-        Box(modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(1.dp).background(ink.copy(alpha = 0.12f)))
-
-        // ── Music ──
+    val music: @Composable () -> Unit = {
         if (mediaState.title.isNotBlank()) {
             MediaCard(
                 title = mediaState.title,
@@ -300,28 +255,14 @@ fun ActionCenterPanel(
                 onPlayPause = { media.playPause() },
                 onNext = { media.skipToNext() }
             )
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(ink.copy(alpha = 0.12f)))
+            Divider(ink)
         }
+    }
 
-        // ── Notifications ──
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.action_center_notifications),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 20.sp),
-                color = ink,
-                modifier = Modifier.weight(1f)
-            )
-            if (groups.any { g -> g.items.any { it.clearable } }) {
-                LinkText(stringResource(R.string.action_center_clear_all), zuneColors.accentLink) {
-                    ActionCenterNotifications.clearAll()
-                }
-            }
-        }
+    val hasClearable = groups.any { g -> g.items.any { it.clearable } }
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+    val notifications: @Composable (Modifier, NestedScrollConnection?) -> Unit = { modifier, scroll ->
+        Box(modifier = modifier) {
             when {
                 !ActionCenterNotifications.isListening -> Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -346,7 +287,9 @@ fun ActionCenterPanel(
                     color = ink.copy(alpha = 0.55f),
                     modifier = Modifier.padding(16.dp)
                 )
-                else -> LazyColumn(modifier = Modifier.fillMaxSize().nestedScroll(listToSheet)) {
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize().then(if (scroll != null) Modifier.nestedScroll(scroll) else Modifier)
+                ) {
                     groups.forEach { group ->
                         item(key = "group_" + group.packageName) {
                             GroupHeader(group, ink) { ActionCenterNotifications.dismissGroup(group) }
@@ -373,6 +316,180 @@ fun ActionCenterPanel(
                 }
             }
         }
+    }
+
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val wide = maxWidth >= WIDE_PANEL_FROM
+        val heightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
+
+        // Behind the panel the screen dims as it comes; a tap on the dimmed part puts it away.
+        val dim = if (wide) 0.45f else 0.35f
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = progress() * (dim + (0.94f - dim) * cover()) }
+                .background(Color.Black)
+                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClose() }
+        )
+
+        if (wide) {
+            val panelWidth = SIDE_PANEL_WIDTH.coerceAtMost(maxWidth * 0.6f)
+            SidePanel(
+                width = panelWidth,
+                sheet = sheet,
+                ink = ink,
+                progress = progress,
+                onDragBy = onDragBy,
+                onDragEnd = onDragEnd,
+                clock = clock,
+                music = music,
+                notifications = notifications,
+                hasClearable = hasClearable,
+                expanded = expanded,
+                expandLink = expandLink,
+                stateTick = stateTick,
+                onPressed = pressed,
+                onAllSettings = openAllSettings,
+                onAskPermission = { leave { QuickActions.askToWriteSettings(context) } }
+            )
+        } else {
+            PhonePanel(
+                heightPx = heightPx,
+                sheet = sheet,
+                ink = ink,
+                progress = progress,
+                onDragBy = onDragBy,
+                onDragEnd = onDragEnd,
+                clock = clock,
+                music = music,
+                notifications = notifications,
+                hasClearable = hasClearable,
+                expanded = expanded,
+                expandLink = expandLink,
+                stateTick = stateTick,
+                onPressed = pressed,
+                onAllSettings = openAllSettings,
+                onAskPermission = { leave { QuickActions.askToWriteSettings(context) } }
+            )
+        }
+    }
+}
+
+/** From this width on the panel is the side column rather than the sheet from the top. */
+private val WIDE_PANEL_FROM = 600.dp
+
+/** Windows 10's action center was about this wide on a tablet. */
+private val SIDE_PANEL_WIDTH = 400.dp
+
+@Composable
+private fun Divider(ink: Color) {
+    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(ink.copy(alpha = 0.12f)))
+}
+
+/** The phone's sheet, from the top. */
+@Composable
+private fun PhonePanel(
+    heightPx: Float,
+    sheet: Color,
+    ink: Color,
+    progress: () -> Float,
+    onDragBy: (Float) -> Unit,
+    onDragEnd: (Float) -> Unit,
+    clock: @Composable () -> Unit,
+    music: @Composable () -> Unit,
+    notifications: @Composable (Modifier, NestedScrollConnection?) -> Unit,
+    hasClearable: Boolean,
+    expanded: Boolean,
+    expandLink: @Composable () -> Unit,
+    stateTick: Int,
+    onPressed: (QuickOutcome) -> Unit,
+    onAllSettings: () -> Unit,
+    onAskPermission: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    val dragState = rememberDraggableState { delta -> onDragBy(delta / heightPx) }
+    val sheetDrag = Modifier.draggable(
+        state = dragState,
+        orientation = Orientation.Vertical,
+        onDragStopped = { velocity -> onDragEnd(velocity) }
+    )
+
+    // A push up past the end of the list moves the sheet itself.
+    val listToSheet = remember(heightPx) {
+        object : NestedScrollConnection {
+            var movedSheet = false
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput || available.y >= 0f) return Offset.Zero
+                movedSheet = true
+                onDragBy(available.y / heightPx)
+                return available
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (!movedSheet) return Velocity.Zero
+                movedSheet = false
+                onDragEnd(available.y)
+                return available
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer { translationY = -(1f - progress()) * size.height }
+            .background(sheet)
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+            .padding(top = statusTop + 8.dp, bottom = navBottom)
+    ) {
+        // ── Clock, date, battery; all settings and expand ──
+        Column(modifier = sheetDrag.padding(horizontal = 16.dp)) {
+            clock()
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp)) {
+                LinkText(stringResource(R.string.action_center_all_settings), zuneColors.accentLink, onAllSettings)
+                Spacer(modifier = Modifier.weight(1f))
+                expandLink()
+            }
+
+            // ── Quick actions ──
+            QuickRow(QuickAction.FIRST_ROW, stateTick, ink, onPressed)
+            AnimatedVisibility(visible = expanded, enter = expandVertically(tween(200)), exit = shrinkVertically(tween(160))) {
+                Column {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    QuickRow(QuickAction.SECOND_ROW, stateTick, ink, onPressed)
+                }
+            }
+
+            // ── Brightness ──
+            BrightnessRow(stateTick, ink, onAskPermission = onAskPermission)
+        }
+
+        Box(modifier = Modifier.padding(top = 6.dp)) { Divider(ink) }
+
+        music()
+
+        // ── Notifications ──
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.action_center_notifications),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 20.sp),
+                color = ink,
+                modifier = Modifier.weight(1f)
+            )
+            if (hasClearable) {
+                LinkText(stringResource(R.string.action_center_clear_all), zuneColors.accentLink) {
+                    ActionCenterNotifications.clearAll()
+                }
+            }
+        }
+
+        notifications(Modifier.weight(1f).fillMaxWidth(), listToSheet)
 
         // The bar to push it back up, as Windows Phone drew it at the foot of the sheet.
         Box(
@@ -380,6 +497,101 @@ fun ActionCenterPanel(
             contentAlignment = Alignment.Center
         ) {
             Box(modifier = Modifier.size(width = 48.dp, height = 4.dp).background(ink.copy(alpha = 0.45f)))
+        }
+    }
+}
+
+/**
+ * The tablet's column down the right-hand edge, after Windows 10 in tablet mode: the clock and
+ * the notifications above, and at the foot the links, the quick actions as low wide tiles four
+ * across, and brightness. A drag to the right on its head or foot sends it back off the edge.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.SidePanel(
+    width: androidx.compose.ui.unit.Dp,
+    sheet: Color,
+    ink: Color,
+    progress: () -> Float,
+    onDragBy: (Float) -> Unit,
+    onDragEnd: (Float) -> Unit,
+    clock: @Composable () -> Unit,
+    music: @Composable () -> Unit,
+    notifications: @Composable (Modifier, NestedScrollConnection?) -> Unit,
+    hasClearable: Boolean,
+    expanded: Boolean,
+    expandLink: @Composable () -> Unit,
+    stateTick: Int,
+    onPressed: (QuickOutcome) -> Unit,
+    onAllSettings: () -> Unit,
+    onAskPermission: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    var widthPx by remember { mutableFloatStateOf(1f) }
+
+    // Right is away: the fraction and the velocity are turned round so positive still means open.
+    val dragState = rememberDraggableState { delta -> onDragBy(-delta / widthPx) }
+    val sideDrag = Modifier.draggable(
+        state = dragState,
+        orientation = Orientation.Horizontal,
+        onDragStopped = { velocity -> onDragEnd(-velocity) }
+    )
+
+    Column(
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .width(width)
+            .fillMaxHeight()
+            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
+            .graphicsLayer { translationX = (1f - progress()) * size.width }
+            .background(sheet)
+            .drawBehind { drawRect(ink.copy(alpha = 0.14f), size = androidx.compose.ui.geometry.Size(1.dp.toPx(), size.height)) }
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+            .padding(top = statusTop + 8.dp, bottom = navBottom + 12.dp)
+    ) {
+        // ── Head: clock and date, and the notifications' own links ──
+        Column(modifier = sideDrag.padding(horizontal = 16.dp)) {
+            clock()
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.action_center_notifications),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 20.sp),
+                    color = ink,
+                    modifier = Modifier.weight(1f)
+                )
+                if (hasClearable) {
+                    LinkText(stringResource(R.string.action_center_clear_all), zuneColors.accentLink) {
+                        ActionCenterNotifications.clearAll()
+                    }
+                }
+            }
+        }
+        Divider(ink)
+
+        notifications(Modifier.weight(1f).fillMaxWidth(), null)
+
+        Divider(ink)
+        music()
+
+        // ── Foot: links, quick actions, brightness ──
+        Column(modifier = sideDrag.padding(start = 16.dp, end = 16.dp, top = 6.dp)) {
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                expandLink()
+                Spacer(modifier = Modifier.weight(1f))
+                LinkText(stringResource(R.string.action_center_all_settings), zuneColors.accentLink, onAllSettings)
+            }
+            QuickTileRow(QuickAction.FIRST_ROW, stateTick, ink, onPressed)
+            AnimatedVisibility(visible = expanded, enter = expandVertically(tween(200)), exit = shrinkVertically(tween(160))) {
+                Column {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    QuickTileRow(QuickAction.SECOND_ROW, stateTick, ink, onPressed)
+                }
+            }
+            BrightnessRow(stateTick, ink, onAskPermission = onAskPermission)
         }
     }
 }
@@ -425,6 +637,51 @@ private fun QuickSquare(action: QuickAction, tick: Int, ink: Color, onPressed: (
         Text(
             text = stringResource(action.labelRes),
             style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 14.sp),
+            color = glyph,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/** The tablet's tiles: Windows 10's low, wide ones, the glyph above and the name below. */
+@Composable
+private fun QuickTileRow(actions: List<QuickAction>, tick: Int, ink: Color, onPressed: (QuickOutcome) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        actions.forEach { action ->
+            QuickTile(action, tick, ink, onPressed, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun QuickTile(action: QuickAction, tick: Int, ink: Color, onPressed: (QuickOutcome) -> Unit, modifier: Modifier) {
+    val zuneColors = LocalZuneColors.current
+    val context = LocalContext.current
+    val on = remember(tick, action) { QuickActions.isOn(context, action) }
+    val off = if (zuneColors.isDark) Color(0xFF333333) else Color(0xFFDADADA)
+    val glyph = if (on) Color.White else ink
+    val source = remember { MutableInteractionSource() }
+    Column(
+        modifier = modifier
+            .height(68.dp)
+            .background(if (on) zuneColors.accentColor else off)
+            .wpTilt(interactionSource = source)
+            .clickable(indication = null, interactionSource = source) {
+                onPressed(QuickActions.press(context, action))
+            }
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Icon(
+            painter = quickIcon(action),
+            contentDescription = null,
+            tint = glyph,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = stringResource(action.labelRes),
+            style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 13.sp),
             color = glyph,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis

@@ -185,16 +185,19 @@ object StatusBarShield {
                     val velocity = tracker?.yVelocity ?: 0f
                     tracker?.recycle()
                     tracker = null
-                    if (pulling) {
-                        if (event.actionMasked == MotionEvent.ACTION_CANCEL) {
-                            // The system takes over a long pull from the top edge part of the way
-                            // down (on Android 16 at about a hundred pixels) and nothing of it
-                            // comes back to us. A pull that got that far meant "open", so the
-                            // panel finishes the way by itself.
-                            ActionCenterOverlay.open(service)
-                        } else {
-                            ActionCenterOverlay.endDrag(velocity)
-                        }
+                    if (event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                        // A quick pull from the very top edge is the system's "swipe from top"
+                        // gesture: with the status bar showing, Android hands the rest of the
+                        // touch to the status bar (DisplayPolicy.requestTransientBars) and nothing
+                        // of it comes back to us; no window can refuse that. On a quick pull it
+                        // happens before the first move has even reached us, so any cancel here
+                        // is taken as a pull that was stolen: the panel finishes the way by
+                        // itself and the shade now under the finger is pushed back up.
+                        ActionCenterOverlay.open(service)
+                        ActionCenterOverlay.coverShade()
+                        (service as? ZuneKeyAccessibilityService)?.pushShadeAway()
+                    } else if (pulling) {
+                        ActionCenterOverlay.endDrag(velocity)
                     }
                     pulling = false
                 }

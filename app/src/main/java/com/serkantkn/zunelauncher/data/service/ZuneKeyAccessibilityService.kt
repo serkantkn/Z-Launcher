@@ -65,7 +65,13 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
             try {
                 applicationContext.appContainer.settingsDataStore.wpActionCenter.collect { on ->
                     actionCenterOn = on
-                    if (on) StatusBarShield.attach(this@ZuneKeyAccessibilityService) else StatusBarShield.detach()
+                    if (on) {
+                        StatusBarShield.attach(this@ZuneKeyAccessibilityService)
+                        ActionCenterOverlay.prepare(this@ZuneKeyAccessibilityService)
+                    } else {
+                        StatusBarShield.detach()
+                        ActionCenterOverlay.release()
+                    }
                 }
             } catch (e: Exception) {
                 ZuneLog.e(TAG, "action center setting could not be read", e)
@@ -168,6 +174,23 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         lastShadeCaught = now
     }
 
+    /**
+     * The system has just taken a pull away from the strip and given it to the status bar (see
+     * StatusBarShield), so Android's shade is starting to follow the finger under our panel.
+     * It is folded away at once, and again a few times while the finger may still be dragging
+     * it, rather than waiting for SystemUI to announce it — which takes a second or more.
+     */
+    fun pushShadeAway() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        lastShadeCaught = android.os.SystemClock.uptimeMillis()
+        val handler = android.os.Handler(mainLooper)
+        SHADE_PUSH_MILLIS.forEach { delay ->
+            handler.postDelayed({
+                if (current === this) performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
+            }, delay)
+        }
+    }
+
     override fun onInterrupt() {
         // Nothing to interrupt.
     }
@@ -205,6 +228,7 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         screenReceiver = null
         shieldJob?.cancel()
         StatusBarShield.detach()
+        ActionCenterOverlay.release()
         styleJob?.cancel()
         // The scope is the service's; a collector left running would outlive it.
         scope.cancel()
@@ -216,6 +240,7 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         private const val TAG = "ZuneKeyService"
         private const val SYSTEM_UI = "com.android.systemui"
         private const val SHADE_BURST_MILLIS = 1_500L
+        private val SHADE_PUSH_MILLIS = longArrayOf(0L, 120L, 300L, 600L, 1_000L, 1_500L)
 
         /**
          * The running service, if any. Overlays that must sit above the status bar can only be
