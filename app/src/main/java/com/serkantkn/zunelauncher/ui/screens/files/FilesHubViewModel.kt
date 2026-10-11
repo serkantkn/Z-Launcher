@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import android.os.storage.StorageManager
 import android.webkit.MimeTypeMap
 import androidx.core.content.ContextCompat
@@ -34,8 +35,16 @@ import com.serkantkn.zunelauncher.util.sanitizeFileName
 import com.serkantkn.zunelauncher.util.sortFiles
 import com.serkantkn.zunelauncher.util.toUserMessage
 import com.serkantkn.zunelauncher.util.uniqueFileName
+import com.serkantkn.zunelauncher.util.ConflictChoice
+import com.serkantkn.zunelauncher.util.ConflictPlan
+import com.serkantkn.zunelauncher.util.FileConflict
+import com.serkantkn.zunelauncher.util.FileTransferProgress
+import com.serkantkn.zunelauncher.util.TransferMeter
+import com.serkantkn.zunelauncher.util.findTakenName
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -258,66 +267,170 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     private var pasteJob: Job? = null
 
+    // ── Pasting: how far it has gone, and names already taken ──────────────
+
+    private val _pasteProgress = MutableStateFlow<FileTransferProgress?>(null)
+    /** The paste going on now, or null when there is none. */
+    val pasteProgress: StateFlow<FileTransferProgress?> = _pasteProgress.asStateFlow()
+
+    private val _pasteConflict = MutableStateFlow<FileConflict?>(null)
+    /** A name the paste is waiting to be told what to do about, or null when it is not waiting. */
+    val pasteConflict: StateFlow<FileConflict?> = _pasteConflict.asStateFlow()
+
+    /** Checked between chunks; a paused copy holds its files open and simply waits. */
+    private val pastePaused = MutableStateFlow(false)
+
+    private class ConflictAnswer(val choice: ConflictChoice, val applyToAll: Boolean)
+
+    // Written on the disk thread by the paste, completed on the main thread by the dialog.
+    @Volatile private var pendingConflict: CompletableDeferred<ConflictAnswer>? = null
+    private var conflictCount = 0
+
+    /**
+     * Answers the question the paste is waiting on. A second answer to the same question — a
+     * dialog that closes after its button was pressed — finds it already answered and does nothing.
+     */
+    fun resolveConflict(choice: ConflictChoice, applyToAll: Boolean) {
+        pendingConflict?.complete(ConflictAnswer(choice, applyToAll))
+    }
+
+    /** Holds a paste where it is, or lets it go on. */
+    fun togglePausePaste() {
+        if (pasteJob?.isActive != true) return
+        val paused = !pastePaused.value
+        pastePaused.value = paused
+        // Drawn at once: the copy itself says nothing more until it moves again.
+        _pasteProgress.value = _pasteProgress.value?.copy(isPaused = paused, bytesPerSecond = 0L)
+    }
+
     /**
      * Puts what is on the clipboard into the open folder.
      *
      * A move is tried as a rename first, which on the same volume is instant and costs nothing;
      * only when that fails — moving between the phone and a card, say — is it copied and then
-     * deleted. Names that would collide are given a number rather than overwriting, a folder
-     * cannot be pasted inside itself, and a thing pasted back where it already sits is left as it
-     * is rather than renamed to "(2)".
+     * deleted. A folder cannot be pasted inside itself, and a thing pasted back where it already
+     * sits is left as it is rather than renamed to "(2)".
      *
-     * The copy goes a piece at a time so it can be stopped: a half-copied file is removed, what
-     * was finished before stays.
+     * A name that is already used in the folder is no longer quietly numbered: the paste stops and
+     * asks — replace what is there, skip this one, or keep both under a numbered name — and an
+     * answer given "for all" stands for the rest of the paste.
+     *
+     * The copy goes a piece at a time so it can be paused and stopped, and so it can say how far it
+     * has gone: a half-copied file is removed, what was finished before stays.
      */
     fun paste(destination: File = _currentDirectory.value) {
         val board = _clipboard.value ?: return
         if (pasteJob?.isActive == true) return
+        pastePaused.value = false
         pasteJob = viewModelScope.launch {
-            _busyMessage.value = application().localizedString(R.string.files_working)
+            val meter = TransferMeter(board.isMove, board.paths.size)
+            _pasteProgress.value = meter.snapshot(isPaused = false)
             var failed = 0
             var alreadyThere = 0
             val touched = mutableListOf<String>()
             try {
                 withContext(Dispatchers.IO) {
                     val taken = (destination.list() ?: emptyArray()).toMutableSet()
-                    board.paths.forEachIndexed { index, path ->
+                    val sources = board.paths.map(::File)
+                    val pastable = sources.map { source ->
+                        source.exists() &&
+                            !isAlreadyThere(source.absolutePath, destination.absolutePath) &&
+                            !(source.isDirectory && isInsideItself(source.absolutePath, destination.absolutePath))
+                    }
+                    // Counted before the first byte moves, so the line under the header means
+                    // something from the start rather than racing to the end of each folder.
+                    val sizes = sources.mapIndexed { index, source -> if (pastable[index]) sizeOf(source) else 0L }
+                    meter.setTotalBytes(sizes.sum())
+                    val plan = ConflictPlan(sources.mapIndexed { index, source -> source.name.takeIf { pastable[index] } }, taken)
+                    sources.forEachIndexed { index, source ->
                         ensureActive()
-                        val source = File(path)
-                        if (!source.exists()) { failed++; return@forEachIndexed }
-                        if (isAlreadyThere(source.absolutePath, destination.absolutePath)) {
-                            alreadyThere++
-                            return@forEachIndexed
-                        }
-                        if (source.isDirectory && isInsideItself(source.absolutePath, destination.absolutePath)) {
-                            failed++
-                            return@forEachIndexed
-                        }
-                        _busyMessage.value = application().localizedString(
-                            R.string.files_paste_progress, index + 1, board.paths.size, source.name
-                        )
-                        val name = uniqueFileName(source.name, taken)
-                        val target = File(destination, name)
-                        val ok = runCatching {
-                            // renameTo replaces an existing target without a word; the unique
-                            // name makes that unlikely, the check makes it impossible.
-                            if (target.exists()) return@runCatching false
-                            if (board.isMove && source.renameTo(target)) return@runCatching true
-                            val copied = copyChunked(source, target)
-                            if (copied && board.isMove) source.deleteRecursively()
-                            copied
-                        }.getOrElse {
-                            ZuneLog.w(TAG, "could not paste $path", it)
-                            false
-                        }
-                        if (ok) {
-                            taken += name
-                            touched += target.absolutePath
-                            if (board.isMove) touched += source.absolutePath
-                        } else {
-                            failed++
+                        meter.begin(source.name)
+                        publishPaste(meter, force = true)
+                        try {
+                            if (!source.exists()) { failed++; return@forEachIndexed }
+                            if (isAlreadyThere(source.absolutePath, destination.absolutePath)) {
+                                alreadyThere++
+                                return@forEachIndexed
+                            }
+                            if (source.isDirectory && isInsideItself(source.absolutePath, destination.absolutePath)) {
+                                failed++
+                                return@forEachIndexed
+                            }
+                            var name = source.name
+                            val clash = findTakenName(name, taken)?.let { File(destination, it) }
+                            if (clash != null && clash.exists()) {
+                                // The same file under another address — /sdcard and
+                                // /storage/emulated/0 are one place — is already there, not in the way.
+                                if (sameFile(clash, source)) {
+                                    alreadyThere++
+                                    meter.drop(sizes[index])
+                                    return@forEachIndexed
+                                }
+                                val choice = plan.standing ?: run {
+                                    val answer = askAboutConflict(source, clash, sizes[index], plan.othersAfter(index))
+                                    plan.record(answer.choice, answer.applyToAll)
+                                    // The time spent deciding is not time spent copying.
+                                    meter.restartSpeed()
+                                    answer.choice
+                                }
+                                when (choice) {
+                                    ConflictChoice.SKIP -> {
+                                        meter.drop(sizes[index])
+                                        return@forEachIndexed
+                                    }
+                                    ConflictChoice.KEEP_BOTH -> name = uniqueFileName(source.name, taken)
+                                    ConflictChoice.REPLACE -> {
+                                        // Replacing a folder with something from inside it would
+                                        // delete the very thing being pasted.
+                                        if (isInsideItself(clash.absolutePath, source.absolutePath)) {
+                                            failed++
+                                            return@forEachIndexed
+                                        }
+                                        val removed = runCatching { clash.deleteRecursively() }.getOrDefault(false)
+                                        if (!removed) {
+                                            ZuneLog.w(TAG, "could not replace ${clash.absolutePath}")
+                                            failed++
+                                            return@forEachIndexed
+                                        }
+                                        taken -= clash.name
+                                        touched += clash.absolutePath
+                                    }
+                                }
+                            }
+                            val target = File(destination, name)
+                            val ok = try {
+                                when {
+                                    // renameTo replaces an existing target without a word; by now
+                                    // nothing should be there, and the check makes sure of it.
+                                    target.exists() -> false
+                                    board.isMove && source.renameTo(target) -> {
+                                        meter.advance(sizes[index], SystemClock.elapsedRealtime())
+                                        true
+                                    }
+                                    else -> {
+                                        val copied = copyChunked(source, target, meter)
+                                        if (copied && board.isMove) source.deleteRecursively()
+                                        copied
+                                    }
+                                }
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                ZuneLog.w(TAG, "could not paste ${source.absolutePath}", e)
+                                false
+                            }
+                            if (ok) {
+                                taken += name
+                                touched += target.absolutePath
+                                if (board.isMove) touched += source.absolutePath
+                            } else {
+                                failed++
+                            }
+                        } finally {
+                            meter.finishItem()
                         }
                     }
+                    publishPaste(meter, force = true)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 _errorMessage.value = application().localizedString(R.string.files_paste_cancelled)
@@ -325,7 +438,10 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
                 throw e
             } finally {
                 _clipboard.value = null
-                _busyMessage.value = null
+                _pasteProgress.value = null
+                _pasteConflict.value = null
+                pendingConflict = null
+                pastePaused.value = false
             }
             scanPaths(touched)
             _errorMessage.value = when {
@@ -337,34 +453,86 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /** Stops a paste that is still going; the file being copied is removed. */
+    /** Stops a paste that is still going, or waiting on a question; the file being copied is removed. */
     fun cancelPaste() {
         pasteJob?.cancel()
         pasteJob = null
         _busyMessage.value = null
+        _pasteProgress.value = null
+        _pasteConflict.value = null
+        pastePaused.value = false
         reload()
     }
 
+    /** Puts the question up and waits for it; a paste stopped meanwhile takes the question down. */
+    private suspend fun askAboutConflict(source: File, existing: File, sourceSize: Long, othersRemaining: Int): ConflictAnswer {
+        val answer = CompletableDeferred<ConflictAnswer>()
+        pendingConflict = answer
+        _pasteConflict.value = FileConflict(
+            id = ++conflictCount,
+            name = existing.name,
+            isDirectory = source.isDirectory,
+            sourceSize = sourceSize,
+            sourceModified = source.lastModified(),
+            existingIsDirectory = existing.isDirectory,
+            existingSize = sizeOf(existing),
+            existingModified = existing.lastModified(),
+            othersRemaining = othersRemaining
+        )
+        try {
+            return answer.await()
+        } finally {
+            pendingConflict = null
+            _pasteConflict.value = null
+        }
+    }
+
+    private fun publishPaste(meter: TransferMeter, force: Boolean = false) {
+        if (meter.due(SystemClock.elapsedRealtime(), force)) {
+            _pasteProgress.value = meter.snapshot(pastePaused.value)
+        }
+    }
+
+    /** Everything a thing holds, counted file by file; a folder's own entry weighs nothing. */
+    private fun sizeOf(file: File): Long = runCatching {
+        if (file.isDirectory) file.walkTopDown().filter { it.isFile }.sumOf { it.length() } else file.length()
+    }.getOrDefault(0L)
+
+    private fun sameFile(a: File, b: File): Boolean =
+        runCatching { a.canonicalPath == b.canonicalPath }.getOrDefault(false)
+
     /**
      * Copies a file (or a tree) in pieces, checking between pieces whether anybody has asked it to
-     * stop. [File.copyTo] cannot be interrupted and would leave a half-written file behind as
-     * though it were whole.
+     * stop or to wait, and telling [meter] how far it has got. [File.copyTo] cannot be interrupted
+     * and would leave a half-written file behind as though it were whole.
      */
-    private fun kotlinx.coroutines.CoroutineScope.copyChunked(source: File, target: File): Boolean {
+    private suspend fun copyChunked(source: File, target: File, meter: TransferMeter): Boolean {
         if (source.isDirectory) {
             if (!target.mkdirs() && !target.isDirectory) return false
             val children = source.listFiles() ?: return false
-            return children.all { child -> copyChunked(child, File(target, child.name)) }
+            for (child in children) {
+                if (!copyChunked(child, File(target, child.name), meter)) return false
+            }
+            return true
         }
+        // Inside a folder the line names the file actually being copied, so a long folder is
+        // seen to be moving.
+        meter.begin(source.name)
         val buffer = ByteArray(COPY_CHUNK)
         try {
             source.inputStream().use { input ->
                 target.outputStream().use { output ->
                     while (true) {
-                        ensureActive()
+                        currentCoroutineContext().ensureActive()
+                        if (pastePaused.value) {
+                            pastePaused.first { !it }
+                            meter.restartSpeed()
+                        }
                         val read = input.read(buffer)
                         if (read < 0) break
                         output.write(buffer, 0, read)
+                        meter.advance(read.toLong(), SystemClock.elapsedRealtime())
+                        publishPaste(meter)
                     }
                 }
             }

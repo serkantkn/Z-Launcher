@@ -30,4 +30,30 @@
     <string name="files_view_thumbs_short">küçük resimler</string>
     <string name="files_view_details_short">ayrıntılar</string>
     <string name="files_bar_open_with">birlikte aç</string>
+    <!-- Süren bir kopyalama ya da taşıma, ve zaten kullanılan bir ad -->
+    <plurals name="files_transfer_copying">
+        <item quantity="one">%d öğe kopyalanıyor</item>
+        <item quantity="other">%d öğe kopyalanıyor</item>
+    </plurals>
+    <plurals name="files_transfer_moving">
+        <item quantity="one">%d öğe taşınıyor</item>
+        <item quantity="other">%d öğe taşınıyor</item>
+    </plurals>
+    <string name="files_transfer_percent">%%%1$d</string>
+    <string name="files_transfer_speed">%1$s/sn</string>
+    <string name="files_transfer_paused">duraklatıldı</string>
+    <string name="files_transfer_pause">duraklat</string>
+    <string name="files_transfer_resume">sürdür</string>
+    <string name="files_conflict_title_file">bu adda bir dosya zaten var</string>
+    <string name="files_conflict_title_folder">bu adda bir klasör zaten var</string>
+    <string name="files_conflict_incoming">yapıştırılan</string>
+    <string name="files_conflict_existing">buradaki</string>
+    <string name="files_conflict_folder_note">klasörü değiştirmek buradakinin içindeki her şeyi siler</string>
+    <string name="files_conflict_replace">değiştir</string>
+    <string name="files_conflict_skip">atla</string>
+    <string name="files_conflict_keep_both">ikisini de tut</string>
+    <plurals name="files_conflict_apply_all">
+        <item quantity="one">tümü için uygula (%d daha)</item>
+        <item quantity="other">tümü için uygula (%d daha)</item>
+    </plurals>
 </resources>

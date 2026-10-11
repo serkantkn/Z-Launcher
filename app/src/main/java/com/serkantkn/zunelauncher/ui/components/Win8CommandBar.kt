@@ -208,6 +208,9 @@ fun Win8MenuItem(text: String, chosen: Boolean = false, onClick: () -> Unit) {
  * Windows 8's message dialog: a band right across the middle of the screen, the rest of it
  * dimmed, the words on the left of a centred column and the buttons at its foot on the right —
  * the primary one filled in the accent.
+ *
+ * A question with three answers — replace, keep both, skip — gives [secondaryLabel], an outlined
+ * button between the two; Windows 8 put up to three side by side the same way.
  */
 @Composable
 fun Win8MessageDialog(
@@ -218,6 +221,8 @@ fun Win8MessageDialog(
     onDismiss: () -> Unit,
     confirmEnabled: Boolean = true,
     destructive: Boolean = false,
+    secondaryLabel: String? = null,
+    onSecondary: () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit = {}
 ) {
     val zuneColors = LocalZuneColors.current
@@ -262,6 +267,10 @@ fun Win8MessageDialog(
                             onClick = onConfirm
                         )
                         Spacer(modifier = Modifier.width(12.dp))
+                        if (secondaryLabel != null) {
+                            BandButton(text = secondaryLabel, filled = false, fill = fg, fg = fg, onClick = onSecondary)
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
                         BandButton(text = dismissLabel, filled = false, fill = fg, fg = fg, onClick = onDismiss)
                     }
                 }

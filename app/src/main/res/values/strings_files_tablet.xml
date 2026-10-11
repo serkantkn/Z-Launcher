@@ -30,4 +30,30 @@
     <string name="files_view_thumbs_short">thumbnails</string>
     <string name="files_view_details_short">details</string>
     <string name="files_bar_open_with">open with</string>
+    <!-- A copy or a move as it goes, and a name that is already taken -->
+    <plurals name="files_transfer_copying">
+        <item quantity="one">copying %d item</item>
+        <item quantity="other">copying %d items</item>
+    </plurals>
+    <plurals name="files_transfer_moving">
+        <item quantity="one">moving %d item</item>
+        <item quantity="other">moving %d items</item>
+    </plurals>
+    <string name="files_transfer_percent">%1$d%%</string>
+    <string name="files_transfer_speed">%1$s/s</string>
+    <string name="files_transfer_paused">paused</string>
+    <string name="files_transfer_pause">pause</string>
+    <string name="files_transfer_resume">resume</string>
+    <string name="files_conflict_title_file">there\'s already a file with this name</string>
+    <string name="files_conflict_title_folder">there\'s already a folder with this name</string>
+    <string name="files_conflict_incoming">the one being pasted</string>
+    <string name="files_conflict_existing">the one already here</string>
+    <string name="files_conflict_folder_note">replacing a folder deletes everything in the one already here</string>
+    <string name="files_conflict_replace">replace</string>
+    <string name="files_conflict_skip">skip</string>
+    <string name="files_conflict_keep_both">keep both</string>
+    <plurals name="files_conflict_apply_all">
+        <item quantity="one">apply to all (%d more)</item>
+        <item quantity="other">apply to all (%d more)</item>
+    </plurals>
 </resources>
