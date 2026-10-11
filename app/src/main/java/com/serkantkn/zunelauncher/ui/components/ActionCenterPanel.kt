@@ -174,6 +174,11 @@ fun ActionCenterPanel(
     }
     val groups by ActionCenterNotifications.groups.collectAsState()
     var expanded by remember { mutableStateOf(false) }
+    // The panel is built once and kept (see ActionCenterOverlay), so its list would come back
+    // where it was left — and a notification that arrived meanwhile lands above the fold. Each
+    // time it comes down, it starts from the newest.
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(active) { if (active) listState.scrollToItem(0) }
 
     // The music card reads the playing session through the notification listener.
     val media = remember { ThirdPartyMediaController(context.applicationContext) }
@@ -288,6 +293,7 @@ fun ActionCenterPanel(
                     modifier = Modifier.padding(16.dp)
                 )
                 else -> LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize().then(if (scroll != null) Modifier.nestedScroll(scroll) else Modifier)
                 ) {
                     groups.forEach { group ->
