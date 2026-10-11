@@ -391,7 +391,7 @@
     <string name="files_search_hint">dosyalarda ara...</string>
     <string name="files_tab_categories">kategoriler</string>
     <string name="files_tab_quick">hızlı erişim</string>
-    <string name="files_delete_confirm">\"%1$s\" kalıcı olarak silinecek. Onaylıyor musunuz?</string>
+    <string name="files_delete_confirm">\"%1$s\" geri dönüşüm kutusuna taşınacak. Onaylıyor musunuz?</string>
     <string name="files_share_chooser">Dosyayı Paylaş</string>
     <string name="files_folder_missing">klasör bulunamadı</string>
     <string name="files_folder_unreadable">klasör okunamıyor</string>
@@ -1521,7 +1521,7 @@
     <string name="files_open">aç</string>
     <string name="files_open_with">şununla aç…</string>
     <string name="files_paste_here">buraya yapıştır</string>
-    <string name="files_delete_many_confirm">%1$d öğe kalıcı olarak silinecek. Onaylıyor musunuz?</string>
+    <string name="files_delete_many_confirm">%1$d öğe geri dönüşüm kutusuna taşınacak. Onaylıyor musunuz?</string>
     <string name="files_viewer_too_big">tamamını göstermek için fazla büyük; bu, başı</string>
     <string name="files_viewer_cannot">dosya okunamadı</string>
     <string name="files_viewer_page">sayfa %1$d / %2$d</string>

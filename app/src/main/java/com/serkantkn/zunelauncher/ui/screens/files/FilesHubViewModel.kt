@@ -23,6 +23,8 @@ import com.serkantkn.zunelauncher.data.model.CloudQuota
 import com.serkantkn.zunelauncher.data.model.CloudTransfer
 import com.serkantkn.zunelauncher.data.model.FileItemModel
 import com.serkantkn.zunelauncher.data.model.StorageVolumeInfo
+import com.serkantkn.zunelauncher.data.repository.RecycleBin
+import com.serkantkn.zunelauncher.data.repository.RecycleBinEntry
 import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.FileSort
 import com.serkantkn.zunelauncher.util.PackageInstall
@@ -191,6 +193,7 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
                     val children = runCatching { directory.listFiles() }.getOrNull() ?: continue
                     children.forEach { child ->
                         if (!hidden && child.isHidden) return@forEach
+                        if (child.name == RecycleBin.FOLDER_NAME) return@forEach
                         if (child.isDirectory) queue.addLast(child)
                         if (matchesFileQuery(child.name, query) && found.size < MAX_RESULTS) {
                             found += child.toItem()
@@ -586,6 +589,7 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         if (granted) {
             refreshVolumes()
             loadDirectory(_currentDirectory.value)
+            refreshRecycleBin()
         }
     }
 
@@ -667,7 +671,11 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         val ascending = sortAscending.value
         return withContext(Dispatchers.IO) {
             val files = runCatching { directory.listFiles() }.getOrNull() ?: emptyArray()
-            val visible = files.filter { hidden || !it.isHidden }.map { it.toItem() }
+            // The recycle bin is the hub's own, and is reached from its own entry; it stays out
+            // of the folder it sits in even with hidden things showing.
+            val visible = files
+                .filter { (hidden || !it.isHidden) && it.name != RecycleBin.FOLDER_NAME }
+                .map { it.toItem() }
             sortFiles(visible, order, ascending)
         }
     }
@@ -717,6 +725,7 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     /** Opens [directory] as a step that Back can return from. */
     fun visit(directory: File) {
+        _inRecycleBin.value = false
         val current = _currentDirectory.value
         if (!directory.isDirectory || directory.absolutePath == current.absolutePath) return
         pushStop(current)
@@ -725,6 +734,7 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     /** Opens a volume's top as a step that Back can return from. */
     fun visitVolume(volume: StorageVolumeInfo) {
+        _inRecycleBin.value = false
         val current = _currentDirectory.value
         if (volume.root.absolutePath == current.absolutePath) return
         pushStop(current)
@@ -782,40 +792,31 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun deleteItem(item: FileItemModel) {
-        viewModelScope.launch {
-            val deleted = withContext(Dispatchers.IO) {
-                runCatching { if (item.isDirectory) item.file.deleteRecursively() else item.file.delete() }
-                    .getOrDefault(false)
-            }
-            if (deleted) scanPaths(listOf(item.file.absolutePath))
-            else _errorMessage.value = application().localizedString(R.string.files_delete_failed, item.name)
-            reload()
-        }
-    }
+    /** Moves one thing to the recycle bin; it is deleted for good only from there. */
+    fun deleteItem(item: FileItemModel) = moveToRecycleBin(listOf(item))
 
-    /** Deletes everything chosen, reporting how many would not go. */
+    /** Moves everything chosen to the recycle bin, reporting how many would not go. */
     fun deleteSelection() {
         val chosen = selectedItems().ifEmpty { return }
+        clearSelection()
+        moveToRecycleBin(chosen)
+    }
+
+    private fun moveToRecycleBin(items: List<FileItemModel>) {
         viewModelScope.launch {
-            _busyMessage.value = application().localizedString(R.string.files_working)
-            val gone = mutableListOf<String>()
-            val failed = withContext(Dispatchers.IO) {
-                chosen.count { item ->
-                    yield()
-                    val ok = runCatching { if (item.isDirectory) item.file.deleteRecursively() else item.file.delete() }
-                        .getOrDefault(false)
-                    if (ok) gone += item.file.absolutePath
-                    !ok
-                }
-            }
+            if (items.size > 1) _busyMessage.value = application().localizedString(R.string.files_working)
+            val result = recycleBinStore.trash(items.map { it.file }, _volumes.value.map { it.root })
             _busyMessage.value = null
-            clearSelection()
-            scanPaths(gone)
-            if (failed > 0) {
-                _errorMessage.value = application().localizedString(R.string.files_delete_partial, failed)
+            // The media store still has the old addresses; a scan of a path that has gone
+            // takes it out of the gallery.
+            scanPaths(result.trashed.map { it.originalPath })
+            _errorMessage.value = when {
+                result.failed.isEmpty() -> null
+                items.size == 1 -> application().localizedString(R.string.files_trash_failed, items.single().name)
+                else -> application().localizedString(R.string.files_delete_partial, result.failed.size)
             }
             reload()
+            refreshRecycleBin()
         }
     }
 
@@ -937,6 +938,127 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     )
 
     private fun application(): Application = getApplication()
+
+    // ── The recycle bin ─────────────────────────────────────────────────────
+
+    // A delete is a move into the bin of the volume the thing is on (RecycleBin). The bin is a
+    // place of its own on both layouts — a row on the phone's quick access page, an entry at the
+    // foot of the tablet's places — with its own selection, so choosing things in it never mixes
+    // with choosing things in a folder.
+
+    private val recycleBinStore = RecycleBin()
+
+    private val _recycleBin = MutableStateFlow<List<RecycleBinEntry>>(emptyList())
+    /** What is in the bins of every volume, the most recently deleted first. */
+    val recycleBin: StateFlow<List<RecycleBinEntry>> = _recycleBin.asStateFlow()
+
+    private val _inRecycleBin = MutableStateFlow(false)
+    /** Whether the bin is the place open now rather than a folder. */
+    val inRecycleBin: StateFlow<Boolean> = _inRecycleBin.asStateFlow()
+
+    private val _binSelection = MutableStateFlow<Set<String>>(emptySet())
+    /** Ids of the entries chosen in the bin; empty means selection mode is off there. */
+    val binSelection: StateFlow<Set<String>> = _binSelection.asStateFlow()
+
+    private val _binMessage = MutableStateFlow<String?>(null)
+    /**
+     * What went wrong in the bin. Its own, not [errorMessage]: a restore reloads the folder
+     * behind the bin, and the reload clears that one before anybody could read it.
+     */
+    val binMessage: StateFlow<String?> = _binMessage.asStateFlow()
+
+    init {
+        // What has waited longer than a month goes for good, once each time the hub opens.
+        if (_hasPermission.value) {
+            viewModelScope.launch {
+                runCatching { recycleBinStore.purgeOlderThan(_volumes.value.map { it.root }) }
+                    .onFailure { ZuneLog.w(TAG, "the recycle bin could not be purged", it) }
+                refreshRecycleBin()
+            }
+        }
+    }
+
+    fun refreshRecycleBin() {
+        if (!_hasPermission.value) return
+        viewModelScope.launch {
+            val entries = runCatching { recycleBinStore.list(_volumes.value.map { it.root }) }
+                .onFailure { ZuneLog.w(TAG, "the recycle bin could not be read", it) }
+                .getOrDefault(emptyList())
+            _recycleBin.value = entries
+            // Whatever left the bin meanwhile cannot stay chosen.
+            val ids = entries.mapTo(HashSet()) { it.id }
+            _binSelection.value = _binSelection.value.filterTo(HashSet()) { it in ids }
+        }
+    }
+
+    fun openRecycleBin() {
+        clearDeepSearch()
+        clearSelection()
+        _binSelection.value = emptySet()
+        _binMessage.value = null
+        _inRecycleBin.value = true
+        refreshRecycleBin()
+    }
+
+    fun closeRecycleBin() {
+        _inRecycleBin.value = false
+        _binSelection.value = emptySet()
+    }
+
+    fun toggleBinSelection(entry: RecycleBinEntry) {
+        val id = entry.id
+        _binSelection.value = if (id in _binSelection.value) _binSelection.value - id else _binSelection.value + id
+    }
+
+    fun selectAllInBin() {
+        _binSelection.value = _recycleBin.value.mapTo(HashSet()) { it.id }
+    }
+
+    fun clearBinSelection() {
+        _binSelection.value = emptySet()
+    }
+
+    /** The entries chosen in the bin. */
+    fun binSelectedEntries(): List<RecycleBinEntry> =
+        _recycleBin.value.filter { it.id in _binSelection.value }
+
+    /** Puts entries back where they were deleted from (a name taken meanwhile gets a number). */
+    fun restore(entries: List<RecycleBinEntry>) {
+        if (entries.isEmpty()) return
+        viewModelScope.launch {
+            val result = recycleBinStore.restore(entries)
+            scanPaths(result.restored.map { it.absolutePath })
+            _binMessage.value = if (result.failed.isEmpty()) null
+            else application().localizedString(R.string.files_bin_restore_partial, result.failed.size)
+            clearBinSelection()
+            refreshRecycleBin()
+            reload()
+        }
+    }
+
+    /** Deletes entries for good: the only way anything in the hub is deleted permanently. */
+    fun deleteForever(entries: List<RecycleBinEntry>) {
+        if (entries.isEmpty()) return
+        viewModelScope.launch {
+            val failed = recycleBinStore.deleteForever(entries)
+            _binMessage.value = if (failed.isEmpty()) null
+            else application().localizedString(R.string.files_delete_partial, failed.size)
+            clearBinSelection()
+            refreshRecycleBin()
+        }
+    }
+
+    fun emptyRecycleBin() {
+        viewModelScope.launch {
+            _busyMessage.value = application().localizedString(R.string.files_working)
+            val failed = recycleBinStore.empty(_volumes.value.map { it.root })
+            _busyMessage.value = null
+            _binMessage.value = if (failed.isEmpty()) null
+            else application().localizedString(R.string.files_delete_partial, failed.size)
+            clearBinSelection()
+            refreshRecycleBin()
+        }
+    }
 
     // ── Cloud storage ───────────────────────────────────────────────────────
 

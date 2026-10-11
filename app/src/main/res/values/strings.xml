@@ -391,7 +391,7 @@
     <string name="files_search_hint">search files...</string>
     <string name="files_tab_categories">categories</string>
     <string name="files_tab_quick">quick access</string>
-    <string name="files_delete_confirm">\"%1$s\" will be deleted permanently. Are you sure?</string>
+    <string name="files_delete_confirm">\"%1$s\" will be moved to the recycle bin. Are you sure?</string>
     <string name="files_share_chooser">Share File</string>
     <string name="files_folder_missing">folder not found</string>
     <string name="files_folder_unreadable">folder cannot be read</string>
@@ -1521,7 +1521,7 @@
     <string name="files_open">open</string>
     <string name="files_open_with">open with…</string>
     <string name="files_paste_here">paste in here</string>
-    <string name="files_delete_many_confirm">%1$d items will be deleted permanently. Are you sure?</string>
+    <string name="files_delete_many_confirm">%1$d items will be moved to the recycle bin. Are you sure?</string>
     <string name="files_viewer_too_big">too big to show whole; this is the beginning</string>
     <string name="files_viewer_cannot">the file could not be read</string>
     <string name="files_viewer_page">page %1$d of %2$d</string>
