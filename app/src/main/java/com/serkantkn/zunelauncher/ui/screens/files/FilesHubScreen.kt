@@ -901,6 +901,8 @@ fun FilesHubScreen(
             cloudSheetTarget != null -> cloudSheetTarget = null
             showSortSheet -> showSortSheet = false
             showVolumeSheet -> showVolumeSheet = false
+            // The bin keeps a selection of its own (see the recycle bin overlays).
+            viewModel.binSelection.value.isNotEmpty() -> viewModel.clearBinSelection()
             selection.isNotEmpty() -> viewModel.clearSelection()
             deepResults != null -> viewModel.clearDeepSearch()
             isSearchOpen -> { isSearchOpen = false; viewModel.updateSearchQuery("") }
