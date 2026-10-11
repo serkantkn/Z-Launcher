@@ -35,6 +35,9 @@ fun formatFileSize(bytes: Long): String {
 /** The orders the list can be put in. */
 enum class FileSort { NAME, DATE, SIZE, TYPE }
 
+/** How a folder is shown: rows of names and details, or a grid of pictures. */
+enum class FilesView { LIST, THUMBNAILS }
+
 /**
  * Puts a folder's contents in order.
  *

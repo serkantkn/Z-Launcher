@@ -57,9 +57,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.serkantkn.zunelauncher.util.FilesView
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -92,13 +95,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * One place the tablet's files hub has been, kept so the back arrow can return there: the
- * volume it was on as well as the folder, since a step back may cross from the SD card to the
- * phone's own storage.
- */
-internal data class FilesStop(val volume: StorageVolumeInfo?, val directory: File)
-
 /** The standard folders the tablet lists under "libraries", each in its kind's colour. */
 private enum class FilesLibrary(val folder: String, val labelRes: Int, val category: FileCategory) {
     PICTURES("Pictures", R.string.files_cat_pictures, FileCategory.IMAGE),
@@ -127,9 +123,9 @@ private enum class FilesLibrary(val folder: String, val labelRes: Int, val categ
 @Composable
 internal fun FilesTabletLayout(
     viewModel: FilesHubViewModel,
+    filesView: FilesView,
     inCloud: Boolean,
     onInCloudChange: (Boolean) -> Unit,
-    history: SnapshotStateList<FilesStop>,
     onBack: () -> Unit,
     canGoBack: Boolean,
     permissionGate: @Composable () -> Unit,
@@ -156,19 +152,15 @@ internal fun FilesTabletLayout(
 
     val primaryRoot = remember { Environment.getExternalStorageDirectory() }
 
-    /** Opens a folder on the current volume, leaving a stop behind for the back arrow. */
+    /** Opens a folder as a step the back arrow can return from (the trail is the view model's). */
     fun goTo(directory: File) {
-        if (!inCloud && directory.absolutePath == currentDirectory.absolutePath) return
-        if (!inCloud) history.add(FilesStop(currentVolume, currentDirectory))
         onInCloudChange(false)
-        viewModel.navigateTo(directory)
+        viewModel.visit(directory)
     }
 
     fun goToVolume(volume: StorageVolumeInfo) {
-        if (!inCloud && volume.root.absolutePath == currentDirectory.absolutePath) return
-        if (!inCloud) history.add(FilesStop(currentVolume, currentDirectory))
         onInCloudChange(false)
-        viewModel.openVolume(volume)
+        viewModel.visitVolume(volume)
     }
 
     fun goToCloud(account: CloudAccount) {
@@ -230,17 +222,7 @@ internal fun FilesTabletLayout(
                         chosen = !inCloud && isInside(currentDirectory, folder),
                         ink = ink,
                         marker = categoryColor(library.category, zuneColors.accentColor)
-                    ) {
-                        val primary = volumes.firstOrNull { it.isPrimary }
-                        if (primary != null && currentVolume?.root?.absolutePath != primary.root.absolutePath) {
-                            history.add(FilesStop(currentVolume, currentDirectory))
-                            onInCloudChange(false)
-                            viewModel.openVolume(primary)
-                            viewModel.navigateTo(folder)
-                        } else {
-                            goTo(folder)
-                        }
-                    }
+                    ) { goTo(folder) }
                 }
 
                 PaneSection(stringResource(R.string.files_tab_cloud))
@@ -296,20 +278,29 @@ internal fun FilesTabletLayout(
                             val shown = deepResults ?: fileItems.filter {
                                 searchQuery.isBlank() || matchesFileQuery(it.name, searchQuery)
                             }
-                            DetailsView(
+                            val open: (FileItemModel) -> Unit = { item ->
+                                when {
+                                    viewModel.selection.value.isNotEmpty() -> viewModel.toggleSelection(item)
+                                    item.isDirectory -> goTo(item.file)
+                                    else -> onOpenFile(item)
+                                }
+                            }
+                            if (filesView == FilesView.THUMBNAILS) {
+                                ThumbnailsView(
+                                    viewModel = viewModel,
+                                    items = shown,
+                                    bottomPadding = bottomPadding,
+                                    onOpen = open,
+                                    onLongClick = onItemLongClick
+                                )
+                            } else DetailsView(
                                 viewModel = viewModel,
                                 items = shown,
                                 bottomPadding = bottomPadding,
                                 showPathInsteadOfType = deepResults != null,
                                 volumeRoot = currentVolume?.root,
                                 ink = ink,
-                                onOpen = { item ->
-                                    when {
-                                        viewModel.selection.value.isNotEmpty() -> viewModel.toggleSelection(item)
-                                        item.isDirectory -> goTo(item.file)
-                                        else -> onOpenFile(item)
-                                    }
-                                },
+                                onOpen = open,
                                 onLongClick = onItemLongClick
                             )
                         }
@@ -779,6 +770,58 @@ private fun DetailsView(
     }
 }
 
+/**
+ * The contents as pictures, the way Windows 8's apps laid out a folder: tiles in columns that
+ * fill the height of the screen and run off to the right.
+ */
+@Composable
+private fun ThumbnailsView(
+    viewModel: FilesHubViewModel,
+    items: List<FileItemModel>,
+    bottomPadding: Dp,
+    onOpen: (FileItemModel) -> Unit,
+    onLongClick: (FileItemModel) -> Unit
+) {
+    val selection by viewModel.selection.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    if (items.isEmpty()) {
+        Box(modifier = Modifier.padding(start = 60.dp)) {
+            MetroEmpty(
+                message = errorMessage ?: stringResource(
+                    if (searchQuery.isNotBlank()) R.string.files_not_found else R.string.files_empty_folder
+                ),
+                actionLabel = null,
+                onAction = {}
+            )
+        }
+        return
+    }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(start = 60.dp, bottom = bottomPadding)) {
+        val rows = ((maxHeight + TILE_GAP) / (TILE_SIZE + TILE_CAPTION + TILE_GAP)).toInt().coerceAtLeast(1)
+        // Exactly as tall as its rows: a grid given the whole height shares it out between them,
+        // and each tile then sat at the top of a cell with a gap under it.
+        val gridHeight = (TILE_SIZE + TILE_CAPTION) * rows + TILE_GAP * (rows - 1) + 6.dp
+        LazyHorizontalGrid(
+            rows = GridCells.Fixed(rows),
+            modifier = Modifier.fillMaxWidth().height(gridHeight),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.spacedBy(TILE_GAP),
+            contentPadding = PaddingValues(top = 6.dp, end = 40.dp)
+        ) {
+            items(items, key = { it.file.absolutePath }) { item ->
+                FileTile(
+                    item = item,
+                    selected = item.file.absolutePath in selection,
+                    tileSize = TILE_SIZE,
+                    onClick = { onOpen(item) },
+                    onLongClick = { onLongClick(item) }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun ColumnHeading(
     text: String,
@@ -843,4 +886,7 @@ private val DATE_WIDTH = 170.dp
 private val TYPE_WIDTH = 150.dp
 private val SIZE_WIDTH = 90.dp
 private val ENTRANCE_SHIFT = 60.dp
+private val TILE_SIZE = 150.dp
+private val TILE_CAPTION = 48.dp
+private val TILE_GAP = 14.dp
 private const val ENTRANCE_MILLIS = 300

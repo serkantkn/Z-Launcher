@@ -102,6 +102,7 @@ class SettingsDataStore(private val context: Context) {
         val FILES_SORT = stringPreferencesKey("files_sort")
         val FILES_SORT_ASCENDING = booleanPreferencesKey("files_sort_ascending")
         val FILES_SHOW_HIDDEN = booleanPreferencesKey("files_show_hidden")
+        val FILES_VIEW = stringPreferencesKey("files_view")
         val GALLERY_COLUMNS = intPreferencesKey("gallery_columns")
         val MUSIC_ONLINE_EXTRAS = booleanPreferencesKey("music_online_extras")
         val MUSIC_ONLINE_WIFI_ONLY = booleanPreferencesKey("music_online_wifi_only")
@@ -652,6 +653,13 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setFilesSort(sort: com.serkantkn.zunelauncher.util.FileSort) {
         context.settingsDataStore.edit { prefs -> prefs[FILES_SORT] = sort.name }
+    }
+
+    /** "LIST" or "THUMBNAILS"; unset until chosen, when each form factor has its own default. */
+    val filesView: Flow<String?> = context.settingsDataStore.data.map { prefs -> prefs[FILES_VIEW] }
+
+    suspend fun setFilesView(view: String) {
+        context.settingsDataStore.edit { prefs -> prefs[FILES_VIEW] = view }
     }
 
     val filesSortAscending: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->

@@ -52,7 +52,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
+import com.serkantkn.zunelauncher.util.FilesView
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -167,6 +174,16 @@ fun FilesHubScreen(
     // Where each row's name sits, by path, so a word coming back down knows where its row is.
     val rowAnchors = remember { mutableMapOf<String, ZuneZoomAnchor>() }
     val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
+    val filesViewSetting by viewModel.view.collectAsState()
+    // Nothing chosen yet: the tablet shows pictures, the phone its list — the same two views on
+    // both, only the starting one differs.
+    val filesView = filesViewSetting ?: if (isWideScreen) FilesView.THUMBNAILS else FilesView.LIST
+
+    /** Scrolls whichever of the two views is showing; slot 0 is the crumbs above the files. */
+    suspend fun scrollBrowseTo(index: Int) {
+        if (filesView == FilesView.THUMBNAILS) gridState.scrollToItem(index) else listState.scrollToItem(index)
+    }
     // Everything but the word in flight: gone while it jumps, back once it has landed.
     val contentAlpha = remember { Animatable(1f) }
     var transitioning by remember { mutableStateOf(false) }
@@ -275,7 +292,7 @@ fun FilesHubScreen(
     // The tablet has no pivot: the cloud is a place in its left column, and its back arrow walks
     // back through the places visited rather than only up the folder tree.
     var tabletInCloud by remember { mutableStateOf(false) }
-    val tabletHistory = remember { mutableStateListOf<FilesStop>() }
+    val canGoBack by viewModel.canGoBack.collectAsState()
 
     /** The tablet's step back; false when there is nowhere left to go but out of the hub. */
     fun tabletBack(): Boolean {
@@ -283,16 +300,7 @@ fun FilesHubScreen(
             if (!viewModel.cloudNavigateUp()) tabletInCloud = false
             return true
         }
-        val stop = tabletHistory.removeLastOrNull()
-        if (stop != null) {
-            val volume = stop.volume
-            if (volume != null && volume.root.absolutePath != currentVolume?.root?.absolutePath) {
-                viewModel.openVolume(volume)
-            }
-            viewModel.navigateTo(stop.directory)
-            return true
-        }
-        return viewModel.navigateUp()
+        return viewModel.goBack()
     }
 
     // Inside a folder the page is the folder's: one large word and its list. At the top of a
@@ -308,7 +316,7 @@ fun FilesHubScreen(
         if (transitioning) return
         val from = anchor.bounds
         if (from == null || headingAnchor.bounds == null || !animationsEnabled) {
-            viewModel.navigateTo(item.file)
+            viewModel.visit(item.file)
             return
         }
         scope.launch {
@@ -317,9 +325,9 @@ fun FilesHubScreen(
             val flight = launch { localZoom.flyToTitle(item.name, from, FileRowNameSize) }
             // The old page is gone before the new one is read, so nothing swaps in mid-fade.
             fade.join()
-            viewModel.navigateTo(item.file)
+            viewModel.visit(item.file)
             listEntry.snapTo(0f)
-            runCatching { listState.scrollToItem(0) }
+            runCatching { scrollBrowseTo(0) }
             // The list starts in while the word is still settling, so the two arrive together
             // rather than the page waiting on a word that is already nearly there.
             delay(LIST_LEAD_MILLIS)
@@ -337,13 +345,28 @@ fun FilesHubScreen(
      * False when there is no folder to leave, which is when the back key leaves the hub.
      */
     fun leaveFolder(): Boolean {
-        if (!inFolder) return false
+        val target = viewModel.backTarget() ?: return false
         if (transitioning) return true
         val leaving = currentDirectory
-        val parent = viewModel.parentOfCurrent() ?: return false
+        val parent = viewModel.parentOfCurrent()
         val start = headingAnchor.bounds
-        if (start == null || !animationsEnabled) {
-            viewModel.navigateUp()
+        if (!animationsEnabled) {
+            viewModel.goBack()
+            return true
+        }
+        // Back to somewhere other than the folder above — the folder a library was opened
+        // from, the other volume — has no row for the word to land on; the page fades over.
+        if (!inFolder || parent == null || start == null || target.absolutePath != parent.absolutePath) {
+            scope.launch {
+                transitioning = true
+                contentAlpha.animateTo(0f, tween(FADE_MILLIS, easing = FastOutSlowInEasing))
+                viewModel.goBack()
+                listEntry.snapTo(0f)
+                runCatching { scrollBrowseTo(0) }
+                launch { contentAlpha.animateTo(1f, tween(FADE_MILLIS)) }
+                listEntry.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
+                transitioning = false
+            }
             return true
         }
         scope.launch {
@@ -355,12 +378,13 @@ fun FilesHubScreen(
             val items = above.await()
             listEntry.snapTo(1f)
             viewModel.showDirectory(parent, items)
+            viewModel.consumeBackStop(parent)
             // The row the word lands on is scrolled into view, unseen, and measured there.
             val path = leaving.absolutePath
             val index = items.indexOfFirst { it.file.absolutePath == path }
             if (index >= 0) {
                 // The crumbs sit in the list's first slot, above the rows.
-                runCatching { listState.scrollToItem(index + 1) }
+                runCatching { scrollBrowseTo(index + 1) }
                 withFrameNanos { }
                 withFrameNanos { }
             }
@@ -421,74 +445,133 @@ fun FilesHubScreen(
                 com.serkantkn.zunelauncher.util.matchesFileQuery(it.name, searchQuery)
         }
 
+        @Composable
+        fun BrowseHeader() {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                val crumbs = breadcrumbsOf(currentDirectory, currentVolume) { viewModel.visit(it) }
+                // At the top of a volume the path is just the volume, which the title already says.
+                if (crumbs.size > 1) FilesBreadcrumb(crumbs = crumbs)
+                val volume = currentVolume
+                if (volume != null && deepResults == null && currentDirectory.absolutePath == volume.root.absolutePath) {
+                    StorageBar(
+                        volume = volume,
+                        showLabel = false,
+                        onClick = if (volumes.size > 1) ({ showVolumeSheet = true }) else null
+                    )
+                }
+                if (busyMessage != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = busyMessage.orEmpty(),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = zuneColors.accentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(vertical = 6.dp)
+                        )
+                        // A long copy can be stopped; what was finished before stays.
+                        Text(
+                            text = stringResource(R.string.common_cancel),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = zuneColors.textMuted,
+                            modifier = Modifier
+                                .clickable { viewModel.cancelPaste() }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+                if (isSearching) {
+                    Text(
+                        text = stringResource(R.string.files_searching),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = zuneColors.accentColor,
+                        modifier = Modifier.padding(vertical = 6.dp)
+                    )
+                }
+            }
+        }
+
+        @Composable
+        fun BrowseEmpty() {
+            MetroEmpty(
+                message = errorMessage ?: stringResource(
+                    when {
+                        deepResults != null -> R.string.files_not_found
+                        searchQuery.isNotBlank() -> R.string.files_not_found
+                        else -> R.string.files_empty_folder
+                    }
+                ),
+                actionLabel = if (searchQuery.isNotBlank() && deepResults == null) {
+                    stringResource(R.string.files_search_deep)
+                } else {
+                    null
+                },
+                onAction = { viewModel.searchDeep() }
+            )
+        }
+
+        @Composable
+        fun SearchDeeper() {
+            Text(
+                text = stringResource(R.string.files_search_deep),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                color = zuneColors.accentColor,
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .fillMaxWidth()
+                    .clickable { viewModel.searchDeep() }
+            )
+        }
+
+        if (filesView == FilesView.THUMBNAILS) {
+            // The same folder as pictures, three or so to a row; the word still flies from a
+            // tile's name to the heading and back.
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Adaptive(PHONE_TILE_MIN),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = pagePadding,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                item(key = "crumbs", span = { GridItemSpan(maxLineSpan) }) { BrowseHeader() }
+                if (shown.isEmpty()) {
+                    item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { BrowseEmpty() }
+                }
+                itemsIndexed(shown, key = { _, item -> item.file.absolutePath }) { index, item ->
+                    val anchor = rowAnchors.getOrPut(item.file.absolutePath) { ZuneZoomAnchor() }
+                    FileTile(
+                        item = item,
+                        selected = item.file.absolutePath in selection,
+                        tileSize = null,
+                        nameAnchor = anchor,
+                        onClick = {
+                            when {
+                                selection.isNotEmpty() -> viewModel.toggleSelection(item)
+                                item.isDirectory -> enterFolder(item, anchor)
+                                else -> openItem(item)
+                            }
+                        },
+                        onLongClick = { sheetTarget = item },
+                        modifier = Modifier.w10mStaggeredAnimation({ listEntry.value }, index)
+                    )
+                }
+                if (deepResults == null && searchQuery.isNotBlank() && shown.isNotEmpty()) {
+                    item(key = "deeper", span = { GridItemSpan(maxLineSpan) }) { SearchDeeper() }
+                }
+            }
+            return
+        }
+
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = pagePadding
         ) {
-            item(key = "crumbs") {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    val crumbs = breadcrumbsOf(currentDirectory, currentVolume) { viewModel.loadDirectory(it) }
-                    // At the top of a volume the path is just the volume, which the title already says.
-                    if (crumbs.size > 1) FilesBreadcrumb(crumbs = crumbs)
-                    val volume = currentVolume
-                    if (volume != null && deepResults == null && currentDirectory.absolutePath == volume.root.absolutePath) {
-                        StorageBar(
-                            volume = volume,
-                            showLabel = false,
-                            onClick = if (volumes.size > 1) ({ showVolumeSheet = true }) else null
-                        )
-                    }
-                    if (busyMessage != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = busyMessage.orEmpty(),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = zuneColors.accentColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f).padding(vertical = 6.dp)
-                            )
-                            // A long copy can be stopped; what was finished before stays.
-                            Text(
-                                text = stringResource(R.string.common_cancel),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = zuneColors.textMuted,
-                                modifier = Modifier
-                                    .clickable { viewModel.cancelPaste() }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-                    if (isSearching) {
-                        Text(
-                            text = stringResource(R.string.files_searching),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = zuneColors.accentColor,
-                            modifier = Modifier.padding(vertical = 6.dp)
-                        )
-                    }
-                }
-            }
+            item(key = "crumbs") { BrowseHeader() }
 
             if (shown.isEmpty()) {
-                item(key = "empty") {
-                    MetroEmpty(
-                        message = errorMessage ?: stringResource(
-                            when {
-                                deepResults != null -> R.string.files_not_found
-                                searchQuery.isNotBlank() -> R.string.files_not_found
-                                else -> R.string.files_empty_folder
-                            }
-                        ),
-                        actionLabel = if (searchQuery.isNotBlank() && deepResults == null) {
-                            stringResource(R.string.files_search_deep)
-                        } else {
-                            null
-                        },
-                        onAction = { viewModel.searchDeep() }
-                    )
-                }
+                item(key = "empty") { BrowseEmpty() }
             }
 
             itemsIndexedFiles(shown) { index, item ->
@@ -518,17 +601,7 @@ fun FilesHubScreen(
             }
 
             if (deepResults == null && searchQuery.isNotBlank() && shown.isNotEmpty()) {
-                item(key = "deeper") {
-                    Text(
-                        text = stringResource(R.string.files_search_deep),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
-                        color = zuneColors.accentColor,
-                        modifier = Modifier
-                            .padding(top = 16.dp)
-                            .fillMaxWidth()
-                            .clickable { viewModel.searchDeep() }
-                    )
-                }
+                item(key = "deeper") { SearchDeeper() }
             }
         }
     }
@@ -538,13 +611,13 @@ fun FilesHubScreen(
         when (index) {
             BROWSE_TAB -> BrowsePage()
             CATEGORIES_TAB -> CategoriesPage(
-                onOpen = { folder -> viewModel.navigateTo(File(Environment.getExternalStorageDirectory(), folder)) },
+                onOpen = { folder -> viewModel.visit(File(Environment.getExternalStorageDirectory(), folder)) },
                 contentPadding = pagePadding
             )
             QUICK_TAB -> QuickAccessPage(
                 volumes = volumes,
-                onOpenVolume = { viewModel.openVolume(it) },
-                onOpen = { viewModel.navigateTo(it) },
+                onOpenVolume = { viewModel.visitVolume(it) },
+                onOpen = { viewModel.visit(it) },
                 contentPadding = pagePadding
             )
             else -> CloudPage(
@@ -631,6 +704,15 @@ fun FilesHubScreen(
         } else {
             add(
                 WpBarMenuItem(
+                    stringResource(
+                        if (filesView == FilesView.THUMBNAILS) R.string.files_view_list else R.string.files_view_thumbnails
+                    )
+                ) {
+                    viewModel.setView(if (filesView == FilesView.THUMBNAILS) FilesView.LIST else FilesView.THUMBNAILS)
+                }
+            )
+            add(
+                WpBarMenuItem(
                     if (showHidden) stringResource(R.string.files_hide_hidden)
                     else stringResource(R.string.files_show_hidden)
                 ) { viewModel.setShowHidden(!showHidden) }
@@ -662,11 +744,11 @@ fun FilesHubScreen(
                     if (isWideScreen) {
                         FilesTabletLayout(
                             viewModel = viewModel,
+                            filesView = filesView,
                             inCloud = tabletInCloud,
                             onInCloudChange = { tabletInCloud = it },
-                            history = tabletHistory,
                             onBack = { tabletBack() },
-                            canGoBack = tabletInCloud || tabletHistory.isNotEmpty() || viewModel.parentOfCurrent() != null,
+                            canGoBack = tabletInCloud || canGoBack || viewModel.parentOfCurrent() != null,
                             permissionGate = { StoragePermissionGate(context, permissionLauncher) },
                             cloudPage = { PageAt(CLOUD_TAB) },
                             onOpenFile = { openItem(it) },
@@ -1002,7 +1084,7 @@ fun FilesHubScreen(
                         label = volume.label,
                         color = if (volume.root == currentVolume?.root) zuneColors.accentColor else null
                     ) {
-                        viewModel.openVolume(volume)
+                        viewModel.visitVolume(volume)
                         showVolumeSheet = false
                     }
                 }
@@ -1233,3 +1315,6 @@ private const val LIST_LEAD_MILLIS = 120L
 
 /** The cloud page's heading, which is where a drive folder's name lands. */
 internal val CLOUD_TITLE_SIZE = 34.sp
+
+/** The narrowest a picture may be in the phone's thumbnails grid; three fit across a phone. */
+private val PHONE_TILE_MIN = 100.dp

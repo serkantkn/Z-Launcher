@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -98,6 +99,15 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     val showHidden: StateFlow<Boolean> = settings.filesShowHidden
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** The chosen view, or null when none has been chosen yet (each layout has its default). */
+    val view: StateFlow<com.serkantkn.zunelauncher.util.FilesView?> = settings.filesView
+        .map { name -> name?.let { runCatching { com.serkantkn.zunelauncher.util.FilesView.valueOf(it) }.getOrNull() } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    fun setView(next: com.serkantkn.zunelauncher.util.FilesView) {
+        viewModelScope.launch { settings.setFilesView(next.name) }
+    }
 
     fun setSort(next: FileSort) {
         viewModelScope.launch {
@@ -520,6 +530,58 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
     fun navigateTo(directory: File) {
         if (directory.isDirectory) loadDirectory(directory)
+    }
+
+    // ── Where the user has been ─────────────────────────────────────────────
+
+    // Back returns to the place you came from — a folder opened from the libraries goes back to
+    // the folder you were in, a trip to the SD card comes back to the phone's storage — rather
+    // than only ever up the tree. Phone and tablet keep the same trail.
+    private val backStack = ArrayDeque<File>()
+    private val _canGoBack = MutableStateFlow(false)
+    val canGoBack: StateFlow<Boolean> = _canGoBack.asStateFlow()
+
+    private fun pushStop(directory: File) {
+        if (backStack.lastOrNull()?.absolutePath != directory.absolutePath) backStack.addLast(directory)
+        while (backStack.size > MAX_BACK_STOPS) backStack.removeFirst()
+        _canGoBack.value = true
+    }
+
+    /** Opens [directory] as a step that Back can return from. */
+    fun visit(directory: File) {
+        val current = _currentDirectory.value
+        if (!directory.isDirectory || directory.absolutePath == current.absolutePath) return
+        pushStop(current)
+        loadDirectory(directory)
+    }
+
+    /** Opens a volume's top as a step that Back can return from. */
+    fun visitVolume(volume: StorageVolumeInfo) {
+        val current = _currentDirectory.value
+        if (volume.root.absolutePath == current.absolutePath) return
+        pushStop(current)
+        openVolume(volume)
+    }
+
+    /** Where Back would go next: the last place visited, or the folder above. */
+    fun backTarget(): File? = backStack.lastOrNull() ?: parentOfCurrent()
+
+    /** Goes back a step; false when there is nowhere left to go but out of the hub. */
+    fun goBack(): Boolean {
+        val stop = backStack.removeLastOrNull()
+        _canGoBack.value = backStack.isNotEmpty()
+        if (stop == null) return navigateUp()
+        if (stop.exists()) loadDirectory(stop) else return goBack()
+        return true
+    }
+
+    /**
+     * The step back has been taken by the screen itself (the phone's word flying back down onto
+     * its row, which shows the folder above through [showDirectory]); forget it here.
+     */
+    fun consumeBackStop(directory: File) {
+        if (backStack.lastOrNull()?.absolutePath == directory.absolutePath) backStack.removeLast()
+        _canGoBack.value = backStack.isNotEmpty()
     }
 
     /** Goes up one folder; false when the top of the volume is already open. */
@@ -1040,6 +1102,8 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     }
 
     private companion object {
+        private const val MAX_BACK_STOPS = 64
+
         const val TAG = "FilesHubViewModel"
 
         /** Enough matches to scroll through; past this, the query is the thing to fix. */
