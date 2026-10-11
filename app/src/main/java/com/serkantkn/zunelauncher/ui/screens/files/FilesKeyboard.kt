@@ -22,6 +22,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
@@ -286,8 +288,31 @@ internal fun FilesKeyboardRoot(
 ) {
     val dispatcher = remember(keyboard) { FilesKeyDispatcher(keyboard) }
     val currentOnKey by rememberUpdatedState(onKey)
-    // The hub has the keys when it opens, and again whenever a text field lets them go.
-    LaunchedEffect(keyboard.typing) { if (!keyboard.typing) keyboard.takeFocus() }
+    // The keys come to the hub from the activity itself, whatever holds Compose's focus. The hub's
+    // own focus was not to be relied on: Start stays composed behind the hub on a tablet, and
+    // something there took the focus back moments after the hub was given it, so the keyboard
+    // did nothing until the screen was touched. A text field in the hub still types as usual
+    // (the dispatcher stands aside while [FilesKeyboard.typing]), and a dialog is a window of
+    // its own that the activity never sees keys for.
+    DisposableEffect(dispatcher) {
+        val route: (android.view.KeyEvent) -> Boolean = { native ->
+            dispatcher.dispatch(KeyEvent(native)) { command -> currentOnKey(command) }
+        }
+        HardwareKeys.handler = route
+        onDispose { if (HardwareKeys.handler === route) HardwareKeys.handler = null }
+    }
+    // The hub has the keys when it opens, and again whenever a text field lets them go. Taken
+    // once was not enough: while the hub is still coming up the launcher around it settles too,
+    // and the focus it had been given went with that a moment later, leaving a keyboard that did
+    // nothing until the screen was touched. So it is asked for again until it holds.
+    var hubHasFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(keyboard.typing) {
+        if (keyboard.typing) return@LaunchedEffect
+        repeat(FOCUS_TRIES) {
+            if (!keyboard.typing && !hubHasFocus) keyboard.takeFocus()
+            delay(FOCUS_RETRY_MILLIS)
+        }
+    }
     CompositionLocalProvider(LocalFilesKeyboard provides keyboard) {
         Box(
             modifier = modifier
@@ -303,6 +328,7 @@ internal fun FilesKeyboardRoot(
                     }
                 }
                 .focusRequester(keyboard.hubFocus)
+                .onFocusChanged { hubHasFocus = it.hasFocus }
                 .focusTarget(),
             content = content
         )
@@ -471,3 +497,16 @@ internal fun FilesCursorFollower(items: List<FileItemModel>, state: LazyGridStat
 
 /** How far one notch of a mouse's wheel moves the tablet's sideways grid. */
 private val WHEEL_STEP = 96.dp
+
+/**
+ * Where the activity hands hardware keys first: the hub that is open and wants them, if any.
+ * Read in MainActivity.dispatchKeyEvent.
+ */
+object HardwareKeys {
+    @Volatile
+    var handler: ((android.view.KeyEvent) -> Boolean)? = null
+}
+
+/** How many times, and how far apart, the hub asks for the keys as it opens. */
+private const val FOCUS_TRIES = 6
+private const val FOCUS_RETRY_MILLIS = 200L

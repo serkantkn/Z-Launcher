@@ -323,6 +323,8 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        // A hub that handles a hardware keyboard (the files hub) gets the keys first.
+        if (com.serkantkn.zunelauncher.ui.screens.files.HardwareKeys.handler?.invoke(event) == true) return true
         if (currentVolumeBarStyle == VolumeBarStyle.WINDOWS_PHONE && event.action == android.view.KeyEvent.ACTION_DOWN) {
             // A key the controller declines — while the phone is ringing, say — goes on to the
             // system, which knows how to silence a ringer.

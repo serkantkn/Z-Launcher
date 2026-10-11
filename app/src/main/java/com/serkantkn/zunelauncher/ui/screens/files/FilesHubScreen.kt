@@ -1009,7 +1009,9 @@ fun FilesHubScreen(
         }
     }
 
-    FilesKeyboardRoot(keyboard = keyboard, onKey = ::onKey, modifier = modifier.fillMaxSize()) {
+    // A lambda, not ::onKey: Compose keeps a function reference from the first composition, and
+    // that onKey still saw the empty folder of the hub's first frame, so every key found nothing.
+    FilesKeyboardRoot(keyboard = keyboard, onKey = { command -> onKey(command) }, modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
