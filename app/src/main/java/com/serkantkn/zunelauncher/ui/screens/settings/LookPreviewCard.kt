@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
@@ -195,7 +194,7 @@ fun LookPreviewCard(
                                     modifier = Modifier.weight(1f).height(36.dp)
                                 )
                                 MiniTile(
-                                    icon = Icons.Default.Email,
+                                    icon = com.serkantkn.zunelauncher.ui.components.WpMessagingGlyph,
                                     label = null,
                                     badge = "2",
                                     accentColor = animatedAccentColor,
@@ -344,7 +343,7 @@ fun LookPreviewCard(
                                     .height(38.dp)
                             )
                             MiniTile(
-                                icon = Icons.Default.Email,
+                                icon = com.serkantkn.zunelauncher.ui.components.WpMessagingGlyph,
                                 label = null,
                                 badge = "2",
                                 accentColor = animatedAccentColor,

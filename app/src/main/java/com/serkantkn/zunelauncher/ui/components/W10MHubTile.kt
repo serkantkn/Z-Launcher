@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.StickyNote2
@@ -69,7 +68,7 @@ import kotlinx.coroutines.delay
 internal fun getHubIcon(hubType: HubType): ImageVector {
     return when (hubType) {
         HubType.PHONE -> Icons.Default.Call
-        HubType.MESSAGING -> Icons.Default.Email
+        HubType.MESSAGING -> WpMessagingGlyph
         HubType.PEOPLE -> Icons.Default.People
         HubType.PICTURES -> Icons.Default.Image
         HubType.MUSIC -> Icons.Default.MusicNote

@@ -43,6 +43,8 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
     private var actionCenterOn = false
     private var lastShadeCaught = 0L
     private var screenReceiver: BroadcastReceiver? = null
+    private var wasLocked = false
+    private var lastUnlockAt = 0L
 
     @Volatile
     private var volumeBarStyle: VolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
@@ -95,7 +97,10 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
      */
     private fun followStatusBar() {
         if (!StatusBarShield.isAttached) return
-        if (isLocked()) {
+        val locked = isLocked()
+        if (wasLocked && !locked) lastUnlockAt = android.os.SystemClock.uptimeMillis()
+        wasLocked = locked
+        if (locked) {
             StatusBarShield.setTouchable(false)
             return
         }
@@ -112,6 +117,9 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         if (screenReceiver != null) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == Intent.ACTION_USER_PRESENT) {
+                    lastUnlockAt = android.os.SystemClock.uptimeMillis()
+                }
                 if (intent.action == Intent.ACTION_SCREEN_OFF) {
                     ActionCenterOverlay.close()
                     QuickReplyOverlay.hide()
@@ -161,6 +169,10 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         if (!ShadeDetector.isShade(event.className, event.text, event.contentDescription)) return
         // On the lock screen the shade is Android's, for the same reason the strip steps aside.
         if (isLocked()) return
+        // The lock screen going away is reported as the shade's window changing, and so is the
+        // shade folding up; neither is the shade opening.
+        if (android.os.SystemClock.uptimeMillis() - lastUnlockAt < UNLOCK_GRACE_MILLIS) return
+        if (!ShadeDetector.hasContent(event.text)) return
         ZuneLog.d(TAG, "system shade caught; closing it")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
@@ -240,6 +252,7 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         private const val TAG = "ZuneKeyService"
         private const val SYSTEM_UI = "com.android.systemui"
         private const val SHADE_BURST_MILLIS = 1_500L
+        private const val UNLOCK_GRACE_MILLIS = 2_000L
         private val SHADE_PUSH_MILLIS = longArrayOf(0L, 120L, 300L, 600L, 1_000L, 1_500L)
 
         /**

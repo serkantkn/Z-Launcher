@@ -32,4 +32,15 @@ class ShadeDetectorTest {
         assertFalse(ShadeDetector.isShade("android.app.Dialog", listOf("Volume"), null))
         assertFalse(ShadeDetector.isShade(null, null, null))
     }
+
+    @Test
+    fun `only a shade that reports what is in it counts as opening`() {
+        // What Samsung's SystemUI reported as the lock screen went away on unlocking.
+        assertFalse(ShadeDetector.hasContent(listOf("Bildirim gölgesi.")))
+        assertFalse(ShadeDetector.hasContent(listOf("Notification shade.", " ")))
+        assertFalse(ShadeDetector.hasContent(null))
+        // A shade really coming down, as the tablet reported it.
+        assertTrue(ShadeDetector.hasContent(listOf("Bildirim gölgesi.", "09:53", "11 Ekim Pzr", "Ayarlar")))
+        assertTrue(ShadeDetector.hasContent(listOf("Notification shade.", "No notifications", "10:28")))
+    }
 }
