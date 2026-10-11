@@ -70,8 +70,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -172,9 +170,6 @@ fun HomeHubScreen(
     onNavigateNext: () -> Unit = onNavigateToAppsHub,
     /** Bumped when the Home key is pressed while Start is already in front. */
     homeResetSignal: Int = 0,
-    runningHubs: List<HubType> = emptyList(),
-    onStopHub: (HubType) -> Unit = {},
-    onStopAllHubs: () -> Unit = {},
     timeFormat: String = "HH:mm",
     dateFormat: String = "EEEE, MMMM d",
     modifier: Modifier = Modifier,
@@ -198,9 +193,6 @@ fun HomeHubScreen(
             onNavigateToAppsHub = onNavigateToAppsHub,
             onNavigateNext = onNavigateNext,
             homeResetSignal = homeResetSignal,
-            runningHubs = runningHubs,
-            onStopHub = onStopHub,
-            onStopAllHubs = onStopAllHubs,
             timeFormat = timeFormat,
             dateFormat = dateFormat,
             modifier = modifier,
@@ -219,9 +211,6 @@ private fun HomeHubScreenContent(
     onNavigateToAppsHub: () -> Unit,
     onNavigateNext: () -> Unit,
     homeResetSignal: Int,
-    runningHubs: List<HubType>,
-    onStopHub: (HubType) -> Unit,
-    onStopAllHubs: () -> Unit,
     timeFormat: String,
     dateFormat: String,
     modifier: Modifier,
@@ -267,8 +256,6 @@ private fun HomeHubScreenContent(
     val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
     val tileSpacing by viewModel.tileSpacing.collectAsState()
     val homeScreenLayout by viewModel.homeScreenLayout.collectAsState()
-    val taskSwitcherVisible by viewModel.taskSwitcherVisible.collectAsState()
-    val hubPreviews by com.serkantkn.zunelauncher.data.repository.HubPreviewStore.previews.collectAsState()
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
 
@@ -400,8 +387,6 @@ private fun HomeHubScreenContent(
     // back to its beginning.
     val hubsOffHome by viewModel.hubsOffHome.collectAsState()
     var addingHub by remember { mutableStateOf(false) }
-    var previewTarget by remember { mutableStateOf<RunningHubTarget?>(null) }
-    var hostOrigin by remember { mutableStateOf(Offset.Zero) }
     val boardScrollState = rememberScrollState()
     val zuneScrollState = rememberScrollState()
     val win8ScrollState = rememberScrollState()
@@ -596,10 +581,6 @@ private fun HomeHubScreenContent(
         }
     }
     val openFolder = localStartTiles.firstOrNull { it.id == openFolderId } as? StartTileUIModel.Folder
-
-    LaunchedEffect(runningHubs) {
-        if (previewTarget?.hub !in runningHubs) previewTarget = null
-    }
 
     // The Home key on a Start screen that is already in front: back to the top, with whatever
     // was opened over it — edit mode, the favourites pane, an open folder — put away first.
@@ -1165,14 +1146,9 @@ private fun HomeHubScreenContent(
         { icon -> viewModel.customIconFace(icon, tileIconStyle) }
     }
 
-    // One box over all three Start layouts, so the preview balloon has a single place to live
-    // and a single origin to measure the held tile against.
+    // One box over all three Start layouts.
     CompositionLocalProvider(LocalTileIconResolver provides iconResolver) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onGloballyPositioned { hostOrigin = it.boundsInRoot().topLeft }
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE && isWideScreen) {
             // ═══════════════════════════════════════════════
             // TABLET — Windows 8 full-screen Start menu
@@ -1185,11 +1161,6 @@ private fun HomeHubScreenContent(
             var stackHeightPx by remember { mutableFloatStateOf(0f) }
             val launcherContext = LocalContext.current
             val appsShown = appsOpen || appsReveal.value > 0f
-            // The running-hubs strip lies over the board's bottom-left corner, so the board is
-            // asked to keep that much clear of its last row while the strip is up.
-            val stripShown = taskSwitcherVisible && runningHubs.isNotEmpty()
-            var stripHeightPx by remember { mutableIntStateOf(0) }
-            val stripReserve = if (stripShown) with(localDensity) { stripHeightPx.toDp() } + 16.dp else 0.dp
 
             Box(
                 modifier = modifier
@@ -1234,38 +1205,22 @@ private fun HomeHubScreenContent(
                         onOpenSettings = { handleLaunch("hub_SETTINGS") { openHub(HubType.SETTINGS) } },
                         onMergeTiles = onMergeTiles,
                         canMerge = canMerge,
-                        bottomReserve = stripReserve,
                         tile = { model, index, isDragging, isMergeTarget, tileModifier ->
                             StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = 4)
                         }
                     )
 
-                    // The tablet board scrolls sideways, so the strip and the add button are laid
-                    // over its bottom-left corner — to the right of the all-apps arrow — rather
-                    // than under the last row, which keeps clear of them (see bottomReserve).
+                    // The tablet board scrolls sideways, so the add button is laid over its
+                    // bottom-left corner, to the right of the all-apps arrow.
                     if (isEditMode) {
                         AddHubButton(
                             missing = hubsOffHome,
                             onClick = { addingHub = true },
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
-                                .padding(start = if (stripShown) 104.dp + 320.dp + 24.dp else 104.dp, bottom = 24.dp)
+                                .padding(start = 104.dp, bottom = 24.dp)
                         )
                     }
-                    RunningHubsSection(
-                        hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
-                        cornerStyle = tileCornerStyle,
-                        onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
-                        onStop = onStopHub,
-                        onStopAll = onStopAllHubs,
-                        onPreview = { previewTarget = it },
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 104.dp, bottom = 16.dp)
-                            .width(320.dp)
-                            .onSizeChanged { stripHeightPx = it.height }
-                    )
-
                     StartEditBar(
                         visible = isEditMode && openFolder == null,
                         onDone = { isEditMode = false },
@@ -1369,14 +1324,6 @@ private fun HomeHubScreenContent(
                         if (isEditMode) {
                             AddHubButton(missing = hubsOffHome, onClick = { addingHub = true })
                         }
-                        RunningHubsSection(
-                            hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
-                            cornerStyle = tileCornerStyle,
-                            onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
-                            onStop = onStopHub,
-                            onStopAll = onStopAllHubs,
-                            onPreview = { previewTarget = it }
-                        )
                     },
                     onEnterEditMode = { isEditMode = true },
                     onMoveTile = { from, to -> moveStartTile(from, to) },
@@ -1628,16 +1575,6 @@ private fun HomeHubScreenContent(
                             )
                         }
                     }
-
-                    RunningHubsSection(
-                        hubs = if (taskSwitcherVisible) runningHubs else emptyList(),
-                        cornerStyle = tileCornerStyle,
-                        onOpen = { hub -> handleLaunch("running_$hub") { onHubSelected(hub) } },
-                        onStop = onStopHub,
-                        onStopAll = onStopAllHubs,
-                        onPreview = { previewTarget = it },
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
 
                     if (!isEditMode) {
                         ZuneListEnd(
@@ -1959,22 +1896,6 @@ private fun HomeHubScreenContent(
             )
         }
 
-        previewTarget?.let { target ->
-            HubPreviewBalloon(
-                target = target,
-                preview = hubPreviews[target.hub],
-                hostOrigin = hostOrigin,
-                onOpen = {
-                    previewTarget = null
-                    handleLaunch("running_${target.hub}") { onHubSelected(target.hub) }
-                },
-                onStop = {
-                    previewTarget = null
-                    onStopHub(target.hub)
-                },
-                onDismiss = { previewTarget = null }
-            )
-        }
     }
     }
 }

@@ -238,7 +238,7 @@ fun MetroStartBoard(
     onFolderMoveChild: (from: Int, to: Int) -> Unit = { _, _ -> },
     /** Hoisted so the Home key can take the board back to its beginning. */
     scrollState: ScrollState = rememberScrollState(),
-    /** Drawn under the last row of tiles; the running-hubs strip lives here. */
+    /** Drawn under the last row of tiles; the add-a-hub button lives here while editing. */
     footer: @Composable () -> Unit = {},
     tile: @Composable (
         model: StartTileUIModel,

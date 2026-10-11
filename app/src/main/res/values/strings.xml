@@ -13,10 +13,9 @@
     <string name="home_favorites_empty_action">open the app list</string>
     <string name="home_favorites_empty_hint">press and hold an app, then choose \"pin to start\"</string>
     <string name="home_running_hubs">running hubs</string>
+    <string name="switcher_tip_text">To see the hubs running in the background and switch between them, press the Home key twice in a row.</string>
+    <string name="switcher_tip_ok">got it</string>
     <string name="home_running_hub_close">close</string>
-    <string name="home_running_hub_preview">preview</string>
-    <string name="home_running_hub_open">open</string>
-    <string name="home_running_hubs_stop_all">close all</string>
     <string name="home_add_hub">add a hub</string>
     <string name="home_add_hub_title">add a hub to start</string>
     <string name="theme_setting">theme</string>
@@ -859,10 +858,6 @@
     <string name="win8_search_results">results</string>
     <string name="settings_layout_win8">windows 8</string>
     <string name="settings_layout_win8_sub">full-screen start, grouped tiles</string>
-    <string name="settings_task_switcher">task switcher</string>
-    <string name="settings_task_switcher_show">show on start</string>
-    <string name="settings_task_switcher_on">running hubs are listed at the foot of start</string>
-    <string name="settings_task_switcher_off">hidden; the hubs go on running all the same</string>
     <string name="tile_size_title">Tile size</string>
     <string name="tile_size_small">small · 1x1</string>
     <string name="tile_size_medium">medium · 2x2</string>

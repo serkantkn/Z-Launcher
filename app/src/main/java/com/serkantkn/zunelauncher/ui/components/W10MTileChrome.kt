@@ -108,7 +108,7 @@ val LocalTileLook = compositionLocalOf { TileLook.DEFAULT }
 
 /**
  * Opens the tile's own settings page. Provided per tile; null where a tile cannot be customised
- * (the settings preview, the running-hubs strip), and the edit button is simply not drawn.
+ * (the settings preview), and the edit button is simply not drawn.
  */
 val LocalTileCustomize = staticCompositionLocalOf<(() -> Unit)?> { null }
 

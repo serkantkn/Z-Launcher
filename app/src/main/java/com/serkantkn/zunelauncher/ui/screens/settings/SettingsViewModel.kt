@@ -122,7 +122,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val fontScale: StateFlow<Float> = settingsDataStore.fontScale.asState(1.0f)
 
     val animationsEnabled: StateFlow<Boolean> = settingsDataStore.animationsEnabled.asState(true)
-    val taskSwitcherVisible: StateFlow<Boolean> = settingsDataStore.taskSwitcherVisible.asState(true)
 
     val accentColor: StateFlow<AccentColor> = settingsDataStore.accentColor.asState(AccentColor.MAGENTA)
 
@@ -343,10 +342,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setFontScale(scale: Float) {
         viewModelScope.launch { settingsDataStore.setFontScale(scale) }
-    }
-
-    fun setTaskSwitcherVisible(visible: Boolean) {
-        viewModelScope.launch { settingsDataStore.setTaskSwitcherVisible(visible) }
     }
 
     fun setAnimationsEnabled(enabled: Boolean) {

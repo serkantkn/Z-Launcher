@@ -639,9 +639,6 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsDataStore.homeScreenLayout
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeScreenLayout.ZUNE)
 
-    val taskSwitcherVisible: StateFlow<Boolean> = settingsDataStore.taskSwitcherVisible
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
-
     // The providers behind the live tiles are watched, not polled: a message that arrives while
     // Start is in front used to wait for the launcher to go away and come back. Each observer is
     // registered once the permission is there — asked again on every refresh, since it may be

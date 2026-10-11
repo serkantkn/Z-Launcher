@@ -21,7 +21,7 @@ import kotlin.coroutines.resume
  *
  * Windows Phone's task switcher showed a picture of the app, not its icon, and the picture was
  * taken at the moment you left it. This does the same: the window is copied just before the hub
- * turns away, at a third of its size, and the running-hubs strip shows it when a tile is held.
+ * turns away, at a third of its size, and the switcher (Home pressed twice) shows it.
  */
 object HubPreviewStore {
 

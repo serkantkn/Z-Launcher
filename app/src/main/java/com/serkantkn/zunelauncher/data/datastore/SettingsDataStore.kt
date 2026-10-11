@@ -56,7 +56,6 @@ class SettingsDataStore(private val context: Context) {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val FONT_SCALE = floatPreferencesKey("font_scale")
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
-        val TASK_SWITCHER_VISIBLE = booleanPreferencesKey("task_switcher_visible")
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
         val DIRECT_CALL_ENABLED = booleanPreferencesKey("direct_call_enabled")
         val HUB_ORDER = stringPreferencesKey("hub_order")
@@ -74,6 +73,7 @@ class SettingsDataStore(private val context: Context) {
         val NOTIFICATION_STYLE = stringPreferencesKey("notification_style")
         val VOLUME_BAR_STYLE = stringPreferencesKey("volume_bar_style")
         val WP_ACTION_CENTER = booleanPreferencesKey("wp_action_center")
+        val SWITCHER_TIP_SHOWN = booleanPreferencesKey("switcher_tip_shown")
         val DISABLED_NOTIFICATION_APPS = stringPreferencesKey("disabled_notification_apps")
         val TIME_FORMAT = stringPreferencesKey("time_format")
         val DATE_FORMAT = stringPreferencesKey("date_format")
@@ -270,14 +270,6 @@ class SettingsDataStore(private val context: Context) {
 
     val animationsEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[ANIMATIONS_ENABLED] ?: true
-    }
-
-    /**
-     * Whether the running-hubs strip is shown at the foot of Start. Turning it off hides the list,
-     * not the hubs: they go on running and their own tiles still open them where they stood.
-     */
-    val taskSwitcherVisible: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[TASK_SWITCHER_VISIBLE] ?: true
     }
 
     val homeScreenLayout: Flow<HomeScreenLayout> = context.settingsDataStore.data.map { prefs ->
@@ -788,12 +780,6 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    suspend fun setTaskSwitcherVisible(visible: Boolean) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[TASK_SWITCHER_VISIBLE] = visible
-        }
-    }
-
     suspend fun setAccentColor(color: AccentColor) {
         context.settingsDataStore.edit { prefs ->
             prefs[ACCENT_COLOR] = color.name
@@ -945,6 +931,15 @@ class SettingsDataStore(private val context: Context) {
     /** Whether a pull from the status bar opens the Windows Phone action center. On by default. */
     val wpActionCenter: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[WP_ACTION_CENTER] ?: true
+    }
+
+    /** Whether the balloon that teaches the double press of Home has been shown already. */
+    val switcherTipShown: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[SWITCHER_TIP_SHOWN] ?: false
+    }
+
+    suspend fun setSwitcherTipShown() {
+        context.settingsDataStore.edit { prefs -> prefs[SWITCHER_TIP_SHOWN] = true }
     }
 
     suspend fun setWpActionCenter(enabled: Boolean) {

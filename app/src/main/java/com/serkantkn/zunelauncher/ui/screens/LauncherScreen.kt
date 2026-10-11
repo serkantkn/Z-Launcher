@@ -288,6 +288,7 @@ fun LauncherScreen(
     var homeResetSignal by remember { mutableIntStateOf(0) }
     var lastHomePressAt by remember { mutableLongStateOf(0L) }
     var switcherOpen by remember { mutableStateOf(false) }
+    var switcherTipShown by remember { mutableStateOf(false) }
     LaunchedEffect(homePresses) {
         if (homePresses == handledHomePresses) return@LaunchedEffect
         handledHomePresses = homePresses
@@ -299,6 +300,7 @@ fun LauncherScreen(
         val quick = now - lastHomePressAt < DOUBLE_PRESS_MILLIS
         lastHomePressAt = now
         if (quick && navState.backgroundHubs.isNotEmpty()) {
+            switcherTipShown = false
             switcherOpen = true
             return@LaunchedEffect
         }
@@ -314,8 +316,18 @@ fun LauncherScreen(
             ?.takeIf { it.runsInBackground }
             ?.let { com.serkantkn.zunelauncher.data.repository.HubPreviewStore.capture(rootView, it) }
         when {
-            navState.sendToBackground() ->
+            navState.sendToBackground() -> {
                 if (pagerState.currentPage != 1) pagerState.animateScrollToPage(1)
+                // The first hub ever left running brings the balloon that tells how to get back
+                // to it, once the hinge has put the hub away. A second press meanwhile cancels
+                // this, and the balloon waits for the next time.
+                val settings = context.applicationContext.appContainer.settingsDataStore
+                if (!settings.switcherTipShown.first()) {
+                    kotlinx.coroutines.delay(SWITCHER_TIP_DELAY_MILLIS)
+                    settings.setSwitcherTipShown()
+                    switcherTipShown = true
+                }
+            }
             pagerState.currentPage != 1 -> pagerState.animateScrollToPage(1)
             else -> homeResetSignal++
         }
@@ -513,9 +525,6 @@ fun LauncherScreen(
                         },
                         onHubSelected = { hub -> if (hub != HubType.HOME) navState.openHub(hub) },
                         homeResetSignal = homeResetSignal,
-                        runningHubs = navState.backgroundHubs,
-                        onStopHub = { hub -> navState.stopHub(hub) },
-                        onStopAllHubs = { navState.stopAllHubs() },
                         timeFormat = timeFormat,
                         dateFormat = dateFormat
                     )
@@ -937,6 +946,13 @@ fun LauncherScreen(
 
                 // The tour, and the note about what changed. Over everything, because a first run
                 // that can be swiped away behind the launcher is not a first run.
+                // ── How to find the running hubs, told once ──
+                if (switcherTipShown && !switcherOpen) {
+                    Box(modifier = Modifier.fillMaxSize().zIndex(10f)) {
+                        com.serkantkn.zunelauncher.ui.screens.home.SwitcherTip(onDismiss = { switcherTipShown = false })
+                    }
+                }
+
                 // ── Going straight from one running hub to another ──
                 if (switcherOpen) {
                     val previews by com.serkantkn.zunelauncher.data.repository.HubPreviewStore
@@ -1093,6 +1109,9 @@ private const val SHADE_PULL_DP = 20f
 
 /** Two presses of Home closer together than this ask for the switcher, not for Start. */
 private const val DOUBLE_PRESS_MILLIS = 450L
+
+/** Long enough for the hinge to have put the hub away before the balloon comes. */
+private const val SWITCHER_TIP_DELAY_MILLIS = 600L
 
 /** How far two fingers have to be drawn up a phone before the hub steps into the top half. */
 private const val SPLIT_PULL_PX = 400f

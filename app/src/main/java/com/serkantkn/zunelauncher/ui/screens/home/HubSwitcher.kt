@@ -63,8 +63,8 @@ import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
  * with no press length attached to it. Two quick presses of Home is the one trigger that works in
  * both navigation modes, so that is what opens this.
  *
- * Each hub shows the picture taken as it was left, the same one the Start strip shows when a tile
- * is held. It slides up from the navigation bar and goes back down the same way.
+ * Each hub shows the picture taken as it was left. It slides up from the navigation bar and goes
+ * back down the same way.
  */
 @Composable
 fun HubSwitcher(
