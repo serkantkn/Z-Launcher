@@ -441,6 +441,7 @@ private fun PlaceHeader(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
     val busyMessage by viewModel.busyMessage.collectAsState()
+    val pasteProgress by viewModel.pasteProgress.collectAsState()
     val transfer by viewModel.transfer.collectAsState()
     val cloudPath by viewModel.cloudPath.collectAsState()
     val cloudItems by viewModel.cloudItems.collectAsState()
@@ -571,7 +572,16 @@ private fun PlaceHeader(
         }
 
         // ── What is going on: a copy, a search, an upload ──
-        busyMessage?.let { message ->
+        pasteProgress?.let { progress ->
+            TabletPasteProgress(
+                progress = progress,
+                onPauseToggle = viewModel::togglePausePaste,
+                onCancel = viewModel::cancelPaste,
+                ink = ink,
+                modifier = Modifier.padding(start = 60.dp, top = 4.dp)
+            )
+        }
+        busyMessage?.takeIf { pasteProgress == null }?.let { message ->
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 60.dp, top = 4.dp)) {
                 Text(
                     text = message,

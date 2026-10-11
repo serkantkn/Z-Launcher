@@ -170,6 +170,7 @@ fun FilesHubScreen(
     val selection by viewModel.selection.collectAsState()
     val clipboard by viewModel.clipboard.collectAsState()
     val busyMessage by viewModel.busyMessage.collectAsState()
+    val pasteProgress by viewModel.pasteProgress.collectAsState()
     val sort by viewModel.sort.collectAsState()
     val sortAscending by viewModel.sortAscending.collectAsState()
     val showHidden by viewModel.showHidden.collectAsState()
@@ -479,7 +480,10 @@ fun FilesHubScreen(
                         onClick = if (volumes.size > 1) ({ showVolumeSheet = true }) else null
                     )
                 }
-                if (busyMessage != null) {
+                pasteProgress?.let { progress ->
+                    PhonePasteProgress(progress, onPauseToggle = viewModel::togglePausePaste, onCancel = viewModel::cancelPaste)
+                }
+                if (busyMessage != null && pasteProgress == null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = busyMessage.orEmpty(),
@@ -1187,6 +1191,9 @@ fun FilesHubScreen(
                 )
             }
         }
+
+        // ── A paste that found the name taken asks what to do ──
+        PasteConflictDialog(viewModel, isWideScreen)
 
         // ── Deleting asks first ──
         deleteTarget?.takeIf { isWideScreen }?.let { item ->
