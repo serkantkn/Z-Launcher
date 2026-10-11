@@ -11,9 +11,11 @@ import android.os.Build
 import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.ReplyAction
 import com.serkantkn.zunelauncher.data.service.SocialNotificationListener
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.util.localizedString
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,16 +29,34 @@ data class PanelNotification(
     val appIcon: Bitmap?,
     val title: String,
     val text: String,
+    /**
+     * The line an app puts beside its name in Android's shade — the account a mail came to, the
+     * kind of thing it is — which tells two notifications of one app apart.
+     */
+    val subText: String,
     val postTime: Long,
     /** False for ongoing ones — a call, a download, a running service — which cannot be swiped. */
     val clearable: Boolean,
     val contentIntent: PendingIntent?,
     val autoCancel: Boolean,
-    val reply: ReplyAction?
+    val reply: ReplyAction?,
+    /** For the launcher's own notifications, the hub it speaks for (see NotificationSource). */
+    val hub: HubType? = null
 )
 
-/** The notifications of one app, newest first, as one group in the action center. */
-data class PanelGroup(val packageName: String, val appName: String, val appIcon: Bitmap?, val items: List<PanelNotification>)
+/**
+ * The notifications of one app, newest first, as one group in the action center. The launcher's
+ * own come in a group per hub, headed with the hub's name and glyph rather than "Z Launcher".
+ */
+data class PanelGroup(
+    val packageName: String,
+    val appName: String,
+    val appIcon: Bitmap?,
+    val items: List<PanelNotification>,
+    val hub: HubType? = null
+) {
+    val key: String get() = packageName + (hub?.let { "|" + it.name } ?: "")
+}
 
 /**
  * Everything in the notification shade, kept for the Windows Phone action center.
@@ -145,10 +165,10 @@ object ActionCenterNotifications {
 
     /** Groups by app: the app with the newest notification first, newest first inside. */
     internal fun group(items: List<PanelNotification>): List<PanelGroup> =
-        items.groupBy { it.packageName }
-            .map { (pkg, list) ->
+        items.groupBy { it.packageName to it.hub }
+            .map { (source, list) ->
                 val sorted = list.sortedByDescending { it.postTime }
-                PanelGroup(pkg, sorted.first().appName, sorted.first().appIcon, sorted)
+                PanelGroup(source.first, sorted.first().appName, sorted.first().appIcon, sorted, source.second)
             }
             .sortedByDescending { it.items.first().postTime }
 
@@ -158,18 +178,38 @@ object ActionCenterNotifications {
         val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
         val text = (extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)
             ?: extras?.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
+        val hub = if (sbn.packageName == context.packageName) {
+            NotificationSource.hubOf(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) n.channelId else null,
+                n.category
+            )
+        } else null
+        val hubName = hub?.let { context.localizedString(it.titleRes) }
+        // The launcher's own say which hub they come from in their sub-text too, for Android's
+        // shade; here the group heading says it already.
+        val subText = extras?.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString().orEmpty()
+            .let { sub ->
+                when {
+                    hubName == null -> sub
+                    sub.equals(hubName, ignoreCase = true) -> ""
+                    sub.startsWith("$hubName · ", ignoreCase = true) -> sub.substring(hubName.length + 3)
+                    else -> sub
+                }
+            }
         return PanelNotification(
             key = sbn.key,
             packageName = sbn.packageName,
-            appName = labelOf(context, sbn.packageName),
+            appName = hubName ?: labelOf(context, sbn.packageName),
             appIcon = iconOf(context, sbn.packageName),
             title = title,
             text = text,
+            subText = subText,
             postTime = sbn.postTime,
             clearable = sbn.isClearable,
             contentIntent = n.contentIntent,
             autoCancel = (n.flags and Notification.FLAG_AUTO_CANCEL) != 0,
-            reply = replyOf(n)
+            reply = replyOf(n),
+            hub = hub
         )
     }
 

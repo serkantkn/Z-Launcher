@@ -51,6 +51,7 @@ class EventReminderReceiver : BroadcastReceiver() {
         val text = listOfNotNull(whenText, location.takeIf { it.isNotBlank() }).joinToString(" • ")
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSubText(context.localizedString(R.string.hub_calendar))
             .setSmallIcon(R.drawable.ic_wp_calendar)
             .setContentTitle(title.ifBlank { context.localizedString(R.string.hub_calendar) })
             .setContentText(text)
@@ -122,7 +123,7 @@ class EventReminderReceiver : BroadcastReceiver() {
         const val EXTRA_LOCATION = "LOCATION"
         const val EXTRA_ALL_DAY = "ALL_DAY"
         const val EXTRA_REPEATS = "REPEATS"
-        private const val CHANNEL_ID = "zune_events"
+        internal const val CHANNEL_ID = "zune_events"
         private const val TAG = "EventReminderReceiver"
     }
 }

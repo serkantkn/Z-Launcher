@@ -36,8 +36,8 @@ import com.serkantkn.zunelauncher.util.localizedString
 object AlarmNotifier {
 
     private const val TAG = "AlarmNotifier"
-    private const val CHANNEL_RINGING = "zune_alarm_ringing"
-    private const val CHANNEL_MISSED = "zune_alarm_missed"
+    internal const val CHANNEL_RINGING = "zune_alarm_ringing"
+    internal const val CHANNEL_MISSED = "zune_alarm_missed"
     private const val RINGING_ID = 7420
     private const val MISSED_ID_BASE = 7430
 
@@ -111,6 +111,7 @@ object AlarmNotifier {
             ?: alarm.timeString
         val what = listOf(time, alarm.label).filter { it.isNotBlank() }.joinToString(" • ")
         val notification = NotificationCompat.Builder(context, CHANNEL_MISSED)
+            .setSubText(context.localizedString(R.string.hub_clock))
             .setSmallIcon(R.drawable.ic_wp_clock)
             .setContentTitle(context.localizedString(R.string.alarm_missed_title))
             .setContentText(context.localizedString(R.string.alarm_missed_text, what))
@@ -132,6 +133,7 @@ object AlarmNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(context, CHANNEL_RINGING)
+            .setSubText(context.localizedString(R.string.hub_clock))
             .setSmallIcon(R.drawable.ic_wp_clock)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)

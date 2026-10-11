@@ -137,7 +137,7 @@ class EmailSyncReceiver : BroadcastReceiver() {
 /** New-mail announcements: Windows Phone toast (via SocialRepository) plus a system notification. */
 object EmailNotifier {
 
-    private const val CHANNEL_ID = "email_new_mail"
+    internal const val CHANNEL_ID = "email_new_mail"
 
     /** "a…@example.com": enough to tell accounts apart in a log, not enough to write to. */
     fun maskedAddress(email: String): String {
@@ -204,7 +204,9 @@ object EmailNotifier {
             .setSmallIcon(R.drawable.ic_wp_mail)
             .setContentTitle(message.from.display)
             .setContentText(subject)
-            .setSubText(account.email)
+            // "e-posta · ali@…" beside the launcher's name: what this is, and which account.
+            .setSubText(appContext.localizedString(R.string.hub_email) + " · " + account.email)
+            .setCategory(NotificationCompat.CATEGORY_EMAIL)
             .setContentIntent(openIntent)
             .setAutoCancel(true)
             .setGroup("email_${account.id}")

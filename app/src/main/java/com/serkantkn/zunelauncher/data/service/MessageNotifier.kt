@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
 object MessageNotifier {
 
     private const val TAG = "MessageNotifier"
-    private const val CHANNEL_ID = "zune_messages"
+    internal const val CHANNEL_ID = "zune_messages"
     const val KEY_REPLY = "zune_message_reply"
     const val EXTRA_THREAD_ID = "thread_id"
     const val EXTRA_ADDRESS = "address"
@@ -82,6 +82,7 @@ object MessageNotifier {
         }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSubText(context.localizedString(R.string.hub_messaging))
             .setSmallIcon(R.drawable.ic_wp_message)
             .setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
@@ -116,6 +117,7 @@ object MessageNotifier {
 
         val name = displayName(context, sender).ifBlank { context.localizedString(R.string.msg_unknown_sender) }
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSubText(context.localizedString(R.string.hub_messaging))
             .setSmallIcon(R.drawable.ic_wp_message)
             .setContentTitle(name)
             .setContentText(context.localizedString(R.string.msg_mms_arrived))

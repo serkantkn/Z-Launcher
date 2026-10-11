@@ -75,6 +75,7 @@ class MissedCallReceiver : BroadcastReceiver() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(MainActivity.EXTRA_OPEN_HUB, HubType.PHONE.name)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSubText(context.localizedString(R.string.hub_phone))
             .setSmallIcon(R.drawable.ic_wp_phone)
             .setContentTitle(title)
             .setContentText(who)
@@ -110,7 +111,7 @@ class MissedCallReceiver : BroadcastReceiver() {
         )
     }
 
-    private companion object {
+    internal companion object {
         const val TAG = "MissedCallReceiver"
         const val CHANNEL_ID = "zune_missed_calls"
         const val NOTIFICATION_ID = 4202

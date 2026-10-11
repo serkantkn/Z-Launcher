@@ -30,7 +30,7 @@ import com.serkantkn.zunelauncher.util.localizedString
 object CallNotifier {
 
     private const val TAG = "CallNotifier"
-    private const val CHANNEL_ID = "zune_calls"
+    internal const val CHANNEL_ID = "zune_calls"
     const val NOTIFICATION_ID = 4201
 
     const val ACTION_ANSWER = "com.serkantkn.zunelauncher.CALL_ANSWER"
@@ -50,6 +50,7 @@ object CallNotifier {
 
         val person = Person.Builder().setName(caller).setImportant(true).build()
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSubText(context.localizedString(R.string.hub_phone))
             .setSmallIcon(R.drawable.ic_wp_phone)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)

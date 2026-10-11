@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.serkantkn.zunelauncher.MainActivity
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.util.localizedString
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.repository.ClockPage
 import com.serkantkn.zunelauncher.util.ZuneLog
@@ -31,7 +32,7 @@ import com.serkantkn.zunelauncher.util.formatCountdown
 object TimerNotifier {
 
     private const val TAG = "TimerNotifier"
-    private const val CHANNEL_ID = "zune_timer"
+    internal const val CHANNEL_ID = "zune_timer"
     private const val NOTIFICATION_ID = 7410
 
     /** Shows (or updates) the countdown. */
@@ -40,6 +41,7 @@ object TimerNotifier {
         ensureChannel(context)
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSubText(context.localizedString(R.string.hub_clock))
             .setSmallIcon(R.drawable.ic_wp_timer)
             .setContentTitle(label.ifBlank { context.getString(R.string.clock_tab_timer) })
             .setContentText(context.getString(R.string.clock_timer_running))
@@ -68,6 +70,7 @@ object TimerNotifier {
         ensureChannel(context)
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSubText(context.localizedString(R.string.hub_clock))
             .setSmallIcon(R.drawable.ic_wp_timer)
             .setContentTitle(label.ifBlank { context.getString(R.string.clock_tab_timer) })
             .setContentText(

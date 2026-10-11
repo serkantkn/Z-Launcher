@@ -291,7 +291,7 @@ fun ActionCenterPanel(
                     modifier = Modifier.fillMaxSize().then(if (scroll != null) Modifier.nestedScroll(scroll) else Modifier)
                 ) {
                     groups.forEach { group ->
-                        item(key = "group_" + group.packageName) {
+                        item(key = "group_" + group.key) {
                             GroupHeader(group, ink) { ActionCenterNotifications.dismissGroup(group) }
                         }
                         items(group.items, key = { it.key }) { item ->
@@ -863,9 +863,22 @@ private fun GroupHeader(group: PanelGroup, ink: Color, onClear: () -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        group.appIcon?.let {
-            Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.size(18.dp))
+        val hub = group.hub
+        if (hub != null) {
+            // The launcher's own: the hub's glyph on a small square of the accent, a tile in
+            // miniature, rather than the launcher's icon over every one of them.
+            Box(
+                modifier = Modifier.size(18.dp).background(LocalZuneColors.current.accentColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(getHubIcon(hub), contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
+            }
             Spacer(modifier = Modifier.width(8.dp))
+        } else {
+            group.appIcon?.let {
+                Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+            }
         }
         Text(
             text = group.appName,
@@ -938,6 +951,15 @@ private fun NotificationRow(
             Box(modifier = Modifier.width(3.dp).height(36.dp).background(zuneColors.accentColor))
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
+                if (item.subText.isNotBlank()) {
+                    Text(
+                        text = item.subText,
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
+                        color = ink.copy(alpha = 0.55f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 if (item.title.isNotBlank()) {
                     Text(
                         text = item.title,
