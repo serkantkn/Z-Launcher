@@ -216,18 +216,22 @@ internal fun FilesTabletLayout(
                 volumes.forEach { volume ->
                     val here = !inCloud && !inRecycleBin && currentVolume?.root?.absolutePath == volume.root.absolutePath &&
                         FilesLibrary.entries.none { isInside(currentDirectory, File(primaryRoot, it.folder)) }
-                    VolumeEntry(volume = volume, chosen = here, ink = ink) { goToVolume(volume) }
+                    Box(modifier = Modifier.fileDropTarget(volume.root, volume.label, DropHighlight.PANE, isPlace = true)) {
+                        VolumeEntry(volume = volume, chosen = here, ink = ink) { goToVolume(volume) }
+                    }
                 }
 
                 PaneSection(stringResource(R.string.files_pane_libraries))
                 FilesLibrary.entries.forEach { library ->
                     val folder = File(primaryRoot, library.folder)
-                    PaneEntry(
-                        label = stringResource(library.labelRes).lowercase(Locale.getDefault()),
-                        chosen = !inCloud && !inRecycleBin && isInside(currentDirectory, folder),
-                        ink = ink,
-                        marker = categoryColor(library.category, zuneColors.accentColor)
-                    ) { goTo(folder) }
+                    Box(modifier = Modifier.fileDropTarget(folder, stringResource(library.labelRes), DropHighlight.PANE)) {
+                        PaneEntry(
+                            label = stringResource(library.labelRes).lowercase(Locale.getDefault()),
+                            chosen = !inCloud && !inRecycleBin && isInside(currentDirectory, folder),
+                            ink = ink,
+                            marker = categoryColor(library.category, zuneColors.accentColor)
+                        ) { goTo(folder) }
+                    }
                 }
 
                 PaneSection(stringResource(R.string.files_tab_cloud))
@@ -751,9 +755,11 @@ private fun DetailsView(
                     // Locale.ROOT: in Turkish "zip".uppercase() is "ZİP".
                     else -> fileOfType.replace("%s", item.extension.uppercase(Locale.ROOT))
                 }
+                val drag = rememberFileDragSource(item, { onLongClick(item) }, DropHighlight.ROW)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
+                        .then(drag?.modifier ?: Modifier)
                         .fillMaxWidth()
                         .height(ROW_HEIGHT)
                         .background(if (selected) zuneColors.accentColor.copy(alpha = 0.18f) else Color.Transparent)
@@ -761,7 +767,7 @@ private fun DetailsView(
                             interactionSource = source,
                             indication = null,
                             onClick = { onOpen(item) },
-                            onLongClick = { onLongClick(item) }
+                            onLongClick = drag?.onHold ?: { onLongClick(item) }
                         )
                 ) {
                     Box(

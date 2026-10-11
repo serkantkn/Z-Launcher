@@ -199,6 +199,7 @@ fun FilesHubScreen(
     val rowAnchors = remember { mutableMapOf<String, ZuneZoomAnchor>() }
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
+    val dragState = rememberFilesDragState(viewModel)
     val filesViewSetting by viewModel.view.collectAsState()
     // Nothing chosen yet: the tablet shows pictures, the phone its list — the same two views on
     // both, only the starting one differs.
@@ -871,7 +872,8 @@ fun FilesHubScreen(
                 }
         ) {
             ZuneHubEntranceLayout { bottomBarModifier ->
-                Box(modifier = Modifier.fillMaxSize()) {
+                // A Box in which tiles, rows and places can be dragged onto folders, ghost on top.
+                FilesDragArea(state = dragState, modifier = Modifier.fillMaxSize()) {
                     if (isWideScreen) {
                         FilesTabletLayout(
                             viewModel = viewModel,
