@@ -3,6 +3,7 @@ package com.serkantkn.zunelauncher.ui.screens.settings
 import com.serkantkn.zunelauncher.ui.theme.findActivity
 import com.serkantkn.zunelauncher.util.AppLanguage
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.util.ActionCenterPermissions
 import androidx.compose.ui.res.stringResource
 import com.serkantkn.zunelauncher.util.ZuneLog
 import android.Manifest
@@ -455,6 +456,8 @@ internal fun NotificationsSettingsPage(
     val context = LocalContext.current
 
     SettingsLazyColumn {
+        actionCenterItem(viewModel)
+
         item(key = "notification_style") {
             SettingGroup(title = stringResource(R.string.settings_notification_style)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -515,6 +518,87 @@ internal fun NotificationsSettingsPage(
                             color = currentAccentColor
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The action center's switch and everything it leans on. Each permission is a row that opens the
+ * system page for it; the dots are re-read whenever the user comes back from one.
+ */
+private fun androidx.compose.foundation.lazy.LazyListScope.actionCenterItem(viewModel: SettingsViewModel) {
+    item(key = "action_center") {
+        val context = LocalContext.current
+        val on by viewModel.wpActionCenter.collectAsState()
+        var checks by remember { mutableIntStateOf(0) }
+        LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { checks++ }
+        val status = remember(checks) { ActionCenterPermissions.read(context) }
+
+        SettingGroup(title = stringResource(R.string.ac_settings_group)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingSwitchRow(
+                    title = stringResource(R.string.ac_settings_switch),
+                    subtitle = stringResource(if (on) R.string.ac_settings_switch_on else R.string.ac_settings_switch_off),
+                    checked = on,
+                    onCheckedChange = viewModel::setWpActionCenter
+                )
+                if (on) {
+                    Text(
+                        text = stringResource(R.string.ac_settings_needs),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted
+                    )
+                    SystemSettingRow(
+                        title = stringResource(R.string.ac_perm_service),
+                        subtitle = if (status.service) stringResource(R.string.settings_enabled) else stringResource(R.string.ac_perm_service_sub),
+                        isActive = status.service,
+                        onClick = { ActionCenterPermissions.open(context, ActionCenterPermissions.SERVICE) }
+                    )
+                    if (!status.service && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        SystemSettingRow(
+                            title = stringResource(R.string.ac_perm_restricted),
+                            subtitle = stringResource(R.string.ac_perm_restricted_sub),
+                            onClick = { ActionCenterPermissions.open(context, ActionCenterPermissions.APP_INFO) }
+                        )
+                    }
+                    SystemSettingRow(
+                        title = stringResource(R.string.ac_perm_notifications),
+                        subtitle = if (status.notifications) stringResource(R.string.settings_permission_granted) else stringResource(R.string.ac_perm_notifications_sub),
+                        isActive = status.notifications,
+                        onClick = { ActionCenterPermissions.open(context, ActionCenterPermissions.NOTIFICATIONS) }
+                    )
+                    SystemSettingRow(
+                        title = stringResource(R.string.settings_overlay_permission),
+                        subtitle = if (status.overlay) stringResource(R.string.settings_permission_granted) else stringResource(R.string.ac_perm_overlay_sub),
+                        isActive = status.overlay,
+                        onClick = { ActionCenterPermissions.open(context, ActionCenterPermissions.OVERLAY) }
+                    )
+                    SystemSettingRow(
+                        title = stringResource(R.string.ac_perm_write),
+                        subtitle = if (status.writeSettings) stringResource(R.string.settings_permission_granted) else stringResource(R.string.ac_perm_write_sub),
+                        isActive = status.writeSettings,
+                        onClick = { ActionCenterPermissions.open(context, ActionCenterPermissions.WRITE_SETTINGS) }
+                    )
+                    SystemSettingRow(
+                        title = stringResource(R.string.ac_perm_dnd),
+                        subtitle = if (status.dnd) stringResource(R.string.settings_permission_granted) else stringResource(R.string.ac_perm_dnd_sub),
+                        isActive = status.dnd,
+                        onClick = { ActionCenterPermissions.open(context, ActionCenterPermissions.DND) }
+                    )
+                    SystemSettingRow(
+                        title = stringResource(R.string.ac_perm_battery),
+                        subtitle = if (status.battery) stringResource(R.string.settings_permission_granted) else stringResource(R.string.ac_perm_battery_sub),
+                        isActive = status.battery,
+                        onClick = { ActionCenterPermissions.open(context, ActionCenterPermissions.BATTERY) }
+                    )
+                    Text(
+                        text = stringResource(R.string.ac_settings_lock_info),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
         }

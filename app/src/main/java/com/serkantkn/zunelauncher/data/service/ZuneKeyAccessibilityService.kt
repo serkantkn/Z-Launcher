@@ -5,8 +5,12 @@ import android.os.Build
 import com.serkantkn.zunelauncher.util.ZuneLog
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.KeyguardManager
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
@@ -38,6 +42,7 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
     @Volatile
     private var actionCenterOn = false
     private var lastShadeCaught = 0L
+    private var screenReceiver: BroadcastReceiver? = null
 
     @Volatile
     private var volumeBarStyle: VolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
@@ -54,6 +59,7 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
             ZuneLog.e("ZuneKeyAccessibilityService", "onServiceConnected failed", e)
         }
         current = this
+        watchScreen()
         shieldJob?.cancel()
         shieldJob = scope.launch {
             try {
@@ -75,12 +81,51 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /** The strip steps aside while a full-screen app has the status bar hidden. */
+    /**
+     * The strip steps aside while a full-screen app has the status bar hidden, and while the
+     * phone is locked: the action center would lay every notification and quick setting open to
+     * whoever picks the phone up, where Android's own shade on the lock screen keeps to the
+     * user's lock-screen privacy settings.
+     */
     private fun followStatusBar() {
         if (!StatusBarShield.isAttached) return
+        if (isLocked()) {
+            StatusBarShield.setTouchable(false)
+            return
+        }
         val list = runCatching { windows }.getOrNull() ?: return
         val width = resources.displayMetrics.widthPixels
         StatusBarShield.setTouchable(StatusBarShield.isStatusBarShown(list, width))
+    }
+
+    private fun isLocked(): Boolean =
+        (getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)?.isKeyguardLocked == true
+
+    /** The lock screen comes and goes with the screen; the window list alone does not always say. */
+    private fun watchScreen() {
+        if (screenReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == Intent.ACTION_SCREEN_OFF) {
+                    ActionCenterOverlay.close()
+                    QuickReplyOverlay.hide()
+                }
+                if (actionCenterOn) followStatusBar()
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(receiver, filter)
+            }
+            screenReceiver = receiver
+        }.onFailure { ZuneLog.e(TAG, "screen receiver could not be registered", it) }
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
@@ -108,6 +153,8 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
             ZuneLog.d(TAG, "systemui window: class=${event.className} text=${event.text} desc=${event.contentDescription}")
         }
         if (!ShadeDetector.isShade(event.className, event.text, event.contentDescription)) return
+        // On the lock screen the shade is Android's, for the same reason the strip steps aside.
+        if (isLocked()) return
         ZuneLog.d(TAG, "system shade caught; closing it")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
@@ -154,6 +201,8 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         if (current === this) current = null
+        screenReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenReceiver = null
         shieldJob?.cancel()
         StatusBarShield.detach()
         styleJob?.cancel()

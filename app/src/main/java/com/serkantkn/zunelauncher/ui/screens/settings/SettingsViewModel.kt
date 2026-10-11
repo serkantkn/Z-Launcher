@@ -128,6 +128,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val directCallEnabled: StateFlow<Boolean> = settingsDataStore.directCallEnabled.asState(false)
 
+    val wpActionCenter: StateFlow<Boolean> = settingsDataStore.wpActionCenter.asState(true)
+
     val notificationStyle: StateFlow<NotificationStyle> = settingsDataStore.notificationStyle.asState(NotificationStyle.WINDOWS_PHONE)
 
     val volumeBarStyle: StateFlow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = settingsDataStore.volumeBarStyle.asState(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE)
@@ -353,6 +355,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setDirectCallEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setDirectCallEnabled(enabled) }
+    }
+
+    fun setWpActionCenter(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setWpActionCenter(enabled) }
     }
 
     fun setNotificationStyle(style: NotificationStyle) {
