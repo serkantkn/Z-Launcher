@@ -54,6 +54,26 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.FolderOpen
+import com.serkantkn.zunelauncher.ui.components.Win8TextDialog
+import com.serkantkn.zunelauncher.ui.components.Win8MessageDialog
+import com.serkantkn.zunelauncher.ui.components.Win8MenuItem
+import com.serkantkn.zunelauncher.ui.components.Win8CommandBar
+import com.serkantkn.zunelauncher.ui.components.Win8Command
 import com.serkantkn.zunelauncher.util.FilesView
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -651,6 +671,12 @@ fun FilesHubScreen(
         }
     }
 
+    // What is chosen, for both bars.
+    val locale = java.util.Locale.getDefault()
+    val shownItems = deepResults ?: fileItems
+    val singleSelected = if (selection.size == 1) shownItems.firstOrNull { it.file.absolutePath in selection } else null
+    val selectionHasFiles = shownItems.any { it.file.absolutePath in selection && !it.isDirectory }
+
     // ── The bar ────────────────────────────────────────────────────────────
     val inCloud = if (isWideScreen) tabletInCloud else pager.currentPage == CLOUD_TAB
     val barActions = when {
@@ -695,6 +721,9 @@ fun FilesHubScreen(
     val barMenu = buildList {
         if (selection.isNotEmpty()) {
             add(WpBarMenuItem(stringResource(R.string.files_select_all)) { viewModel.selectAll() })
+            if (selectionHasFiles && cloudAccounts.isNotEmpty()) {
+                add(WpBarMenuItem(stringResource(R.string.files_bar_upload_cloud)) { viewModel.uploadSelectionToCloud() })
+            }
             add(WpBarMenuItem(stringResource(R.string.common_cancel)) { viewModel.clearSelection() })
         } else if (inCloud) {
             if (activeCloudAccount != null) {
@@ -727,6 +756,99 @@ fun FilesHubScreen(
         }
     }
 
+    // ── The tablet's bar: Windows 8's, what is chosen on the left and the page's own on the right ──
+    val tabletLeft: List<Win8Command> = if (!isWideScreen || inCloud || selection.isEmpty()) emptyList() else buildList {
+        singleSelected?.let { item ->
+            add(Win8Command(Icons.Default.FolderOpen, stringResource(R.string.files_open).lowercase(locale)) {
+                viewModel.clearSelection()
+                if (item.isDirectory) viewModel.visit(item.file) else openItem(item)
+            })
+            if (!item.isDirectory) {
+                add(Win8Command(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.files_bar_open_with)) {
+                    viewModel.openWith(context, item.file)
+                })
+                add(Win8Command(Icons.Default.Share, stringResource(R.string.files_share).lowercase(locale)) {
+                    viewModel.shareFile(context, item.file)
+                })
+            }
+            add(Win8Command(Icons.Default.Edit, stringResource(R.string.files_rename).lowercase(locale)) {
+                textPrompt = TextPrompt.Rename(item)
+            })
+            add(Win8Command(Icons.Default.Info, stringResource(R.string.files_details).lowercase(locale)) {
+                detailsTarget = item
+                openSubScreen()
+            })
+            if (item.isDirectory && clipboard != null) {
+                add(Win8Command(Icons.Default.ContentPaste, stringResource(R.string.files_paste_here)) {
+                    viewModel.paste(item.file)
+                })
+            }
+        }
+        add(Win8Command(Icons.Default.ContentCopy, stringResource(R.string.files_copy)) { viewModel.copySelection() })
+        add(Win8Command(Icons.Default.ContentCut, stringResource(R.string.files_cut)) { viewModel.cutSelection() })
+        add(Win8Command(Icons.Default.Delete, stringResource(R.string.common_delete).lowercase(locale)) { deleteSelectionPending = true })
+        if (selectionHasFiles && cloudAccounts.isNotEmpty()) {
+            add(Win8Command(Icons.Default.CloudUpload, stringResource(R.string.files_bar_upload_cloud)) { viewModel.uploadSelectionToCloud() })
+        }
+    }
+    val tabletRight: List<Win8Command> = when {
+        !isWideScreen -> emptyList()
+        inCloud && activeCloudAccount != null -> listOf(
+            Win8Command(Icons.Default.CreateNewFolder, stringResource(R.string.files_new_folder)) { textPrompt = TextPrompt.NewCloudFolder },
+            Win8Command(Icons.Default.Upload, stringResource(R.string.files_bar_upload)) { uploadPicker.launch("*/*") },
+            Win8Command(Icons.Default.Refresh, stringResource(R.string.common_refresh).lowercase(locale)) { viewModel.reloadCloudFolder() },
+            Win8Command(Icons.AutoMirrored.Filled.Logout, stringResource(R.string.files_bar_close_drive)) {
+                viewModel.closeCloudAccount()
+                tabletInCloud = false
+            }
+        )
+        inCloud -> emptyList()
+        selection.isNotEmpty() -> listOf(
+            Win8Command(Icons.Default.SelectAll, stringResource(R.string.files_bar_select_all)) { viewModel.selectAll() },
+            Win8Command(Icons.Default.Deselect, stringResource(R.string.files_bar_clear_selection)) { viewModel.clearSelection() }
+        )
+        else -> buildList {
+            add(Win8Command(Icons.Default.CreateNewFolder, stringResource(R.string.files_new_folder)) { textPrompt = TextPrompt.NewFolder })
+            if (clipboard != null) {
+                add(Win8Command(Icons.Default.ContentPaste, stringResource(R.string.files_paste)) { viewModel.paste() })
+                add(Win8Command(Icons.Default.Clear, stringResource(R.string.files_bar_clear_clipboard)) { viewModel.clearClipboard() })
+            }
+            add(Win8Command(Icons.Default.Sort, stringResource(R.string.files_sort), menu = { close ->
+                FileSort.entries.forEach { option ->
+                    Win8MenuItem(sortLabel(option).lowercase(locale), chosen = option == sort) {
+                        viewModel.setSort(option)
+                        close()
+                    }
+                }
+                Win8MenuItem(
+                    stringResource(if (sortAscending) R.string.files_sort_descending else R.string.files_sort_ascending).lowercase(locale)
+                ) {
+                    viewModel.toggleSortDirection()
+                    close()
+                }
+            }))
+            add(Win8Command(
+                if (filesView == FilesView.THUMBNAILS) Icons.Default.GridView else Icons.AutoMirrored.Filled.ViewList,
+                stringResource(R.string.files_bar_view),
+                menu = { close ->
+                    Win8MenuItem(stringResource(R.string.files_view_thumbs_short), chosen = filesView == FilesView.THUMBNAILS) {
+                        viewModel.setView(FilesView.THUMBNAILS)
+                        close()
+                    }
+                    Win8MenuItem(stringResource(R.string.files_view_details_short), chosen = filesView == FilesView.LIST) {
+                        viewModel.setView(FilesView.LIST)
+                        close()
+                    }
+                }
+            ))
+            add(Win8Command(
+                if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                stringResource(R.string.files_bar_hidden)
+            ) { viewModel.setShowHidden(!showHidden) })
+            add(Win8Command(Icons.Default.Refresh, stringResource(R.string.common_refresh).lowercase(locale)) { viewModel.reload() })
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -752,7 +874,8 @@ fun FilesHubScreen(
                             permissionGate = { StoragePermissionGate(context, permissionLauncher) },
                             cloudPage = { PageAt(CLOUD_TAB) },
                             onOpenFile = { openItem(it) },
-                            onItemLongClick = { sheetTarget = it },
+                            // Windows 8: holding a thing chooses it, and the bar shows what can be done.
+                            onItemLongClick = { viewModel.toggleSelection(it) },
                             onAddCloudAccount = { startGoogleSignIn() },
                             bottomPadding = listBottomPadding,
                             modifier = Modifier.graphicsLayer { alpha = contentAlpha.value }
@@ -879,14 +1002,25 @@ fun FilesHubScreen(
 
                     }
 
-                    WindowsPhoneBottomBar(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .then(bottomBarModifier)
-                            .graphicsLayer { alpha = contentAlpha.value },
-                        actions = barActions,
-                        menuItems = barMenu
-                    )
+                    if (isWideScreen) {
+                        Win8CommandBar(
+                            left = tabletLeft,
+                            right = tabletRight,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .then(bottomBarModifier)
+                                .graphicsLayer { alpha = contentAlpha.value }
+                        )
+                    } else {
+                        WindowsPhoneBottomBar(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .then(bottomBarModifier)
+                                .graphicsLayer { alpha = contentAlpha.value },
+                            actions = barActions,
+                            menuItems = barMenu
+                        )
+                    }
                 }
             }
         }
@@ -896,7 +1030,8 @@ fun FilesHubScreen(
         ZuneTitleZoomOverlay(state = cloudZoom, letterSpacing = (-1).sp)
 
         // ── Sub-screens on the hinge ──
-        val prompt = textPrompt
+        // On the tablet a name is asked for in Windows 8's band instead (below).
+        val prompt = textPrompt.takeIf { !isWideScreen }
         if (prompt != null || viewerTarget != null || detailsTarget != null || subScreenHinge.value > 0f) {
             Box(
                 modifier = Modifier
@@ -979,6 +1114,12 @@ fun FilesHubScreen(
                         viewModel.shareFile(context, item.file)
                         sheetTarget = null
                     }
+                    if (cloudAccounts.isNotEmpty()) {
+                        SheetAction(label = stringResource(R.string.files_bar_upload_cloud)) {
+                            viewModel.uploadFilesToCloud(listOf(item.file))
+                            sheetTarget = null
+                        }
+                    }
                 }
                 SheetAction(label = stringResource(R.string.files_rename)) {
                     textPrompt = TextPrompt.Rename(item)
@@ -1000,8 +1141,69 @@ fun FilesHubScreen(
             }
         }
 
+        // ── The tablet asks for a name in Windows 8's band ──
+        if (isWideScreen) {
+            textPrompt?.let { asking ->
+                Win8TextDialog(
+                    title = stringResource(
+                        when (asking) {
+                            TextPrompt.NewFolder, TextPrompt.NewCloudFolder -> R.string.files_new_folder
+                            else -> R.string.files_rename
+                        }
+                    ).lowercase(locale),
+                    initial = when (asking) {
+                        is TextPrompt.Rename -> asking.item.name
+                        is TextPrompt.RenameCloud -> asking.item.name
+                        else -> ""
+                    },
+                    confirmLabel = stringResource(R.string.common_ok),
+                    dismissLabel = stringResource(R.string.common_cancel),
+                    onConfirm = { text ->
+                        when (asking) {
+                            TextPrompt.NewFolder -> viewModel.createDirectory(text)
+                            TextPrompt.NewCloudFolder -> viewModel.createCloudFolder(text)
+                            is TextPrompt.Rename -> viewModel.renameItem(asking.item, text)
+                            is TextPrompt.RenameCloud -> viewModel.renameCloudItem(asking.item, text)
+                        }
+                        textPrompt = null
+                    },
+                    onDismiss = { textPrompt = null }
+                )
+            }
+        }
+
         // ── Deleting asks first ──
-        deleteTarget?.let { item ->
+        deleteTarget?.takeIf { isWideScreen }?.let { item ->
+            Win8MessageDialog(
+                title = stringResource(R.string.files_delete_title),
+                confirmLabel = stringResource(R.string.common_delete),
+                dismissLabel = stringResource(R.string.common_cancel),
+                destructive = true,
+                onConfirm = {
+                    viewModel.deleteItem(item)
+                    deleteTarget = null
+                },
+                onDismiss = { deleteTarget = null }
+            ) {
+                Text(stringResource(R.string.files_delete_confirm, item.name), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
+            }
+        }
+        if (isWideScreen && deleteSelectionPending) {
+            Win8MessageDialog(
+                title = stringResource(R.string.files_delete_title),
+                confirmLabel = stringResource(R.string.common_delete),
+                dismissLabel = stringResource(R.string.common_cancel),
+                destructive = true,
+                onConfirm = {
+                    viewModel.deleteSelection()
+                    deleteSelectionPending = false
+                },
+                onDismiss = { deleteSelectionPending = false }
+            ) {
+                Text(stringResource(R.string.files_delete_many_confirm, selection.size), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
+            }
+        }
+        deleteTarget?.takeIf { !isWideScreen }?.let { item ->
             DeleteConfirmDialog(
                 message = stringResource(R.string.files_delete_confirm, item.name),
                 onConfirm = {
@@ -1011,7 +1213,7 @@ fun FilesHubScreen(
                 onDismiss = { deleteTarget = null }
             )
         }
-        if (deleteSelectionPending) {
+        if (!isWideScreen && deleteSelectionPending) {
             DeleteConfirmDialog(
                 message = stringResource(R.string.files_delete_many_confirm, selection.size),
                 onConfirm = {

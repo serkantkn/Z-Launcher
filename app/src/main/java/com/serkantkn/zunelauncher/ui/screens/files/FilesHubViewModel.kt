@@ -960,6 +960,45 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
     }
 
     /** Sends a file from the phone up into the open cloud folder. */
+    /**
+     * Sends the chosen files up to a drive: the open one's current folder, or, with none open,
+     * the top of the first account. Folders are skipped — a drive takes files one at a time.
+     */
+    fun uploadSelectionToCloud() {
+        val files = selectedItems().filter { !it.isDirectory }.map { it.file }
+        clearSelection()
+        uploadFilesToCloud(files)
+    }
+
+    fun uploadFilesToCloud(files: List<File>) {
+        if (files.isEmpty()) return
+        if (_activeCloudAccount.value == null) {
+            val first = cloudAccounts.value.firstOrNull() ?: return
+            openCloudAccount(first)
+        }
+        val account = _activeCloudAccount.value ?: return
+        val parent = _cloudPath.value.lastOrNull()?.id ?: return
+        transferJob?.cancel()
+        transferJob = viewModelScope.launch {
+            for (file in files) {
+                _transfer.value = CloudTransfer(file.name, isUpload = true, transferredBytes = 0L, totalBytes = file.length())
+                try {
+                    cloudRepository.upload(account, parent, file) { moved, total ->
+                        _transfer.value = CloudTransfer(file.name, true, moved, total)
+                    }
+                    _cloudMessage.value = application().localizedString(R.string.files_cloud_uploaded, file.name)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _cloudMessage.value = cloudMessageOf(e)
+                }
+            }
+            _transfer.value = null
+            folderCache.remove(parent)
+            loadCloudFolder(force = true)
+        }
+    }
+
     fun uploadToCloud(file: File) {
         val account = _activeCloudAccount.value ?: return
         val parent = _cloudPath.value.lastOrNull()?.id ?: return

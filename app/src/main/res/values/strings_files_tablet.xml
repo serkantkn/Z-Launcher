@@ -18,4 +18,16 @@
     <string name="files_path_menu">folders above</string>
     <string name="files_view_thumbnails">thumbnails view</string>
     <string name="files_view_list">list view</string>
+    <string name="files_bar_upload_cloud">to cloud</string>
+    <string name="files_bar_select_all">select all</string>
+    <string name="files_bar_clear_selection">clear selection</string>
+    <string name="files_bar_view">view</string>
+    <string name="files_bar_hidden">hidden items</string>
+    <string name="files_bar_volumes">storage</string>
+    <string name="files_bar_close_drive">close drive</string>
+    <string name="files_bar_upload">upload</string>
+    <string name="files_bar_clear_clipboard">clear clipboard</string>
+    <string name="files_view_thumbs_short">thumbnails</string>
+    <string name="files_view_details_short">details</string>
+    <string name="files_bar_open_with">open with</string>
 </resources>

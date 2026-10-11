@@ -78,6 +78,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.BuildConfig
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.ui.components.Win8Command
+import com.serkantkn.zunelauncher.ui.components.Win8CommandBar
 import kotlinx.coroutines.delay
 import com.serkantkn.zunelauncher.util.TileIconFace
 import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
@@ -403,11 +405,11 @@ fun Windows8AppsScreen(
                 })
             }
         }
-        Win8AppBar(
+        Win8CommandBar(
             visible = marked != null,
-            actions = actions,
-            fg = fg,
-            onAction = { selected = null },
+            left = emptyList(),
+            right = actions.map { Win8Command(it.icon, it.label, onClick = it.onClick) },
+            onAnyCommand = { selected = null },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
@@ -595,74 +597,6 @@ private fun Win8SortMenu(current: Win8AppsSort, fg: Color, onPick: (Win8AppsSort
 }
 
 private data class Win8BarAction(val icon: ImageVector, val label: String, val onClick: () -> Unit)
-
-/**
- * The Windows 8 app bar: a dark band across the bottom with the commands set to the right, each
- * a ringed glyph with its name under it. It comes up when an app is marked and goes when the
- * mark is lifted or a command is taken.
- */
-@Composable
-private fun Win8AppBar(
-    visible: Boolean,
-    actions: List<Win8BarAction>,
-    fg: Color,
-    onAction: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val zuneColors = LocalZuneColors.current
-    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    AnimatedVisibility(
-        visible = visible,
-        enter = slideInVertically(tween(220)) { it } + fadeIn(tween(220)),
-        exit = slideOutVertically(tween(180)) { it } + fadeOut(tween(180)),
-        modifier = modifier
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFEDEDED))
-                // The bar takes its own taps so they do not fall through and lift the mark.
-                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
-                .padding(bottom = navBottom)
-        ) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(horizontal = SIDE_PADDING, vertical = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(30.dp)
-            ) {
-                actions.forEach { action ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) {
-                            action.onClick()
-                            onAction()
-                        }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .border(2.dp, fg.copy(alpha = 0.9f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(imageVector = action.icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = action.label,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                            color = fg.copy(alpha = 0.9f),
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 private fun sortLabelOf(sort: Win8AppsSort): Int = when (sort) {
     Win8AppsSort.BY_NAME -> R.string.win8_apps_by_name
