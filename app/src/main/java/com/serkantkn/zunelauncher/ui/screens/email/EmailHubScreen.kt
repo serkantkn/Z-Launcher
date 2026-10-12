@@ -799,7 +799,7 @@ private fun WideEmptyPane(hasAccounts: Boolean, onNew: () -> Unit) {
     }
     // An empty bar under the empty pane, so the bar along the bottom runs the whole width as it
     // does when something is open there with a bar of its own.
-    WindowsPhoneBottomBar(actions = emptyList(), modifier = Modifier.align(Alignment.BottomCenter))
+    com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBarStrip(modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 

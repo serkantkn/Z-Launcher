@@ -365,7 +365,9 @@ internal fun NoteCard(
     onLongClick: () -> Unit,
     onToggleItem: (itemId: String) -> Unit,
     modifier: Modifier = Modifier,
-    isPinnedToStart: Boolean = false
+    isPinnedToStart: Boolean = false,
+    /** The note open beside the list, on a tablet. */
+    highlighted: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
     val accent = zuneColors.accentColor
@@ -387,8 +389,11 @@ internal fun NoteCard(
         ) + fadeIn(tween(300)),
         modifier = modifier.fillMaxWidth()
     ) {
-        val cardBackground = if (zuneColors.isDark) zuneColors.overlay
-        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        val cardBackground = when {
+            highlighted -> accent.copy(alpha = 0.2f)
+            zuneColors.isDark -> zuneColors.overlay
+            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        }
 
         Row(
             modifier = Modifier

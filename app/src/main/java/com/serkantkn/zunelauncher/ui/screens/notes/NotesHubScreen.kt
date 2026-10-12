@@ -1,5 +1,16 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.style.TextOverflow
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavLabel
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
@@ -8,7 +19,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -80,6 +90,8 @@ private sealed interface TabKind {
     data class Tag(val tag: String) : TabKind
     data object Archive : TabKind
     data object Trash : TabKind
+    /** A tablet's search heading; a phone searches with a box over whichever page is open. */
+    data object Search : TabKind
 }
 
 /**
@@ -118,14 +130,22 @@ fun NotesHubScreen(
     val pendingRequest by NotesBridge.pending.collectAsState()
 
     // ── Pivot tabs: fixed pages + one page per tag ────────────────────────
-    val tabKinds: List<TabKind> = remember(allTags) {
-        listOf(TabKind.Notes, TabKind.Lists) + allTags.map { TabKind.Tag(it) } + listOf(TabKind.Archive, TabKind.Trash)
+    val tabKinds: List<TabKind> = remember(allTags, isWideScreen) {
+        listOf(TabKind.Notes, TabKind.Lists) + allTags.map { TabKind.Tag(it) } + listOf(TabKind.Archive, TabKind.Trash) +
+            if (isWideScreen) listOf(TabKind.Search) else emptyList()
     }
+    // On a tablet the tags are listed under the headings, as the email hub lists its folders, and
+    // their pages are reached from there rather than as headings of their own.
+    val hiddenWideTabs: Set<Int> = remember(tabKinds) {
+        tabKinds.indices.filter { tabKinds[it] is TabKind.Tag }.toSet()
+    }
+    val searchPage = tabKinds.indexOf(TabKind.Search)
     val tabNotes = stringResource(R.string.hub_notes)
     val tabLists = stringResource(R.string.notes_tab_lists)
     val tabArchive = stringResource(R.string.notes_tab_archive)
     val tabTrash = stringResource(R.string.notes_tab_trash)
-    val tabs: List<String> = remember(tabKinds, tabNotes, tabLists, tabArchive, tabTrash) {
+    val tabSearch = stringResource(R.string.common_search)
+    val tabs: List<String> = remember(tabKinds, tabNotes, tabLists, tabArchive, tabTrash, tabSearch) {
         tabKinds.map {
             when (it) {
                 TabKind.Notes -> tabNotes
@@ -133,12 +153,28 @@ fun NotesHubScreen(
                 is TabKind.Tag -> "#${it.tag}"
                 TabKind.Archive -> tabArchive
                 TabKind.Trash -> tabTrash
+                TabKind.Search -> tabSearch
             }
         }
     }
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
     val currentTab = pager.currentPage
     val currentKind = tabKinds.getOrElse(currentTab) { TabKind.Notes }
+
+    // A tag added or taken away puts a page in or out among the others, and the pager would stay
+    // at the same position and so show a different page - giving a note its first tag used to
+    // land on the bin. The page being looked at is kept instead.
+    var kindsSeen by remember { mutableStateOf(tabKinds) }
+    var keptKind by remember { mutableStateOf<TabKind>(TabKind.Notes) }
+    if (kindsSeen == tabKinds) {
+        SideEffect { keptKind = currentKind }
+    }
+    LaunchedEffect(tabKinds) {
+        if (kindsSeen == tabKinds) return@LaunchedEffect
+        val index = tabKinds.indexOf(keptKind).takeIf { it >= 0 } ?: 0
+        if (pager.currentPage != index) pager.scrollToPage(index)
+        kindsSeen = tabKinds
+    }
 
     // ── Editor draft (owned here, persisted on close) ─────────────────────
     var draft by remember { mutableStateOf<Note?>(null) }
@@ -228,11 +264,20 @@ fun NotesHubScreen(
         }
     }
 
+    // On a tablet the search heading is the search: arriving there opens it and leaving closes it,
+    // so no other heading is left filtered by a query nobody can see.
+    LaunchedEffect(currentKind, isWideScreen) {
+        if (!isWideScreen) return@LaunchedEffect
+        if (currentKind == TabKind.Search && !isSearchOpen) viewModel.toggleSearch()
+        if (currentKind != TabKind.Search && isSearchOpen) viewModel.closeSearch()
+    }
+
     // ── Back handling: editor → selection → search → hub ──────────────────
     BackHandler(enabled = true) {
         when {
             draft != null -> closeEditor()
             isSelectionMode -> viewModel.exitSelectionMode()
+            isWideScreen && currentKind == TabKind.Search -> coroutineScope.launch { pager.scrollToPage(0) }
             isSearchOpen -> viewModel.closeSearch()
             else -> onBack()
         }
@@ -252,6 +297,7 @@ fun NotesHubScreen(
         is TabKind.Tag -> activeNotes.filter { kind.tag in it.tags }
         TabKind.Archive -> archivedNotes
         TabKind.Trash -> trashNotes
+        TabKind.Search -> activeNotes
     }
 
     val visibleList = notesFor(currentKind)
@@ -283,21 +329,29 @@ fun NotesHubScreen(
         when (val kind = currentKind) {
             TabKind.Notes -> listOf(
                 WpBarAction(Icons.Default.Add, stringResource(R.string.common_new)) { openEditor(Note(), isNew = true) },
-                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) { viewModel.toggleSearch() },
+                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) {
+                    if (isWideScreen && searchPage >= 0) coroutineScope.launch { pager.scrollToPage(searchPage) } else viewModel.toggleSearch()
+                },
                 WpBarAction(Icons.Default.Checklist, stringResource(R.string.common_select)) { viewModel.enterSelectionMode() }
             )
             TabKind.Lists -> listOf(
                 WpBarAction(Icons.Default.Add, stringResource(R.string.notes_new_list)) { openEditor(Note(isList = true), isNew = true) },
-                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) { viewModel.toggleSearch() },
+                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) {
+                    if (isWideScreen && searchPage >= 0) coroutineScope.launch { pager.scrollToPage(searchPage) } else viewModel.toggleSearch()
+                },
                 WpBarAction(Icons.Default.Checklist, stringResource(R.string.common_select)) { viewModel.enterSelectionMode() }
             )
             is TabKind.Tag -> listOf(
                 WpBarAction(Icons.Default.Add, stringResource(R.string.common_new)) { openEditor(Note(tags = listOf(kind.tag)), isNew = true) },
-                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) { viewModel.toggleSearch() },
+                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) {
+                    if (isWideScreen && searchPage >= 0) coroutineScope.launch { pager.scrollToPage(searchPage) } else viewModel.toggleSearch()
+                },
                 WpBarAction(Icons.Default.Checklist, stringResource(R.string.common_select)) { viewModel.enterSelectionMode() }
             )
             else -> listOf(
-                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) { viewModel.toggleSearch() },
+                WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) {
+                    if (isWideScreen && searchPage >= 0) coroutineScope.launch { pager.scrollToPage(searchPage) } else viewModel.toggleSearch()
+                },
                 WpBarAction(Icons.Default.Checklist, stringResource(R.string.common_select)) { viewModel.enterSelectionMode() }
             )
         }
@@ -377,8 +431,9 @@ fun NotesHubScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        start = ZuneDimens.ScreenPaddingHorizontal,
-                        end = if (sortMode == NoteSortMode.NAME && kind != TabKind.Trash) 44.dp else ZuneDimens.ScreenPaddingHorizontal,
+                        // Beside a tablet's headings the list already stands clear of the edge.
+                        start = if (isWideScreen) 0.dp else ZuneDimens.ScreenPaddingHorizontal,
+                        end = if (sortMode == NoteSortMode.NAME && kind != TabKind.Trash) 44.dp else if (isWideScreen) 0.dp else ZuneDimens.ScreenPaddingHorizontal,
                         top = 4.dp,
                         bottom = 24.dp
                     ),
@@ -392,6 +447,7 @@ fun NotesHubScreen(
                             isSelectionMode = isSelectionMode,
                             isSelected = note.id in selectedIds,
                             isPinnedToStart = note.id in startPinnedNoteIds,
+                            highlighted = isWideScreen && !isSelectionMode && draft?.id == note.id,
                             onClick = {
                                 when {
                                     isSelectionMode -> viewModel.toggleSelected(note.id)
@@ -410,6 +466,83 @@ fun NotesHubScreen(
         }
     }
 
+    /** One page: the notes of a heading, a tag's notes, the archive, the bin, or the search. */
+    @Composable
+    fun PageContent(page: Int) {
+        val kind = tabKinds.getOrElse(page) { TabKind.Notes }
+        val searching = searchQuery.isNotBlank()
+        when (kind) {
+            TabKind.Notes -> NotesListPage(
+                kind = kind,
+                notes = activeNotes,
+                emptyTitle = if (searching) stringResource(R.string.notes_no_results) else stringResource(R.string.notes_empty_notes),
+                emptySubtitle = if (searching) stringResource(R.string.notes_try_other_search) else stringResource(R.string.notes_empty_notes_hint)
+            )
+            TabKind.Lists -> NotesListPage(
+                kind = kind,
+                notes = checklistNotes,
+                emptyTitle = if (searching) stringResource(R.string.notes_no_results) else stringResource(R.string.notes_empty_lists),
+                emptySubtitle = if (searching) stringResource(R.string.notes_try_other_search) else stringResource(R.string.notes_empty_lists_hint)
+            )
+            is TabKind.Tag -> NotesListPage(
+                kind = kind,
+                notes = notesFor(kind),
+                emptyTitle = stringResource(R.string.notes_tag_empty, kind.tag),
+                emptySubtitle = stringResource(R.string.notes_tag_empty_hint)
+            )
+            TabKind.Archive -> NotesListPage(
+                kind = kind,
+                notes = archivedNotes,
+                emptyTitle = stringResource(R.string.notes_archive_empty),
+                emptySubtitle = stringResource(R.string.notes_archive_empty_hint)
+            )
+            TabKind.Trash -> NotesListPage(
+                kind = kind,
+                notes = trashNotes,
+                emptyTitle = stringResource(R.string.notes_trash_empty),
+                emptySubtitle = stringResource(R.string.notes_trash_empty_hint)
+            )
+            TabKind.Search -> Column(modifier = Modifier.fillMaxSize()) {
+                // The box the messaging and email hubs' search headings have, which takes
+                // the keyboard as soon as the heading is chosen.
+                com.serkantkn.zunelauncher.ui.screens.messaging.MessageSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { viewModel.setSearchQuery(it) },
+                    isVisible = pager.currentPage == page,
+                    hint = stringResource(R.string.notes_search_hint),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Box(modifier = Modifier.weight(1f)) {
+                    NotesListPage(
+                        kind = kind,
+                        notes = activeNotes,
+                        emptyTitle = stringResource(R.string.notes_no_results),
+                        emptySubtitle = stringResource(R.string.notes_try_other_search)
+                    )
+                }
+            }
+        }
+    }
+
+    /** The alphabet down the right edge, while the notes are in name order. */
+    @Composable
+    fun BoxScope.AlphabetIndex() {
+        // Alphabet index when sorting by name (People / Apps hub pattern)
+        if (sortMode == NoteSortMode.NAME && !isSelectionMode && currentKind != TabKind.Trash && visibleList.isNotEmpty()) {
+            val letters = remember(visibleList) {
+                visibleList.map { note ->
+                    val first = note.displayTitle.trim().firstOrNull()?.uppercaseChar() ?: '#'
+                    if (first.isLetter()) first else '#'
+                }.toSet()
+            }
+            ZuneAlphabetIndex(
+                availableLetters = letters,
+                onLetterSelected = { letter -> jumpLetter = letter to System.currentTimeMillis() },
+                modifier = Modifier.align(Alignment.CenterEnd)
+            )
+        }
+    }
+
     @Composable
     fun ColumnScope.PagerPages() {
         Box(
@@ -421,57 +554,8 @@ fun NotesHubScreen(
                 state = pager,
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = !isSelectionMode
-            ) { page ->
-                val kind = tabKinds.getOrElse(page) { TabKind.Notes }
-                val searching = searchQuery.isNotBlank()
-                when (kind) {
-                    TabKind.Notes -> NotesListPage(
-                        kind = kind,
-                        notes = activeNotes,
-                        emptyTitle = if (searching) stringResource(R.string.notes_no_results) else stringResource(R.string.notes_empty_notes),
-                        emptySubtitle = if (searching) stringResource(R.string.notes_try_other_search) else stringResource(R.string.notes_empty_notes_hint)
-                    )
-                    TabKind.Lists -> NotesListPage(
-                        kind = kind,
-                        notes = checklistNotes,
-                        emptyTitle = if (searching) stringResource(R.string.notes_no_results) else stringResource(R.string.notes_empty_lists),
-                        emptySubtitle = if (searching) stringResource(R.string.notes_try_other_search) else stringResource(R.string.notes_empty_lists_hint)
-                    )
-                    is TabKind.Tag -> NotesListPage(
-                        kind = kind,
-                        notes = notesFor(kind),
-                        emptyTitle = stringResource(R.string.notes_tag_empty, kind.tag),
-                        emptySubtitle = stringResource(R.string.notes_tag_empty_hint)
-                    )
-                    TabKind.Archive -> NotesListPage(
-                        kind = kind,
-                        notes = archivedNotes,
-                        emptyTitle = stringResource(R.string.notes_archive_empty),
-                        emptySubtitle = stringResource(R.string.notes_archive_empty_hint)
-                    )
-                    TabKind.Trash -> NotesListPage(
-                        kind = kind,
-                        notes = trashNotes,
-                        emptyTitle = stringResource(R.string.notes_trash_empty),
-                        emptySubtitle = stringResource(R.string.notes_trash_empty_hint)
-                    )
-                }
-            }
-
-            // Alphabet index when sorting by name (People / Apps hub pattern)
-            if (sortMode == NoteSortMode.NAME && !isSelectionMode && currentKind != TabKind.Trash && visibleList.isNotEmpty()) {
-                val letters = remember(visibleList) {
-                    visibleList.map { note ->
-                        val first = note.displayTitle.trim().firstOrNull()?.uppercaseChar() ?: '#'
-                        if (first.isLetter()) first else '#'
-                    }.toSet()
-                }
-                ZuneAlphabetIndex(
-                    availableLetters = letters,
-                    onLetterSelected = { letter -> jumpLetter = letter to System.currentTimeMillis() },
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                )
-            }
+            ) { page -> PageContent(page) }
+            AlphabetIndex()
         }
     }
 
@@ -519,6 +603,39 @@ fun NotesHubScreen(
         )
     }
 
+    /** Under a tablet's headings: the tags, each opening its own notes, as the email hub lists folders. */
+    @Composable
+    fun WideTagList() {
+        if (allTags.isEmpty()) return
+        Spacer(modifier = Modifier.height(28.dp))
+        ZuneWideNavLabel(stringResource(R.string.notes_tags))
+        Spacer(modifier = Modifier.height(6.dp))
+        allTags.forEach { tag ->
+            val page = tabKinds.indexOf(TabKind.Tag(tag))
+            val isCurrent = page == currentTab
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { if (page >= 0) coroutineScope.launch { pager.scrollToPage(page) } }
+                    .padding(vertical = 5.dp)
+            ) {
+                Text(
+                    text = "#$tag",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 20.sp),
+                    color = if (isCurrent) zuneColors.accentColor else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                val count = activeNotes.count { tag in it.tags }
+                if (count > 0) {
+                    Text(text = count.toString(), style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
+                }
+            }
+        }
+    }
+
     val headerColor = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f)
     val subScreenHingeProgress = editorHingeAnim.value
 
@@ -538,27 +655,30 @@ fun NotesHubScreen(
             ZuneHubEntranceLayout { bottomBarModifier ->
                 if (isWideScreen) {
                     // ═══════════════════════════════════════════════════
-                    // TABLET: list pane (left) + docked editor pane (right)
+                    // TABLET: as the other tablet hubs stand - the hub's name small at the top
+                    // left, the headings down the left with the tags under them, the notes
+                    // beside them, and the open note in the rest of the width with its own bar.
                     // ═══════════════════════════════════════════════════
                     Row(modifier = Modifier.fillMaxSize()) {
                         Box(
                             modifier = Modifier
-                                .weight(0.45f)
+                                .width(ZuneWideNavWidth + WIDE_LIST_WIDTH)
                                 .fillMaxHeight()
                         ) {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                ZuneWideHubTitle(
-                                    text = if (isSelectionMode) stringResource(R.string.notes_selected_count, selectedIds.size) else stringResource(R.string.hub_notes),
-                                    bottomPadding = 8.dp
-                                )
-                                ZunePivotTabs(
+                                ZuneWideNavHub(
+                                    title = if (isSelectionMode) stringResource(R.string.notes_selected_count, selectedIds.size) else stringResource(R.string.hub_notes),
                                     tabs = tabs,
                                     state = pager,
-                                    fontSize = 40.sp,
-                                    modifier = Modifier.padding(start = 48.dp)
-                                )
-                                SearchRow()
-                                PagerPages()
+                                    hiddenTabs = hiddenWideTabs,
+                                    modifier = Modifier.weight(1f),
+                                    navExtra = { WideTagList() }
+                                ) { page ->
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        PageContent(page)
+                                        AlphabetIndex()
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(72.dp))
                             }
 
@@ -573,18 +693,32 @@ fun NotesHubScreen(
 
                         Box(
                             modifier = Modifier
-                                .weight(0.55f)
+                                .weight(1f)
                                 .fillMaxHeight()
                         ) {
-                            val currentDraft = draft
-                            if (currentDraft != null) {
-                                EditorPane(currentDraft, bottomBarModifier)
-                            } else {
-                                NotesEmptyState(
-                                    icon = Icons.Default.StickyNote2,
-                                    title = stringResource(R.string.notes_pick_one),
-                                    subtitle = stringResource(R.string.notes_pick_one_hint)
-                                )
+                            AnimatedContent(
+                                targetState = draft?.id,
+                                transitionSpec = {
+                                    (fadeIn(tween(260)) + slideInHorizontally(tween(320)) { it / 12 }) togetherWith fadeOut(tween(90))
+                                },
+                                label = "notes_pane",
+                                modifier = Modifier.fillMaxSize()
+                            ) { openId ->
+                                val currentDraft = draft
+                                if (openId != null && currentDraft != null) {
+                                    EditorPane(currentDraft, bottomBarModifier)
+                                } else {
+                                    WideEmptyPane(onNew = {
+                                        openEditor(
+                                            when (val kind = currentKind) {
+                                                TabKind.Lists -> Note(isList = true)
+                                                is TabKind.Tag -> Note(tags = listOf(kind.tag))
+                                                else -> Note()
+                                            },
+                                            isNew = true
+                                        )
+                                    })
+                                }
                             }
                         }
                     }
@@ -722,3 +856,35 @@ fun NotesHubScreen(
         )
     }
 }
+
+/**
+ * A tablet's pane with nothing open in it: what to do, in the hub's own light type at the top
+ * left, and starting a new note as a word in the accent; and an empty bar under it, so the bar
+ * along the bottom runs the whole width.
+ */
+@Composable
+private fun WideEmptyPane(onNew: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().padding(start = ZuneDimens.ScreenPaddingHorizontal, top = 40.dp)) {
+            Text(
+                text = stringResource(R.string.notes_pick_one),
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 34.sp),
+                color = zuneColors.textMuted
+            )
+            Text(
+                text = stringResource(R.string.notes_or_write_new),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                color = zuneColors.accentColor,
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .clickable(onClick = onNew)
+                    .padding(vertical = 4.dp)
+            )
+        }
+        com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBarStrip(modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** How wide a tablet's list of notes is; the open note takes the rest. */
+private val WIDE_LIST_WIDTH = 440.dp

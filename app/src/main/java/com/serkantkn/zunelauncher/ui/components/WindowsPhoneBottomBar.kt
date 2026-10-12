@@ -220,3 +220,22 @@ fun WindowsPhoneBottomBar(
         }
     }
 }
+
+/**
+ * The bar's ground with nothing on it: no buttons and no "…", which here would open onto an empty
+ * menu. A tablet hub lays it under its pane while nothing is open there, so the bar along the
+ * bottom still runs the whole width.
+ */
+@Composable
+fun WindowsPhoneBottomBarStrip(modifier: Modifier = Modifier) {
+    val zuneColors = LocalZuneColors.current
+    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp + navBarBottomPadding),
+        color = if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFE0E0E0),
+        tonalElevation = 8.dp,
+        shadowElevation = 8.dp
+    ) {}
+}

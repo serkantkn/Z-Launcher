@@ -270,8 +270,47 @@ internal fun NoteEditorScreen(
             .imePadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // --- BREADCRUMB HEADER ---
-            Row(
+            // --- HEADER ---
+            // A phone keeps its breadcrumb; a tablet's editor stands in the pane beside the list,
+            // under the hub's own name, so it says what it is in the hub's light type and closes
+            // with a ringed button.
+            val section = if (isNew) stringResource(R.string.common_new) else stringResource(R.string.common_edit)
+            if (com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen.current) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 32.dp, top = 40.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = section,
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 30.sp),
+                        color = zuneColors.textMuted,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (isRecording) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .background(accent)
+                                .clickable { toggleRecording() }
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Default.Stop, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(stringResource(R.string.notes_recording_stop), color = Color.White, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    com.serkantkn.zunelauncher.ui.screens.messaging.RingButton(
+                        icon = Icons.Default.Close,
+                        label = stringResource(R.string.common_close_cap),
+                        enabled = true,
+                        onClick = onClose
+                    )
+                }
+            } else Row(
                 modifier = Modifier.padding(
                     start = ZuneDimens.ScreenPaddingHorizontal,
                     top = 56.dp,
@@ -290,7 +329,7 @@ internal fun NoteEditorScreen(
                     modifier = Modifier.clickable { onClose() }
                 )
                 Text(
-                    text = "  >  ${if (isNew) stringResource(R.string.common_new) else stringResource(R.string.common_edit)}",
+                    text = "  >  $section",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Light,
                         fontSize = 18.sp,

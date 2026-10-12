@@ -265,8 +265,13 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
             val cleanedItems = note.items.filter { it.text.isNotBlank() }
             val cleaned = note.copy(items = cleanedItems, tags = note.tags.map { it.trim() }.filter { it.isNotEmpty() }.distinct())
             notesDataStore.update { current ->
+                val existing = current.firstOrNull { it.id == note.id }
                 if (cleaned.isBlank) {
                     current.filter { it.id != note.id }
+                } else if (existing != null && existing.copy(updatedAt = 0L) == cleaned.copy(updatedAt = 0L)) {
+                    // Opened and closed without a change: it keeps its date, and its place in a
+                    // list sorted by date. Before this, only looking at a note moved it to the top.
+                    current
                 } else {
                     val stamped = cleaned.copy(updatedAt = System.currentTimeMillis())
                     if (current.any { it.id == note.id }) {

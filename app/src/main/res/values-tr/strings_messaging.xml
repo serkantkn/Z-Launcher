@@ -28,4 +28,7 @@
 
     <!-- Email: a tablet's empty pane -->
     <string name="email_or_write_new">ya da yeni bir ileti yaz</string>
+
+    <!-- Notes: a tablet's empty pane -->
+    <string name="notes_or_write_new">ya da yeni bir not yaz</string>
 </resources>
