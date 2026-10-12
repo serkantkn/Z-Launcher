@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The note editor's formatting tools -->
+    <string name="notes_italic">italic</string>
+    <string name="notes_underline">underline</string>
+    <string name="notes_strike">strike-through</string>
+    <string name="notes_align_left">align left</string>
+    <string name="notes_align_center">centre</string>
+    <string name="notes_align_right">align right</string>
+    <string name="notes_numbered">numbered list</string>
+    <string name="notes_clear_format">clear formatting</string>
+    <string name="notes_size">size</string>
+    <string name="notes_subheading">subheading</string>
+    <string name="notes_size_small">small</string>
+    <string name="notes_size_normal">normal</string>
+    <string name="notes_size_large">large</string>
+    <string name="notes_size_huge">huge</string>
+    <string name="notes_text_colour">colour</string>
+    <string name="notes_highlight">highlight</string>
+    <string name="notes_typeface">typeface</string>
+    <string name="notes_font_sans">plain</string>
+    <string name="notes_font_serif">serif</string>
+    <string name="notes_font_mono">typewriter</string>
+    <string name="notes_font_hand">handwriting</string>
+</resources>

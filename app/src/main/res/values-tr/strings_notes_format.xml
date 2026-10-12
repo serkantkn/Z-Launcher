@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notes_italic">italik</string>
+    <string name="notes_underline">altı çizili</string>
+    <string name="notes_strike">üstü çizili</string>
+    <string name="notes_align_left">sola hizala</string>
+    <string name="notes_align_center">ortala</string>
+    <string name="notes_align_right">sağa hizala</string>
+    <string name="notes_numbered">numaralı liste</string>
+    <string name="notes_clear_format">biçimi temizle</string>
+    <string name="notes_size">boyut</string>
+    <string name="notes_subheading">alt başlık</string>
+    <string name="notes_size_small">küçük</string>
+    <string name="notes_size_normal">normal</string>
+    <string name="notes_size_large">büyük</string>
+    <string name="notes_size_huge">çok büyük</string>
+    <string name="notes_text_colour">renk</string>
+    <string name="notes_highlight">vurgu</string>
+    <string name="notes_typeface">yazı tipi</string>
+    <string name="notes_font_sans">sade</string>
+    <string name="notes_font_serif">tırnaklı</string>
+    <string name="notes_font_mono">daktilo</string>
+    <string name="notes_font_hand">el yazısı</string>
+</resources>

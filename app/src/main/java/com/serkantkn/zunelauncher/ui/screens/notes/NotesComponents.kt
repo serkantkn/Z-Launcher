@@ -56,6 +56,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -128,41 +129,55 @@ internal fun wordCount(text: String): Int =
  * `# başlık` (bold, larger), `- madde` / `* madde` (bullet), `**kalın**` (bold).
  */
 internal fun renderNoteMarkdown(text: String, baseColor: Color, accent: Color): AnnotatedString {
-    val boldRegex = Regex("\\*\\*(.+?)\\*\\*")
     return buildAnnotatedString {
         val lines = text.lines()
         lines.forEachIndexed { index, rawLine ->
             var line = rawLine
             var lineStyle: SpanStyle? = null
+            val heading = MARKDOWN_HEADING_LINE.find(line)
             when {
-                line.startsWith("# ") -> {
-                    line = line.removePrefix("# ")
-                    lineStyle = SpanStyle(fontWeight = FontWeight.Medium, fontSize = 20.sp, color = baseColor)
+                heading != null -> {
+                    line = line.substring(heading.range.last + 1)
+                    val level = heading.groupValues[1].length
+                    lineStyle = SpanStyle(fontWeight = FontWeight.Medium, fontSize = if (level == 1) 20.sp else 17.sp, color = baseColor)
                 }
-                line.startsWith("## ") -> {
-                    line = line.removePrefix("## ")
-                    lineStyle = SpanStyle(fontWeight = FontWeight.Medium, fontSize = 17.sp, color = baseColor)
-                }
-                line.startsWith("- ") || line.startsWith("* ") -> {
-                    line = "•  " + line.drop(2)
+                line.trimStart().startsWith("- ") || line.trimStart().startsWith("* ") -> {
+                    line = "•  " + line.trimStart().drop(2)
                 }
             }
-            val body: AnnotatedString.Builder.() -> Unit = {
-                var cursor = 0
-                boldRegex.findAll(line).forEach { match ->
-                    append(line.substring(cursor, match.range.first))
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = accent)) {
-                        append(match.groupValues[1])
-                    }
-                    cursor = match.range.last + 1
-                }
-                append(line.substring(cursor))
-            }
+            val body: AnnotatedString.Builder.() -> Unit = { appendInline(line, accent) }
             if (lineStyle != null) withStyle(lineStyle) { body() } else body()
             if (index != lines.lastIndex) append("\n")
         }
     }
 }
+
+/**
+ * One line's inline marks, as the rich editor writes them into markdown: bold, italic,
+ * strike-through and its `<u>` underline. Marks can sit inside one another; the inside of each
+ * is read again for more.
+ */
+private fun AnnotatedString.Builder.appendInline(line: String, accent: Color) {
+    var cursor = 0
+    INLINE_MARK.findAll(line).forEach { match ->
+        append(line.substring(cursor, match.range.first))
+        val (bold, strike, underline, italicStar, italicUnderscore) = match.destructured
+        when {
+            bold.isNotEmpty() -> withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = accent)) { appendInline(bold, accent) }
+            strike.isNotEmpty() -> withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { appendInline(strike, accent) }
+            underline.isNotEmpty() -> withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) { appendInline(underline, accent) }
+            else -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { appendInline(italicStar + italicUnderscore, accent) }
+        }
+        cursor = match.range.last + 1
+    }
+    append(line.substring(cursor))
+}
+
+private val MARKDOWN_HEADING_LINE = Regex("^(#{1,6}) ")
+private val INLINE_MARK = Regex(
+    """\*\*(.+?)\*\*|~~(.+?)~~|<u>(.+?)</u>|(?<![*\w])\*([^*\n]+?)\*(?![*\w])|(?<![_\w])_([^_\n]+?)_(?![_\w])""",
+    RegexOption.IGNORE_CASE
+)
 
 // ════════════════════════════════════════════════════════════
 // BIOMETRIC GATE (locked notes)
@@ -509,7 +524,11 @@ internal fun NoteCard(
                 } else if (note.content.isNotBlank()) {
                     Text(
                         text = renderNoteMarkdown(note.content.trim().take(220), zuneColors.textMuted, textColor),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
+                        // In the note's own typeface, so a typewritten note looks typewritten here too.
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Light,
+                            fontFamily = note.fontFamily?.family ?: MaterialTheme.typography.bodyMedium.fontFamily
+                        ),
                         color = zuneColors.textMuted,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis

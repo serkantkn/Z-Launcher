@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.serkantkn.zunelauncher.data.model.ChecklistItem
 import com.serkantkn.zunelauncher.data.model.Note
+import com.serkantkn.zunelauncher.data.model.NoteFont
 import com.serkantkn.zunelauncher.util.SecretCipher
 import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlin.coroutines.cancellation.CancellationException
@@ -237,6 +238,8 @@ class NotesDataStore(private val context: Context) {
         obj.put("id", id)
         obj.put("title", title)
         obj.put("content", content)
+        obj.put("richContent", richContent ?: JSONObject.NULL)
+        obj.put("fontFamily", fontFamily?.name ?: JSONObject.NULL)
         obj.put("isList", isList)
         obj.put("colorHex", colorHex ?: JSONObject.NULL)
         obj.put("isPinned", isPinned)
@@ -306,6 +309,8 @@ class NotesDataStore(private val context: Context) {
             id = getString("id"),
             title = optString("title", ""),
             content = optString("content", ""),
+            richContent = optStringOrNull("richContent"),
+            fontFamily = optStringOrNull("fontFamily")?.let { name -> NoteFont.entries.firstOrNull { it.name == name } },
             items = items,
             isList = optBoolean("isList", false) || items.isNotEmpty(),
             colorHex = optStringOrNull("colorHex"),

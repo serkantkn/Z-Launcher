@@ -1,5 +1,14 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import com.mohamedrejeb.richeditor.model.HeadingStyle
+import com.mohamedrejeb.richeditor.model.rememberRichTextState
+import com.mohamedrejeb.richeditor.ui.BasicRichTextEditor
+import com.serkantkn.zunelauncher.data.model.stripMarkdown
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import com.serkantkn.zunelauncher.util.ZuneLog
@@ -46,6 +55,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -91,6 +101,8 @@ internal fun NoteEditorScreen(
     val zuneColors = LocalZuneColors.current
     val accent = noteColor(note.colorHex, zuneColors.accentColor)
     val textColor = MaterialTheme.colorScheme.onBackground
+    /** The typeface the note is written in, for its title and its words. */
+    val noteFamily = note.fontFamily?.family ?: MaterialTheme.typography.bodyLarge.fontFamily
     val headerColor = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f)
 
     val allTags by viewModel.allTags.collectAsState()
@@ -137,45 +149,64 @@ internal fun NoteEditorScreen(
         onNoteChange(next)
     }
 
-    // ── Content field keeps a cursor so formatting can insert at the caret ──
-    var contentField by remember(note.id) { mutableStateOf(TextFieldValue(note.content)) }
-    LaunchedEffect(note.content) {
-        if (contentField.text != note.content) {
-            val caret = contentField.selection.end.coerceIn(0, note.content.length)
-            contentField = TextFieldValue(note.content, TextRange(caret))
-        }
-    }
+    // ── The words, with their formatting ──────────────────────────────────
+    //
+    // The rich editor keeps its own state; the note keeps the same words twice - as HTML with
+    // every colour and size in it, and as plain markdown for everything that only reads text.
+    // What the editor last wrote into the note is remembered, so a change that came from
+    // elsewhere (undo, dictation, turning a list into a note) can be told apart from its own and
+    // loaded back into it.
+    val richState = rememberRichTextState()
+    var written by remember(note.id) { mutableStateOf<Pair<String?, String>?>(null) }
+    var shownText by remember(note.id) { mutableStateOf<androidx.compose.ui.text.AnnotatedString?>(null) }
+    var lastHeading by remember(note.id) { mutableStateOf(HeadingStyle.Normal) }
+    val latestNote by rememberUpdatedState(note)
+    val latestChange by rememberUpdatedState<(Note) -> Unit> { updated -> change(updated) }
 
-    fun applyFormat(kind: String) {
-        val text = contentField.text
-        val sel = contentField.selection
-        val start = sel.min.coerceIn(0, text.length)
-        val end = sel.max.coerceIn(0, text.length)
-        val result: Pair<String, Int> = when (kind) {
-            "bold" -> {
-                if (start != end) {
-                    val wrapped = text.substring(0, start) + "**" + text.substring(start, end) + "**" + text.substring(end)
-                    wrapped to end + 4
-                } else {
-                    val inserted = text.substring(0, start) + "****" + text.substring(start)
-                    inserted to start + 2
-                }
+    LaunchedEffect(note.id, note.richContent, note.content) {
+        if (note.isChecklist) return@LaunchedEffect
+        if (written == (note.richContent to note.content)) return@LaunchedEffect
+        val html = note.richContent
+        if (html != null) richState.setHtml(html) else richState.setMarkdown(note.content)
+        shownText = richState.annotatedString
+        written = note.richContent to note.content
+    }
+    LaunchedEffect(note.id) {
+        snapshotFlow { richState.annotatedString }.collect { text ->
+            // Nothing loaded yet, or nothing changed: opening a note is not editing it.
+            val previous = shownText
+            // The heading the caret stood in before this change: once a new line has gone in,
+            // the caret is already in the new line.
+            val headingBefore = lastHeading
+            lastHeading = richState.currentHeadingStyle
+            if (previous == null || text == previous) return@collect
+            shownText = text
+            // A new line after a heading is ordinary text again, as in every other editor. The
+            // editor does start the new line as an ordinary paragraph, but carries the heading's
+            // size and weight on into what is typed there; those two are taken off the new line
+            // (whatever was already typed on it, and what comes next), and nothing else is.
+            // The editor keeps its lines as paragraphs rather than as newline characters, so a
+            // new line is a new paragraph; and they are counted rather than looked for one
+            // character at a time, since a quick hand - or a keyboard committing a whole word -
+            // brings the new line and what follows it in one change.
+            val newParagraphs = text.paragraphStyles.size - previous.paragraphStyles.size
+            if (newParagraphs > 0 && headingBefore != HeadingStyle.Normal &&
+                richState.currentHeadingStyle == HeadingStyle.Normal
+            ) {
+                val carried = richState.currentSpanStyle
+                val headingLook = SpanStyle(fontSize = carried.fontSize, fontWeight = carried.fontWeight)
+                val caret = richState.selection.min
+                val lineStart = text.paragraphStyles
+                    .filter { it.start <= caret }
+                    .maxOfOrNull { it.start } ?: 0
+                if (caret > lineStart) richState.removeSpanStyle(headingLook, TextRange(lineStart, caret))
+                richState.removeSpanStyle(headingLook)
             }
-            else -> {
-                val marker = if (kind == "heading") "# " else "- "
-                val lineStart = text.lastIndexOf('\n', start - 1).let { if (it < 0) 0 else it + 1 }
-                val lineHasMarker = text.startsWith(marker, lineStart)
-                if (lineHasMarker) {
-                    val removed = text.removeRange(lineStart, lineStart + marker.length)
-                    removed to (start - marker.length).coerceAtLeast(lineStart)
-                } else {
-                    val inserted = text.substring(0, lineStart) + marker + text.substring(lineStart)
-                    inserted to start + marker.length
-                }
-            }
+            val html = richState.toHtml()
+            val markdown = richState.toMarkdown()
+            written = html to markdown
+            latestChange(latestNote.copy(content = markdown, richContent = html))
         }
-        contentField = TextFieldValue(result.first, TextRange(result.second.coerceIn(0, result.first.length)))
-        change(note.copy(content = result.first), coalesce = false)
     }
 
     // ── Launchers: image picker, mic permission, speech ───────────────────
@@ -212,8 +243,9 @@ internal fun NoteEditorScreen(
                 if (note.isChecklist) {
                     change(note.copy(items = note.items + ChecklistItem(text = spoken)), coalesce = false)
                 } else {
-                    val joined = if (note.content.isBlank()) spoken else note.content.trimEnd() + "\n" + spoken
-                    change(note.copy(content = joined), coalesce = false)
+                    // Into the editor, so what is already formatted stays formatted.
+                    val length = richState.annotatedString.text.length
+                    richState.addTextAtIndex(length, if (length == 0) spoken else "\n" + spoken)
                 }
             }
         }
@@ -380,7 +412,8 @@ internal fun NoteEditorScreen(
                         textStyle = MaterialTheme.typography.displayMedium.copy(
                             fontWeight = FontWeight.Light,
                             fontSize = 36.sp,
-                            color = textColor
+                            color = textColor,
+                            fontFamily = note.fontFamily?.family ?: MaterialTheme.typography.displayMedium.fontFamily
                         ),
                         cursorBrush = SolidColor(accent),
                         singleLine = true,
@@ -420,18 +453,6 @@ internal fun NoteEditorScreen(
                     }
                 }
 
-                // --- FORMAT STRIP (text notes only) ---
-                AnimatedVisibility(visible = showFormatBar && !note.isChecklist) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    ) {
-                        FormatButton(Icons.Default.FormatBold, stringResource(R.string.notes_bold), accent) { applyFormat("bold") }
-                        FormatButton(Icons.Default.Title, stringResource(R.string.notes_heading), accent) { applyFormat("heading") }
-                        FormatButton(Icons.Default.FormatListBulleted, stringResource(R.string.notes_bullet), accent) { applyFormat("bullet") }
-                    }
-                }
-
                 if (note.isChecklist) {
                     ChecklistEditor(
                         note = note,
@@ -448,27 +469,25 @@ internal fun NoteEditorScreen(
                             .fillMaxWidth()
                             .defaultMinSize(minHeight = 200.dp)
                     ) {
-                        if (contentField.text.isEmpty()) {
+                        if (richState.annotatedString.text.isEmpty()) {
                             Text(
                                 text = stringResource(R.string.notes_content_hint),
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = FontWeight.Light,
-                                    fontSize = 18.sp
+                                    fontSize = 18.sp,
+                                    fontFamily = noteFamily
                                 ),
                                 color = zuneColors.textDim
                             )
                         }
-                        BasicTextField(
-                            value = contentField,
-                            onValueChange = { value ->
-                                contentField = value
-                                if (value.text != note.content) change(note.copy(content = value.text))
-                            },
+                        BasicRichTextEditor(
+                            state = richState,
                             textStyle = MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = FontWeight.Light,
                                 fontSize = 18.sp,
                                 lineHeight = 26.sp,
-                                color = textColor
+                                color = textColor,
+                                fontFamily = noteFamily
                             ),
                             cursorBrush = SolidColor(accent),
                             modifier = Modifier
@@ -510,7 +529,7 @@ internal fun NoteEditorScreen(
                 val counts = if (note.isChecklist) {
                     stringResource(R.string.notes_completed, note.checkedCount, note.items.size)
                 } else {
-                    stringResource(R.string.notes_word_count, wordCount(note.content), note.content.length)
+                    stringResource(R.string.notes_word_count, wordCount(note.content.stripMarkdown()), note.content.stripMarkdown().length)
                 }
                 Text(
                     text = stringResource(R.string.notes_last_edited, counts, formatNoteDate(note.updatedAt)),
@@ -518,8 +537,26 @@ internal fun NoteEditorScreen(
                     color = zuneColors.textDim
                 )
 
-                Spacer(modifier = Modifier.height(96.dp))
+                // Room under the last line for the bar, and for the tools when they are out.
+                Spacer(modifier = Modifier.height(if (showFormatBar && !note.isChecklist) 210.dp else 96.dp))
             }
+        }
+
+        // --- FORMATTING TOOLS, docked over the bar so the keyboard does not hide them ---
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showFormatBar && !note.isChecklist,
+            enter = androidx.compose.animation.slideInVertically { it } + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutVertically { it } + androidx.compose.animation.fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 56.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+        ) {
+            NoteFormatToolbar(
+                state = richState,
+                font = note.fontFamily,
+                onFont = { chosen -> change(note.copy(fontFamily = chosen), coalesce = false) },
+                accent = accent
+            )
         }
 
         // --- WINDOWS PHONE STYLE BOTTOM MENU BAR ---
@@ -830,17 +867,22 @@ internal fun convertNoteType(note: Note): Note {
         note.copy(
             isList = false,
             items = emptyList(),
-            content = listOf(note.content.trim(), lines).filter { it.isNotBlank() }.joinToString("\n\n")
+            content = listOf(note.content.trim(), lines).filter { it.isNotBlank() }.joinToString("\n\n"),
+            // The editor reads the joined text afresh; formatting that was on the words before
+            // they became a list was already gone.
+            richContent = null
         )
     } else {
-        val items = note.content.lines()
+        val items = note.content.stripMarkdown().lines()
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-            .map { ChecklistItem(text = it.removePrefix("✓ ").removePrefix("- ").removePrefix("* ").removePrefix("# ")) }
+            .map { ChecklistItem(text = it.removePrefix("✓ ").replace(Regex("^\\d+[.)] "), "")) }
         note.copy(
             isList = true,
             content = "",
+            richContent = null,
             items = items
         )
     }
 }
+

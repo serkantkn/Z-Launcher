@@ -29,7 +29,19 @@ data class ChecklistItem(
 data class Note(
     val id: String = UUID.randomUUID().toString(),
     val title: String = "",
+    /**
+     * The words, as plain text with the editor's light markdown (bold, headings, lists). This is
+     * what search, previews, sharing, the .txt/.md export and the Start tile read.
+     */
     val content: String = "",
+    /**
+     * The same words with everything the editor can do to them - colour, size, highlight,
+     * underline, alignment and the rest - as HTML. Null for a note that was never formatted,
+     * which the editor then reads from [content].
+     */
+    val richContent: String? = null,
+    /** The typeface the whole note is written in; null is the launcher's own. */
+    val fontFamily: NoteFont? = null,
     val items: List<ChecklistItem> = emptyList(),
     /** Marks a checklist note even while it has no rows yet. */
     val isList: Boolean = false,
@@ -107,13 +119,28 @@ data class Note(
     }
 }
 
-/** Removes the lightweight markdown markers used by the editor ("**", "# ", "- "). */
+/** A typeface a note can be written in. The rich editor keeps colour and size per word, but not
+ *  a typeface, so a note takes one for the whole of itself. */
+enum class NoteFont { SANS, SERIF, MONO, HAND }
+
+/**
+ * Removes the markdown markers the editor writes: headings, list bullets and numbers, bold,
+ * italic, strike-through and the `<u>` it uses for underline.
+ */
 fun String.stripMarkdown(): String = this
     .lineSequence()
     .joinToString("\n") { line ->
-        line.removePrefix("# ").removePrefix("## ").removePrefix("- ").removePrefix("* ")
+        line.replace(MARKDOWN_HEADING, "").replace(MARKDOWN_BULLET, "")
     }
     .replace("**", "")
+    .replace("~~", "")
+    .replace(MARKDOWN_UNDERLINE_TAG, "")
+    .replace(MARKDOWN_ITALIC) { it.groupValues[1] }
+
+private val MARKDOWN_HEADING = Regex("^#{1,6} ")
+private val MARKDOWN_BULLET = Regex("^\\s*[-*] ")
+private val MARKDOWN_UNDERLINE_TAG = Regex("</?u>", RegexOption.IGNORE_CASE)
+private val MARKDOWN_ITALIC = Regex("(?<![*\\w])[*_]([^*_\\n]+)[*_](?![*\\w])")
 
 /**
  * Titles used when a note has neither a title nor content. The model has no Context, so the app

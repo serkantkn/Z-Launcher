@@ -106,6 +106,13 @@ dependencies {
 
     // Coil
     implementation(libs.coil.compose)
+    // Rich text in notes: bold, colours, sizes, fonts, lists, alignment; HTML and Markdown in and out.
+    // Only its foundation editor is used; its Material 3 wrapper would pull Material 3 up to an
+    // alpha for the whole app, so it is left out.
+    implementation(libs.richeditor.compose) {
+        exclude(group = "org.jetbrains.compose.material3")
+        exclude(group = "org.jetbrains.compose.material")
+    }
     // Draws the first frame of a video, so a clip has a thumbnail in the gallery.
     implementation(libs.coil.video)
 
