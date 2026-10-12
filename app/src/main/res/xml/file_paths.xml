@@ -19,4 +19,6 @@
     <cache-path name="contact_photos" path="contact_photos/" />
     <!-- A mail attachment, saved to the cache before it is opened -->
     <cache-path name="email_attachments" path="email_attachments/" />
+    <!-- A picture or a clip from a picture message, copied out of the message store to be opened -->
+    <cache-path name="mms_parts" path="mms/" />
 </paths>

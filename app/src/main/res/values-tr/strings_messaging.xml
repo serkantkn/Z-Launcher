@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="msg_attachment_picture">resim</string>
+    <string name="msg_attachment_video">video</string>
+    <string name="msg_attachment_audio">ses kaydı</string>
+    <string name="msg_attachment_contact">kişi kartı</string>
+    <string name="msg_attachment_open_failed">bunu açabilecek bir uygulama yok</string>
+
+    <string name="msg_select">seç</string>
+    <string name="msg_mark_all_read">tümünü okundu işaretle</string>
+    <plurals name="msg_selected_count">
+        <item quantity="one">%d seçili</item>
+        <item quantity="other">%d seçili</item>
+    </plurals>
+    <string name="msg_delete_selected">konuşmaları sil</string>
+    <plurals name="msg_delete_selected_message">
+        <item quantity="one">%d konuşma ve içindeki her şey silinecek.</item>
+        <item quantity="other">%d konuşma ve içindeki her şey silinecek.</item>
+    </plurals>
+
+    <string name="msg_or_start_new">ya da yeni bir mesaj başlat</string>
+
+    <string name="msg_recipients">alıcılar</string>
+    <string name="msg_write_to">yaz</string>
+    <string name="msg_add_recipient">mesaja ekle</string>
+    <string name="msg_remove_recipient">mesajdan çıkar</string>
+    <string name="msg_group_hint">aynı anda birkaç kişiye yazmak için adın yanındaki halkaya dokun</string>
+</resources>

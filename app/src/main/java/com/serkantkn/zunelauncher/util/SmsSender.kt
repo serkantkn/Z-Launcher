@@ -65,13 +65,17 @@ object SmsSender {
      * Sends [text] to [address], filing it under [threadId] when the launcher owns messaging.
      *
      * [subscriptionId] picks the SIM; -1 leaves the choice to the phone.
+     *
+     * [file] false sends without keeping a copy: a message to a group goes out once to each of its
+     * people, and filing every one of those under the group would show it there as many times.
      */
     suspend fun send(
         context: Context,
         address: String,
         text: String,
         threadId: Long = 0L,
-        subscriptionId: Int = -1
+        subscriptionId: Int = -1,
+        file: Boolean = true
     ): SendOutcome = withContext(Dispatchers.IO) {
         if (text.isBlank()) return@withContext SendOutcome.EMPTY
         if (!canSend(context)) return@withContext SendOutcome.NO_PERMISSION
@@ -82,11 +86,13 @@ object SmsSender {
             ?: return@withContext SendOutcome.FAILED
 
         // The thread has to exist before the copy can be filed under it.
-        val thread = threadId.takeIf { it > 0L }
-            ?: SmsRepository.getOrCreateThreadId(context, setOf(dialable))
-            ?: 0L
+        val thread = when {
+            threadId > 0L -> threadId
+            !file -> 0L
+            else -> SmsRepository.getOrCreateThreadId(context, setOf(dialable)) ?: 0L
+        }
 
-        val filed = fileAsOutgoing(context, dialable, text, thread, subscriptionId)
+        val filed = if (file) fileAsOutgoing(context, dialable, text, thread, subscriptionId) else null
 
         return@withContext try {
             val parts = manager.divideMessage(text)
@@ -108,7 +114,7 @@ object SmsSender {
                 )
             }
             // A message just sent is no longer a draft.
-            SmsRepository.saveDraft(context, thread, dialable, "")
+            if (file) SmsRepository.saveDraft(context, thread, dialable, "")
             SendOutcome.HANDED_OVER
         } catch (e: Exception) {
             ZuneLog.e(TAG, "the message would not go out", e)

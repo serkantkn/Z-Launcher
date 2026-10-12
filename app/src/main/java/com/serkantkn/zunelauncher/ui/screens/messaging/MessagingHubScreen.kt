@@ -1,5 +1,15 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MarkChatRead
+import androidx.compose.ui.res.pluralStringResource
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -136,6 +146,16 @@ fun MessagingHubScreen(
     var detailsMessage by remember { mutableStateOf<SmsMessageModel?>(null) }
     /** A group conversation's people, offered one at a time when "call" is pressed. */
     var callChooser by remember { mutableStateOf<SmsConversationModel?>(null) }
+    /** On a tablet the new-message picker takes the pane beside the list, not the whole hub. */
+    var widePicker by remember { mutableStateOf(false) }
+    /** Choosing several conversations at once, and which are chosen. */
+    var selecting by remember { mutableStateOf(false) }
+    var chosenThreads by remember { mutableStateOf(emptySet<Long>()) }
+    var deleteChosen by remember { mutableStateOf(false) }
+    val stopSelecting: () -> Unit = {
+        selecting = false
+        chosenThreads = emptySet()
+    }
 
     // The list's stamps say "18:40", "yesterday", "Tuesday"; they have to age as the hub stays open.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -146,11 +166,14 @@ fun MessagingHubScreen(
         }
     }
 
-    val tabs = listOf(
-        stringResource(R.string.msg_tab_all),
-        stringResource(R.string.msg_tab_unread),
-        stringResource(R.string.msg_tab_drafts)
-    )
+    // A tablet's headings carry search as a page of its own, as the calendar's do; a phone keeps
+    // it as a box that drops in over the list.
+    val tabs = buildList {
+        add(stringResource(R.string.msg_tab_all))
+        add(stringResource(R.string.msg_tab_unread))
+        add(stringResource(R.string.msg_tab_drafts))
+        if (isWideScreen) add(stringResource(R.string.common_search))
+    }
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
 
     // ── Door hinges ──
@@ -192,7 +215,9 @@ fun MessagingHubScreen(
     }
 
     val openPicker: () -> Unit = {
-        if (!isTransitioning) {
+        if (isWideScreen) {
+            widePicker = true
+        } else if (!isTransitioning) {
             isTransitioning = true
             coroutineScope.launch {
                 hubHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
@@ -203,7 +228,10 @@ fun MessagingHubScreen(
     }
 
     val closePicker: () -> Unit = {
-        if (!isTransitioning) {
+        if (isWideScreen) {
+            widePicker = false
+            pendingForward = null
+        } else if (!isTransitioning) {
             isTransitioning = true
             pendingForward = null
             coroutineScope.launch {
@@ -215,6 +243,13 @@ fun MessagingHubScreen(
     }
 
     val openConversation: (SmsConversationModel) -> Unit = { conversation ->
+        // On a tablet another conversation can be opened straight from the list while one is
+        // open; what was typed in that one is kept as its draft, as closing it would have.
+        val previous = selectedConv
+        if (previous != null && previous.threadId != conversation.threadId) {
+            viewModel.saveDraft(context, composeText)
+        }
+        widePicker = false
         composeText = pendingForward ?: conversation.draft
         pendingForward = null
         viewModel.openConversation(context, conversation)
@@ -246,19 +281,29 @@ fun MessagingHubScreen(
         }
     }
 
-    val onRecipientChosen: (String, String) -> Unit = { name, number ->
+    val onRecipientsChosen: (List<Pair<String, String>>) -> Unit = { people ->
         val forwarded = pendingForward
-        viewModel.openConversationWithContact(context, name, number)
+        val previous = selectedConv
+        if (previous != null) viewModel.saveDraft(context, composeText)
+        viewModel.openConversationWithContacts(context, people)
         composeText = forwarded.orEmpty()
         pendingForward = null
-        coroutineScope.launch {
-            if (isWideScreen) {
-                pickerHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
-                hubHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
-            } else {
+        if (isWideScreen) {
+            widePicker = false
+        } else {
+            coroutineScope.launch {
                 pickerHingeAnim.snapTo(0f)
                 hubHingeAnim.snapTo(0f)
                 detailHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+            }
+        }
+    }
+
+    // A picture, a clip or a card from a picture message, handed to whatever opens that sort.
+    val onOpenAttachment: (com.serkantkn.zunelauncher.data.model.MmsAttachment) -> Unit = { attachment ->
+        coroutineScope.launch {
+            if (!openAttachment(context, attachment)) {
+                viewModel.showStatus(context.getString(R.string.msg_attachment_open_failed))
             }
         }
     }
@@ -298,7 +343,7 @@ fun MessagingHubScreen(
 
     BackHandler(
         enabled = menuConversation != null || menuMessage != null ||
-            pickerHingeAnim.value > 0f ||
+            pickerHingeAnim.value > 0f || widePicker || selecting ||
             (!isWideScreen && detailHingeAnim.value > 0f) ||
             (isWideScreen && selectedConv != null) ||
             isSearchActive
@@ -306,7 +351,8 @@ fun MessagingHubScreen(
         when {
             menuMessage != null -> menuMessage = null
             menuConversation != null -> menuConversation = null
-            pickerHingeAnim.value > 0f -> closePicker()
+            selecting -> stopSelecting()
+            pickerHingeAnim.value > 0f || widePicker -> closePicker()
             !isWideScreen && detailHingeAnim.value > 0f -> closeConversation()
             isWideScreen && selectedConv != null -> closeConversation()
             isSearchActive -> {
@@ -317,17 +363,47 @@ fun MessagingHubScreen(
     }
 
     // ── The bar ──
-    val bottomBarActions = listOf(
-        WpBarAction(Icons.Default.Add, stringResource(R.string.msg_new)) { openPicker() },
-        WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) {
-            isSearchActive = !isSearchActive
-            if (!isSearchActive) viewModel.clearSearch()
-        }
-    )
+    // Choosing several turns the bar over to what can be done to them, as Windows Phone did.
+    val bottomBarActions = if (selecting) {
+        listOf(
+            WpBarAction(Icons.Default.MarkChatRead, stringResource(R.string.msg_mark_read)) {
+                viewModel.markThreadsRead(context, chosenThreads)
+                stopSelecting()
+            },
+            WpBarAction(Icons.Default.Delete, stringResource(R.string.common_delete)) {
+                if (chosenThreads.isNotEmpty()) deleteChosen = true
+            }
+        )
+    } else {
+        listOf(
+            WpBarAction(Icons.Default.Add, stringResource(R.string.msg_new)) { openPicker() },
+            WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) {
+                if (isWideScreen) {
+                    // The tablet's search is a heading of its own.
+                    coroutineScope.launch { pager.scrollToPage(tabs.lastIndex) }
+                } else {
+                    isSearchActive = !isSearchActive
+                    if (!isSearchActive) viewModel.clearSearch()
+                }
+            },
+            WpBarAction(Icons.Default.Checklist, stringResource(R.string.msg_select)) {
+                selecting = true
+                chosenThreads = emptySet()
+            }
+        )
+    }
     val bottomBarMenuItems = buildList {
-        add(WpBarMenuItem(stringResource(R.string.common_refresh)) { viewModel.loadConversations(context) })
-        if (!isDefaultApp) {
-            add(WpBarMenuItem(stringResource(R.string.msg_make_default)) { askToBeDefault() })
+        if (selecting) {
+            add(WpBarMenuItem(stringResource(R.string.common_select_all)) {
+                val page = pager.currentPage.coerceAtMost(MessageTab.entries.lastIndex)
+                chosenThreads = viewModel.conversationsFor(MessageTab.entries[page]).map { it.threadId }.toSet()
+            })
+        } else {
+            add(WpBarMenuItem(stringResource(R.string.msg_mark_all_read)) { viewModel.markAllRead(context) })
+            add(WpBarMenuItem(stringResource(R.string.common_refresh)) { viewModel.loadConversations(context) })
+            if (!isDefaultApp) {
+                add(WpBarMenuItem(stringResource(R.string.msg_make_default)) { askToBeDefault() })
+            }
         }
     }
 
@@ -343,6 +419,13 @@ fun MessagingHubScreen(
             tab == MessageTab.UNREAD -> stringResource(R.string.msg_unread_empty)
             tab == MessageTab.DRAFTS -> stringResource(R.string.msg_drafts_empty)
             else -> stringResource(R.string.msg_history_empty)
+        }
+        val toggle: (SmsConversationModel) -> Unit = { conversation ->
+            chosenThreads = if (conversation.threadId in chosenThreads) {
+                chosenThreads - conversation.threadId
+            } else {
+                chosenThreads + conversation.threadId
+            }
         }
         ZunePageTransition {
             if (list.isEmpty()) {
@@ -362,8 +445,12 @@ fun MessagingHubScreen(
                         ConversationItem(
                             conversation = conversation,
                             now = now,
-                            onClick = { openConversation(conversation) },
-                            onLongClick = { menuConversation = conversation }
+                            onClick = { if (selecting) toggle(conversation) else openConversation(conversation) },
+                            onLongClick = { if (selecting) toggle(conversation) else menuConversation = conversation },
+                            selecting = selecting,
+                            checked = conversation.threadId in chosenThreads,
+                            highlighted = isWideScreen && !selecting && !widePicker &&
+                                selectedConv?.threadId == conversation.threadId
                         )
                     }
                 }
@@ -387,7 +474,8 @@ fun MessagingHubScreen(
                     conversation = conversation,
                     now = now,
                     onClick = { openConversation(conversation) },
-                    onLongClick = { menuConversation = conversation }
+                    onLongClick = { menuConversation = conversation },
+                    highlighted = isWideScreen && selectedConv?.threadId == conversation.threadId
                 )
             }
             if (matchingMessages.isNotEmpty()) {
@@ -401,11 +489,13 @@ fun MessagingHubScreen(
                 }
             }
             items(matchingMessages, key = { "m-${it.id}" }) { message ->
+                val owner = viewModel.conversationOf(message)
                 SearchResultRow(
                     message = message,
-                    onClick = {
-                        viewModel.conversationOf(message)?.let { openConversation(it) }
-                    }
+                    from = owner?.title ?: message.address,
+                    query = searchQuery,
+                    now = now,
+                    onClick = { owner?.let { openConversation(it) } }
                 )
             }
             if (matchingConversations.isEmpty() && matchingMessages.isEmpty()) {
@@ -421,13 +511,46 @@ fun MessagingHubScreen(
         }
     }
 
+    /** The notices that stand over the list: not the messaging app, or not allowed to read. */
+    @Composable
+    fun ListNotices() {
+        if (!isDefaultApp && hasPermission) {
+            DefaultAppNotice(onMakeDefault = { askToBeDefault() })
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        if (selecting) {
+            Text(
+                text = pluralStringResource(R.plurals.msg_selected_count, chosenThreads.size, chosenThreads.size),
+                style = MaterialTheme.typography.labelLarge,
+                color = zuneColors.accentColor,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+    }
+
+    @Composable
+    fun PermissionCard() {
+        MessagePermissionCard(
+            onGrant = {
+                permissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.READ_SMS,
+                        Manifest.permission.SEND_SMS,
+                        Manifest.permission.RECEIVE_SMS,
+                        Manifest.permission.READ_CONTACTS,
+                        // Without this the phone will not name its SIMs, and the
+                        // chooser for which one to send from never appears.
+                        Manifest.permission.READ_PHONE_STATE
+                    )
+                )
+            }
+        )
+    }
+
     @Composable
     fun ListArea() {
         Column(modifier = Modifier.fillMaxSize()) {
-            if (!isDefaultApp && hasPermission) {
-                DefaultAppNotice(onMakeDefault = { askToBeDefault() })
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+            ListNotices()
             AnimatedVisibility(visible = isSearchActive) {
                 MessageSearchBar(
                     query = searchQuery,
@@ -438,21 +561,7 @@ fun MessagingHubScreen(
             }
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when {
-                    !hasPermission -> MessagePermissionCard(
-                        onGrant = {
-                            permissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.READ_SMS,
-                                    Manifest.permission.SEND_SMS,
-                                    Manifest.permission.RECEIVE_SMS,
-                                    Manifest.permission.READ_CONTACTS,
-                                    // Without this the phone will not name its SIMs, and the
-                                    // chooser for which one to send from never appears.
-                                    Manifest.permission.READ_PHONE_STATE
-                                )
-                            )
-                        }
-                    )
+                    !hasPermission -> PermissionCard()
 
                     isSearchActive && searchQuery.isNotBlank() -> SearchResultsPage()
 
@@ -461,6 +570,183 @@ fun MessagingHubScreen(
                     }
                 }
             }
+        }
+    }
+
+    /** One of a tablet's headings: a list of conversations, or the search. */
+    @Composable
+    fun WidePage(index: Int) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            ListNotices()
+            when {
+                !hasPermission -> PermissionCard()
+                index >= MessageTab.entries.size -> {
+                    MessageSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { viewModel.setSearchQuery(context, it) },
+                        isVisible = pager.currentPage == index,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    if (searchQuery.isNotBlank()) SearchResultsPage()
+                }
+                else -> ConversationsPage(MessageTab.entries[index])
+            }
+        }
+    }
+
+    // ── Long presses, and which of a group to ring ──
+    // On a phone these come up from the bottom of the screen; on a tablet from the bottom of the
+    // pane beside the list, leaving the list itself in view.
+    @Composable
+    fun MenuSheets() {
+        menuConversation?.let { conversation ->
+            val pinned = conversation.threadId in pinnedThreads
+            MessagingSheet(title = conversation.title, onDismiss = { menuConversation = null }) {
+                if (conversation.unreadCount > 0 || !conversation.isRead) {
+                    SheetAction(stringResource(R.string.msg_mark_read)) {
+                        viewModel.markThreadRead(context, conversation)
+                        menuConversation = null
+                    }
+                }
+                if (conversation.address.isNotBlank()) {
+                    SheetAction(stringResource(R.string.msg_call)) {
+                        callConversation(conversation)
+                        menuConversation = null
+                    }
+                }
+                SheetAction(
+                    stringResource(
+                        if (pinned) R.string.msg_unpin_from_start else R.string.msg_pin_to_start
+                    )
+                ) {
+                    viewModel.togglePinToStart(conversation)
+                    menuConversation = null
+                }
+                if (conversation.address.isNotBlank()) {
+                    SheetAction(stringResource(R.string.msg_block_number)) {
+                        viewModel.toggleBlocked(context, conversation)
+                        menuConversation = null
+                    }
+                }
+                SheetAction(
+                    stringResource(R.string.msg_delete_conversation),
+                    color = MaterialTheme.colorScheme.error
+                ) {
+                    deleteConversation = conversation
+                    menuConversation = null
+                }
+            }
+        }
+
+        menuMessage?.let { message ->
+            MessagingSheet(
+                title = selectedConv?.title.orEmpty().ifBlank { stringResource(R.string.hub_messaging) },
+                onDismiss = { menuMessage = null }
+            ) {
+                if (message.body.isNotBlank()) {
+                    SheetAction(stringResource(R.string.common_copy)) {
+                        copyToClipboard(context, message.body)
+                        viewModel.showStatus(context.getString(R.string.msg_copied))
+                        menuMessage = null
+                    }
+                    SheetAction(stringResource(R.string.msg_forward)) {
+                        pendingForward = message.body
+                        menuMessage = null
+                        openPicker()
+                    }
+                }
+                if (message.isFailed) {
+                    SheetAction(stringResource(R.string.msg_resend)) {
+                        viewModel.resend(context, message)
+                        menuMessage = null
+                    }
+                }
+                SheetAction(stringResource(R.string.msg_details)) {
+                    detailsMessage = message
+                    menuMessage = null
+                }
+                SheetAction(
+                    stringResource(R.string.msg_delete_message),
+                    color = MaterialTheme.colorScheme.error
+                ) {
+                    deleteMessage = message
+                    menuMessage = null
+                }
+            }
+        }
+
+        callChooser?.let { conversation ->
+            MessagingSheet(title = stringResource(R.string.msg_pick_recipient_to_call), onDismiss = { callChooser = null }) {
+                conversation.recipients.filter { it.isNotBlank() }.forEach { number ->
+                    val name = remember(number) { com.serkantkn.zunelauncher.data.repository.SmsRepository.contactNameFor(context, number) }
+                    SheetAction(if (name == number) number else "$name · $number") {
+                        callChooser = null
+                        PhoneCaller.tap(context, number, name)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun OpenConversation(conversation: SmsConversationModel, modifier: Modifier = Modifier) {
+        ConversationScreen(
+            conversation = conversation,
+            messages = threadMessages,
+            input = composeText,
+            onInputChange = { composeText = it },
+            now = now,
+            sims = sims,
+            selectedSim = selectedSim,
+            onSelectSim = viewModel::selectSim,
+            isBlocked = isBlocked,
+            onSend = {
+                val text = composeText
+                composeText = ""
+                viewModel.sendSms(context, conversation.address, text)
+            },
+            onClose = closeConversation,
+            onCall = { callConversation(conversation) },
+            onVisibilityChange = viewModel::setConversationVisible,
+            onMessageLongPress = { menuMessage = it },
+            onOpenAttachment = onOpenAttachment,
+            modifier = modifier
+        )
+    }
+
+    /**
+     * The pane beside a tablet's list: the open conversation, the new-message picker, or a word
+     * about what to do. A change slides the new one in from the right as it fades up, the way
+     * Windows 8 brought in a page.
+     */
+    @Composable
+    fun WidePane() {
+        Box(modifier = Modifier.fillMaxSize()) {
+            val paneKey = when {
+                widePicker -> "picker"
+                selectedConv != null -> "c:" + selectedConv!!.recipients.joinToString(",").ifBlank { selectedConv!!.address }
+                else -> "empty"
+            }
+            AnimatedContent(
+                targetState = paneKey,
+                transitionSpec = {
+                    (fadeIn(tween(260)) + slideInHorizontally(tween(320)) { it / 12 }) togetherWith fadeOut(tween(90))
+                },
+                label = "messaging_pane",
+                modifier = Modifier.fillMaxSize()
+            ) { key ->
+                val conversation = selectedConv
+                when {
+                    key == "picker" -> NewMessageScreen(
+                        contacts = contacts,
+                        onClose = closePicker,
+                        onRecipientsChosen = onRecipientsChosen
+                    )
+                    key.startsWith("c:") && conversation != null -> OpenConversation(conversation)
+                    else -> EmptyDetailPane(onNew = openPicker)
+                }
+            }
+            MenuSheets()
         }
     }
 
@@ -480,49 +766,23 @@ fun MessagingHubScreen(
                     }
             ) {
                 if (isWideScreen) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        ZuneWideHubTitle(text = stringResource(R.string.hub_messaging))
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .padding(start = 72.dp, end = 48.dp)
-                        ) {
-                            Column(modifier = Modifier.width(380.dp).fillMaxHeight()) {
-                                ZunePivotTabs(tabs = tabs, state = pager, fontSize = 30.sp)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                ListArea()
-                            }
-                            Spacer(modifier = Modifier.width(32.dp))
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                                val conversation = selectedConv
-                                if (conversation != null) {
-                                    ConversationScreen(
-                                        conversation = conversation,
-                                        messages = threadMessages,
-                                        input = composeText,
-                                        onInputChange = { composeText = it },
-                                        now = now,
-                                        sims = sims,
-                                        selectedSim = selectedSim,
-                                        onSelectSim = viewModel::selectSim,
-                                        isBlocked = isBlocked,
-                                        onSend = {
-                                            val text = composeText
-                                            composeText = ""
-                                            viewModel.sendSms(context, conversation.address, text)
-                                        },
-                                        onClose = closeConversation,
-                                        onCall = { callConversation(conversation) },
-                                        onVisibilityChange = viewModel::setConversationVisible,
-                                        onMessageLongPress = { menuMessage = it }
-                                    )
-                                } else {
-                                    EmptyDetailPane()
-                                }
-                            }
+                    // The hub as the other tablet hubs stand: its name small at the top left,
+                    // its headings down the left, the list of conversations beside them, and the
+                    // open one in the rest of the width.
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val paneWidth = (maxWidth - ZuneWideNavWidth - WIDE_LIST_WIDTH - 32.dp)
+                            .coerceAtLeast(WIDE_PANE_MIN)
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            ZuneWideNavHub(
+                                title = stringResource(R.string.hub_messaging),
+                                tabs = tabs,
+                                state = pager,
+                                modifier = Modifier.weight(1f),
+                                sidePaneWidth = paneWidth,
+                                sidePane = { WidePane() }
+                            ) { index -> WidePage(index) }
+                            Spacer(modifier = Modifier.height(bottomBarClearance))
                         }
-                        Spacer(modifier = Modifier.height(bottomBarClearance))
                     }
                 } else {
                     Column(modifier = Modifier.fillMaxSize()) {
@@ -569,8 +829,8 @@ fun MessagingHubScreen(
                 }
             }
 
-            // ── New message ──
-            if (pickerHingeAnim.value > 0f) {
+            // ── New message, on a phone ──
+            if (!isWideScreen && pickerHingeAnim.value > 0f) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -585,7 +845,7 @@ fun MessagingHubScreen(
                     NewMessageScreen(
                         contacts = contacts,
                         onClose = closePicker,
-                        onRecipientChosen = onRecipientChosen
+                        onRecipientsChosen = onRecipientsChosen
                     )
                 }
             }
@@ -608,27 +868,7 @@ fun MessagingHubScreen(
                         modifier = Modifier.fillMaxSize(),
                         color = if (zuneColors.isDark) Color(0xFF0C0C0C) else Color(0xFFFAFAFA)
                     ) {
-                        ConversationScreen(
-                            conversation = conversation,
-                            messages = threadMessages,
-                            input = composeText,
-                            onInputChange = { composeText = it },
-                            now = now,
-                            sims = sims,
-                            selectedSim = selectedSim,
-                            onSelectSim = viewModel::selectSim,
-                            isBlocked = isBlocked,
-                            onSend = {
-                                val text = composeText
-                                composeText = ""
-                                viewModel.sendSms(context, conversation.address, text)
-                            },
-                            onClose = closeConversation,
-                            onCall = { callConversation(conversation) },
-                            onVisibilityChange = viewModel::setConversationVisible,
-                            onMessageLongPress = { menuMessage = it },
-                            modifier = Modifier.statusBarsPadding()
-                        )
+                        OpenConversation(conversation, modifier = Modifier.statusBarsPadding())
                     }
                 }
             }
@@ -657,96 +897,7 @@ fun MessagingHubScreen(
         }
     }
 
-    // ── Long press on a conversation ──
-    menuConversation?.let { conversation ->
-        val pinned = conversation.threadId in pinnedThreads
-        MessagingSheet(title = conversation.title, onDismiss = { menuConversation = null }) {
-            if (conversation.unreadCount > 0 || !conversation.isRead) {
-                SheetAction(stringResource(R.string.msg_mark_read)) {
-                    viewModel.markThreadRead(context, conversation)
-                    menuConversation = null
-                }
-            }
-            if (conversation.address.isNotBlank()) {
-                SheetAction(stringResource(R.string.msg_call)) {
-                    callConversation(conversation)
-                    menuConversation = null
-                }
-            }
-            SheetAction(
-                stringResource(
-                    if (pinned) R.string.msg_unpin_from_start else R.string.msg_pin_to_start
-                )
-            ) {
-                viewModel.togglePinToStart(conversation)
-                menuConversation = null
-            }
-            if (conversation.address.isNotBlank()) {
-                SheetAction(stringResource(R.string.msg_block_number)) {
-                    viewModel.toggleBlocked(context, conversation)
-                    menuConversation = null
-                }
-            }
-            SheetAction(
-                stringResource(R.string.msg_delete_conversation),
-                color = MaterialTheme.colorScheme.error
-            ) {
-                deleteConversation = conversation
-                menuConversation = null
-            }
-        }
-    }
-
-    // ── Long press on a message ──
-    menuMessage?.let { message ->
-        MessagingSheet(
-            title = selectedConv?.title.orEmpty().ifBlank { stringResource(R.string.hub_messaging) },
-            onDismiss = { menuMessage = null }
-        ) {
-            if (message.body.isNotBlank()) {
-                SheetAction(stringResource(R.string.common_copy)) {
-                    copyToClipboard(context, message.body)
-                    viewModel.showStatus(context.getString(R.string.msg_copied))
-                    menuMessage = null
-                }
-                SheetAction(stringResource(R.string.msg_forward)) {
-                    pendingForward = message.body
-                    menuMessage = null
-                    openPicker()
-                }
-            }
-            if (message.isFailed) {
-                SheetAction(stringResource(R.string.msg_resend)) {
-                    viewModel.resend(context, message)
-                    menuMessage = null
-                }
-            }
-            SheetAction(stringResource(R.string.msg_details)) {
-                detailsMessage = message
-                menuMessage = null
-            }
-            SheetAction(
-                stringResource(R.string.msg_delete_message),
-                color = MaterialTheme.colorScheme.error
-            ) {
-                deleteMessage = message
-                menuMessage = null
-            }
-        }
-    }
-
-    // ── Which of a group's people to ring ──
-    callChooser?.let { conversation ->
-        MessagingSheet(title = stringResource(R.string.msg_pick_recipient_to_call), onDismiss = { callChooser = null }) {
-            conversation.recipients.filter { it.isNotBlank() }.forEach { number ->
-                val name = remember(number) { com.serkantkn.zunelauncher.data.repository.SmsRepository.contactNameFor(context, number) }
-                SheetAction(if (name == number) number else "$name · $number") {
-                    callChooser = null
-                    PhoneCaller.tap(context, number, name)
-                }
-            }
-        }
-    }
+    if (!isWideScreen) MenuSheets()
 
     // ── Confirmations ──
     deleteConversation?.let { conversation ->
@@ -759,6 +910,20 @@ fun MessagingHubScreen(
                 deleteConversation = null
             },
             onDismiss = { deleteConversation = null }
+        )
+    }
+
+    if (deleteChosen) {
+        EmailConfirmDialog(
+            title = stringResource(R.string.msg_delete_selected),
+            message = pluralStringResource(R.plurals.msg_delete_selected_message, chosenThreads.size, chosenThreads.size),
+            confirmText = stringResource(R.string.common_delete),
+            onConfirm = {
+                viewModel.deleteThreads(context, chosenThreads)
+                deleteChosen = false
+                stopSelecting()
+            },
+            onDismiss = { deleteChosen = false }
         )
     }
 
@@ -786,47 +951,84 @@ fun MessagingHubScreen(
 
 // ── Small pieces of the hub ─────────────────────────────────────────────────
 
+/**
+ * A tablet's pane with nothing open in it: what to do, said in the hub's own type at the top left,
+ * and the way to start something new as a word in the accent.
+ */
 @Composable
-private fun EmptyDetailPane() {
+private fun EmptyDetailPane(onNew: () -> Unit) {
     val zuneColors = LocalZuneColors.current
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Message,
-                contentDescription = null,
-                tint = zuneColors.textDim,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.msg_pick_conversation),
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light),
-                color = zuneColors.textMuted
-            )
-        }
+    Column(modifier = Modifier.fillMaxSize().padding(top = 4.dp)) {
+        Text(
+            text = stringResource(R.string.msg_pick_conversation),
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 34.sp),
+            color = zuneColors.textMuted
+        )
+        Text(
+            text = stringResource(R.string.msg_or_start_new),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+            color = zuneColors.accentColor,
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .clickable(onClick = onNew)
+                .padding(vertical = 4.dp)
+        )
     }
 }
 
-/** A message the search found, with the number it came from above it. */
+/**
+ * A message the search found: who it is with, when, and the line itself with what was searched
+ * for picked out in the accent.
+ */
 @Composable
-private fun SearchResultRow(message: SmsMessageModel, onClick: () -> Unit) {
+private fun SearchResultRow(message: SmsMessageModel, from: String, query: String, now: Long, onClick: () -> Unit) {
     val zuneColors = LocalZuneColors.current
+    val stamp = remember(now, message.timestamp) { conversationStamp(now, message.timestamp, Locale.getDefault()) }
+    val accent = zuneColors.accentColor
+    val body = remember(message.body, query, accent) {
+        androidx.compose.ui.text.buildAnnotatedString {
+            append(message.body)
+            if (query.isNotBlank()) {
+                var at = message.body.indexOf(query, ignoreCase = true)
+                while (at >= 0) {
+                    addStyle(
+                        androidx.compose.ui.text.SpanStyle(color = accent, fontWeight = FontWeight.SemiBold),
+                        at,
+                        at + query.length
+                    )
+                    at = message.body.indexOf(query, at + query.length, ignoreCase = true)
+                }
+            }
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(vertical = 4.dp)
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = from.ifBlank { stringResource(R.string.hub_messaging) },
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stampText(stamp),
+                style = MaterialTheme.typography.labelMedium,
+                color = zuneColors.textMuted
+            )
+        }
         Text(
-            text = message.address.ifBlank { stringResource(R.string.hub_messaging) },
-            style = MaterialTheme.typography.labelMedium,
-            color = zuneColors.textDim
-        )
-        Text(
-            text = message.body,
+            text = body,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = zuneColors.textMuted,
             maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 2.dp)
         )
     }
@@ -871,3 +1073,9 @@ private fun defaultSmsRequest(context: Context): Intent? {
 }
 
 private const val HINGE_MILLIS = 320
+
+/** How wide a tablet's list of conversations is; the open one takes the rest. */
+private val WIDE_LIST_WIDTH = 400.dp
+
+/** Narrower than this and a conversation is not worth reading beside the list. */
+private val WIDE_PANE_MIN = 360.dp

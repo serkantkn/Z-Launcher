@@ -38,6 +38,14 @@ import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.ContactPhone
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.util.PhoneNumbers
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.runtime.mutableStateListOf
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 
 /**
  * Who the new message is for.
@@ -46,16 +54,36 @@ import com.serkantkn.zunelauncher.util.PhoneNumbers
  * write to a number that is not in it — a courier, a code, somebody met an hour ago. What is typed
  * here is both the filter over the address book and, when it looks like a number, a recipient in
  * its own right.
+ *
+ * Tapping a name writes to that one person straight away, as it always did. The ring beside each
+ * name gathers several instead: once one is gathered, tapping further names adds them too, and
+ * "write" opens one conversation with all of them.
+ *
+ * On a tablet it fills the pane beside the list rather than the whole screen, so it draws no
+ * ground of its own and closes with a ringed button.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun NewMessageScreen(
     contacts: List<ContactPhone>,
     onClose: () -> Unit,
-    onRecipientChosen: (name: String, number: String) -> Unit,
+    onRecipientsChosen: (List<Pair<String, String>>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
+    val wide = LocalIsWideScreen.current
     var query by remember { mutableStateOf("") }
+    val chosen = remember { mutableStateListOf<Pair<String, String>>() }
+
+    fun isChosen(number: String) = chosen.any { PhoneNumbers.sameNumber(it.second, number) }
+    fun toggle(name: String, number: String) {
+        val at = chosen.indexOfFirst { PhoneNumbers.sameNumber(it.second, number) }
+        if (at >= 0) chosen.removeAt(at) else chosen += name to number
+    }
+    // A tap on a name: straight to that person, unless several are being gathered.
+    fun pick(name: String, number: String) {
+        if (chosen.isEmpty()) onRecipientsChosen(listOf(name to number)) else toggle(name, number)
+    }
 
     val filtered = remember(contacts, query) {
         if (query.isBlank()) {
@@ -77,13 +105,16 @@ internal fun NewMessageScreen(
 
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = if (zuneColors.isDark) Color(0xFF0F0F0F) else Color(0xFFFAFAFA)
+        color = when {
+            wide -> Color.Transparent
+            zuneColors.isDark -> Color(0xFF0F0F0F)
+            else -> Color(0xFFFAFAFA)
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .then(if (wide) Modifier else Modifier.statusBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp))
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -98,12 +129,16 @@ internal fun NewMessageScreen(
                     ),
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.common_close_cap),
-                        tint = MaterialTheme.colorScheme.onBackground
-                    )
+                if (wide) {
+                    RingButton(Icons.Default.Close, stringResource(R.string.common_close_cap), enabled = true, onClick = onClose)
+                } else {
+                    IconButton(onClick = onClose) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.common_close_cap),
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                 }
             }
 
@@ -113,9 +148,55 @@ internal fun NewMessageScreen(
                 query = query,
                 onQueryChange = { query = it },
                 isVisible = true,
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier.padding(bottom = 12.dp),
                 hint = stringResource(R.string.msg_recipient_hint)
             )
+
+            // ── Who is gathered so far ──
+            if (chosen.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.msg_recipients),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = zuneColors.textMuted
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 10.dp)
+                ) {
+                    chosen.forEach { (name, number) ->
+                        Text(
+                            text = name.ifBlank { number },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White,
+                            modifier = Modifier
+                                .background(zuneColors.accentColor)
+                                .clickable { toggle(name, number) }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .padding(bottom = 14.dp)
+                        .border(2.dp, zuneColors.accentColor)
+                        .clickable { onRecipientsChosen(chosen.toList()) }
+                        .padding(horizontal = 22.dp, vertical = 9.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.msg_write_to),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            } else {
+                Text(
+                    text = stringResource(R.string.msg_group_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = zuneColors.textDim,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+            }
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -124,59 +205,33 @@ internal fun NewMessageScreen(
             ) {
                 if (typedNumber != null) {
                     item(key = "typed") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onRecipientChosen(typedNumber, typedNumber) },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            MessageAvatar(name = "#", photoUri = null, seed = typedNumber)
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Column {
-                                Text(
-                                    text = typedNumber,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = stringResource(R.string.msg_start_conversation),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = zuneColors.accentColor
-                                )
-                            }
-                        }
+                        RecipientRow(
+                            name = "#",
+                            photoUri = null,
+                            title = typedNumber,
+                            subtitle = stringResource(R.string.msg_start_conversation),
+                            subtitleAccent = true,
+                            chosen = isChosen(typedNumber),
+                            onClick = { pick(typedNumber, typedNumber) },
+                            onToggle = { toggle(typedNumber, typedNumber) }
+                        )
                     }
                 }
 
                 items(filtered, key = { entry -> "${entry.contact.id}-${entry.number}" }) { entry ->
                     val contact = entry.contact
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onRecipientChosen(contact.name, entry.number) },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        MessageAvatar(
-                            name = contact.name,
-                            photoUri = contact.photoUri?.toString(),
-                            seed = contact.id
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = contact.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            // Which of their numbers, for somebody who has more than one.
-                            val label = entry.typeLabel.lowercase(java.util.Locale.getDefault())
-                            Text(
-                                text = if (label.isBlank()) entry.number else "${entry.number} · $label",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = zuneColors.textMuted
-                            )
-                        }
-                    }
+                    // Which of their numbers, for somebody who has more than one.
+                    val label = entry.typeLabel.lowercase(java.util.Locale.getDefault())
+                    RecipientRow(
+                        name = contact.name,
+                        photoUri = contact.photoUri?.toString(),
+                        title = contact.name,
+                        subtitle = if (label.isBlank()) entry.number else "${entry.number} · $label",
+                        subtitleAccent = false,
+                        chosen = isChosen(entry.number),
+                        onClick = { pick(contact.name, entry.number) },
+                        onToggle = { toggle(contact.name, entry.number) }
+                    )
                 }
 
                 if (filtered.isEmpty() && typedNumber == null) {
@@ -190,6 +245,49 @@ internal fun NewMessageScreen(
                 }
             }
         }
+    }
+}
+
+/** One person to write to, and the ring that gathers them into a message to several. */
+@Composable
+private fun RecipientRow(
+    name: String,
+    photoUri: String?,
+    title: String,
+    subtitle: String,
+    subtitleAccent: Boolean,
+    chosen: Boolean,
+    onClick: () -> Unit,
+    onToggle: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (chosen) SelectionBox(checked = true) else MessageAvatar(name = name, photoUri = photoUri)
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (subtitleAccent) zuneColors.accentColor else zuneColors.textMuted
+            )
+        }
+        RingButton(
+            icon = if (chosen) Icons.Default.Check else Icons.Default.Add,
+            label = stringResource(if (chosen) R.string.msg_remove_recipient else R.string.msg_add_recipient),
+            enabled = true,
+            size = 34.dp,
+            onClick = onToggle
+        )
     }
 }
 

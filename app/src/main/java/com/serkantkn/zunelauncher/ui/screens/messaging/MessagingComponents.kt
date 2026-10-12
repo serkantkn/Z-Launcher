@@ -2,6 +2,7 @@ package com.serkantkn.zunelauncher.ui.screens.messaging
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,10 +18,12 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,7 +36,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -48,8 +50,8 @@ import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
 import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
 import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
-import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import java.util.Locale
 
 /**
@@ -134,7 +136,12 @@ internal fun ConversationItem(
     conversation: SmsConversationModel,
     now: Long,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    /** Choosing several: a box to tick stands where the face was. */
+    selecting: Boolean = false,
+    checked: Boolean = false,
+    /** The conversation open beside the list, on a tablet. */
+    highlighted: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
     val unread = conversation.unreadCount > 0 || !conversation.isRead
@@ -145,16 +152,17 @@ internal fun ConversationItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(if (highlighted) zuneColors.accentColor.copy(alpha = 0.16f) else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(vertical = 6.dp),
+            .padding(vertical = 6.dp)
+            .padding(end = if (highlighted) 8.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        MessageAvatar(
-            name = conversation.title,
-            photoUri = conversation.photoUri,
-            seed = conversation.threadId.toString(),
-            unread = unread
-        )
+        if (selecting) {
+            SelectionBox(checked = checked)
+        } else {
+            MessageAvatar(name = conversation.title, photoUri = conversation.photoUri, group = conversation.isGroup)
+        }
 
         Spacer(modifier = Modifier.width(14.dp))
 
@@ -219,47 +227,101 @@ internal fun ConversationItem(
 }
 
 /**
- * A person's face beside their conversation, or their initial when there is no picture.
+ * Windows Phone's tick box for choosing several: an empty square, and the accent with a tick in
+ * it once chosen. It takes the face's place, so the list does not shift sideways.
+ */
+@Composable
+internal fun SelectionBox(checked: Boolean) {
+    val zuneColors = LocalZuneColors.current
+    Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(26.dp)
+                .then(
+                    if (checked) {
+                        Modifier.background(zuneColors.accentColor)
+                    } else {
+                        Modifier.border(2.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                    }
+                )
+        ) {
+            if (checked) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * A person's face beside their conversation, or their initial on a square of the accent when
+ * there is no picture.
  *
- * The colour is picked from the conversation rather than at random, so the same person keeps the
- * same square every time the list is drawn.
+ * Always a square: this is Metro, and Windows Phone drew every face that way. It used to turn into
+ * a circle of some other colour once the conversation had been read, which made a list of read
+ * conversations look like it came from another phone; what is unread is said by the bold name and
+ * the accent on its time instead.
  */
 @Composable
 internal fun MessageAvatar(
     name: String,
     photoUri: String?,
-    seed: String,
-    unread: Boolean = false,
-    size: androidx.compose.ui.unit.Dp = 44.dp
+    size: androidx.compose.ui.unit.Dp = 44.dp,
+    /** A conversation with several people: their glyph rather than one person's initial. */
+    group: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
-    val fallbackColor = remember(seed) {
-        val colors = listOf(ZuneColors.Pink, ZuneColors.Orange, ZuneColors.Blue, ZuneColors.Green)
-        colors[kotlin.math.abs(seed.hashCode()) % colors.size]
-    }
-    val shape = if (unread) RoundedCornerShape(2.dp) else CircleShape
-
-    if (photoUri != null) {
+    if (group) {
+        Box(
+            modifier = Modifier.size(size).background(zuneColors.accentColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Groups,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(size * 0.55f)
+            )
+        }
+    } else if (photoUri != null) {
         AsyncImage(
             model = photoUri,
             contentDescription = null,
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             modifier = Modifier
                 .size(size)
-                .clip(shape)
-                .background(fallbackColor, shape)
+                .background(zuneColors.accentColor)
         )
     } else {
+        // A bare number has no initial worth showing - a "+" or a "5" is not anybody - so it gets
+        // the plain person Windows Phone gave everybody without a picture.
+        val initial = name.firstOrNull()?.takeIf { it.isLetter() }
         Box(
             modifier = Modifier
                 .size(size)
-                .clip(shape)
-                .background(if (unread) zuneColors.accentColor else fallbackColor, shape),
+                .background(zuneColors.accentColor),
             contentAlignment = Alignment.Center
         ) {
+            if (initial == null) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(size * 0.6f)
+                )
+                return@Box
+            }
             Text(
-                text = name.take(1).uppercase(Locale.getDefault()),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                text = initial.toString().uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Light,
+                    fontSize = (size.value * 0.45f).sp
+                ),
                 color = Color.White
             )
         }
@@ -303,7 +365,9 @@ internal fun MessagingSheet(
                 // A sheet with a field in it has the keyboard come up underneath it; without
                 // this the sheet's own buttons sit behind the keys and cannot be pressed.
                 .imePadding()
-                .navigationBarsPadding()
+                // On a tablet the sheet rises from the pane beside the list, which already
+                // stands clear of the bar at the bottom.
+                .then(if (LocalIsWideScreen.current) Modifier else Modifier.navigationBarsPadding())
                 .padding(vertical = 16.dp)
         ) {
             Text(

@@ -71,9 +71,10 @@ data class SmsMessageModel(
     val type: Int = Telephony.Sms.MESSAGE_TYPE_INBOX,
     /** The delivery report, for messages we sent. */
     val delivery: MessageDelivery = MessageDelivery.NONE,
-    /** Picture messages: the launcher shows their text and says that a file came with it. */
+    /** Picture messages: their text, and the pictures, clips and cards that came with it. */
     val isMms: Boolean = false,
     val hasAttachment: Boolean = false,
+    val attachments: List<MmsAttachment> = emptyList(),
     /** Which SIM it went out on, or -1 when the phone did not say. */
     val subscriptionId: Int = -1,
     /** Who wrote it, by name, when the conversation has more than one other person in it. */
@@ -84,4 +85,43 @@ data class SmsMessageModel(
     val isFailed: Boolean get() = delivery == MessageDelivery.FAILED
 
     val isPending: Boolean get() = delivery == MessageDelivery.SENDING
+}
+
+/**
+ * One thing that came with a picture message, kept as the message store's own part number so it
+ * is read from there when it is drawn or opened rather than copied out ahead of time.
+ */
+data class MmsAttachment(
+    val partId: Long,
+    val mimeType: String,
+    val name: String = ""
+) {
+    val kind: AttachmentKind get() = AttachmentKind.of(mimeType)
+
+    /** Where the message store keeps it. */
+    val uri: String get() = "content://mms/part/$partId"
+}
+
+/** What sort of thing came with a message, by what it says it is. */
+enum class AttachmentKind {
+    IMAGE, VIDEO, AUDIO, CONTACT, OTHER;
+
+    companion object {
+        fun of(mimeType: String): AttachmentKind {
+            val type = mimeType.lowercase().substringBefore(';').trim()
+            return when {
+                type.startsWith("image/") -> IMAGE
+                type.startsWith("video/") -> VIDEO
+                type.startsWith("audio/") || type == "application/ogg" -> AUDIO
+                type == "text/x-vcard" || type == "text/vcard" || type == "text/directory" -> CONTACT
+                else -> OTHER
+            }
+        }
+
+        /** Parts that are the message's own scaffolding or its words, not something sent with it. */
+        fun isContent(mimeType: String): Boolean {
+            val type = mimeType.lowercase().substringBefore(';').trim()
+            return type.isNotBlank() && type != "text/plain" && type != "application/smil"
+        }
+    }
 }

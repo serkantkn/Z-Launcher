@@ -241,6 +241,39 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
         )
     }
 
+    /**
+     * Opens a conversation with several people at once: the group already there with exactly
+     * them, or a new one that gets its thread when the first message goes.
+     */
+    fun openConversationWithContacts(context: Context, people: List<Pair<String, String>>) {
+        if (people.isEmpty()) return
+        if (people.size == 1) {
+            openConversationWithContact(context, people[0].first, people[0].second)
+            return
+        }
+        val numbers = people.map { it.second }
+        val existing = _conversations.value.firstOrNull { conversation ->
+            conversation.recipients.size == numbers.size &&
+                numbers.all { number -> conversation.recipients.any { PhoneNumbers.sameNumber(it, number) } }
+        }
+        if (existing != null) {
+            openConversation(context, existing)
+            return
+        }
+        openConversation(
+            context,
+            SmsConversationModel(
+                threadId = SmsConversationModel.NEW_THREAD_ID,
+                address = numbers.first(),
+                contactName = people.joinToString(", ") { (name, number) -> name.ifBlank { number } },
+                snippet = "",
+                timestamp = System.currentTimeMillis(),
+                isRead = true,
+                recipients = numbers
+            )
+        )
+    }
+
     /** Opens a conversation by its thread number — a pinned tile, or a notification being tapped. */
     fun openThread(context: Context, threadId: Long) {
         viewModelScope.launch {
@@ -283,9 +316,13 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
             // Only say the text was kept if the store actually kept it.
             val kept = SmsRepository.saveDraft(context, conversation.threadId, conversation.address, text)
             if (!kept) return@launch
-            _conversations.value = _conversations.value.map {
+            val patched = _conversations.value.map {
                 if (it.threadId == conversation.threadId) it.copy(draft = text) else it
             }
+            _conversations.value = patched
+            // A draft moves the conversation's last line and its time as well; only the store
+            // knows what they are once one has been written or taken away.
+            _conversations.value = runCatching { SmsRepository.getConversations(context) }.getOrDefault(patched)
         }
     }
 
@@ -308,16 +345,25 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
                 ?.filter { it.isNotBlank() }
                 ?.ifEmpty { null }
                 ?: listOf(recipientNumber)
-            val threadId = conversation?.threadId?.takeIf { it > 0L } ?: 0L
+            // A new group has no thread yet; it is made for all of them together first, or the
+            // first message would be filed with only the first of them.
+            val threadId = conversation?.threadId?.takeIf { it > 0L }
+                ?: if (recipients.size > 1) {
+                    SmsRepository.getOrCreateThreadId(context, recipients.map(PhoneNumbers::toDialable).toSet()) ?: 0L
+                } else {
+                    0L
+                }
             // The worst outcome is the one reported: one failure out of three is still a failure.
             var outcome = SendOutcome.EMPTY
-            for (recipient in recipients) {
+            recipients.forEachIndexed { index, recipient ->
                 val each = SmsSender.send(
                     context = context,
                     address = recipient,
                     text = messageText,
                     threadId = threadId,
-                    subscriptionId = _selectedSim.value
+                    subscriptionId = _selectedSim.value,
+                    // One copy in the conversation, however many people it went to.
+                    file = index == 0
                 )
                 if (outcome == SendOutcome.EMPTY || each != SendOutcome.HANDED_OVER) outcome = each
             }
@@ -329,7 +375,7 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
                 // A brand new conversation only gets its thread number once the message is filed.
                 val landed = _conversations.value.firstOrNull {
                     (threadId > 0L && it.threadId == threadId) ||
-                        PhoneNumbers.sameNumber(it.address, recipientNumber)
+                        (recipients.size == 1 && PhoneNumbers.sameNumber(it.address, recipientNumber))
                 }
                 if (landed != null) {
                     _selectedConversation.value = landed
@@ -425,6 +471,41 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
                     if (it.threadId == conversation.threadId) it.copy(isRead = true, unreadCount = 0) else it
                 }
             } else {
+                showStatus(context.getString(com.serkantkn.zunelauncher.R.string.msg_needs_default_app))
+            }
+        }
+    }
+
+    /** Marks several conversations read at once; only those with something unread are touched. */
+    fun markThreadsRead(context: Context, threads: Collection<Long>) {
+        val targets = _conversations.value.filter {
+            it.threadId in threads && (it.unreadCount > 0 || !it.isRead)
+        }
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            val done = targets.filter { SmsRepository.markThreadRead(context, it.threadId) }.map { it.threadId }.toSet()
+            done.forEach { MessageNotifier.clear(context, it) }
+            _conversations.value = _conversations.value.map {
+                if (it.threadId in done) it.copy(isRead = true, unreadCount = 0) else it
+            }
+            if (done.size < targets.size) {
+                showStatus(context.getString(com.serkantkn.zunelauncher.R.string.msg_needs_default_app))
+            }
+        }
+    }
+
+    /** Every conversation with something unread in it, read. */
+    fun markAllRead(context: Context) = markThreadsRead(context, _conversations.value.map { it.threadId })
+
+    /** Deletes several conversations at once. */
+    fun deleteThreads(context: Context, threads: Collection<Long>) {
+        if (threads.isEmpty()) return
+        viewModelScope.launch {
+            val done = threads.filter { SmsRepository.deleteThread(context, it) }.toSet()
+            done.forEach { MessageNotifier.clear(context, it) }
+            _conversations.value = _conversations.value.filterNot { it.threadId in done }
+            if (_selectedConversation.value?.threadId in done) closeConversation()
+            if (done.size < threads.size) {
                 showStatus(context.getString(com.serkantkn.zunelauncher.R.string.msg_needs_default_app))
             }
         }

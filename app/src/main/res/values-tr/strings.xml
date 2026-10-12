@@ -500,7 +500,7 @@
     <string name="cal_tab_month">ay</string>
     <string name="cal_tab_day">gün</string>
     <string name="msg_new">yeni mesaj</string>
-    <string name="msg_pick_conversation">sohbet seçin</string>
+    <string name="msg_pick_conversation">bir sohbet seç</string>
     <string name="msg_search_hint">sohbetlerde ara...</string>
     <string name="msg_history_empty">mesaj geçmişi boş</string>
     <string name="msg_no_messages">henüz mesaj yok, sohbet başlatın</string>

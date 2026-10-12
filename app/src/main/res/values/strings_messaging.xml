@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What came with a picture message -->
+    <string name="msg_attachment_picture">picture</string>
+    <string name="msg_attachment_video">video</string>
+    <string name="msg_attachment_audio">voice recording</string>
+    <string name="msg_attachment_contact">contact card</string>
+    <string name="msg_attachment_open_failed">nothing here can open that</string>
+
+    <!-- Choosing several conversations -->
+    <string name="msg_select">select</string>
+    <string name="msg_mark_all_read">mark all as read</string>
+    <plurals name="msg_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="msg_delete_selected">delete the conversations</string>
+    <plurals name="msg_delete_selected_message">
+        <item quantity="one">%d conversation and everything in it will be deleted.</item>
+        <item quantity="other">%d conversations and everything in them will be deleted.</item>
+    </plurals>
+
+    <!-- A tablet's empty pane -->
+    <string name="msg_or_start_new">or start a new message</string>
+
+    <!-- More than one person -->
+    <string name="msg_recipients">to</string>
+    <string name="msg_write_to">write</string>
+    <string name="msg_add_recipient">add to the message</string>
+    <string name="msg_remove_recipient">take off the message</string>
+    <string name="msg_group_hint">tap the ring beside a name to write to several people at once</string>
+</resources>

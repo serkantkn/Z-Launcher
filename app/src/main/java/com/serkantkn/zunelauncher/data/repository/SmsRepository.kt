@@ -8,7 +8,9 @@ import android.net.Uri
 import android.os.Build
 import android.provider.ContactsContract
 import android.provider.Telephony
+import com.serkantkn.zunelauncher.data.model.AttachmentKind
 import com.serkantkn.zunelauncher.data.model.MessageDelivery
+import com.serkantkn.zunelauncher.data.model.MmsAttachment
 import com.serkantkn.zunelauncher.data.model.SmsConversationModel
 import com.serkantkn.zunelauncher.data.model.SmsMessageModel
 import com.serkantkn.zunelauncher.util.PhoneNumbers
@@ -111,12 +113,20 @@ object SmsRepository {
                 }
                 val numbers = recipientIds.mapNotNull { addresses[it] }
                 val address = numbers.firstOrNull().orEmpty()
-                val person = lookUpContact(context, address)
+                // A group is named after everybody in it, not after whichever number came first;
+                // it has no one face of its own either.
+                val isGroup = numbers.size > 1
+                val person = if (isGroup) null else lookUpContact(context, address)
+                val name = if (isGroup) {
+                    numbers.joinToString(", ") { number -> lookUpContact(context, number)?.name?.ifBlank { null } ?: number }
+                } else {
+                    person?.name.orEmpty().ifBlank { address }
+                }
 
                 conversations += SmsConversationModel(
                     threadId = threadId,
                     address = address,
-                    contactName = person?.name.orEmpty().ifBlank { address },
+                    contactName = name,
                     snippet = if (snippetIdx >= 0) cursor.getString(snippetIdx).orEmpty() else "",
                     timestamp = if (dateIdx >= 0) cursor.getLong(dateIdx) else 0L,
                     isRead = if (readIdx >= 0) cursor.getInt(readIdx) == 1 else true,
@@ -291,11 +301,8 @@ object SmsRepository {
         }
 
     /**
-     * The text of a thread's picture messages.
-     *
-     * The launcher does not show the pictures themselves — it says one came, and leaves opening it
-     * to an app built for it — but a picture message with a caption is still a message, and a
-     * conversation that hid them would be a conversation with holes in it.
+     * A thread's picture messages: their text, and what came with them — the pictures themselves
+     * are drawn in the conversation, and a clip, a sound or a card is offered to be opened.
      */
     private fun readMmsForThread(context: Context, threadId: Long, isGroup: Boolean): List<SmsMessageModel> {
         val messages = mutableListOf<SmsMessageModel>()
@@ -328,7 +335,8 @@ object SmsRepository {
                         type = if (box == MMS_BOX_SENT) Telephony.Sms.MESSAGE_TYPE_SENT else Telephony.Sms.MESSAGE_TYPE_INBOX,
                         delivery = MessageDelivery.NONE,
                         isMms = true,
-                        hasAttachment = parts.hasAttachment,
+                        hasAttachment = parts.attachments.isNotEmpty(),
+                        attachments = parts.attachments,
                         subscriptionId = cursor.getInt(4),
                         senderName = if (sender.isBlank()) "" else contactNameFor(context, sender)
                     )
@@ -370,34 +378,38 @@ object SmsRepository {
         ""
     }
 
-    private data class MmsParts(val text: String, val hasAttachment: Boolean)
+    private data class MmsParts(val text: String, val attachments: List<MmsAttachment>)
 
     private fun mmsParts(context: Context, mmsId: Long): MmsParts {
         val text = StringBuilder()
-        var hasAttachment = false
+        val attachments = mutableListOf<MmsAttachment>()
         try {
             context.contentResolver.query(
                 MMS_PART_URI,
-                arrayOf("_id", "ct", "text"),
+                arrayOf("_id", "ct", "text", "name", "cl"),
                 "mid = ?",
                 arrayOf(mmsId.toString()),
                 null
             )?.use { cursor ->
                 while (cursor.moveToNext()) {
-                    when (val contentType = cursor.getString(1).orEmpty()) {
-                        "text/plain" -> cursor.getString(2)?.let {
+                    val contentType = cursor.getString(1).orEmpty()
+                    when {
+                        contentType.equals("text/plain", ignoreCase = true) -> cursor.getString(2)?.let {
                             if (text.isNotEmpty()) text.append('\n')
                             text.append(it)
                         }
-                        "application/smil" -> Unit // Layout, not content.
-                        else -> if (contentType.isNotBlank()) hasAttachment = true
+                        AttachmentKind.isContent(contentType) -> attachments += MmsAttachment(
+                            partId = cursor.getLong(0),
+                            mimeType = contentType,
+                            name = cursor.getString(3)?.takeIf { it.isNotBlank() } ?: cursor.getString(4).orEmpty()
+                        )
                     }
                 }
             }
         } catch (e: Exception) {
             ZuneLog.w(TAG, "a picture message would not open", e)
         }
-        return MmsParts(text.toString(), hasAttachment)
+        return MmsParts(text.toString(), attachments)
     }
 
     /**

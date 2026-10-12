@@ -1,6 +1,17 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.SolidColor
+import com.serkantkn.zunelauncher.data.model.MmsAttachment
+import com.serkantkn.zunelauncher.ui.components.wpTilt
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -85,9 +96,13 @@ internal fun ConversationScreen(
     onCall: () -> Unit,
     onMessageLongPress: (SmsMessageModel) -> Unit,
     modifier: Modifier = Modifier,
-    onVisibilityChange: (Boolean) -> Unit = {}
+    onVisibilityChange: (Boolean) -> Unit = {},
+    onOpenAttachment: (MmsAttachment) -> Unit = {}
 ) {
     val zuneColors = LocalZuneColors.current
+    // A tablet shows the conversation beside the list, under the hub's own headings: its header
+    // and the box to write in are drawn the Windows 8 way there, the rest is the same.
+    val wide = LocalIsWideScreen.current
     val listState = rememberLazyListState()
     val days = remember(messages) { groupMessagesByDay(messages) }
     val count = remember(input) { messageCount(input) }
@@ -102,9 +117,15 @@ internal fun ConversationScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(if (wide) PaddingValues(bottom = 12.dp) else PaddingValues(16.dp))
+    ) {
         // ── Who this is with ──
-        Row(
+        if (wide) {
+            WideConversationHeader(conversation = conversation, onCall = onCall, onClose = onClose)
+        } else Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -191,7 +212,9 @@ internal fun ConversationScreen(
                             message = day.messages[index],
                             // In a group, who wrote it is half the message.
                             showSender = conversation.isGroup,
-                            onLongClick = { onMessageLongPress(day.messages[index]) }
+                            onLongClick = { onMessageLongPress(day.messages[index]) },
+                            maxWidth = if (wide) 460.dp else 320.dp,
+                            onOpenAttachment = onOpenAttachment
                         )
                     }
                 }
@@ -246,44 +269,48 @@ internal fun ConversationScreen(
         }
 
         // ── Writing ──
-        Row(
-            modifier = Modifier.fillMaxWidth().imePadding(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = input,
-                onValueChange = onInputChange,
-                placeholder = {
-                    Text(stringResource(R.string.msg_type_hint), color = zuneColors.textMuted)
-                },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(2.dp),
-                maxLines = 5,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = zuneColors.accentColor,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
-                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                )
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            IconButton(
-                onClick = onSend,
-                enabled = input.isNotBlank(),
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        if (input.isNotBlank()) zuneColors.accentColor else zuneColors.textDim,
-                        CircleShape
-                    )
+        if (wide) {
+            MetroComposer(input = input, onInputChange = onInputChange, onSend = onSend)
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().imePadding(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = stringResource(R.string.msg_send_cap),
-                    tint = Color.White
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = onInputChange,
+                    placeholder = {
+                        Text(stringResource(R.string.msg_type_hint), color = zuneColors.textMuted)
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(2.dp),
+                    maxLines = 5,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = zuneColors.accentColor,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                    )
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = onSend,
+                    enabled = input.isNotBlank(),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            if (input.isNotBlank()) zuneColors.accentColor else zuneColors.textDim,
+                            CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = stringResource(R.string.msg_send_cap),
+                        tint = Color.White
+                    )
+                }
             }
         }
     }
@@ -309,7 +336,13 @@ private fun DayHeading(now: Long, dayStart: Long) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MessageBubble(message: SmsMessageModel, showSender: Boolean, onLongClick: () -> Unit) {
+private fun MessageBubble(
+    message: SmsMessageModel,
+    showSender: Boolean,
+    onLongClick: () -> Unit,
+    maxWidth: androidx.compose.ui.unit.Dp = 320.dp,
+    onOpenAttachment: (MmsAttachment) -> Unit = {}
+) {
     val zuneColors = LocalZuneColors.current
     val isOut = message.isOutgoing
     val bubbleColor = when {
@@ -328,7 +361,7 @@ private fun MessageBubble(message: SmsMessageModel, showSender: Boolean, onLongC
             color = bubbleColor,
             shape = RoundedCornerShape(2.dp),
             modifier = Modifier
-                .widthIn(max = 320.dp)
+                .widthIn(max = maxWidth)
                 .combinedClickable(onClick = {}, onLongClick = onLongClick)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
@@ -348,7 +381,13 @@ private fun MessageBubble(message: SmsMessageModel, showSender: Boolean, onLongC
                         color = onBubble
                     )
                 }
-                if (message.hasAttachment) {
+                // What came with it: the pictures themselves, and a line for anything else.
+                message.attachments.forEachIndexed { index, attachment ->
+                    Box(modifier = Modifier.padding(top = if (index == 0 && message.body.isBlank()) 0.dp else 6.dp)) {
+                        MessageAttachmentView(attachment = attachment, ink = onBubble, onOpen = onOpenAttachment)
+                    }
+                }
+                if (message.hasAttachment && message.attachments.isEmpty()) {
                     Text(
                         text = stringResource(R.string.msg_attachment),
                         style = MaterialTheme.typography.labelSmall,
@@ -401,4 +440,131 @@ private fun DeliveryMark(delivery: MessageDelivery, tint: Color) {
         tint = tint.copy(alpha = 0.75f),
         modifier = Modifier.size(12.dp)
     )
+}
+
+// ── On a tablet ─────────────────────────────────────────────────────────────
+
+/**
+ * Who the conversation is with, as a tablet's pane heads itself: their face as a square, their
+ * name in large light type, and calling and closing as ringed buttons rather than bare glyphs.
+ */
+@Composable
+private fun WideConversationHeader(conversation: SmsConversationModel, onCall: () -> Unit, onClose: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    val ink = MaterialTheme.colorScheme.onBackground
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        MessageAvatar(name = conversation.title, photoUri = conversation.photoUri, size = 56.dp, group = conversation.isGroup)
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = conversation.title.lowercase(Locale.getDefault()),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = FontWeight.Light,
+                    fontSize = 36.sp,
+                    letterSpacing = (-1).sp
+                ),
+                color = ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = if (conversation.isGroup) {
+                    stringResource(R.string.msg_group_conversation)
+                } else {
+                    conversation.address
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = zuneColors.textMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (conversation.address.isNotBlank()) {
+            RingButton(Icons.Default.Call, stringResource(R.string.msg_call), enabled = true, onClick = onCall)
+            Spacer(modifier = Modifier.width(14.dp))
+        }
+        RingButton(Icons.Default.Close, stringResource(R.string.common_close_cap), enabled = true, onClick = onClose)
+    }
+}
+
+/**
+ * The box to write in, as Windows drew a text box: square, a grey field at rest, and white with
+ * the accent round it while it is being typed into. Sending is the ringed button beside it.
+ */
+@Composable
+private fun MetroComposer(input: String, onInputChange: (String) -> Unit, onSend: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    val ink = MaterialTheme.colorScheme.onBackground
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val textColour = if (focused) Color.Black else ink
+    Row(
+        modifier = Modifier.fillMaxWidth().imePadding(),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        // The whole box is the field, so a tap anywhere in it - not only on the line of text -
+        // puts the cursor there.
+        BasicTextField(
+            value = input,
+            onValueChange = onInputChange,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = textColour),
+            cursorBrush = SolidColor(zuneColors.accentColor),
+            maxLines = 6,
+            interactionSource = interaction,
+            modifier = Modifier.weight(1f),
+            decorationBox = { field ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .background(if (focused) Color.White else ink.copy(alpha = 0.07f))
+                        .border(2.dp, if (focused) zuneColors.accentColor else ink.copy(alpha = 0.3f))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (input.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.msg_type_hint),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (focused) Color.Black.copy(alpha = 0.45f) else zuneColors.textMuted
+                        )
+                    }
+                    field()
+                }
+            }
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Box(modifier = Modifier.padding(bottom = 4.dp)) {
+            RingButton(
+                Icons.AutoMirrored.Filled.Send,
+                stringResource(R.string.msg_send_cap),
+                enabled = input.isNotBlank(),
+                size = 40.dp,
+                onClick = onSend
+            )
+        }
+    }
+}
+
+/** A glyph in a thin ring, the Windows 8 button; faded and deaf while there is nothing to do. */
+@Composable
+internal fun RingButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean,
+    size: androidx.compose.ui.unit.Dp = 38.dp,
+    onClick: () -> Unit
+) {
+    val ink = MaterialTheme.colorScheme.onBackground.copy(alpha = if (enabled) 0.9f else 0.3f)
+    val source = remember { MutableInteractionSource() }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(size)
+            .wpTilt(source)
+            .border(1.5.dp, ink, CircleShape)
+            .clickable(enabled = enabled, interactionSource = source, indication = null, onClick = onClick)
+    ) {
+        Icon(icon, contentDescription = label, tint = ink, modifier = Modifier.size(size * 0.55f))
+    }
 }
