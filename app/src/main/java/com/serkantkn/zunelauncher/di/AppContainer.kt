@@ -61,6 +61,9 @@ class AppContainer(private val appContext: Context) {
     val weatherDataStore: WeatherDataStore by lazy { WeatherDataStore(appContext) }
     val cameraDataStore: CameraDataStore by lazy { CameraDataStore(appContext) }
     val phoneDataStore: PhoneDataStore by lazy { PhoneDataStore(appContext) }
+    val newsDataStore: com.serkantkn.zunelauncher.data.datastore.NewsDataStore by lazy {
+        com.serkantkn.zunelauncher.data.datastore.NewsDataStore(appContext)
+    }
 
     // --- Repositories ---
     val appRepository: AppRepository by lazy { AppRepository(appContext) }
@@ -79,6 +82,9 @@ class AppContainer(private val appContext: Context) {
     val callLogRepository: CallLogRepository by lazy { CallLogRepository(appContext) }
     val calendarRepository: CalendarRepository by lazy { CalendarRepository(appContext) }
     val weatherRepository: WeatherRepository by lazy { WeatherRepository(appContext, weatherDataStore) }
+    val newsRepository: com.serkantkn.zunelauncher.data.repository.NewsRepository by lazy {
+        com.serkantkn.zunelauncher.data.repository.NewsRepository(appContext, newsDataStore)
+    }
     val musicRepository: MusicRepository by lazy { MusicRepository(appContext) }
     val lyricsRepository: com.serkantkn.zunelauncher.data.repository.LyricsRepository by lazy {
         com.serkantkn.zunelauncher.data.repository.LyricsRepository(appContext)

@@ -262,6 +262,7 @@ private fun HomeHubScreenContent(
     val nowPlaying by viewModel.nowPlaying.collectAsState()
     val emailTilePreview by viewModel.emailTilePreview.collectAsState()
     val weatherSnapshot by viewModel.weatherSnapshot.collectAsState()
+    val newsStories by viewModel.newsStories.collectAsState()
     val weatherUnit by viewModel.weatherUnit.collectAsState()
     val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
     val tileSpacing by viewModel.tileSpacing.collectAsState()
@@ -608,6 +609,7 @@ private fun HomeHubScreenContent(
                     "${weatherUnit.of(it.now.temperature)}° ${stringResource(it.now.condition.labelRes)} · ${it.place.name}"
                 }
             )
+            HubType.NEWS -> HubLiveLine(text = newsStories.firstOrNull()?.title)
             HubType.NOTES -> HubLiveLine(
                 text = notesTileSubtitle,
                 count = if (quiet) 0 else pinnedNotesCount
@@ -916,6 +918,20 @@ private fun HomeHubScreenContent(
                     HubType.WEATHER -> W10MWeatherTile(
                         snapshot = weatherSnapshot,
                         temperatureUnit = weatherUnit,
+                        span = model.span,
+                        gridColumns = gridColumns,
+                        spacing = tileSpacing.dp,
+                        isEditing = isEditMode,
+                        isDragging = isDragging,
+                        cornerStyle = tileCornerStyle,
+                        onClick = { handleLaunch(launchKey) { openHub(hubType) } },
+                        onLongClick = { isEditMode = true },
+                        onRemoveClick = { onRemoveTile(model.id) },
+                        onResizeClick = onResize,
+                        modifier = animated
+                    )
+                    HubType.NEWS -> com.serkantkn.zunelauncher.ui.components.W10MNewsTile(
+                        stories = newsStories,
                         span = model.span,
                         gridColumns = gridColumns,
                         spacing = tileSpacing.dp,

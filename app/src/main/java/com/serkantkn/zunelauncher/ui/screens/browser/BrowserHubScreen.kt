@@ -98,6 +98,15 @@ fun BrowserHubScreen(
     /** A tab that has just been made for an address that still has to be loaded into it. */
     var pendingLoad by remember { mutableStateOf<Pair<String, String>?>(null) }
 
+    /**
+     * Tabs opened from the news hub to go on reading a story: each is put into reading view when
+     * the story's own page has loaded - not the Google page its link passes through on the way.
+     */
+    val readOnLoad = remember { mutableSetOf<String>() }
+
+    /** Tabs that were opened from the news hub, whose Back leads back to it. */
+    val fromNews = remember { mutableSetOf<String>() }
+
     /** The page waiting for the file the user is about to pick, if any. */
     var pendingFileChooser by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
 
@@ -130,6 +139,16 @@ fun BrowserHubScreen(
             viewModel.toggleDownloadsScreen(false)
         } else if (activeTab.showStartScreen) {
             onClose()
+        } else if (activeTab.id in fromNews && !hasPageBefore(webViewCache[activeTab.id])) {
+            // A story carried on from the news hub goes back to the hub, as a link from another
+            // app goes back to that app - not to the browser's start page, nor to the Google
+            // page its link passed through, which would only send it forward again.
+            val tabId = activeTab.id
+            fromNews -= tabId
+            readOnLoad -= tabId
+            webViewCache.remove(tabId)?.destroy()
+            viewModel.closeTab(tabId)
+            onClose()
         } else if (webViewCache[activeTab.id]?.canGoBack() == true) {
             webViewCache[activeTab.id]?.goBack()
         } else {
@@ -143,7 +162,12 @@ fun BrowserHubScreen(
         com.serkantkn.zunelauncher.data.repository.BrowserBridge.pendingUrl.collect { pending ->
             if (pending == null) return@collect
             val url = com.serkantkn.zunelauncher.data.repository.BrowserBridge.consume() ?: return@collect
+            val reading = com.serkantkn.zunelauncher.data.repository.BrowserBridge.consumeReading()
             val tabId = viewModel.openTabWith(url)
+            if (reading) {
+                readOnLoad += tabId
+                fromNews += tabId
+            }
             pendingLoad = tabId to url
         }
     }
@@ -198,6 +222,34 @@ fun BrowserHubScreen(
                 }
             }
         }
+    }
+
+    val isDarkNow by rememberUpdatedState(zuneColors.isDark)
+    /** How many times each waiting tab has been tried; a page still building has little text yet. */
+    val readTries = remember { mutableMapOf<String, Int>() }
+    fun tryReading(tabId: String) {
+        if (tabId !in readOnLoad) return
+        val web = webViewCache[tabId] ?: return
+        val tries = (readTries[tabId] ?: 0) + 1
+        readTries[tabId] = tries
+        web.evaluateJavascript(readingViewScript(isDarkNow)) { result ->
+            if (result.contains("ok") || result.contains("already")) {
+                readOnLoad -= tabId
+                readTries -= tabId
+                viewModel.setReadingView(tabId, true)
+            } else if (tries < READ_TRIES) {
+                // "Finished" comes before many sites have put their story on the page; asked
+                // again a moment later, the text is there.
+                web.postDelayed({ tryReading(tabId) }, READ_RETRY_MS)
+            } else {
+                // Not an article after all (a gallery, a video): it is left as the site made it.
+                readOnLoad -= tabId
+                readTries -= tabId
+            }
+        }
+    }
+    val readWhenLoaded: (String, String?) -> Unit = { tabId, url ->
+        if (tabId in readOnLoad && !isPassingThrough(url) && readTries[tabId] == null) tryReading(tabId)
     }
 
     /** What a site is asking for, while the question is on screen. */
@@ -383,7 +435,10 @@ fun BrowserHubScreen(
                                                 ctx,
                                                 BrowserWebCallbacks(
                                                     onStarted = { url, title -> viewModel.onPageStarted(tab.id, url, title) },
-                                                    onFinished = { url, title -> viewModel.onPageFinished(tab.id, url, title) },
+                                                    onFinished = { url, title ->
+                                                        viewModel.onPageFinished(tab.id, url, title)
+                                                        readWhenLoaded(tab.id, url)
+                                                    },
                                                     onProgress = { viewModel.onProgressChanged(tab.id, it) },
                                                     onNavState = { back, forward -> viewModel.setNavigationState(tab.id, back, forward) },
                                                     onDownload = { url, ua, disposition, mime, length ->
@@ -852,3 +907,19 @@ private fun captureThumbnail(web: WebView): androidx.compose.ui.graphics.ImageBi
 }
 
 private const val THUMBNAIL_WIDTH_PX = 240
+
+/** Tries at the reading view for a story opened from the news hub, and the wait between them. */
+private const val READ_TRIES = 5
+private const val READ_RETRY_MS = 1_200L
+
+/** A page a news link passes through on its way to the story: Google's redirect, its consent page. */
+private fun isPassingThrough(url: String?): Boolean {
+    val host = url?.let { runCatching { Uri.parse(it).host }.getOrNull() }.orEmpty()
+    return host.isEmpty() || host == "google.com" || host.endsWith(".google.com")
+}
+
+/** Whether Back on this page would reach a page of its own, rather than a redirect it came through. */
+private fun hasPageBefore(web: android.webkit.WebView?): Boolean {
+    val history = web?.copyBackForwardList() ?: return false
+    return (0 until history.currentIndex).any { !isPassingThrough(history.getItemAtIndex(it)?.url) }
+}

@@ -603,6 +603,20 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         place?.let { cache[it.id] }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    private val newsRepository = application.appContainer.newsRepository
+
+    /**
+     * The news hub's front page as last fetched, then the stories from the user's own sources,
+     * for the news tile. Google's front page has no pictures; the sources' stories lend the tile
+     * theirs, and the front page's lead is still the first headline.
+     */
+    val newsStories: StateFlow<List<com.serkantkn.zunelauncher.data.model.NewsItem>> = newsRepository.sections
+        .map { sections ->
+            sections[com.serkantkn.zunelauncher.data.model.NewsTopic.TOP.sectionKey]?.items.orEmpty() +
+                sections[com.serkantkn.zunelauncher.data.model.NewsSection.SOURCES_KEY]?.items.orEmpty()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val weatherUnit: StateFlow<TemperatureUnit> = application.appContainer.weatherDataStore.temperatureUnit
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TemperatureUnit.CELSIUS)
 
@@ -725,6 +739,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { refreshContacts() }
         viewModelScope.launch { refreshCalls() }
         viewModelScope.launch { refreshWeather() }
+        viewModelScope.launch { refreshNews() }
         viewModelScope.launch { refreshMessages() }
     }
 
@@ -760,6 +775,30 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             ZuneLog.w("HomeHubViewModel", "call log unavailable for the phone tile", e)
             _missedCalls.value = 0
             _lastMissedCaller.value = null
+        }
+    }
+
+    /**
+     * The news tile reads what the hub last fetched; when that is over an hour old and the tile is
+     * on Start, the front page is fetched again so the tile is not a day behind.
+     */
+    private suspend fun refreshNews() {
+        try {
+            newsRepository.load()
+            val onStart = settingsDataStore.startTiles.first()
+                .any { it.isHub && it.hubType == HubType.NEWS }
+            if (!onStart) return
+            listOf(
+                com.serkantkn.zunelauncher.data.model.NewsTopic.TOP.sectionKey,
+                com.serkantkn.zunelauncher.data.model.NewsSection.SOURCES_KEY
+            ).forEach { key ->
+                val age = newsRepository.sections.value[key]?.let { System.currentTimeMillis() - it.fetchedAt }
+                if (age == null || age > com.serkantkn.zunelauncher.data.repository.NewsRepository.TILE_STALE_MS) {
+                    newsRepository.refresh(key, force = false)
+                }
+            }
+        } catch (e: Exception) {
+            ZuneLog.w("HomeHubViewModel", "news tile refresh skipped", e)
         }
     }
 

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hub_news">haberler</string>
+
+    <string name="news_topic_top">manşetler</string>
+    <string name="news_topic_nation">gündem</string>
+    <string name="news_topic_world">dünya</string>
+    <string name="news_topic_business">ekonomi</string>
+    <string name="news_topic_technology">teknoloji</string>
+    <string name="news_topic_science">bilim</string>
+    <string name="news_topic_health">sağlık</string>
+    <string name="news_topic_sports">spor</string>
+    <string name="news_topic_entertainment">eğlence</string>
+    <string name="news_tab_sources">kaynaklarım</string>
+
+    <string name="news_refresh">yenile</string>
+    <string name="news_refresh_all">hepsini yenile</string>
+    <string name="news_settings">ayarlar</string>
+    <string name="news_pick_story">bir haber seç</string>
+    <string name="news_loading">haberler getiriliyor…</string>
+    <string name="news_nothing_yet">Burada henüz haber yok.</string>
+    <string name="news_no_sources">Henüz hiçbir kaynağı takip etmiyorsun.</string>
+    <string name="news_all_sources">tümü</string>
+    <string name="news_status_offline">İnternet bağlantısı yok; son alınan haberler gösteriliyor.</string>
+    <string name="news_status_failed">Haberler alınamadı; biraz sonra yeniden dene.</string>
+
+    <string name="news_read_on">devamını oku</string>
+    <string name="news_copy_link">bağlantıyı kopyala</string>
+    <string name="news_related">diğer kaynaklarda</string>
+    <string name="news_story_footnote">Haberin tamamı, yayımlayan sitede okuma görünümünde açılır.</string>
+
+    <string name="news_settings_topics">konular</string>
+    <string name="news_settings_topics_hint">Google Haberler\'den gelen başlıklar. Manşetler her zaman ilk sırada.</string>
+    <string name="news_settings_sources">kaynaklar</string>
+    <string name="news_settings_sources_hint">Burada açık olan sitelerin haberleri \"kaynaklarım\" başlığında, en yenisi üstte toplanır.</string>
+    <string name="news_remove_source">kaldır</string>
+    <string name="news_add_source">kaynak ekle</string>
+    <string name="news_add_source_hint">Bir sitenin RSS ya da Atom akışının adresini yaz.</string>
+    <string name="news_add_source_placeholder">ör. site.com/rss</string>
+    <string name="news_add">ekle</string>
+    <string name="news_adding">akış okunuyor…</string>
+    <string name="news_settings_footnote">Konular Google Haberler\'den, kaynaklar sitelerin kendi RSS akışlarından gelir. Hub haberin başlığını ve özetini gösterir; tamamı sitesinde okunur.</string>
+
+    <string name="news_error_already_added">Bu akış zaten ekli.</string>
+    <string name="news_error_offline">İnternet bağlantısı yok.</string>
+    <string name="news_error_unreachable">Bu adrese ulaşılamadı.</string>
+    <string name="news_error_not_a_feed">Bu adreste bir haber akışı bulunamadı. Sitenin RSS adresini dene.</string>
+</resources>

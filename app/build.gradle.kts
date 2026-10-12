@@ -152,6 +152,8 @@ dependencies {
     testImplementation(libs.junit)
     // android.jar stubs org.json, so the real implementation is put on the unit test classpath
     testImplementation("org.json:json:20240303")
+    // ...and the XML pull parser, which the platform has as kxml: the news hub reads feeds with it
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
 // Some tests read the app's own sources (HubStandardTest keeps every hub on ZuneHub); a change to

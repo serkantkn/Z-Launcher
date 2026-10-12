@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hub_news">news</string>
+
+    <string name="news_topic_top">top stories</string>
+    <string name="news_topic_nation">national</string>
+    <string name="news_topic_world">world</string>
+    <string name="news_topic_business">business</string>
+    <string name="news_topic_technology">technology</string>
+    <string name="news_topic_science">science</string>
+    <string name="news_topic_health">health</string>
+    <string name="news_topic_sports">sports</string>
+    <string name="news_topic_entertainment">entertainment</string>
+    <string name="news_tab_sources">my sources</string>
+
+    <string name="news_refresh">refresh</string>
+    <string name="news_refresh_all">refresh everything</string>
+    <string name="news_settings">settings</string>
+    <string name="news_pick_story">pick a story</string>
+    <string name="news_loading">getting the news…</string>
+    <string name="news_nothing_yet">There is no news here yet.</string>
+    <string name="news_no_sources">You are not following any sources yet.</string>
+    <string name="news_all_sources">all</string>
+    <string name="news_status_offline">No internet connection; showing the news last fetched.</string>
+    <string name="news_status_failed">The news could not be fetched; try again in a moment.</string>
+
+    <string name="news_read_on">read more</string>
+    <string name="news_copy_link">copy link</string>
+    <string name="news_related">from other sources</string>
+    <string name="news_story_footnote">The whole story opens on the site that published it, in reading view.</string>
+
+    <string name="news_settings_topics">topics</string>
+    <string name="news_settings_topics_hint">Headings from Google News. Top stories always come first.</string>
+    <string name="news_settings_sources">sources</string>
+    <string name="news_settings_sources_hint">Stories from the sites switched on here are gathered under \"my sources\", newest first.</string>
+    <string name="news_remove_source">remove</string>
+    <string name="news_add_source">add source</string>
+    <string name="news_add_source_hint">Type the address of a site\'s RSS or Atom feed.</string>
+    <string name="news_add_source_placeholder">e.g. example.com/rss</string>
+    <string name="news_add">add</string>
+    <string name="news_adding">reading the feed…</string>
+    <string name="news_settings_footnote">Topics come from Google News, sources from each site\'s own RSS feed. The hub shows a story\'s headline and summary; the whole story is read on its site.</string>
+
+    <string name="news_error_already_added">This feed is already added.</string>
+    <string name="news_error_offline">No internet connection.</string>
+    <string name="news_error_unreachable">This address could not be reached.</string>
+    <string name="news_error_not_a_feed">No news feed was found at this address. Try the site\'s RSS address.</string>
+</resources>

@@ -29,5 +29,6 @@ enum class HubType(
     EMAIL(R.string.hub_email),
     CALCULATOR(R.string.hub_calculator),
     WEATHER(R.string.hub_weather),
+    NEWS(R.string.hub_news),
     CAMERA(R.string.hub_camera, runsInBackground = false)
 }

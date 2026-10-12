@@ -341,6 +341,7 @@ class SettingsDataStore(private val context: Context) {
             com.serkantkn.zunelauncher.data.model.HubType.EMAIL,
             com.serkantkn.zunelauncher.data.model.HubType.CALCULATOR,
             com.serkantkn.zunelauncher.data.model.HubType.WEATHER,
+            com.serkantkn.zunelauncher.data.model.HubType.NEWS,
             com.serkantkn.zunelauncher.data.model.HubType.SETTINGS
         )
         if (saved.isNullOrEmpty()) return defaultOrder
@@ -372,6 +373,7 @@ class SettingsDataStore(private val context: Context) {
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.EMAIL, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.CALCULATOR, 2),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.WEATHER, 4),
+        StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.NEWS, 4),
         StartTileItem.fromHub(com.serkantkn.zunelauncher.data.model.HubType.SETTINGS, 2)
     )
 

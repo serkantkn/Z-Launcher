@@ -285,6 +285,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 HubType.EMAIL,
                 HubType.CALCULATOR,
                 HubType.WEATHER,
+                HubType.NEWS,
                 HubType.SETTINGS
             )
         )

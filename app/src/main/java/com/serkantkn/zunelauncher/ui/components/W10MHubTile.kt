@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -79,6 +80,7 @@ internal fun getHubIcon(hubType: HubType): ImageVector {
         HubType.CAMERA -> Icons.Default.PhotoCamera
         HubType.CALCULATOR -> Icons.Default.Calculate
         HubType.WEATHER -> Icons.Default.WbSunny
+        HubType.NEWS -> Icons.Default.Newspaper
         HubType.SETTINGS -> Icons.Default.Settings
         HubType.CLOCK -> Icons.Default.Schedule
         HubType.CALENDAR -> Icons.Default.CalendarMonth

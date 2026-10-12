@@ -106,7 +106,9 @@ fun MetroTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
+    keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default
 ) {
     val zuneColors = LocalZuneColors.current
     Box(
@@ -131,6 +133,8 @@ fun MetroTextField(
                 color = MaterialTheme.colorScheme.onBackground
             ),
             cursorBrush = SolidColor(zuneColors.accentColor),
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
             modifier = Modifier.fillMaxWidth()
         )
     }

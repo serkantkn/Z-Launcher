@@ -1085,6 +1085,9 @@ private fun RenderHubScreen(
         HubType.WEATHER -> com.serkantkn.zunelauncher.ui.screens.weather.WeatherHubScreen(
             onBack = { if (!navState.popHub()) navState.closeHub() }
         )
+        HubType.NEWS -> com.serkantkn.zunelauncher.ui.screens.news.NewsHubScreen(
+            onBack = { if (!navState.popHub()) navState.closeHub() }
+        )
         HubType.CAMERA -> com.serkantkn.zunelauncher.ui.screens.camera.CameraHubScreen(
             onBack = { if (!navState.popHub()) navState.closeHub() },
             // The shot just taken belongs in this launcher's own pictures hub, on top of the
