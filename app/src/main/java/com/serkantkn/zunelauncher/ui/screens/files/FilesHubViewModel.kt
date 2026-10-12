@@ -29,6 +29,7 @@ import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.DropAction
 import com.serkantkn.zunelauncher.util.FileSort
 import com.serkantkn.zunelauncher.util.PackageInstall
+import com.serkantkn.zunelauncher.util.SafeReplace
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.dropActionFor
 import com.serkantkn.zunelauncher.util.isAlreadyThere
@@ -340,6 +341,9 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
             val touched = mutableListOf<String>()
             try {
                 withContext(Dispatchers.IO) {
+                    // A replace cut short by the launcher being killed is put right before anything
+                    // else lands here.
+                    touched += SafeReplace.recover(destination)
                     val taken = (destination.list() ?: emptyArray()).toMutableSet()
                     val sources = board.paths.map(::File)
                     val pastable = sources.map { source ->
@@ -367,6 +371,8 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
                                 return@forEachIndexed
                             }
                             var name = source.name
+                            // What this one is to stand in place of, when the answer is "replace".
+                            var replacing: File? = null
                             val clash = findTakenName(name, taken)?.let { File(destination, it) }
                             if (clash != null && clash.exists()) {
                                 // The same file under another address — /sdcard and
@@ -396,40 +402,61 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
                                             failed++
                                             return@forEachIndexed
                                         }
-                                        val removed = runCatching { clash.deleteRecursively() }.getOrDefault(false)
-                                        if (!removed) {
-                                            ZuneLog.w(TAG, "could not replace ${clash.absolutePath}")
-                                            failed++
-                                            return@forEachIndexed
-                                        }
-                                        taken -= clash.name
-                                        touched += clash.absolutePath
+                                        // The old one stays until the new one is whole.
+                                        replacing = clash
                                     }
                                 }
                             }
                             val target = File(destination, name)
+                            // A replacement is written beside the old one under a hidden name, and
+                            // the two change places only once it is all there (see SafeReplace).
+                            val landing = if (replacing != null) File(destination, SafeReplace.incomingName(name)) else target
+                            var renamed = false
                             val ok = try {
-                                when {
+                                val arrived = when {
                                     // renameTo replaces an existing target without a word; by now
                                     // nothing should be there, and the check makes sure of it.
-                                    target.exists() -> false
-                                    board.isMove && source.renameTo(target) -> {
+                                    landing.exists() -> false
+                                    board.isMove && source.renameTo(landing) -> {
+                                        renamed = true
                                         meter.advance(sizes[index], SystemClock.elapsedRealtime())
                                         true
                                     }
+                                    else -> copyChunked(source, landing, meter)
+                                }
+                                val placed = when {
+                                    !arrived -> {
+                                        // Whatever part of a replacement was written goes; the old
+                                        // one was never touched.
+                                        if (replacing != null && !renamed) landing.deleteRecursively()
+                                        false
+                                    }
+                                    replacing == null -> true
+                                    SafeReplace.swapIn(landing, replacing, target) -> true
                                     else -> {
-                                        val copied = copyChunked(source, target, meter)
-                                        if (copied && board.isMove) source.deleteRecursively()
-                                        copied
+                                        ZuneLog.w(TAG, "could not replace ${replacing.absolutePath}")
+                                        // The old one is back where it was; the new one goes back
+                                        // where it came from.
+                                        if (renamed) landing.renameTo(source) else landing.deleteRecursively()
+                                        false
                                     }
                                 }
+                                // A move lets go of the original only once its copy is in place.
+                                if (placed && board.isMove && !renamed) source.deleteRecursively()
+                                placed
                             } catch (e: kotlinx.coroutines.CancellationException) {
+                                if (replacing != null && !renamed) landing.deleteRecursively()
                                 throw e
                             } catch (e: Exception) {
                                 ZuneLog.w(TAG, "could not paste ${source.absolutePath}", e)
+                                if (replacing != null && !renamed) landing.deleteRecursively()
                                 false
                             }
                             if (ok) {
+                                replacing?.let { old ->
+                                    taken -= old.name
+                                    touched += old.absolutePath
+                                }
                                 taken += name
                                 touched += target.absolutePath
                                 if (board.isMove) touched += source.absolutePath
