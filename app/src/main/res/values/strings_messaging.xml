@@ -29,4 +29,7 @@
     <string name="msg_add_recipient">add to the message</string>
     <string name="msg_remove_recipient">take off the message</string>
     <string name="msg_group_hint">tap the ring beside a name to write to several people at once</string>
+
+    <!-- Email: a tablet's empty pane -->
+    <string name="email_or_write_new">or write a new one</string>
 </resources>

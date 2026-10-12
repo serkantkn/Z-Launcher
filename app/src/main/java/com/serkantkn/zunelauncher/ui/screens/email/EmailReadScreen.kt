@@ -121,22 +121,7 @@ internal fun EmailReadScreen(
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Breadcrumb header
-            Row(
-                modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, top = 56.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.hub_email),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 18.sp, letterSpacing = 1.sp),
-                    color = headerColor,
-                    modifier = Modifier.clickable { onClose() }
-                )
-                Text(
-                    text = "  >  " + folderTitle(folders.firstOrNull { it.fullName == message.folder }),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 18.sp, letterSpacing = 1.sp),
-                    color = zuneColors.textMuted
-                )
-            }
+            EmailScreenHeader(section = folderTitle(folders.firstOrNull { it.fullName == message.folder }), onClose = { onClose() })
 
             Column(
                 modifier = Modifier

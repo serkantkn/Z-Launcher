@@ -78,22 +78,7 @@ internal fun EmailSettingsScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, top = 56.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.hub_email),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 18.sp, letterSpacing = 1.sp),
-                    color = headerColor,
-                    modifier = Modifier.clickable { onClose() }
-                )
-                Text(
-                    text = "  >  " + stringResource(R.string.common_settings),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 18.sp, letterSpacing = 1.sp),
-                    color = zuneColors.textMuted
-                )
-            }
+            EmailScreenHeader(section = stringResource(R.string.common_settings), onClose = { onClose() })
 
             Column(
                 modifier = Modifier

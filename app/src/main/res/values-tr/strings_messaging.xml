@@ -25,4 +25,7 @@
     <string name="msg_add_recipient">mesaja ekle</string>
     <string name="msg_remove_recipient">mesajdan çıkar</string>
     <string name="msg_group_hint">aynı anda birkaç kişiye yazmak için adın yanındaki halkaya dokun</string>
+
+    <!-- Email: a tablet's empty pane -->
+    <string name="email_or_write_new">ya da yeni bir ileti yaz</string>
 </resources>

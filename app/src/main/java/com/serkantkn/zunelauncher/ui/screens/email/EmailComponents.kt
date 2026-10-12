@@ -65,6 +65,8 @@ import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
 import com.serkantkn.zunelauncher.ui.screens.notes.WpCheckBox
 import com.serkantkn.zunelauncher.ui.screens.notes.WpRadioRow
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+import androidx.compose.material.icons.filled.Close
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -123,7 +125,9 @@ internal fun EmailMessageRow(
     accountName: String?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** The message open beside the list, on a tablet. */
+    highlighted: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
     val textColor = MaterialTheme.colorScheme.onBackground
@@ -131,8 +135,10 @@ internal fun EmailMessageRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .background(if (highlighted) zuneColors.accentColor.copy(alpha = 0.16f) else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(vertical = 10.dp),
+            .padding(vertical = 10.dp)
+            .padding(end = if (highlighted) 8.dp else 0.dp),
         verticalAlignment = Alignment.Top
     ) {
         if (isSelectionMode) {
@@ -495,5 +501,58 @@ internal fun EmailChip(text: String, onClick: () -> Unit, modifier: Modifier = M
     ) {
         Text(text = text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         trailing?.invoke()
+    }
+}
+
+/**
+ * The head of a screen inside the hub - reading, writing, settings, drafts, an account.
+ *
+ * On a phone it is the breadcrumb these screens always had: "e-posta > where you are", the first
+ * word leading back. On a tablet the screen stands in the pane beside the list, under the hub's
+ * own name, so it says only where it is, in the hub's light type, with a ringed button to close.
+ */
+@Composable
+internal fun EmailScreenHeader(section: String, onClose: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    if (com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen.current) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 32.dp, top = 40.dp, bottom = 4.dp)
+        ) {
+            Text(
+                text = section,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 30.sp),
+                color = zuneColors.textMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            com.serkantkn.zunelauncher.ui.screens.messaging.RingButton(
+                icon = androidx.compose.material.icons.Icons.Default.Close,
+                label = stringResource(R.string.common_close_cap),
+                enabled = true,
+                onClick = onClose
+            )
+        }
+        return
+    }
+    val headerColor = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f)
+    Row(
+        modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, top = 56.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(R.string.hub_email),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 18.sp, letterSpacing = 1.sp),
+            color = headerColor,
+            modifier = Modifier.clickable { onClose() }
+        )
+        Text(
+            text = "  >  $section",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 18.sp, letterSpacing = 1.sp),
+            color = zuneColors.textMuted
+        )
     }
 }

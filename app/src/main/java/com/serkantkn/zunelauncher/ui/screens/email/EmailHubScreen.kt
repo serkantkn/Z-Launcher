@@ -1,5 +1,13 @@
 package com.serkantkn.zunelauncher.ui.screens.email
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.text.style.TextOverflow
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavLabel
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -104,6 +112,9 @@ private const val PAGE_UNREAD = 1
 private const val PAGE_FLAGGED = 2
 private const val PAGE_FOLDERS = 3
 
+/** On a tablet the fourth heading is search; the folders stand under the headings instead. */
+private const val PAGE_SEARCH = 3
+
 /**
  * Email Hub. Canonical hub skeleton: ZuneHubEntranceLayout -> 18sp header (account name) ->
  * ZunePivotTabs (tümü / okunmamış / işaretli / klasörler) -> ZuneLoopingPager ->
@@ -146,11 +157,17 @@ fun EmailHubScreen(
     val isReady by viewModel.isReady.collectAsState()
 
     val hasAccounts = accounts.isNotEmpty()
+    // A tablet keeps the folders under its headings, as Windows 8's Mail did, and gives search a
+    // heading of its own instead; a phone has the folders as a page and search as a box.
     val tabs: List<String> = buildList {
         add(stringResource(R.string.common_all))
         add(stringResource(R.string.email_tab_unread))
         add(stringResource(R.string.email_tab_flagged))
-        if (!isUnified) add(stringResource(R.string.email_tab_folders))
+        if (isWideScreen) {
+            add(stringResource(R.string.common_search))
+        } else if (!isUnified) {
+            add(stringResource(R.string.email_tab_folders))
+        }
     }
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
     val currentPage = pager.currentPage
@@ -208,10 +225,19 @@ fun EmailHubScreen(
         if (statusMessage != null) { delay(2600); viewModel.clearStatus() }
     }
 
+    // On a tablet the search heading is the search: arriving there opens it, leaving closes it,
+    // so the other headings are never left filtered by a query nobody can see any more.
+    LaunchedEffect(currentPage, isWideScreen) {
+        if (!isWideScreen) return@LaunchedEffect
+        if (currentPage == PAGE_SEARCH && !isSearchOpen) viewModel.toggleSearch()
+        if (currentPage != PAGE_SEARCH && isSearchOpen) viewModel.closeSearch()
+    }
+
     BackHandler(enabled = true) {
         when {
             subScreen != null -> closeSub()
             isSelectionMode -> viewModel.exitSelectionMode()
+            isWideScreen && currentPage == PAGE_SEARCH -> coroutineScope.launch { pager.scrollToPage(PAGE_ALL) }
             isSearchOpen -> viewModel.closeSearch()
             currentFolder != EmailFolder.INBOX_NAME && !isUnified -> viewModel.selectFolder(EmailFolder.INBOX_NAME)
             else -> onBack()
@@ -250,7 +276,9 @@ fun EmailHubScreen(
         }
         else -> listOf(
             WpBarAction(Icons.Default.Add, stringResource(R.string.common_new)) { viewModel.newMessage() },
-            WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) { viewModel.toggleSearch() },
+            WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) {
+                if (isWideScreen) coroutineScope.launch { pager.scrollToPage(PAGE_SEARCH) } else viewModel.toggleSearch()
+            },
             WpBarAction(Icons.Default.Checklist, stringResource(R.string.common_select)) { viewModel.enterSelectionMode() },
             WpBarAction(Icons.Default.Sync, stringResource(R.string.email_sync)) { viewModel.sync(force = true) }
         )
@@ -284,6 +312,8 @@ fun EmailHubScreen(
     @Composable
     fun MessageListPage(page: Int) {
         val list = listFor(page)
+        // Beside the headings on a tablet the list already stands clear of the edge.
+        val sidePadding = if (isWideScreen) 0.dp else ZuneDimens.ScreenPaddingHorizontal
         ZunePageTransition {
             if (list.isEmpty()) {
                 NotesEmptyState(
@@ -303,10 +333,12 @@ fun EmailHubScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = ZuneDimens.ScreenPaddingHorizontal, end = ZuneDimens.ScreenPaddingHorizontal, top = 4.dp, bottom = 24.dp)
+                    contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 4.dp, bottom = 24.dp)
                 ) {
                     items(list, key = { it.key }) { message ->
                         EmailMessageRow(
+                            highlighted = isWideScreen && !isSelectionMode && subScreen == EmailSubScreen.Read &&
+                                openMessage?.key == message.key,
                             message = message,
                             isSelectionMode = isSelectionMode,
                             isSelected = message.key in selectedKeys,
@@ -477,6 +509,98 @@ fun EmailHubScreen(
         }
     }
 
+    /** Under a tablet's headings: the account's folders, then the accounts, as Windows 8's Mail had them. */
+    @Composable
+    fun WideNavExtra() {
+        if (!isUnified && folders.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(28.dp))
+            ZuneWideNavLabel(stringResource(R.string.email_tab_folders))
+            Spacer(modifier = Modifier.height(6.dp))
+            folders.forEach { folder ->
+                val isCurrent = folder.fullName == currentFolder
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            viewModel.selectFolder(folder.fullName)
+                            coroutineScope.launch { pager.scrollToPage(PAGE_ALL) }
+                        }
+                        .padding(vertical = 5.dp)
+                ) {
+                    Text(
+                        text = folderTitle(folder),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 20.sp),
+                        color = if (isCurrent) zuneColors.accentColor else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (folder.unreadCount > 0 && folder.type != EmailFolderType.TRASH && folder.type != EmailFolderType.SENT) {
+                        Text(text = folder.unreadCount.toString(), style = MaterialTheme.typography.bodyMedium, color = zuneColors.textMuted)
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(28.dp))
+        ZuneWideNavLabel(stringResource(R.string.email_accounts))
+        Spacer(modifier = Modifier.height(6.dp))
+        val choices = buildList {
+            if (accounts.size > 1) add(UNIFIED_ACCOUNT_ID to null)
+            accounts.forEach { add(it.id to it) }
+        }
+        choices.forEach { (id, account) ->
+            val isCurrent = selectedAccountId == id
+            Text(
+                text = account?.shortName ?: stringResource(R.string.email_all_inboxes),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 20.sp),
+                color = if (isCurrent) zuneColors.accentColor else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.selectAccount(id) }
+                    .padding(vertical = 5.dp)
+            )
+        }
+        Text(
+            text = stringResource(R.string.email_add_account),
+            style = MaterialTheme.typography.bodyMedium,
+            color = zuneColors.accentColor,
+            modifier = Modifier
+                .clickable { showSub(EmailSubScreen.Setup(null)) }
+                .padding(vertical = 8.dp)
+        )
+    }
+
+    /** The search box on a tablet's search heading, always open there, and the server search under it. */
+    @Composable
+    fun WideSearch() {
+        // The same box the messaging hub's search heading has, which takes the keyboard as soon
+        // as the heading is chosen.
+        com.serkantkn.zunelauncher.ui.screens.messaging.MessageSearchBar(
+            query = searchQuery,
+            onQueryChange = { viewModel.setSearchQuery(it) },
+            isVisible = currentPage == PAGE_SEARCH,
+            hint = stringResource(R.string.email_search_hint),
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        if (searchQuery.length >= 2) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
+                if (isSearching) {
+                    CircularProgressIndicator(color = zuneColors.accentColor, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    text = stringResource(if (serverResults == null) R.string.email_search_server else R.string.email_search_server_again),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = zuneColors.accentColor,
+                    modifier = Modifier.clickable(enabled = !isSearching) { viewModel.searchOnServer() }.padding(vertical = 4.dp)
+                )
+            }
+        }
+    }
+
     val subScreenHingeProgress = hingeAnim.value
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -494,13 +618,30 @@ fun EmailHubScreen(
         ) {
             ZuneHubEntranceLayout { bottomBarModifier ->
                 if (isWideScreen) {
+                    // The hub as the other tablet hubs stand: its name small at the top left, its
+                    // headings down the left with the folders and accounts under them, the list
+                    // beside them, and what is open in the rest of the width with its own bar.
                     Row(modifier = Modifier.fillMaxSize()) {
-                        Box(modifier = Modifier.weight(0.45f).fillMaxHeight()) {
+                        Box(modifier = Modifier.width(ZuneWideNavWidth + WIDE_LIST_WIDTH).fillMaxHeight()) {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                ZuneWideHubTitle(text = hubTitle, bottomPadding = 8.dp)
-                                if (hasAccounts) ZunePivotTabs(tabs = tabs, state = pager, fontSize = 40.sp, modifier = Modifier.padding(start = 48.dp))
-                                SearchRow()
-                                ColumnScopePages(Modifier.weight(1f))
+                                if (hasAccounts) {
+                                    ZuneWideNavHub(
+                                        title = hubTitle,
+                                        tabs = tabs,
+                                        state = pager,
+                                        modifier = Modifier.weight(1f),
+                                        navExtra = { WideNavExtra() }
+                                    ) { page ->
+                                        Column(modifier = Modifier.fillMaxSize()) {
+                                            if (page == PAGE_SEARCH) WideSearch()
+                                            Box(modifier = Modifier.weight(1f)) { MessageListPage(if (page == PAGE_SEARCH) PAGE_ALL else page) }
+                                        }
+                                    }
+                                } else {
+                                    Column(modifier = Modifier.weight(1f).padding(start = 32.dp, top = 16.dp)) {
+                                        WelcomePage()
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(72.dp))
                             }
                             WindowsPhoneBottomBar(
@@ -509,9 +650,30 @@ fun EmailHubScreen(
                                 menuItems = bottomBarMenuItems
                             )
                         }
-                        Box(modifier = Modifier.weight(0.55f).fillMaxHeight()) {
-                            if (subScreen != null) SubScreenContent(bottomBarModifier)
-                            else NotesEmptyState(icon = Icons.Default.Mail, title = stringResource(R.string.email_pick_one), subtitle = stringResource(R.string.email_pick_one_hint))
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            val paneKey = when (val screen = subScreen) {
+                                null -> "empty"
+                                EmailSubScreen.Read -> "read:" + openMessage?.key
+                                is EmailSubScreen.Setup -> "setup:" + screen.account?.id
+                                else -> screen.toString()
+                            }
+                            AnimatedContent(
+                                targetState = paneKey,
+                                transitionSpec = {
+                                    (fadeIn(tween(260)) + slideInHorizontally(tween(320)) { it / 12 }) togetherWith fadeOut(tween(90))
+                                },
+                                label = "email_pane",
+                                modifier = Modifier.fillMaxSize()
+                            ) { key ->
+                                if (key == "empty" || subScreen == null) {
+                                    WideEmptyPane(
+                                        hasAccounts = hasAccounts,
+                                        onNew = { if (hasAccounts) viewModel.newMessage() else showSub(EmailSubScreen.Setup(null)) }
+                                    )
+                                } else {
+                                    SubScreenContent(bottomBarModifier)
+                                }
+                            }
                         }
                     }
                 } else {
@@ -611,6 +773,39 @@ fun EmailHubScreen(
     }
 }
 
+/**
+ * A tablet's pane with nothing open in it: what to do, in the hub's own light type at the top
+ * left, and starting something new as a word in the accent.
+ */
+@Composable
+private fun WideEmptyPane(hasAccounts: Boolean, onNew: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    Box(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().padding(start = ZuneDimens.ScreenPaddingHorizontal, top = 40.dp)) {
+        Text(
+            text = stringResource(if (hasAccounts) R.string.email_pick_one else R.string.email_welcome_title),
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 34.sp),
+            color = zuneColors.textMuted
+        )
+        Text(
+            text = stringResource(if (hasAccounts) R.string.email_or_write_new else R.string.email_add_account),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+            color = zuneColors.accentColor,
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .clickable(onClick = onNew)
+                .padding(vertical = 4.dp)
+        )
+    }
+    // An empty bar under the empty pane, so the bar along the bottom runs the whole width as it
+    // does when something is open there with a bar of its own.
+    WindowsPhoneBottomBar(actions = emptyList(), modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** How wide a tablet's list of messages is; what is open takes the rest. */
+private val WIDE_LIST_WIDTH = 420.dp
+
 /** Local drafts list. Tap opens the composer, the trash icon deletes. */
 @Composable
 private fun EmailDraftsScreen(
@@ -625,19 +820,7 @@ private fun EmailDraftsScreen(
     val headerColor = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f)
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, top = 56.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = stringResource(R.string.hub_email),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 18.sp, letterSpacing = 1.sp),
-                    color = headerColor,
-                    modifier = Modifier.clickable { onClose() }
-                )
-                Text(
-                    text = "  >  " + stringResource(R.string.email_folder_drafts),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 18.sp, letterSpacing = 1.sp),
-                    color = zuneColors.textMuted
-                )
-            }
+            EmailScreenHeader(section = stringResource(R.string.email_folder_drafts), onClose = { onClose() })
             if (drafts.isEmpty()) {
                 NotesEmptyState(icon = Icons.Default.Drafts, title = stringResource(R.string.email_no_drafts), subtitle = stringResource(R.string.email_no_drafts_hint), modifier = Modifier.weight(1f))
             } else {
