@@ -4,18 +4,13 @@ import androidx.annotation.StringRes
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,23 +20,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
-import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
-import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
-import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
 import com.serkantkn.zunelauncher.ui.animation.rememberHingeSpec
 
@@ -206,105 +195,40 @@ fun SettingsScreen(
                     alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
                 }
         ) {
-            ZuneHubEntranceLayout { bottomBarModifier ->
-                Column(
-                    modifier = Modifier.fillMaxSize()
+            ZuneHub(
+                title = stringResource(R.string.common_settings),
+                tabs = tabs.map { stringResource(it.titleRes) },
+                pager = pager,
+                phonePeek = true
+            ) { index ->
+                // A settings page is a list of lines; across a whole tablet they would be too
+                // long to read, so there the page keeps to a column.
+                Box(
+                    modifier = if (isWideScreen) Modifier.widthIn(max = 720.dp).fillMaxHeight() else Modifier.fillMaxSize()
                 ) {
-                    if (isWideScreen) {
-                        ZuneWideNavHub(
-                            title = stringResource(R.string.common_settings),
-                            tabs = tabs.map { stringResource(it.titleRes) },
-                            state = pager
-                        ) { index ->
-                            // A settings page is a list of lines; across a whole tablet they
-                            // would be too long to read, so the page keeps to a column.
-                            Box(modifier = Modifier.widthIn(max = 720.dp).fillMaxHeight()) {
-                                when (tabs[index]) {
-                                    SettingsTab.LOOK -> LookSettingsPage(
-                                        viewModel = viewModel,
-                                        themeMode = themeMode,
-                                        accentColor = accentColor,
-                                        onOpenPage = { openLookSettings(it) }
-                                    )
-                                    SettingsTab.HUBS -> HubSettingsPage(
-                                        viewModel = viewModel,
-                                        directCallEnabled = directCallEnabled,
-                                        onDirectCallChanged = viewModel::setDirectCallEnabled,
-                                        onOpenSocialSources = { openSocialSources() },
-                                        onOpenCalendars = { openCalendars() }
-                                    )
-                                    SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(viewModel = viewModel)
-                                    SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
-                                    SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
-                                    SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
-                                    SettingsTab.SYSTEM -> SystemSettingsPage(
-                                        viewModel = viewModel,
-                                        onOpenDateTimeSettings = { openDateTimeSettings() }
-                                    )
-                                    SettingsTab.ABOUT -> AboutSettingsPage()
-                                }
-                            }
-                        }
-                    } else {
-                        // Fixed small header title
-                        Text(
-                            text = stringResource(R.string.common_settings),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 18.sp,
-                                letterSpacing = 1.sp
-                            ),
-                            color = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f),
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.padding(
-                                top = 28.dp,
-                                bottom = 4.dp,
-                                start = ZuneDimens.ScreenPaddingHorizontal
-                            )
+                    when (tabs[index]) {
+                        SettingsTab.LOOK -> LookSettingsPage(
+                            viewModel = viewModel,
+                            themeMode = themeMode,
+                            accentColor = accentColor,
+                            onOpenPage = { openLookSettings(it) }
                         )
-
-                        // Giant pivot tabs
-                        ZunePivotTabs(
-                            tabs = tabs.map { stringResource(it.titleRes) },
-                            state = pager,
-                            modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
+                        SettingsTab.HUBS -> HubSettingsPage(
+                            viewModel = viewModel,
+                            directCallEnabled = directCallEnabled,
+                            onDirectCallChanged = viewModel::setDirectCallEnabled,
+                            onOpenSocialSources = { openSocialSources() },
+                            onOpenCalendars = { openCalendars() }
                         )
-
-                        ZuneLoopingPager(
-                            state = pager,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                start = ZuneDimens.ScreenPaddingHorizontal,
-                                end = 48.dp
-                            ),
-                            pageSpacing = 24.dp
-                        ) { page ->
-                            when (tabs[page]) {
-                                SettingsTab.LOOK -> LookSettingsPage(
-                                    viewModel = viewModel,
-                                    themeMode = themeMode,
-                                    accentColor = accentColor,
-                                    onOpenPage = { openLookSettings(it) }
-                                )
-                                SettingsTab.HUBS -> HubSettingsPage(
-                                    viewModel = viewModel,
-                                    directCallEnabled = directCallEnabled,
-                                    onDirectCallChanged = viewModel::setDirectCallEnabled,
-                                    onOpenSocialSources = { openSocialSources() },
-                                    onOpenCalendars = { openCalendars() }
-                                )
-                                SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(viewModel = viewModel)
-                                SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
-                                SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
-                                SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
-                                SettingsTab.SYSTEM -> SystemSettingsPage(
-                                    viewModel = viewModel,
-                                    onOpenDateTimeSettings = { openDateTimeSettings() }
-                                )
-                                SettingsTab.ABOUT -> AboutSettingsPage()
-                            }
-                        }
+                        SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(viewModel = viewModel)
+                        SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
+                        SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
+                        SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
+                        SettingsTab.SYSTEM -> SystemSettingsPage(
+                            viewModel = viewModel,
+                            onOpenDateTimeSettings = { openDateTimeSettings() }
+                        )
+                        SettingsTab.ABOUT -> AboutSettingsPage()
                     }
                 }
             }

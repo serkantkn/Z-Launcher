@@ -1,6 +1,5 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
@@ -8,9 +7,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.style.TextOverflow
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
 import com.serkantkn.zunelauncher.ui.components.ZuneWideNavLabel
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
@@ -18,7 +15,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -62,15 +58,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.data.model.Note
 import com.serkantkn.zunelauncher.data.repository.NotesBridge
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
-import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.components.ZuneAlphabetIndex
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
+import com.serkantkn.zunelauncher.ui.components.ZuneHubPane
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
-import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
-import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.components.ZuneSearchBar
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
@@ -97,10 +91,8 @@ private sealed interface TabKind {
 /**
  * Notes Hub (stringResource(R.string.hub_notes)).
  *
- * Follows the canonical hub template: ZuneHubEntranceLayout → small header → ZunePivotTabs →
- * infinite ZuneLoopingPager → WindowsPhoneBottomBar. The note editor opens as a sub-screen with
- * the 2-stage 3D door hinge (Settings Hub pattern) on phones, and as a docked right pane on
- * wide screens (Messaging Hub pattern).
+ * Built on the hub standard ([ZuneHub]). The note editor opens as a sub-screen with the 2-stage
+ * 3D door hinge on phones, and in the pane beside the list on tablets.
  */
 @Composable
 fun NotesHubScreen(
@@ -544,22 +536,6 @@ fun NotesHubScreen(
     }
 
     @Composable
-    fun ColumnScope.PagerPages() {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            ZuneLoopingPager(
-                state = pager,
-                modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = !isSelectionMode
-            ) { page -> PageContent(page) }
-            AlphabetIndex()
-        }
-    }
-
-    @Composable
     fun SearchRow() {
         AnimatedVisibility(
             visible = isSearchOpen,
@@ -652,128 +628,39 @@ fun NotesHubScreen(
                     alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
                 }
         ) {
-            ZuneHubEntranceLayout { bottomBarModifier ->
-                if (isWideScreen) {
-                    // ═══════════════════════════════════════════════════
-                    // TABLET: as the other tablet hubs stand - the hub's name small at the top
-                    // left, the headings down the left with the tags under them, the notes
-                    // beside them, and the open note in the rest of the width with its own bar.
-                    // ═══════════════════════════════════════════════════
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .width(ZuneWideNavWidth + WIDE_LIST_WIDTH)
-                                .fillMaxHeight()
-                        ) {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                ZuneWideNavHub(
-                                    title = if (isSelectionMode) stringResource(R.string.notes_selected_count, selectedIds.size) else stringResource(R.string.hub_notes),
-                                    tabs = tabs,
-                                    state = pager,
-                                    hiddenTabs = hiddenWideTabs,
-                                    modifier = Modifier.weight(1f),
-                                    navExtra = { WideTagList() }
-                                ) { page ->
-                                    Box(modifier = Modifier.fillMaxSize()) {
-                                        PageContent(page)
-                                        AlphabetIndex()
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
-                            }
-
-                            WindowsPhoneBottomBar(
-                                // The list's commands at the left end; whatever is open beside it has the right.
-                                wideCommandsAtStart = true,
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .then(bottomBarModifier),
-                                actions = bottomBarActions,
-                                menuItems = bottomBarMenuItems
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        ) {
-                            AnimatedContent(
-                                targetState = draft?.id,
-                                transitionSpec = {
-                                    (fadeIn(tween(260)) + slideInHorizontally(tween(320)) { it / 12 }) togetherWith fadeOut(tween(90))
+            ZuneHub(
+                title = if (isSelectionMode) stringResource(R.string.notes_selected_count, selectedIds.size) else stringResource(R.string.hub_notes),
+                tabs = tabs,
+                pager = pager,
+                bar = ZuneHubBar(bottomBarActions, bottomBarMenuItems),
+                phoneAboveContent = { SearchRow() },
+                phonePagePadding = PaddingValues(0.dp),
+                swipeEnabled = !isSelectionMode,
+                wideHiddenTabs = hiddenWideTabs,
+                wideNavExtra = { WideTagList() },
+                wideListWidth = WIDE_LIST_WIDTH,
+                // The open note stands in a tablet's pane with its own bar.
+                widePane = ZuneHubPane(key = draft?.id) { openId, barModifier ->
+                    val currentDraft = draft
+                    if (openId != null && currentDraft != null) {
+                        EditorPane(currentDraft, barModifier)
+                    } else {
+                        WideEmptyPane(onNew = {
+                            openEditor(
+                                when (val kind = currentKind) {
+                                    TabKind.Lists -> Note(isList = true)
+                                    is TabKind.Tag -> Note(tags = listOf(kind.tag))
+                                    else -> Note()
                                 },
-                                label = "notes_pane",
-                                modifier = Modifier.fillMaxSize()
-                            ) { openId ->
-                                val currentDraft = draft
-                                if (openId != null && currentDraft != null) {
-                                    EditorPane(currentDraft, bottomBarModifier)
-                                } else {
-                                    WideEmptyPane(onNew = {
-                                        openEditor(
-                                            when (val kind = currentKind) {
-                                                TabKind.Lists -> Note(isList = true)
-                                                is TabKind.Tag -> Note(tags = listOf(kind.tag))
-                                                else -> Note()
-                                            },
-                                            isNew = true
-                                        )
-                                    })
-                                }
-                            }
-                        }
+                                isNew = true
+                            )
+                        })
                     }
-                } else {
-                    // ═══════════════════════════════════════════════════
-                    // PHONE: canonical hub skeleton
-                    // ═══════════════════════════════════════════════════
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 28.dp, bottom = 8.dp)
-                            ) {
-                                Text(
-                                    text = if (isSelectionMode) stringResource(R.string.notes_selected_count, selectedIds.size) else stringResource(R.string.hub_notes),
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 18.sp,
-                                        letterSpacing = 1.sp
-                                    ),
-                                    color = headerColor,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    modifier = Modifier.padding(
-                                        top = 28.dp,
-                                        bottom = 4.dp,
-                                        start = ZuneDimens.ScreenPaddingHorizontal
-                                    )
-                                )
-                                ZunePivotTabs(
-                                    tabs = tabs,
-                                    state = pager,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
-                            }
-
-                            SearchRow()
-                            PagerPages()
-
-                            // Space for Bottom Bar
-                            Spacer(modifier = Modifier.height(72.dp))
-                        }
-
-                        // --- WINDOWS PHONE STYLE BOTTOM MENU BAR ---
-                        WindowsPhoneBottomBar(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .then(bottomBarModifier),
-                            actions = bottomBarActions,
-                            menuItems = bottomBarMenuItems
-                        )
-                    }
+                }
+            ) { page ->
+                Box(modifier = Modifier.fillMaxSize()) {
+                    PageContent(page)
+                    AlphabetIndex()
                 }
             }
         }

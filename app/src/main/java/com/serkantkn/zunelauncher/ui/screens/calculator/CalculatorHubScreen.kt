@@ -12,7 +12,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -54,11 +53,11 @@ import com.serkantkn.zunelauncher.data.model.CalcHistoryEntry
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
 import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
 import com.serkantkn.zunelauncher.ui.components.ZuneWideNavLabel
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.screens.notes.NotesEmptyState
@@ -117,7 +116,6 @@ fun CalculatorHubScreen(
 
     val headerColor = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f)
     // The keypad fills its page, so it must stop above the app bar (56dp) plus the navigation bar inset.
-    val bottomBarClearance = com.serkantkn.zunelauncher.ui.components.bottomBarHeight() + 16.dp
 
     val bottomBarActions: List<WpBarAction> = when (currentPage) {
         PAGE_HISTORY -> listOf(
@@ -206,61 +204,37 @@ fun CalculatorHubScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        ZuneHubEntranceLayout { bottomBarModifier ->
-            if (isWideScreen) {
-                // The history is not a page here: it stays open down the right, beside
-                // whichever keypad is in use, the way a paper roll sits beside a machine.
+        ZuneHub(
+            title = stringResource(R.string.hub_calculator),
+            tabs = tabs,
+            pager = pager,
+            bar = ZuneHubBar(bottomBarActions, bottomBarMenuItems),
+            phonePagePadding = PaddingValues(0.dp),
+            // The history is not a page on a tablet: it stays open down the right, beside
+            // whichever keypad is in use, the way a paper roll sits beside a machine.
+            wideHiddenTabs = setOf(PAGE_HISTORY),
+            wideSidePane = {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    ZuneWideNavHub(
-                        title = stringResource(R.string.hub_calculator),
-                        tabs = tabs,
-                        state = pager,
-                        hiddenTabs = setOf(PAGE_HISTORY),
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        sidePane = {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                ZuneWideNavLabel(
-                                    text = stringResource(R.string.calc_tab_history),
-                                    modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, bottom = 12.dp)
-                                )
-                                HistoryPage()
-                            }
-                        }
-                    ) { index ->
-                        // A keypad the width of a tablet is a wall of keys; it keeps to a
-                        // comfortable hand's width in the middle of its pane.
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                            Box(modifier = Modifier.widthIn(max = 560.dp).fillMaxHeight()) {
-                                PageFor(if (index == PAGE_HISTORY) PAGE_STANDARD else index, compact = false)
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(bottomBarClearance))
-                }
-            } else {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 8.dp)) {
-                        Text(
-                            text = stringResource(R.string.hub_calculator),
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 18.sp, letterSpacing = 1.sp),
-                            color = headerColor,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.padding(top = 28.dp, bottom = 4.dp, start = ZuneDimens.ScreenPaddingHorizontal)
-                        )
-                        ZunePivotTabs(tabs = tabs, state = pager, modifier = Modifier.padding(top = 4.dp))
-                    }
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize()) { page -> PageFor(page, compact = false) }
-                    }
-                    Spacer(modifier = Modifier.height(bottomBarClearance))
+                    ZuneWideNavLabel(
+                        text = stringResource(R.string.calc_tab_history),
+                        modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, bottom = 12.dp)
+                    )
+                    HistoryPage()
                 }
             }
-            WindowsPhoneBottomBar(
-                modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
-                actions = bottomBarActions,
-                menuItems = bottomBarMenuItems
-            )
+        ) { index ->
+            if (isWideScreen) {
+                // A keypad the width of a tablet is a wall of keys; it keeps to a comfortable
+                // hand's width in the middle of its pane.
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                    Box(modifier = Modifier.widthIn(max = 560.dp).fillMaxHeight()) {
+                        PageFor(if (index == PAGE_HISTORY) PAGE_STANDARD else index, compact = false)
+                    }
+                }
+            } else {
+                // The keys stop a little short of the bar, not flush against it.
+                Box(modifier = Modifier.fillMaxSize().padding(bottom = 16.dp)) { PageFor(index, compact = false) }
+            }
         }
 
         AnimatedVisibility(

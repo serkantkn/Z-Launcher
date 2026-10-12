@@ -1,17 +1,13 @@
 package com.serkantkn.zunelauncher.ui.screens.email
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.text.style.TextOverflow
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
 import com.serkantkn.zunelauncher.ui.components.ZuneWideNavLabel
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -83,12 +79,11 @@ import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
-import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
+import com.serkantkn.zunelauncher.ui.components.ZuneHubPane
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
-import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.components.ZuneSearchBar
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.screens.notes.NotesEmptyState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
@@ -116,10 +111,9 @@ private const val PAGE_FOLDERS = 3
 private const val PAGE_SEARCH = 3
 
 /**
- * Email Hub. Canonical hub skeleton: ZuneHubEntranceLayout -> 18sp header (account name) ->
- * ZunePivotTabs (tümü / okunmamış / işaretli / klasörler) -> ZuneLoopingPager ->
- * WindowsPhoneBottomBar. Reader, composer, account setup, drafts and settings are hinge
- * sub-screens on phones and a docked right pane on tablets.
+ * Email Hub, built on the hub standard ([ZuneHub]): the account's name as the title, and the
+ * headings tümü / okunmamış / işaretli / klasörler. Reader, composer, account setup, drafts and
+ * settings are hinge sub-screens on phones and the pane beside the list on tablets.
  */
 @Composable
 fun EmailHubScreen(
@@ -430,19 +424,6 @@ fun EmailHubScreen(
     }
 
     @Composable
-    fun ColumnScopePages(modifier: Modifier) {
-        Box(modifier = modifier.fillMaxWidth()) {
-            if (!hasAccounts) {
-                WelcomePage()
-            } else {
-                ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize(), userScrollEnabled = !isSelectionMode) { page ->
-                    if (page == PAGE_FOLDERS) FoldersPage() else MessageListPage(page)
-                }
-            }
-        }
-    }
-
-    @Composable
     fun SearchRow() {
         AnimatedVisibility(visible = isSearchOpen, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Column {
@@ -616,95 +597,52 @@ fun EmailHubScreen(
                     alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
                 }
         ) {
-            ZuneHubEntranceLayout { bottomBarModifier ->
-                if (isWideScreen) {
-                    // The hub as the other tablet hubs stand: its name small at the top left, its
-                    // headings down the left with the folders and accounts under them, the list
-                    // beside them, and what is open in the rest of the width with its own bar.
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        Box(modifier = Modifier.width(ZuneWideNavWidth + WIDE_LIST_WIDTH).fillMaxHeight()) {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                if (hasAccounts) {
-                                    ZuneWideNavHub(
-                                        title = hubTitle,
-                                        tabs = tabs,
-                                        state = pager,
-                                        modifier = Modifier.weight(1f),
-                                        navExtra = { WideNavExtra() }
-                                    ) { page ->
-                                        Column(modifier = Modifier.fillMaxSize()) {
-                                            if (page == PAGE_SEARCH) WideSearch()
-                                            Box(modifier = Modifier.weight(1f)) { MessageListPage(if (page == PAGE_SEARCH) PAGE_ALL else page) }
-                                        }
-                                    }
-                                } else {
-                                    Column(modifier = Modifier.weight(1f).padding(start = 32.dp, top = 16.dp)) {
-                                        WelcomePage()
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
-                            }
-                            WindowsPhoneBottomBar(
-                                // The list's commands at the left end; whatever is open beside it has the right.
-                                wideCommandsAtStart = true,
-                                modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
-                                actions = bottomBarActions,
-                                menuItems = bottomBarMenuItems
-                            )
-                        }
-                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                            val paneKey = when (val screen = subScreen) {
-                                null -> "empty"
-                                EmailSubScreen.Read -> "read:" + openMessage?.key
-                                is EmailSubScreen.Setup -> "setup:" + screen.account?.id
-                                else -> screen.toString()
-                            }
-                            AnimatedContent(
-                                targetState = paneKey,
-                                transitionSpec = {
-                                    (fadeIn(tween(260)) + slideInHorizontally(tween(320)) { it / 12 }) togetherWith fadeOut(tween(90))
-                                },
-                                label = "email_pane",
-                                modifier = Modifier.fillMaxSize()
-                            ) { key ->
-                                if (key == "empty" || subScreen == null) {
-                                    WideEmptyPane(
-                                        hasAccounts = hasAccounts,
-                                        onNew = { if (hasAccounts) viewModel.newMessage() else showSub(EmailSubScreen.Setup(null)) }
-                                    )
-                                } else {
-                                    SubScreenContent(bottomBarModifier)
-                                }
-                            }
-                        }
+            ZuneHub(
+                title = hubTitle,
+                tabs = tabs,
+                pager = pager,
+                bar = ZuneHubBar(bottomBarActions, bottomBarMenuItems),
+                showTabs = hasAccounts,
+                takeover = if (hasAccounts) null else {
+                    { if (isWideScreen) Box(modifier = Modifier.padding(top = 16.dp)) { WelcomePage() } else WelcomePage() }
+                },
+                onTitleClick = if (hasAccounts) { { showAccountPicker = true } } else null,
+                titleTrailing = {
+                    if (isSyncing) CircularProgressIndicator(color = zuneColors.accentColor, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                },
+                phoneAboveContent = { SearchRow() },
+                phonePagePadding = PaddingValues(0.dp),
+                swipeEnabled = !isSelectionMode,
+                wideNavExtra = { WideNavExtra() },
+                wideListWidth = WIDE_LIST_WIDTH,
+                // What is open - a message, the composer, settings - stands in a tablet's pane.
+                widePane = ZuneHubPane(
+                    key = when (val screen = subScreen) {
+                        null -> "empty"
+                        EmailSubScreen.Read -> "read:" + openMessage?.key
+                        is EmailSubScreen.Setup -> "setup:" + screen.account?.id
+                        else -> screen.toString()
                     }
-                } else {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Column(modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 8.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 28.dp, bottom = 4.dp, start = ZuneDimens.ScreenPaddingHorizontal, end = ZuneDimens.ScreenPaddingHorizontal)) {
-                                    Text(
-                                        text = hubTitle,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 18.sp, letterSpacing = 1.sp),
-                                        color = headerColor,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        modifier = Modifier.weight(1f).clickable(enabled = hasAccounts) { showAccountPicker = true }
-                                    )
-                                    if (isSyncing) CircularProgressIndicator(color = zuneColors.accentColor, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
-                                }
-                                if (hasAccounts) ZunePivotTabs(tabs = tabs, state = pager, modifier = Modifier.padding(top = 4.dp))
-                            }
-                            SearchRow()
-                            ColumnScopePages(Modifier.weight(1f))
-                            Spacer(modifier = Modifier.height(72.dp))
-                        }
-                        WindowsPhoneBottomBar(
-                            modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
-                            actions = bottomBarActions,
-                            menuItems = bottomBarMenuItems
+                ) { key, barModifier ->
+                    if (key == "empty" || subScreen == null) {
+                        WideEmptyPane(
+                            hasAccounts = hasAccounts,
+                            onNew = { if (hasAccounts) viewModel.newMessage() else showSub(EmailSubScreen.Setup(null)) }
                         )
+                    } else {
+                        SubScreenContent(barModifier)
                     }
+                }
+            ) { page ->
+                if (isWideScreen) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        if (page == PAGE_SEARCH) WideSearch()
+                        Box(modifier = Modifier.weight(1f)) { MessageListPage(if (page == PAGE_SEARCH) PAGE_ALL else page) }
+                    }
+                } else if (page == PAGE_FOLDERS) {
+                    FoldersPage()
+                } else {
+                    MessageListPage(page)
                 }
             }
         }

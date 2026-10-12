@@ -74,15 +74,15 @@ import com.serkantkn.zunelauncher.ui.animation.rememberZuneTitleZoomState
 import com.serkantkn.zunelauncher.ui.animation.rememberZuneZoomAnchor
 import com.serkantkn.zunelauncher.ui.components.MetroTextField
 import com.serkantkn.zunelauncher.ui.components.PhotoViewer
-import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
-import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
+import com.serkantkn.zunelauncher.ui.components.ZuneHubPhoneTitle
+import com.serkantkn.zunelauncher.ui.components.bottomBarHeight
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.screens.messaging.MessagingSheet
 import com.serkantkn.zunelauncher.ui.screens.messaging.SheetAction
@@ -359,126 +359,180 @@ fun PicturesHubScreen(
         PicturesBridge.consumePhoto()
     }
 
-    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            val isWideScreen = LocalIsWideScreen.current
+    val isWideScreen = LocalIsWideScreen.current
 
-            val columnsFor: (Int) -> Int = { count ->
-                // The same grid with twice the room: on a tablet a row holds twice as many.
-                val phone = if (storedColumns > 0) storedColumns else defaultGridColumns(count)
-                if (isWideScreen) phone * 2 else phone
-            }
+    val columnsFor: (Int) -> Int = { count ->
+        // The same grid with twice the room: on a tablet a row holds twice as many.
+        val phone = if (storedColumns > 0) storedColumns else defaultGridColumns(count)
+        if (isWideScreen) phone * 2 else phone
+    }
 
-            val renderPage: @Composable (Int) -> Unit = { tabIndex ->
-                ZunePageTransition {
-                    when (tabIndex) {
-                        0 -> MediaDayGrid(
-                            items = cameraRollImages,
-                            columns = columnsFor(cameraRollImages.size),
-                            favourites = favoritePhotoIds,
-                            selection = selection,
-                            selectionMode = selectionMode,
-                            onClick = { onTileClick(cameraRollImages, it) },
-                            onLongClick = { viewModel.toggleSelection(it) },
-                            empty = {
-                                PicturesEmpty(
-                                    message = errorMessage?.let { stringResource(R.string.pics_load_failed, it) }
-                                        ?: stringResource(R.string.pics_empty_camera_roll),
-                                    hint = if (errorMessage == null) {
-                                        stringResource(R.string.pics_empty_camera_roll_hint)
-                                    } else null
-                                )
-                            }
-                        )
-
-                        1 -> if (selectedAlbum != null) {
-                            MediaDayGrid(
-                                items = albumImages,
-                                columns = columnsFor(albumImages.size),
-                                favourites = favoritePhotoIds,
-                                selection = selection,
-                                selectionMode = selectionMode,
-                                onClick = { onTileClick(albumImages, it) },
-                                onLongClick = { viewModel.toggleSelection(it) },
-                                modifier = Modifier.graphicsLayer {
-                                    // The grid arrives a beat behind the name that flew up.
-                                    alpha = gridEntry.value
-                                    translationY = (1f - gridEntry.value) * 40.dp.toPx()
-                                },
-                                empty = { PicturesEmpty(stringResource(R.string.no_photos)) }
-                            )
-                        } else {
-                            AlbumsGrid(
-                                albums = albums,
-                                onOpen = ::openAlbum,
-                                empty = {
-                                    PicturesEmpty(
-                                        message = errorMessage?.let {
-                                            stringResource(R.string.pics_albums_load_failed, it)
-                                        } ?: stringResource(R.string.no_albums),
-                                        hint = if (errorMessage == null) {
-                                            stringResource(R.string.pics_empty_albums_hint)
-                                        } else null
-                                    )
-                                }
-                            )
-                        }
-
-                        2 -> MediaDayGrid(
-                            items = favoriteImages,
-                            columns = columnsFor(favoriteImages.size),
-                            favourites = favoritePhotoIds,
-                            selection = selection,
-                            selectionMode = selectionMode,
-                            onClick = { onTileClick(favoriteImages, it) },
-                            onLongClick = { viewModel.toggleSelection(it) },
-                            empty = {
-                                PicturesEmpty(
-                                    message = stringResource(R.string.no_favorites),
-                                    hint = stringResource(R.string.pics_empty_favorites_hint)
-                                )
-                            }
+    val renderPage: @Composable (Int) -> Unit = { tabIndex ->
+        ZunePageTransition {
+            when (tabIndex) {
+                0 -> MediaDayGrid(
+                    items = cameraRollImages,
+                    columns = columnsFor(cameraRollImages.size),
+                    favourites = favoritePhotoIds,
+                    selection = selection,
+                    selectionMode = selectionMode,
+                    onClick = { onTileClick(cameraRollImages, it) },
+                    onLongClick = { viewModel.toggleSelection(it) },
+                    empty = {
+                        PicturesEmpty(
+                            message = errorMessage?.let { stringResource(R.string.pics_load_failed, it) }
+                                ?: stringResource(R.string.pics_empty_camera_roll),
+                            hint = if (errorMessage == null) {
+                                stringResource(R.string.pics_empty_camera_roll_hint)
+                            } else null
                         )
                     }
-                }
-            }
+                )
 
-            // On a wide screen the hub's name heads the column of headings; it is only drawn
-            // here when that column is not — while asking for permission, searching, loading.
-            val showsWideNav = isWideScreen && hasPermission && !isSearchOpen &&
-                !(isLoading && allImages.isEmpty())
-            Column(modifier = Modifier.fillMaxSize()) {
-                if (!showsWideNav) {
-                    Text(
-                        text = stringResource(R.string.pictures_hub),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 18.sp,
-                            letterSpacing = 1.sp
-                        ),
-                        color = if (zuneColors.isDark) {
-                            Color.White.copy(alpha = 0.9f)
-                        } else {
-                            Color.Black.copy(alpha = 0.85f)
+                1 -> if (selectedAlbum != null) {
+                    MediaDayGrid(
+                        items = albumImages,
+                        columns = columnsFor(albumImages.size),
+                        favourites = favoritePhotoIds,
+                        selection = selection,
+                        selectionMode = selectionMode,
+                        onClick = { onTileClick(albumImages, it) },
+                        onLongClick = { viewModel.toggleSelection(it) },
+                        modifier = Modifier.graphicsLayer {
+                            // The grid arrives a beat behind the name that flew up.
+                            alpha = gridEntry.value
+                            translationY = (1f - gridEntry.value) * 40.dp.toPx()
                         },
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.padding(
-                            top = 28.dp,
-                            bottom = 4.dp,
-                            start = ZuneDimens.ScreenPaddingHorizontal
-                        )
+                        empty = { PicturesEmpty(stringResource(R.string.no_photos)) }
+                    )
+                } else {
+                    AlbumsGrid(
+                        albums = albums,
+                        onOpen = ::openAlbum,
+                        empty = {
+                            PicturesEmpty(
+                                message = errorMessage?.let {
+                                    stringResource(R.string.pics_albums_load_failed, it)
+                                } ?: stringResource(R.string.no_albums),
+                                hint = if (errorMessage == null) {
+                                    stringResource(R.string.pics_empty_albums_hint)
+                                } else null
+                            )
+                        }
                     )
                 }
 
-                if (!hasPermission) {
+                2 -> MediaDayGrid(
+                    items = favoriteImages,
+                    columns = columnsFor(favoriteImages.size),
+                    favourites = favoritePhotoIds,
+                    selection = selection,
+                    selectionMode = selectionMode,
+                    onClick = { onTileClick(favoriteImages, it) },
+                    onLongClick = { viewModel.toggleSelection(it) },
+                    empty = {
+                        PicturesEmpty(
+                            message = stringResource(R.string.no_favorites),
+                            hint = stringResource(R.string.pics_empty_favorites_hint)
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    // ── The bottom bar ─────────────────────────────────────────────
+    val chosen = remember(selection, allImages) { allImages.filter { it.id in selection } }
+    val barActions = if (selectionMode) {
+        listOf(
+            WpBarAction(Icons.Default.Share, stringResource(R.string.pics_action_share)) {
+                viewModel.share(context, chosen)
+            },
+            WpBarAction(Icons.Default.Favorite, stringResource(R.string.pics_action_favorite)) {
+                chosen.forEach { viewModel.toggleFavorite(it) }
+                viewModel.clearSelection()
+            },
+            WpBarAction(Icons.Default.Delete, stringResource(R.string.pics_action_delete)) {
+                val activity = context as? Activity ?: return@WpBarAction
+                viewModel.deletePhotos(
+                    activity = activity,
+                    photos = chosen,
+                    onIntentSenderRequired = { sender ->
+                        deleteIntentSenderLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                    },
+                    onDeleted = { viewModel.clearSelection() }
+                )
+            },
+            WpBarAction(Icons.Default.Check, stringResource(R.string.pics_action_done)) {
+                viewModel.clearSelection()
+            }
+        )
+    } else {
+        listOf(
+            WpBarAction(Icons.Default.CheckCircle, stringResource(R.string.pics_action_select)) {
+                viewModel.startSelection()
+            },
+            WpBarAction(Icons.Default.Search, stringResource(R.string.pics_action_search)) {
+                isSearchOpen = true
+            },
+            WpBarAction(Icons.Default.Refresh, stringResource(R.string.pics_action_refresh)) {
+                viewModel.loadMedia()
+            }
+        )
+    }
+
+    val barMenu = buildList {
+        if (selectionMode) {
+            add(WpBarMenuItem(stringResource(R.string.pics_menu_select_all)) {
+                val page = (pager.currentPage % tabs.size).let { if (it < 0) it + tabs.size else it }
+                viewModel.selectAll(
+                    when {
+                        page == 1 && selectedAlbum != null -> albumImages
+                        page == 2 -> favoriteImages
+                        else -> cameraRollImages
+                    }
+                )
+            })
+            if (chosen.size == 1 && !chosen.first().isVideo) {
+                add(WpBarMenuItem(stringResource(R.string.pics_menu_wallpaper)) {
+                    viewModel.setAsWallpaper(context, chosen.first())
+                    viewModel.clearSelection()
+                })
+            }
+        }
+        val album = selectedAlbum
+        if (album != null && !selectionMode) {
+            val pinned = album.bucketId in pinnedAlbums
+            add(
+                WpBarMenuItem(
+                    stringResource(
+                        if (pinned) R.string.pics_menu_unpin_album else R.string.pics_menu_pin_album
+                    )
+                ) { viewModel.togglePinAlbum(album) }
+            )
+        }
+        add(WpBarMenuItem(stringResource(R.string.pics_menu_columns)) { showColumnsSheet = true })
+    }
+
+    ZuneHub(
+        title = stringResource(R.string.pictures_hub),
+        tabs = if (isWideScreen) listOf(tabs[0], albumsLabel, tabs[2]) else tabs,
+        pager = pager,
+        modifier = modifier,
+        bar = ZuneHubBar(barActions, barMenu),
+        takeover = when {
+            !hasPermission -> {
+                {
                     ZunePermissionRequest(
                         title = stringResource(R.string.storage_permission_title).lowercase(Locale.getDefault()),
                         message = stringResource(R.string.storage_permission_message),
                         buttonLabel = stringResource(R.string.grant_permission).lowercase(Locale.getDefault()),
                         onRequest = { requestMediaPermission() }
                     )
-                } else if (isSearchOpen) {
+                }
+            }
+            isSearchOpen -> {
+                {
                     SearchPage(
                         query = searchQuery,
                         onQueryChange = viewModel::setSearchQuery,
@@ -487,157 +541,72 @@ fun PicturesHubScreen(
                         favourites = favoritePhotoIds,
                         onClick = { openViewer(searchResults, it) }
                     )
-                } else if (isLoading && allImages.isEmpty()) {
+                }
+            }
+            isLoading && allImages.isEmpty() -> {
+                {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = zuneColors.accentColor)
                     }
-                } else if (isWideScreen) {
-                    // Headings down the left with the albums listed under them like folders;
-                    // the grid has the rest of the screen.
-                    ZuneWideNavHub(
-                        title = stringResource(R.string.pictures_hub),
-                        tabs = listOf(tabs[0], albumsLabel, tabs[2]),
-                        state = pager,
-                        onSelected = {
-                            if (selectedAlbum != null) viewModel.selectAlbum(null)
-                            viewModel.clearSelection()
-                        },
-                        navExtra = {
-                            if (albums.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(28.dp))
-                                albums.forEach { album ->
-                                    val chosen = selectedAlbum?.bucketId == album.bucketId &&
-                                        pager.currentPage == ALBUMS_TAB
-                                    Text(
-                                        text = album.bucketName.ifBlank { unsortedLabel }.lowercase(Locale.getDefault()),
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Light,
-                                            fontSize = 19.sp
-                                        ),
-                                        color = if (chosen) zuneColors.accentColor else zuneColors.textMuted,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable(
-                                                indication = null,
-                                                interactionSource = remember { MutableInteractionSource() }
-                                            ) {
-                                                viewModel.clearSelection()
-                                                viewModel.selectAlbum(album)
-                                                scope.launch { pager.scrollToPage(ALBUMS_TAB) }
-                                            }
-                                            .padding(vertical = 6.dp)
-                                    )
-                                }
-                            }
-                        }
-                    ) { index -> renderPage(index) }
-                } else {
-                    ZunePivotTabs(
-                        tabs = tabs,
-                        state = pager,
-                        firstTabAnchor = albumTabAnchor,
-                        firstTabAlpha = albumZoom.titleAlpha,
-                        zoomTabIndex = ALBUMS_TAB,
-                        onSelected = {
-                            if (selectedAlbum != null) viewModel.selectAlbum(null)
-                            viewModel.clearSelection()
-                        },
-                        modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
-                    )
-
-                    ZuneLoopingPager(
-                        state = pager,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = ZuneDimens.ScreenPaddingHorizontal,
-                            end = 48.dp
+                }
+            }
+            else -> null
+        },
+        // The pivot here is the pictures' own: the albums heading zooms into an album's name.
+        phoneHeader = {
+            ZuneHubPhoneTitle(title = stringResource(R.string.pictures_hub), modifier = Modifier.padding(top = 28.dp))
+            if (hasPermission && !isSearchOpen && !(isLoading && allImages.isEmpty())) {
+                ZunePivotTabs(
+                    tabs = tabs,
+                    state = pager,
+                    firstTabAnchor = albumTabAnchor,
+                    firstTabAlpha = albumZoom.titleAlpha,
+                    zoomTabIndex = ALBUMS_TAB,
+                    onSelected = {
+                        if (selectedAlbum != null) viewModel.selectAlbum(null)
+                        viewModel.clearSelection()
+                    },
+                    modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
+                )
+            }
+        },
+        phonePeek = true,
+        wideOnSelected = {
+            if (selectedAlbum != null) viewModel.selectAlbum(null)
+            viewModel.clearSelection()
+        },
+        // The albums listed under the headings like folders; the grid has the rest of the screen.
+        wideNavExtra = {
+            if (albums.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(28.dp))
+                albums.forEach { album ->
+                    val chosen = selectedAlbum?.bucketId == album.bucketId &&
+                        pager.currentPage == ALBUMS_TAB
+                    Text(
+                        text = album.bucketName.ifBlank { unsortedLabel }.lowercase(Locale.getDefault()),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 19.sp
                         ),
-                        pageSpacing = 24.dp
-                    ) { page -> renderPage(page) }
-                }
-            }
-
-            // ── The bottom bar ─────────────────────────────────────────────
-            val chosen = remember(selection, allImages) { allImages.filter { it.id in selection } }
-            val barActions = if (selectionMode) {
-                listOf(
-                    WpBarAction(Icons.Default.Share, stringResource(R.string.pics_action_share)) {
-                        viewModel.share(context, chosen)
-                    },
-                    WpBarAction(Icons.Default.Favorite, stringResource(R.string.pics_action_favorite)) {
-                        chosen.forEach { viewModel.toggleFavorite(it) }
-                        viewModel.clearSelection()
-                    },
-                    WpBarAction(Icons.Default.Delete, stringResource(R.string.pics_action_delete)) {
-                        val activity = context as? Activity ?: return@WpBarAction
-                        viewModel.deletePhotos(
-                            activity = activity,
-                            photos = chosen,
-                            onIntentSenderRequired = { sender ->
-                                deleteIntentSenderLauncher.launch(IntentSenderRequest.Builder(sender).build())
-                            },
-                            onDeleted = { viewModel.clearSelection() }
-                        )
-                    },
-                    WpBarAction(Icons.Default.Check, stringResource(R.string.pics_action_done)) {
-                        viewModel.clearSelection()
-                    }
-                )
-            } else {
-                listOf(
-                    WpBarAction(Icons.Default.CheckCircle, stringResource(R.string.pics_action_select)) {
-                        viewModel.startSelection()
-                    },
-                    WpBarAction(Icons.Default.Search, stringResource(R.string.pics_action_search)) {
-                        isSearchOpen = true
-                    },
-                    WpBarAction(Icons.Default.Refresh, stringResource(R.string.pics_action_refresh)) {
-                        viewModel.loadMedia()
-                    }
-                )
-            }
-
-            val barMenu = buildList {
-                if (selectionMode) {
-                    add(WpBarMenuItem(stringResource(R.string.pics_menu_select_all)) {
-                        val page = (pager.currentPage % tabs.size).let { if (it < 0) it + tabs.size else it }
-                        viewModel.selectAll(
-                            when {
-                                page == 1 && selectedAlbum != null -> albumImages
-                                page == 2 -> favoriteImages
-                                else -> cameraRollImages
+                        color = if (chosen) zuneColors.accentColor else zuneColors.textMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) {
+                                viewModel.clearSelection()
+                                viewModel.selectAlbum(album)
+                                scope.launch { pager.scrollToPage(ALBUMS_TAB) }
                             }
-                        )
-                    })
-                    if (chosen.size == 1 && !chosen.first().isVideo) {
-                        add(WpBarMenuItem(stringResource(R.string.pics_menu_wallpaper)) {
-                            viewModel.setAsWallpaper(context, chosen.first())
-                            viewModel.clearSelection()
-                        })
-                    }
-                }
-                val album = selectedAlbum
-                if (album != null && !selectionMode) {
-                    val pinned = album.bucketId in pinnedAlbums
-                    add(
-                        WpBarMenuItem(
-                            stringResource(
-                                if (pinned) R.string.pics_menu_unpin_album else R.string.pics_menu_pin_album
-                            )
-                        ) { viewModel.togglePinAlbum(album) }
+                            .padding(vertical = 6.dp)
                     )
                 }
-                add(WpBarMenuItem(stringResource(R.string.pics_menu_columns)) { showColumnsSheet = true })
             }
-
-            WindowsPhoneBottomBar(
-                modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
-                actions = barActions,
-                menuItems = barMenu
-            )
-
+        },
+        overlay = {
             // How many are in hand, above the bar so it is never in the way of the pictures.
             AnimatedVisibility(
                 visible = selectionMode,
@@ -645,7 +614,7 @@ fun PicturesHubScreen(
                 exit = fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 76.dp)
+                    .padding(bottom = bottomBarHeight() + 8.dp)
             ) {
                 Text(
                     text = stringResource(R.string.pics_selected_count, selection.size),
@@ -718,7 +687,7 @@ fun PicturesHubScreen(
                 }
             }
         }
-    }
+    ) { index -> renderPage(index) }
 
     // The word in flight, above everything else on the screen.
     ZuneTitleZoomOverlay(state = albumZoom, letterSpacing = (-3).sp)

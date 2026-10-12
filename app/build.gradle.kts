@@ -154,3 +154,8 @@ dependencies {
     testImplementation("org.json:json:20240303")
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
+// Some tests read the app's own sources (HubStandardTest keeps every hub on ZuneHub); a change to
+// a source that compiles to the same classes must still run them again.
+tasks.withType<Test>().configureEach {
+    inputs.dir("src/main/java").withPropertyName("appSources").withPathSensitivity(PathSensitivity.RELATIVE)
+}

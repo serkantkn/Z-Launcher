@@ -4,7 +4,6 @@ import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -62,20 +60,18 @@ import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.components.ZuneAlphabetIndex
 import com.serkantkn.zunelauncher.ui.components.ZuneEmptyState
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
-import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
+import com.serkantkn.zunelauncher.ui.components.ZuneHubPane
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.components.ZuneWideEmptyPane
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
 import com.serkantkn.zunelauncher.ui.components.ZuneWidePaneHeader
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.components.rememberZuneHubEntranceState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
-import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import com.serkantkn.zunelauncher.ui.components.ZunePivotHeader
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
@@ -452,135 +448,44 @@ fun PeopleHubScreen(
         // People Hub Content & Background Layer: signature left-edge entrance, folded back out by the
         // hub hinge whenever a detail / edit screen is open on top.
         if (hubHingeAnim.value > 0f) {
-            ZuneHubEntranceLayout(
+            ZuneHub(
+                title = stringResource(R.string.people_hub),
+                tabs = tabs,
+                pager = pager,
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background),
-                state = entrance,
-                progressScale = { hubHingeAnim.value },
-                offscreenCompositing = false
-            ) { bottomBarModifier ->
-                if (isWideScreen) {
-                    // ═══════════════════════════════════════════════════
-                    // TABLET: as the other tablet hubs stand - the hub's name small at the top
-                    // left, the headings down the left, the people beside them, and whoever is
-                    // open in the rest of the width with their own bar.
-                    // ═══════════════════════════════════════════════════
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .width(ZuneWideNavWidth + PEOPLE_WIDE_LIST_WIDTH)
-                                .fillMaxHeight()
-                        ) {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                ZuneWideNavHub(
-                                    title = stringResource(R.string.people_hub),
-                                    tabs = tabs,
-                                    state = pager,
-                                    modifier = Modifier.weight(1f)
-                                ) { index ->
-                                    when {
-                                        !hasPermission -> PeoplePermissionRequest(
-                                            onRequestPermission = {
-                                                permissionLauncher.launch(
-                                                    arrayOf(
-                                                        Manifest.permission.READ_CONTACTS,
-                                                        Manifest.permission.WRITE_CONTACTS
-                                                    )
-                                                )
-                                            }
+                bar = if (hasPermission) ZuneHubBar(bottomBarActions, bottomBarMenuItems) else null,
+                takeover = when {
+                    !hasPermission -> {
+                        {
+                            PeoplePermissionRequest(
+                                onRequestPermission = {
+                                    permissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.READ_CONTACTS,
+                                            Manifest.permission.WRITE_CONTACTS
                                         )
-                                        isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator(color = zuneColors.accentColor)
-                                        }
-                                        else -> renderPage(index)
-                                    }
+                                    )
                                 }
-                                Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
-                            }
-
-                            if (hasPermission) {
-                                WindowsPhoneBottomBar(
-                                    // The list's commands at the left end; whatever is open beside it has the right.
-                                    wideCommandsAtStart = true,
-                                    actions = bottomBarActions,
-                                    menuItems = bottomBarMenuItems,
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .then(bottomBarModifier)
-                                )
-                            }
+                            )
                         }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        ) {
-                            val openDetail = selectedContactDetail
-                            val paneKey = when {
-                                wideNewOpen -> "new"
-                                openDetail != null && wideEditOpen -> "edit:${openDetail.contact.id}"
-                                openDetail != null -> "detail:${openDetail.contact.id}"
-                                else -> null
-                            }
-                            AnimatedContent(
-                                targetState = paneKey,
-                                transitionSpec = {
-                                    (fadeIn(tween(260)) + slideInHorizontally(tween(320)) { it / 12 }) togetherWith fadeOut(tween(90))
-                                },
-                                label = "people_pane",
-                                modifier = Modifier.fillMaxSize()
-                            ) { key ->
-                                val shownDetail = selectedContactDetail
-                                when {
-                                    key == "new" -> NewContactScreen(
-                                        onClose = { closeNewContactScreen() },
-                                        onSave = { firstName, lastName, phone, email, saveToGoogle ->
-                                            viewModel.createContact(firstName, lastName, phone, email, saveToGoogle) { success ->
-                                                if (success) closeNewContactScreen()
-                                            }
-                                        }
-                                    )
-                                    key?.startsWith("edit:") == true && shownDetail != null -> EditContactScreen(
-                                        detail = shownDetail,
-                                        onClose = { closeEditContactScreen() },
-                                        onSave = { edit ->
-                                            closeEditContactScreen()
-                                            viewModel.updateContact(shownDetail.contact.id, edit) {}
-                                        }
-                                    )
-                                    key?.startsWith("detail:") == true -> ContactDetailScreen(
-                                        detail = shownDetail,
-                                        onBack = { closeDetailWithAnimation() },
-                                        onOpenMessaging = onOpenMessaging,
-                                        onEditContact = { openEditContactScreen() },
-                                        onDeleteContact = { contactId ->
-                                            viewModel.deleteContact(contactId) { success ->
-                                                if (success) closeDetailWithAnimation()
-                                            }
-                                        },
-                                        onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                        onPinToStart = { viewModel.togglePinToStart(it) },
-                                        isPinnedToStart = shownDetail?.contact?.id in pinnedContactIds,
-                                        allGroups = groups,
-                                        onToggleGroup = { viewModel.toggleGroupMembership(it) },
-                                        onLinkDuplicate = { linkPickerOpen = true },
-                                        onUnlink = { viewModel.unlinkOpenContact() },
-                                        onPhotoPicked = { viewModel.setPhoto(it) },
-                                        onPhotoRemoved = { viewModel.removePhoto() }
-                                    )
-                                    hasPermission -> ZuneWideEmptyPane(
-                                        title = stringResource(R.string.people_pick_one),
-                                        action = stringResource(R.string.people_or_add_new),
-                                        onAction = { openNewContactScreen() }
-                                    )
-                                    else -> Box(modifier = Modifier.fillMaxSize())
-                                }
+                    }
+                    isLoading -> {
+                        {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = zuneColors.accentColor)
                             }
                         }
                     }
-                } else Column(modifier = Modifier.fillMaxSize()) {
+                    else -> null
+                },
+                // The signature entrance keeps playing while the hub is hinged out behind a card.
+                entrance = entrance,
+                entranceScale = { hubHingeAnim.value },
+                offscreenCompositing = false,
+                // The people hub's own header on a phone: its name giant and sliding with the pivot.
+                phoneHeader = {
                     // Mobile Header — Zune large typography
                     Box(
                         modifier = Modifier
@@ -649,47 +554,65 @@ fun PeopleHubScreen(
                         fontSize = 36.sp,
                         modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
                     )
-
-                    // Content area
-                    if (!hasPermission) {
-                        PeoplePermissionRequest(
-                            onRequestPermission = {
-                                permissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.READ_CONTACTS,
-                                        Manifest.permission.WRITE_CONTACTS
-                                    )
-                                )
+                },
+                phonePeek = true,
+                wideListWidth = PEOPLE_WIDE_LIST_WIDTH,
+                // Whoever is open - their card, the editor, a new contact - stands in a tablet's pane.
+                widePane = ZuneHubPane(
+                    key = when {
+                        wideNewOpen -> "new"
+                        selectedContactDetail != null && wideEditOpen -> "edit:${selectedContactDetail?.contact?.id}"
+                        selectedContactDetail != null -> "detail:${selectedContactDetail?.contact?.id}"
+                        else -> null
+                    }
+                ) { key, _ ->
+                    val shownDetail = selectedContactDetail
+                    when {
+                        key == "new" -> NewContactScreen(
+                            onClose = { closeNewContactScreen() },
+                            onSave = { firstName, lastName, phone, email, saveToGoogle ->
+                                viewModel.createContact(firstName, lastName, phone, email, saveToGoogle) { success ->
+                                    if (success) closeNewContactScreen()
+                                }
                             }
                         )
-                    } else if (isLoading) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = zuneColors.accentColor)
-                        }
-                    } else {
-                        ZuneLoopingPager(
-                            state = pager,
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            contentPadding = PaddingValues(
-                                start = ZuneDimens.ScreenPaddingHorizontal,
-                                end = 48.dp
-                            ),
-                            pageSpacing = 24.dp
-                        ) { page ->
-                            renderPage(page)
-                        }
-                    }
-
-                    // Windows Phone Bottom Bar (Slides up from bottom when entrance completes)
-                    if (hasPermission) {
-                        WindowsPhoneBottomBar(
-                            actions = bottomBarActions,
-                            menuItems = bottomBarMenuItems,
-                            modifier = bottomBarModifier
+                        (key as? String)?.startsWith("edit:") == true && shownDetail != null -> EditContactScreen(
+                            detail = shownDetail,
+                            onClose = { closeEditContactScreen() },
+                            onSave = { edit ->
+                                closeEditContactScreen()
+                                viewModel.updateContact(shownDetail.contact.id, edit) {}
+                            }
                         )
+                        (key as? String)?.startsWith("detail:") == true -> ContactDetailScreen(
+                            detail = shownDetail,
+                            onBack = { closeDetailWithAnimation() },
+                            onOpenMessaging = onOpenMessaging,
+                            onEditContact = { openEditContactScreen() },
+                            onDeleteContact = { contactId ->
+                                viewModel.deleteContact(contactId) { success ->
+                                    if (success) closeDetailWithAnimation()
+                                }
+                            },
+                            onToggleFavorite = { viewModel.toggleFavorite(it) },
+                            onPinToStart = { viewModel.togglePinToStart(it) },
+                            isPinnedToStart = shownDetail?.contact?.id in pinnedContactIds,
+                            allGroups = groups,
+                            onToggleGroup = { viewModel.toggleGroupMembership(it) },
+                            onLinkDuplicate = { linkPickerOpen = true },
+                            onUnlink = { viewModel.unlinkOpenContact() },
+                            onPhotoPicked = { viewModel.setPhoto(it) },
+                            onPhotoRemoved = { viewModel.removePhoto() }
+                        )
+                        hasPermission -> ZuneWideEmptyPane(
+                            title = stringResource(R.string.people_pick_one),
+                            action = stringResource(R.string.people_or_add_new),
+                            onAction = { openNewContactScreen() }
+                        )
+                        else -> Box(modifier = Modifier.fillMaxSize())
                     }
                 }
-            }
+            ) { index -> renderPage(index) }
         }
 
         // Contact Detail Screen Overlay (phones; a tablet has it in the pane)

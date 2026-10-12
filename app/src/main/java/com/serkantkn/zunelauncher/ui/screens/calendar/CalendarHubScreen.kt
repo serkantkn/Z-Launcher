@@ -4,12 +4,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,14 +30,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -54,20 +50,15 @@ import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.components.MetroNotice
 import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
 import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
-import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
-import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
-import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.screens.messaging.MessagingSheet
 import com.serkantkn.zunelauncher.ui.screens.messaging.SheetAction
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
-import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
-import com.serkantkn.zunelauncher.util.DAY_MS
 import com.serkantkn.zunelauncher.util.startOfDay
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -326,67 +317,12 @@ fun CalendarHubScreen(
                     alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
                 }
         ) {
-            ZuneHubEntranceLayout { bottomBarModifier ->
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (isWideScreen) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            ZuneWideNavHub(
-                                title = stringResource(R.string.hub_calendar),
-                                tabs = tabs,
-                                state = pager,
-                                modifier = Modifier.weight(1f)
-                            ) { index -> Page(index) }
-                            Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
-                        }
-                    } else {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Text(
-                                text = stringResource(R.string.hub_calendar),
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 18.sp,
-                                    letterSpacing = 1.sp
-                                ),
-                                color = if (zuneColors.isDark) {
-                                    Color.White.copy(alpha = 0.9f)
-                                } else {
-                                    Color.Black.copy(alpha = 0.85f)
-                                },
-                                maxLines = 1,
-                                softWrap = false,
-                                modifier = Modifier.padding(
-                                    top = 48.dp,
-                                    bottom = 4.dp,
-                                    start = ZuneDimens.ScreenPaddingHorizontal
-                                )
-                            )
-
-                            ZunePivotTabs(tabs = tabs, state = pager)
-
-                            ZuneLoopingPager(
-                                state = pager,
-                                modifier = Modifier.weight(1f).fillMaxWidth()
-                            ) { page ->
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
-                                ) {
-                                    Page(page)
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(72.dp))
-                        }
-                    }
-
-                    WindowsPhoneBottomBar(
-                        modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
-                        actions = barActions,
-                        menuItems = barMenu
-                    )
-                }
-            }
+            ZuneHub(
+                title = stringResource(R.string.hub_calendar),
+                tabs = tabs,
+                pager = pager,
+                bar = ZuneHubBar(barActions, barMenu)
+            ) { index -> Page(index) }
         }
 
         // The editor, on the hinge

@@ -3,13 +3,10 @@ package com.serkantkn.zunelauncher.ui.screens.messaging
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MarkChatRead
 import androidx.compose.ui.res.pluralStringResource
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -34,7 +31,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,10 +44,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -85,11 +79,12 @@ import com.serkantkn.zunelauncher.data.repository.MessagingBridge
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
+import com.serkantkn.zunelauncher.ui.components.ZuneHubPane
 import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.screens.email.EmailConfirmDialog
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
@@ -407,8 +402,6 @@ fun MessagingHubScreen(
         }
     }
 
-    val bottomBarClearance = com.serkantkn.zunelauncher.ui.components.bottomBarHeight() + 16.dp
-
     // ── The pages ──
     @Composable
     fun ConversationsPage(tab: MessageTab) {
@@ -545,33 +538,6 @@ fun MessagingHubScreen(
             }
         )
     }
-
-    @Composable
-    fun ListArea() {
-        Column(modifier = Modifier.fillMaxSize()) {
-            ListNotices()
-            AnimatedVisibility(visible = isSearchActive) {
-                MessageSearchBar(
-                    query = searchQuery,
-                    onQueryChange = { viewModel.setSearchQuery(context, it) },
-                    isVisible = isSearchActive,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                when {
-                    !hasPermission -> PermissionCard()
-
-                    isSearchActive && searchQuery.isNotBlank() -> SearchResultsPage()
-
-                    else -> ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
-                        ConversationsPage(MessageTab.entries[page])
-                    }
-                }
-            }
-        }
-    }
-
     /** One of a tablet's headings: a list of conversations, or the search. */
     @Composable
     fun WidePage(index: Int) {
@@ -749,149 +715,123 @@ fun MessagingHubScreen(
         }
     }
 
-    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
-        Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
 
-            // ── The hub board ──
+        // ── The hub board ──
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    val p = hubHingeAnim.value
+                    rotationY = -90f * (1f - p)
+                    transformOrigin = TransformOrigin(0f, 0.5f)
+                    cameraDistance = 12f * density.density
+                    alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                }
+        ) {
+            ZuneHub(
+                title = stringResource(R.string.hub_messaging),
+                tabs = tabs,
+                pager = pager,
+                bar = if (hasPermission && detailHingeAnim.value == 0f && pickerHingeAnim.value == 0f) {
+                    ZuneHubBar(bottomBarActions, bottomBarMenuItems)
+                } else {
+                    null
+                },
+                // A tablet's pages say for themselves when there is no permission, or a search.
+                takeover = when {
+                    isWideScreen -> null
+                    !hasPermission -> { { PhonePadded { PermissionCard() } } }
+                    isSearchActive && searchQuery.isNotBlank() -> { { PhonePadded { SearchResultsPage() } } }
+                    else -> null
+                },
+                phoneAboveContent = {
+                    Column(modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)) {
+                        ListNotices()
+                        AnimatedVisibility(visible = isSearchActive) {
+                            MessageSearchBar(
+                                query = searchQuery,
+                                onQueryChange = { viewModel.setSearchQuery(context, it) },
+                                isVisible = isSearchActive,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                    }
+                },
+                wideListWidth = WIDE_LIST_WIDTH + 32.dp,
+                // The open conversation, the picker or a word about what to do; the pane draws
+                // its own changes between them.
+                widePane = ZuneHubPane(key = Unit, ownsBar = false) { _, _ ->
+                    Box(modifier = Modifier.fillMaxSize().padding(top = 40.dp, end = 32.dp, bottom = 12.dp)) { WidePane() }
+                }
+            ) { index ->
+                if (isWideScreen) WidePage(index) else ConversationsPage(MessageTab.entries[index])
+            }
+        }
+
+        // ── New message, on a phone ──
+        if (!isWideScreen && pickerHingeAnim.value > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        val p = hubHingeAnim.value
-                        rotationY = -90f * (1f - p)
+                        val p = pickerHingeAnim.value
+                        rotationY = 90f * (1f - p)
                         transformOrigin = TransformOrigin(0f, 0.5f)
                         cameraDistance = 12f * density.density
                         alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
                     }
             ) {
-                if (isWideScreen) {
-                    // The hub as the other tablet hubs stand: its name small at the top left,
-                    // its headings down the left, the list of conversations beside them, and the
-                    // open one in the rest of the width.
-                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                        val paneWidth = (maxWidth - ZuneWideNavWidth - WIDE_LIST_WIDTH - 32.dp)
-                            .coerceAtLeast(WIDE_PANE_MIN)
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            ZuneWideNavHub(
-                                title = stringResource(R.string.hub_messaging),
-                                tabs = tabs,
-                                state = pager,
-                                modifier = Modifier.weight(1f),
-                                sidePaneWidth = paneWidth,
-                                sidePane = { WidePane() }
-                            ) { index -> WidePage(index) }
-                            Spacer(modifier = Modifier.height(bottomBarClearance))
-                        }
-                    }
-                } else {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        Text(
-                            text = stringResource(R.string.hub_messaging),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 18.sp,
-                                letterSpacing = 1.sp
-                            ),
-                            color = if (zuneColors.isDark) {
-                                Color.White.copy(alpha = 0.9f)
-                            } else {
-                                Color.Black.copy(alpha = 0.85f)
-                            },
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.padding(
-                                top = 28.dp,
-                                bottom = 4.dp,
-                                start = ZuneDimens.ScreenPaddingHorizontal,
-                                end = ZuneDimens.ScreenPaddingHorizontal
-                            )
-                        )
-                        ZunePivotTabs(tabs = tabs, state = pager, modifier = Modifier.padding(top = 4.dp))
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
-                        ) {
-                            ListArea()
-                        }
-                        Spacer(modifier = Modifier.height(bottomBarClearance))
-                    }
-                }
-
-                if (hasPermission && detailHingeAnim.value == 0f && pickerHingeAnim.value == 0f) {
-                    WindowsPhoneBottomBar(
-                        actions = bottomBarActions,
-                        menuItems = bottomBarMenuItems,
-                        modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier)
-                    )
-                }
+                NewMessageScreen(
+                    contacts = contacts,
+                    onClose = closePicker,
+                    onRecipientsChosen = onRecipientsChosen
+                )
             }
+        }
 
-            // ── New message, on a phone ──
-            if (!isWideScreen && pickerHingeAnim.value > 0f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val p = pickerHingeAnim.value
-                            rotationY = 90f * (1f - p)
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                            cameraDistance = 12f * density.density
-                            alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                        }
-                ) {
-                    NewMessageScreen(
-                        contacts = contacts,
-                        onClose = closePicker,
-                        onRecipientsChosen = onRecipientsChosen
-                    )
-                }
-            }
-
-            // ── The conversation, on a phone ──
-            if (!isWideScreen && detailHingeAnim.value > 0f && selectedConv != null) {
-                val conversation = selectedConv!!
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val p = detailHingeAnim.value
-                            rotationY = 90f * (1f - p)
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                            cameraDistance = 12f * density.density
-                            alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                        }
-                ) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = if (zuneColors.isDark) Color(0xFF0C0C0C) else Color(0xFFFAFAFA)
-                    ) {
-                        OpenConversation(conversation, modifier = Modifier.statusBarsPadding())
+        // ── The conversation, on a phone ──
+        if (!isWideScreen && detailHingeAnim.value > 0f && selectedConv != null) {
+            val conversation = selectedConv!!
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = detailHingeAnim.value
+                        rotationY = 90f * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = 12f * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
                     }
-                }
-            }
-
-            // ── What just happened ──
-            AnimatedVisibility(
-                visible = statusMessage != null,
-                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
-                modifier = Modifier.align(Alignment.TopCenter)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(zuneColors.accentColor)
-                        .statusBarsPadding()
-                        .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 12.dp)
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = if (zuneColors.isDark) Color(0xFF0C0C0C) else Color(0xFFFAFAFA)
                 ) {
-                    Text(
-                        text = statusMessage.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = Color.White
-                    )
+                    OpenConversation(conversation, modifier = Modifier.statusBarsPadding())
                 }
+            }
+        }
+
+        // ── What just happened ──
+        AnimatedVisibility(
+            visible = statusMessage != null,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(zuneColors.accentColor)
+                    .statusBarsPadding()
+                    .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 12.dp)
+            ) {
+                Text(
+                    text = statusMessage.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = Color.White
+                )
             }
         }
     }
@@ -1076,5 +1016,9 @@ private const val HINGE_MILLIS = 320
 /** How wide a tablet's list of conversations is; the open one takes the rest. */
 private val WIDE_LIST_WIDTH = 400.dp
 
-/** Narrower than this and a conversation is not worth reading beside the list. */
-private val WIDE_PANE_MIN = 360.dp
+
+/** Something a phone shows in place of the pages, kept off the screen's edges as a page is. */
+@Composable
+private fun PhonePadded(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)) { content() }
+}

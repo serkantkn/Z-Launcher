@@ -1,6 +1,5 @@
 package com.serkantkn.zunelauncher.ui.screens.phone
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -9,8 +8,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.unit.Dp
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBarStrip
 import com.serkantkn.zunelauncher.ui.components.bottomBarHeight
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
-import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
 import com.serkantkn.zunelauncher.ui.components.ZuneWidePaneHeader
 import android.Manifest
 import android.content.Intent
@@ -68,13 +65,12 @@ import com.serkantkn.zunelauncher.data.model.SpeedDialEntry
 import com.serkantkn.zunelauncher.data.repository.PhoneBridge
 import android.content.ClipboardManager
 import android.widget.Toast
-import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
-import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
+import com.serkantkn.zunelauncher.ui.components.ZuneHubPane
 import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
-import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingsViewModel
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
@@ -90,8 +86,6 @@ import com.serkantkn.zunelauncher.util.isMissedType
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
-import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 
 /**
@@ -403,160 +397,72 @@ fun PhoneHubScreen(
         Unit
     }
 
-    ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (isWideScreen) {
-                // ═══════════════════════════════════════════════════
-                // TABLET: as the other tablet hubs stand - the hub's name small at the top left,
-                // the headings down the left, the calls beside them, and the keypad standing
-                // open in the rest of the width; the blocked list and the speed-dial picker
-                // take its place there when they are asked for.
-                // ═══════════════════════════════════════════════════
-                Row(modifier = Modifier.fillMaxSize()) {
-                    Box(
-                        modifier = Modifier
-                            .width(ZuneWideNavWidth + PHONE_WIDE_LIST_WIDTH)
-                            .fillMaxHeight()
-                    ) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            ZuneWideNavHub(
-                                title = stringResource(R.string.hub_phone),
-                                tabs = tabTitles,
-                                state = pager,
-                                modifier = Modifier.weight(1f),
-                                navExtra = if (isDefaultDialer) null else {
-                                    {
-                                        DefaultDialerBanner(
-                                            onMakeDefault = makeDefault,
-                                            modifier = Modifier.fillMaxWidth().padding(top = 28.dp)
-                                        )
-                                    }
-                                }
-                            ) { index -> renderPage(index) }
-                            Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
-                        }
-                        WindowsPhoneBottomBar(
-                            // The list's commands at the left end; whatever is open beside it has the right.
-                            wideCommandsAtStart = true,
-                            actions = bottomBarActions,
-                            menuItems = bottomBarMenu,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .then(bottomBarModifier)
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                    ) {
-                        val widePane = when {
-                            isBlockedListOpen -> WidePhonePane.BLOCKED
-                            isSpeedDialPickerOpen -> WidePhonePane.SPEED_DIAL_PICK
-                            else -> WidePhonePane.KEYPAD
-                        }
-                        AnimatedContent(
-                            targetState = widePane,
-                            transitionSpec = {
-                                (fadeIn(tween(260)) + slideInHorizontally(tween(320)) { it / 12 }) togetherWith fadeOut(tween(90))
-                            },
-                            label = "phone_pane",
-                            modifier = Modifier.fillMaxSize()
-                        ) { pane ->
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                when (pane) {
-                                    WidePhonePane.KEYPAD -> WideKeypadPane(
-                                        dialedNumber = dialedNumber,
-                                        matchingContacts = matchingContacts,
-                                        onPickMatch = { entry ->
-                                            call(entry.number, entry.contact.name)
-                                            viewModel.clearDialedNumber()
-                                        },
-                                        onPaste = { viewModel.setDialedNumber(it) },
-                                        onAppend = viewModel::appendDigit,
-                                        onVoicemail = {
-                                            viewModel.clearDialedNumber()
-                                            callVoicemail()
-                                        },
-                                        onBackspace = { viewModel.backspaceDigit() },
-                                        onCall = {
-                                            if (dialedNumber.isNotEmpty()) {
-                                                call(dialedNumber)
-                                                viewModel.clearDialedNumber()
-                                            }
-                                        }
-                                    )
-                                    WidePhonePane.BLOCKED -> BlockedNumbersSheet(
-                                        numbers = blockedNumbers,
-                                        onUnblock = { blocked -> unblock(blocked) },
-                                        onDismiss = { isBlockedListOpen = false },
-                                        inPane = true
-                                    )
-                                    WidePhonePane.SPEED_DIAL_PICK -> SpeedDialPicker(
-                                        contacts = allContacts,
-                                        onPick = { entry -> pickSpeedDial(entry) },
-                                        onDismiss = { isSpeedDialPickerOpen = false },
-                                        inPane = true
-                                    )
-                                }
-                                WindowsPhoneBottomBarStrip(modifier = Modifier.align(Alignment.BottomCenter))
+    ZuneHub(
+        title = stringResource(R.string.hub_phone),
+        tabs = tabTitles,
+        pager = pager,
+        modifier = modifier,
+        bar = ZuneHubBar(bottomBarActions, bottomBarMenu),
+        phoneAboveContent = {
+            if (!isDefaultDialer) DefaultDialerBanner(onMakeDefault = makeDefault)
+        },
+        wideNavExtra = if (isDefaultDialer) null else {
+            {
+                DefaultDialerBanner(
+                    onMakeDefault = makeDefault,
+                    modifier = Modifier.fillMaxWidth().padding(top = 28.dp)
+                )
+            }
+        },
+        // The keypad stands open in a tablet's pane; the blocked list and the speed-dial picker
+        // take its place there when they are asked for.
+        widePane = ZuneHubPane(
+            key = when {
+                isBlockedListOpen -> WidePhonePane.BLOCKED
+                isSpeedDialPickerOpen -> WidePhonePane.SPEED_DIAL_PICK
+                else -> WidePhonePane.KEYPAD
+            }
+        ) { pane, _ ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                when (pane) {
+                    WidePhonePane.KEYPAD -> WideKeypadPane(
+                        dialedNumber = dialedNumber,
+                        matchingContacts = matchingContacts,
+                        onPickMatch = { entry ->
+                            call(entry.number, entry.contact.name)
+                            viewModel.clearDialedNumber()
+                        },
+                        onPaste = { viewModel.setDialedNumber(it) },
+                        onAppend = viewModel::appendDigit,
+                        onVoicemail = {
+                            viewModel.clearDialedNumber()
+                            callVoicemail()
+                        },
+                        onBackspace = { viewModel.backspaceDigit() },
+                        onCall = {
+                            if (dialedNumber.isNotEmpty()) {
+                                call(dialedNumber)
+                                viewModel.clearDialedNumber()
                             }
                         }
-                    }
-                }
-            } else {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = stringResource(R.string.hub_phone),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 18.sp,
-                        letterSpacing = 1.sp
-                    ),
-                    color = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f),
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.padding(
-                        top = 28.dp,
-                        bottom = 4.dp,
-                        start = ZuneDimens.ScreenPaddingHorizontal,
-                        end = ZuneDimens.ScreenPaddingHorizontal
                     )
-                )
-
-                ZunePivotTabs(
-                    tabs = tabTitles,
-                    state = pager,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-
-                if (!isDefaultDialer) {
-                    DefaultDialerBanner(onMakeDefault = makeDefault)
+                    WidePhonePane.BLOCKED -> BlockedNumbersSheet(
+                        numbers = blockedNumbers,
+                        onUnblock = { blocked -> unblock(blocked) },
+                        onDismiss = { isBlockedListOpen = false },
+                        inPane = true
+                    )
+                    WidePhonePane.SPEED_DIAL_PICK -> SpeedDialPicker(
+                        contacts = allContacts,
+                        onPick = { entry -> pickSpeedDial(entry) },
+                        onDismiss = { isSpeedDialPickerOpen = false },
+                        inPane = true
+                    )
                 }
-
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize()) { index ->
-                        Box(modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)) {
-                            renderPage(index)
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(80.dp))
+                WindowsPhoneBottomBarStrip(modifier = Modifier.align(Alignment.BottomCenter))
             }
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .then(bottomBarModifier),
-                contentAlignment = Alignment.Center
-            ) {
-                WindowsPhoneBottomBar(actions = bottomBarActions, menuItems = bottomBarMenu)
-            }
-            }
-
+        },
+        overlay = {
             // ── Keypad ──
             AnimatedVisibility(
                 visible = isDialerOpen && !isWideScreen,
@@ -716,7 +622,7 @@ fun PhoneHubScreen(
                 )
             }
         }
-    }
+    ) { index -> renderPage(index) }
 }
 
 /** What is on the clipboard, if it is text. */
