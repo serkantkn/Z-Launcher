@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The pane beside a tablet's list of people, with nobody open in it. -->
+    <string name="people_pick_one">pick someone</string>
+    <string name="people_or_add_new">or add somebody new</string>
+</resources>

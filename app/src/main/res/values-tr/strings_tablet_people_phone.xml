@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_pick_one">birini seç</string>
+    <string name="people_or_add_new">ya da yeni birini ekle</string>
+</resources>

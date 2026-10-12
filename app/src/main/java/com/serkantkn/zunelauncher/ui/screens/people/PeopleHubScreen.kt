@@ -4,7 +4,12 @@ import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -62,8 +67,10 @@ import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
 import com.serkantkn.zunelauncher.ui.components.ZunePageTransition
 import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
-import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
+import com.serkantkn.zunelauncher.ui.components.ZuneWideEmptyPane
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
+import com.serkantkn.zunelauncher.ui.components.ZuneWidePaneHeader
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.components.rememberZuneHubEntranceState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
@@ -126,12 +133,20 @@ fun PeopleHubScreen(
         stringResource(R.string.people_tab_favorites),
         stringResource(R.string.people_tab_recent),
         stringResource(R.string.people_groups)
-    )
+    ) + if (isWideScreen) listOf(stringResource(R.string.common_search)) else emptyList()
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
+
+    // On a tablet what is open stands in the pane beside the list instead of hinging in over the
+    // hub, so the new and the edit screens are simply on or off there.
+    var wideNewOpen by remember { mutableStateOf(false) }
+    var wideEditOpen by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     val openNewContactScreen: () -> Unit = {
-        if (!isTransitioning) {
+        if (isWideScreen) {
+            wideEditOpen = false
+            wideNewOpen = true
+        } else if (!isTransitioning) {
             isTransitioning = true
             coroutineScope.launch {
                 hubHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
@@ -142,7 +157,9 @@ fun PeopleHubScreen(
     }
 
     val closeNewContactScreen: () -> Unit = {
-        if (!isTransitioning) {
+        if (isWideScreen) {
+            wideNewOpen = false
+        } else if (!isTransitioning) {
             isTransitioning = true
             coroutineScope.launch {
                 newContactHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
@@ -153,7 +170,9 @@ fun PeopleHubScreen(
     }
 
     val openEditContactScreen: () -> Unit = {
-        if (!isTransitioning) {
+        if (isWideScreen) {
+            wideEditOpen = true
+        } else if (!isTransitioning) {
             isTransitioning = true
             coroutineScope.launch {
                 if (!isWideScreen) {
@@ -166,7 +185,9 @@ fun PeopleHubScreen(
     }
 
     val closeEditContactScreen: () -> Unit = {
-        if (!isTransitioning) {
+        if (isWideScreen) {
+            wideEditOpen = false
+        } else if (!isTransitioning) {
             isTransitioning = true
             coroutineScope.launch {
                 editContactHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
@@ -181,6 +202,8 @@ fun PeopleHubScreen(
     val selectContactWithAnimation: (ContactModel) -> Unit = { contact ->
         coroutineScope.launch { editContactHingeAnim.snapTo(0f) }
         if (isWideScreen) {
+            wideNewOpen = false
+            wideEditOpen = false
             viewModel.selectContact(contact)
         } else {
             if (!isTransitioning) {
@@ -215,6 +238,7 @@ fun PeopleHubScreen(
     val closeDetailWithAnimation: () -> Unit = {
         coroutineScope.launch { editContactHingeAnim.snapTo(0f) }
         if (isWideScreen) {
+            wideEditOpen = false
             viewModel.selectContact(null)
         } else {
             if (!isTransitioning) {
@@ -239,9 +263,14 @@ fun PeopleHubScreen(
 
     BackHandler(
         enabled = editContactHingeAnim.value > 0f || newContactHingeAnim.value > 0f ||
-            detailHingeAnim.value > 0f || selectedContactDetail != null || openGroup != null
+            detailHingeAnim.value > 0f || selectedContactDetail != null || openGroup != null ||
+            wideNewOpen || wideEditOpen
     ) {
-        if (openGroup != null && selectedContactDetail == null && detailHingeAnim.value == 0f) {
+        if (wideEditOpen) {
+            closeEditContactScreen()
+        } else if (wideNewOpen) {
+            closeNewContactScreen()
+        } else if (openGroup != null && selectedContactDetail == null && detailHingeAnim.value == 0f) {
             viewModel.openGroup(null)
         } else if (editContactHingeAnim.value > 0f) {
             closeEditContactScreen()
@@ -266,9 +295,22 @@ fun PeopleHubScreen(
         WpBarAction(
             icon = Icons.Default.Search,
             label = stringResource(R.string.common_search),
-            onClick = { isSearchVisible = !isSearchVisible }
+            onClick = {
+                // A tablet has searching as a heading of its own; the bar's button goes there.
+                if (isWideScreen) coroutineScope.launch { pager.scrollToPage(PEOPLE_SEARCH_PAGE) }
+                else isSearchVisible = !isSearchVisible
+            }
         )
     )
+
+    // What was typed on a tablet's search page is let go of when another heading is chosen, or
+    // "all" would go on showing only what matched it, with no box on screen to say why.
+    LaunchedEffect(pager.currentPage, isWideScreen) {
+        if (isWideScreen && pager.currentPage != PEOPLE_SEARCH_PAGE && searchQuery.isNotEmpty()) {
+            viewModel.updateSearchQuery("")
+        }
+    }
+    val openContactId = if (isWideScreen && !wideNewOpen) selectedContactDetail?.contact?.id else null
 
     val bottomBarMenuItems = listOf(
         WpBarMenuItem(
@@ -288,14 +330,16 @@ fun PeopleHubScreen(
         val renderPage: @Composable (Int) -> Unit = { tabIndex ->
             ZunePageTransition {
                 when (tabIndex) {
-                    0 -> {
+                    0, PEOPLE_SEARCH_PAGE -> {
                         val listState = rememberLazyListState()
+                        // On a tablet the search page is "all" with the box always open above it.
+                        val showSearch = if (isWideScreen) tabIndex == PEOPLE_SEARCH_PAGE else isSearchVisible
                         Column(modifier = Modifier.fillMaxSize()) {
-                            AnimatedVisibility(visible = isSearchVisible) {
+                            AnimatedVisibility(visible = showSearch) {
                                 SearchBar(
                                     query = searchQuery,
                                     onQueryChange = { viewModel.updateSearchQuery(it) },
-                                    isVisible = isSearchVisible,
+                                    isVisible = showSearch,
                                     modifier = Modifier.padding(bottom = ZuneDimens.SpacingLg)
                                 )
                             }
@@ -320,7 +364,7 @@ fun PeopleHubScreen(
                                                 LetterHeader(letter = letter)
                                             }
                                             items(contactsInGroup, key = { it.id }) { contact ->
-                                                ContactListItem(contact = contact) {
+                                                ContactListItem(contact = contact, highlighted = contact.id == openContactId) {
                                                     selectContactWithAnimation(it)
                                                 }
                                             }
@@ -383,7 +427,7 @@ fun PeopleHubScreen(
                                 contentPadding = PaddingValues(bottom = 80.dp)
                             ) {
                                 items(recentContacts, key = { it.id }) { contact ->
-                                    ContactListItem(contact = contact) {
+                                    ContactListItem(contact = contact, highlighted = contact.id == openContactId) {
                                         selectContactWithAnimation(it)
                                     }
                                 }
@@ -397,7 +441,8 @@ fun PeopleHubScreen(
                             members = groupMembers,
                             onOpenGroup = { viewModel.openGroup(it) },
                             onContactClick = { selectContactWithAnimation(it) },
-                            onDeleteGroup = { viewModel.deleteGroup(it) }
+                            onDeleteGroup = { viewModel.deleteGroup(it) },
+                            openContactId = openContactId
                         )
                     }
                 }
@@ -415,132 +460,221 @@ fun PeopleHubScreen(
                 progressScale = { hubHingeAnim.value },
                 offscreenCompositing = false
             ) { bottomBarModifier ->
-                Column(modifier = Modifier.fillMaxSize()) {
-                    if (isWideScreen) {
-                        ZuneWideHubTitle(text = stringResource(R.string.people_hub))
-
-                        if (!hasPermission) {
-                            PeoplePermissionRequest(
-                                onRequestPermission = {
-                                    permissionLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.READ_CONTACTS,
-                                            Manifest.permission.WRITE_CONTACTS
-                                        )
-                                    )
-                                }
-                            )
-                        } else if (isLoading) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = zuneColors.accentColor)
-                            }
-                        } else {
-                            ZuneWidePanorama(
-                                tabs = tabs,
-                                modifier = Modifier.weight(1f).fillMaxWidth(),
-                                fillPageHeight = true
-                            ) { index ->
-                                renderPage(index)
-                            }
-                        }
-                    } else {
-                        // Mobile Header — Zune large typography
+                if (isWideScreen) {
+                    // ═══════════════════════════════════════════════════
+                    // TABLET: as the other tablet hubs stand - the hub's name small at the top
+                    // left, the headings down the left, the people beside them, and whoever is
+                    // open in the rest of the width with their own bar.
+                    // ═══════════════════════════════════════════════════
+                    Row(modifier = Modifier.fillMaxSize()) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    top = 28.dp,
-                                    bottom = 4.dp,
-                                    start = ZuneDimens.ScreenPaddingHorizontal
-                                )
+                                .width(ZuneWideNavWidth + PEOPLE_WIDE_LIST_WIDTH)
+                                .fillMaxHeight()
                         ) {
-                            val pageCount = pager.pageCount
-                            val cycle = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % pageCount
-                            val actualCycle = if (cycle < 0) cycle + pageCount else cycle
-                            val threshold = (pageCount - 1).toFloat()
-
-                            val translationX1: Float
-                            val translationX2: Float
-
-                            if (actualCycle <= threshold) {
-                                translationX1 = -actualCycle * parallaxMultiplierPx
-                                translationX2 = screenWidthPx
-                            } else {
-                                val fraction = actualCycle - threshold
-                                translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
-                                translationX2 = screenWidthPx - fraction * screenWidthPx
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                ZuneWideNavHub(
+                                    title = stringResource(R.string.people_hub),
+                                    tabs = tabs,
+                                    state = pager,
+                                    modifier = Modifier.weight(1f)
+                                ) { index ->
+                                    when {
+                                        !hasPermission -> PeoplePermissionRequest(
+                                            onRequestPermission = {
+                                                permissionLauncher.launch(
+                                                    arrayOf(
+                                                        Manifest.permission.READ_CONTACTS,
+                                                        Manifest.permission.WRITE_CONTACTS
+                                                    )
+                                                )
+                                            }
+                                        )
+                                        isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator(color = zuneColors.accentColor)
+                                        }
+                                        else -> renderPage(index)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(72.dp))
                             }
 
-                            Text(
-                                text = stringResource(R.string.people_hub),
-                                style = MaterialTheme.typography.displayLarge.copy(
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 96.sp,
-                                    letterSpacing = (-4).sp,
-                                    lineHeight = 96.sp
-                                ),
-                                color = if (zuneColors.isDark) Color.White else Color.Black,
-                                maxLines = 1,
-                                softWrap = false,
-                                modifier = Modifier.graphicsLayer {
-                                    translationX = translationX1
-                                    translationY = overflowYPx
-                                }
-                            )
-                            Text(
-                                text = stringResource(R.string.people_hub),
-                                style = MaterialTheme.typography.displayLarge.copy(
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 96.sp,
-                                    letterSpacing = (-4).sp,
-                                    lineHeight = 96.sp
-                                ),
-                                color = if (zuneColors.isDark) Color.White else Color.Black,
-                                maxLines = 1,
-                                softWrap = false,
-                                modifier = Modifier.graphicsLayer {
-                                    translationX = translationX2
-                                    translationY = overflowYPx
-                                }
-                            )
+                            if (hasPermission) {
+                                WindowsPhoneBottomBar(
+                                    actions = bottomBarActions,
+                                    menuItems = bottomBarMenuItems,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .then(bottomBarModifier)
+                                )
+                            }
                         }
 
-                        // Tabs — Zune Pivot
-                        ZunePivotTabs(
-                            tabs = tabs,
-                            state = pager,
-                            fontSize = 36.sp,
-                            modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
-                        )
-
-                        // Content area
-                        if (!hasPermission) {
-                            PeoplePermissionRequest(
-                                onRequestPermission = {
-                                    permissionLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.READ_CONTACTS,
-                                            Manifest.permission.WRITE_CONTACTS
-                                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        ) {
+                            val openDetail = selectedContactDetail
+                            val paneKey = when {
+                                wideNewOpen -> "new"
+                                openDetail != null && wideEditOpen -> "edit:${openDetail.contact.id}"
+                                openDetail != null -> "detail:${openDetail.contact.id}"
+                                else -> null
+                            }
+                            AnimatedContent(
+                                targetState = paneKey,
+                                transitionSpec = {
+                                    (fadeIn(tween(260)) + slideInHorizontally(tween(320)) { it / 12 }) togetherWith fadeOut(tween(90))
+                                },
+                                label = "people_pane",
+                                modifier = Modifier.fillMaxSize()
+                            ) { key ->
+                                val shownDetail = selectedContactDetail
+                                when {
+                                    key == "new" -> NewContactScreen(
+                                        onClose = { closeNewContactScreen() },
+                                        onSave = { firstName, lastName, phone, email, saveToGoogle ->
+                                            viewModel.createContact(firstName, lastName, phone, email, saveToGoogle) { success ->
+                                                if (success) closeNewContactScreen()
+                                            }
+                                        }
                                     )
+                                    key?.startsWith("edit:") == true && shownDetail != null -> EditContactScreen(
+                                        detail = shownDetail,
+                                        onClose = { closeEditContactScreen() },
+                                        onSave = { edit ->
+                                            closeEditContactScreen()
+                                            viewModel.updateContact(shownDetail.contact.id, edit) {}
+                                        }
+                                    )
+                                    key?.startsWith("detail:") == true -> ContactDetailScreen(
+                                        detail = shownDetail,
+                                        onBack = { closeDetailWithAnimation() },
+                                        onOpenMessaging = onOpenMessaging,
+                                        onEditContact = { openEditContactScreen() },
+                                        onDeleteContact = { contactId ->
+                                            viewModel.deleteContact(contactId) { success ->
+                                                if (success) closeDetailWithAnimation()
+                                            }
+                                        },
+                                        onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                        onPinToStart = { viewModel.togglePinToStart(it) },
+                                        isPinnedToStart = shownDetail?.contact?.id in pinnedContactIds,
+                                        allGroups = groups,
+                                        onToggleGroup = { viewModel.toggleGroupMembership(it) },
+                                        onLinkDuplicate = { linkPickerOpen = true },
+                                        onUnlink = { viewModel.unlinkOpenContact() },
+                                        onPhotoPicked = { viewModel.setPhoto(it) },
+                                        onPhotoRemoved = { viewModel.removePhoto() }
+                                    )
+                                    hasPermission -> ZuneWideEmptyPane(
+                                        title = stringResource(R.string.people_pick_one),
+                                        action = stringResource(R.string.people_or_add_new),
+                                        onAction = { openNewContactScreen() }
+                                    )
+                                    else -> Box(modifier = Modifier.fillMaxSize())
                                 }
+                            }
+                        }
+                    }
+                } else Column(modifier = Modifier.fillMaxSize()) {
+                    // Mobile Header — Zune large typography
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                top = 28.dp,
+                                bottom = 4.dp,
+                                start = ZuneDimens.ScreenPaddingHorizontal
                             )
-                        } else if (isLoading) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = zuneColors.accentColor)
-                            }
+                    ) {
+                        val pageCount = pager.pageCount
+                        val cycle = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % pageCount
+                        val actualCycle = if (cycle < 0) cycle + pageCount else cycle
+                        val threshold = (pageCount - 1).toFloat()
+
+                        val translationX1: Float
+                        val translationX2: Float
+
+                        if (actualCycle <= threshold) {
+                            translationX1 = -actualCycle * parallaxMultiplierPx
+                            translationX2 = screenWidthPx
                         } else {
-                            ZuneLoopingPager(
-                                state = pager,
-                                modifier = Modifier.weight(1f).fillMaxWidth(),
-                                contentPadding = PaddingValues(
-                                    start = ZuneDimens.ScreenPaddingHorizontal,
-                                    end = 48.dp
-                                ),
-                                pageSpacing = 24.dp
-                            ) { page ->
-                                renderPage(page)
+                            val fraction = actualCycle - threshold
+                            translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
+                            translationX2 = screenWidthPx - fraction * screenWidthPx
+                        }
+
+                        Text(
+                            text = stringResource(R.string.people_hub),
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontWeight = FontWeight.Light,
+                                fontSize = 96.sp,
+                                letterSpacing = (-4).sp,
+                                lineHeight = 96.sp
+                            ),
+                            color = if (zuneColors.isDark) Color.White else Color.Black,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.graphicsLayer {
+                                translationX = translationX1
+                                translationY = overflowYPx
                             }
+                        )
+                        Text(
+                            text = stringResource(R.string.people_hub),
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontWeight = FontWeight.Light,
+                                fontSize = 96.sp,
+                                letterSpacing = (-4).sp,
+                                lineHeight = 96.sp
+                            ),
+                            color = if (zuneColors.isDark) Color.White else Color.Black,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.graphicsLayer {
+                                translationX = translationX2
+                                translationY = overflowYPx
+                            }
+                        )
+                    }
+
+                    // Tabs — Zune Pivot
+                    ZunePivotTabs(
+                        tabs = tabs,
+                        state = pager,
+                        fontSize = 36.sp,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
+                    )
+
+                    // Content area
+                    if (!hasPermission) {
+                        PeoplePermissionRequest(
+                            onRequestPermission = {
+                                permissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.READ_CONTACTS,
+                                        Manifest.permission.WRITE_CONTACTS
+                                    )
+                                )
+                            }
+                        )
+                    } else if (isLoading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = zuneColors.accentColor)
+                        }
+                    } else {
+                        ZuneLoopingPager(
+                            state = pager,
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentPadding = PaddingValues(
+                                start = ZuneDimens.ScreenPaddingHorizontal,
+                                end = 48.dp
+                            ),
+                            pageSpacing = 24.dp
+                        ) { page ->
+                            renderPage(page)
                         }
                     }
 
@@ -556,29 +690,8 @@ fun PeopleHubScreen(
             }
         }
 
-        // Contact Detail Screen Overlay (Tablet Card or Mobile Hinge)
-        if (isWideScreen) {
-            ContactDetailScreen(
-                detail = selectedContactDetail,
-                onBack = { closeDetailWithAnimation() },
-                onOpenMessaging = onOpenMessaging,
-                onEditContact = { openEditContactScreen() },
-                onDeleteContact = { contactId ->
-                    viewModel.deleteContact(contactId) { success ->
-                        if (success) closeDetailWithAnimation()
-                    }
-                },
-                onToggleFavorite = { viewModel.toggleFavorite(it) },
-                onPinToStart = { viewModel.togglePinToStart(it) },
-                isPinnedToStart = selectedContactDetail?.contact?.id in pinnedContactIds,
-                allGroups = groups,
-                onToggleGroup = { viewModel.toggleGroupMembership(it) },
-                onLinkDuplicate = { linkPickerOpen = true },
-                onUnlink = { viewModel.unlinkOpenContact() },
-                onPhotoPicked = { viewModel.setPhoto(it) },
-                onPhotoRemoved = { viewModel.removePhoto() }
-            )
-        } else if (detailHingeAnim.value > 0f) {
+        // Contact Detail Screen Overlay (phones; a tablet has it in the pane)
+        if (!isWideScreen && detailHingeAnim.value > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -614,7 +727,7 @@ fun PeopleHubScreen(
         }
 
         // 3D Door Hinge Animated Edit Contact Screen Overlay
-        if (editContactHingeAnim.value > 0f && selectedContactDetail != null) {
+        if (!isWideScreen && editContactHingeAnim.value > 0f && selectedContactDetail != null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -663,7 +776,7 @@ fun PeopleHubScreen(
         }
 
         // 3D Door Hinge Animated New Contact Screen Overlay
-        if (newContactHingeAnim.value > 0f) {
+        if (!isWideScreen && newContactHingeAnim.value > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -723,23 +836,33 @@ private fun NewContactScreen(
         )
     )
 
+    // On a tablet the page stands in the pane beside the list, on the hub's own background and
+    // under the pane's head; on a phone it is a page of its own, hinged in over the hub.
+    val isWideScreen = LocalIsWideScreen.current
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = if (zuneColors.isDark) Color(0xFF0F0F0F) else Color(0xFFFAFAFA)
+        color = if (isWideScreen) Color.Transparent else if (zuneColors.isDark) Color(0xFF0F0F0F) else Color(0xFFFAFAFA)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            if (isWideScreen) {
+                ZuneWidePaneHeader(section = stringResource(R.string.people_new_contact), onClose = onClose)
+            }
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 12.dp)
+                    .then(
+                        if (isWideScreen) Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 32.dp, top = 12.dp)
+                        else Modifier.statusBarsPadding().padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 12.dp)
+                    )
             ) {
-                ZunePivotHeader(
-                    text = stringResource(R.string.people_new_contact),
-                    color = if (zuneColors.isDark) Color.White else Color.Black,
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
+                if (!isWideScreen) {
+                    ZunePivotHeader(
+                        text = stringResource(R.string.people_new_contact),
+                        color = if (zuneColors.isDark) Color.White else Color.Black,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+                }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -965,8 +1088,10 @@ private fun LetterHeader(letter: Char) {
 @Composable
 private fun ContactListItem(
     contact: ContactModel,
+    highlighted: Boolean = false,
     onClick: (ContactModel) -> Unit
 ) {
+    val zuneColors = LocalZuneColors.current
     val fallbackColor = remember(contact.id) {
         val colors = listOf(ZuneColors.Pink, ZuneColors.Orange, ZuneColors.Blue, ZuneColors.Green)
         colors[Math.abs(contact.id.hashCode()) % colors.size]
@@ -975,6 +1100,8 @@ private fun ContactListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // On a tablet the person open in the pane is marked in the list beside it.
+            .background(if (highlighted) zuneColors.accentColor.copy(alpha = 0.16f) else Color.Transparent)
             .clickable { onClick(contact) }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1183,7 +1310,8 @@ private fun GroupsPage(
     members: List<ContactModel>,
     onOpenGroup: (ContactGroup?) -> Unit,
     onContactClick: (ContactModel) -> Unit,
-    onDeleteGroup: (Long) -> Unit
+    onDeleteGroup: (Long) -> Unit,
+    openContactId: String? = null
 ) {
     val zuneColors = LocalZuneColors.current
 
@@ -1227,7 +1355,7 @@ private fun GroupsPage(
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
                     items(members, key = { it.id }) { contact ->
-                        ContactListItem(contact = contact) { onContactClick(it) }
+                        ContactListItem(contact = contact, highlighted = contact.id == openContactId) { onContactClick(it) }
                     }
                 }
             }
@@ -1369,3 +1497,9 @@ private fun NewGroupSheet(onCreate: (String) -> Unit, onDismiss: () -> Unit) {
         )
     }
 }
+
+/** The page on a tablet that is "all" with the search box open over it. */
+private const val PEOPLE_SEARCH_PAGE = 4
+
+/** How wide a tablet's list of people is; whoever is open takes the rest. */
+private val PEOPLE_WIDE_LIST_WIDTH = 440.dp

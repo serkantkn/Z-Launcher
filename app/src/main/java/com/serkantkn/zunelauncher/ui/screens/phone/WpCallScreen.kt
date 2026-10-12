@@ -41,6 +41,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -90,6 +91,7 @@ import com.serkantkn.zunelauncher.data.service.CallManager
 import com.serkantkn.zunelauncher.data.service.CallStatus
 import com.serkantkn.zunelauncher.util.PhoneCaller
 import com.serkantkn.zunelauncher.util.QuickReply
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -111,6 +113,7 @@ fun WpCallScreen(
 ) {
     val context = LocalContext.current
     val zuneColors = LocalZuneColors.current
+    val isWideScreen = LocalIsWideScreen.current
 
     val callStatus by CallManager.callStatus.collectAsState()
     val contactName by CallManager.contactName.collectAsState()
@@ -208,7 +211,35 @@ fun WpCallScreen(
             }
             .background(Color.Black)
     ) {
-        if (callStatus == CallStatus.INCOMING) {
+        if (isWideScreen) {
+            // ─── Tablet: the caller across the wide side, the controls in a column beside ───
+            WideCallLayout(
+                callStatus = callStatus,
+                statusText = statusText,
+                contactName = contactName,
+                phoneNumber = phoneNumber,
+                numberLine = numberLine,
+                simLabel = simLabel,
+                photoUri = photoUri,
+                currentTime = currentTime,
+                canReply = canReplyWithMessage,
+                onOpenQuickSms = { isQuickSmsOpen = true }
+            ) { gridModifier ->
+                CallControlGrid(
+                    callStatus = callStatus,
+                    isSpeakerOn = isSpeakerOn,
+                    isMuted = isMuted,
+                    isAddCallOpen = isAddCallOpen,
+                    callCount = callCount,
+                    isOnHold = isOnHold,
+                    canHold = canHold,
+                    isKeypadOpen = isKeypadOpen,
+                    audioRoute = audioRoute,
+                    onAddCall = { isAddCallOpen = true },
+                    modifier = gridModifier
+                )
+            }
+        } else if (callStatus == CallStatus.INCOMING) {
             // ─── Gelen Çağrı: Tam Ekran Kaydırma Hareketli Çağrı Ekranı ───
             WpIncomingCallSwipeScreen(
                 contactName = contactName,
@@ -352,135 +383,22 @@ fun WpCallScreen(
                         .fillMaxWidth()
                         .background(Color.Black)
                 ) {
-                    Column(
+                    CallControlGrid(
+                        callStatus = callStatus,
+                        isSpeakerOn = isSpeakerOn,
+                        isMuted = isMuted,
+                        isAddCallOpen = isAddCallOpen,
+                        callCount = callCount,
+                        isOnHold = isOnHold,
+                        canHold = canHold,
+                        isKeypadOpen = isKeypadOpen,
+                        audioRoute = audioRoute,
+                        onAddCall = { isAddCallOpen = true },
                         modifier = Modifier
                             .fillMaxSize()
                             .navigationBarsPadding()
-                            .padding(3.dp),
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        // Row 1: speaker, mute, add call
-                        // Speaker and mute are wanted while the far end is still ringing too —
-                        // a call put on speaker as it is dialled is the commonest case of all.
-                        val isLive = callStatus == CallStatus.ACTIVE || callStatus == CallStatus.OUTGOING
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            WpGridSquareTile(
-                                title = stringResource(R.string.call_speaker),
-                                icon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                                isActive = isSpeakerOn,
-                                enabled = isLive,
-                                onClick = { CallManager.toggleSpeaker() },
-                                modifier = Modifier.weight(1f)
-                            )
-                            WpGridSquareTile(
-                                title = stringResource(R.string.call_mute),
-                                icon = if (isMuted) Icons.Default.MicOff else Icons.Default.Mic,
-                                isActive = isMuted,
-                                enabled = isLive,
-                                onClick = { CallManager.toggleMute() },
-                                modifier = Modifier.weight(1f)
-                            )
-                            WpGridSquareTile(
-                                title = stringResource(R.string.call_add),
-                                icon = Icons.Default.PersonAdd,
-                                isActive = isAddCallOpen,
-                                // Telecom parks the first call itself when the second is placed.
-                                enabled = callStatus == CallStatus.ACTIVE && callCount < 2,
-                                onClick = { isAddCallOpen = true },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-
-                        // Row 2: hold, klavye, bluetooth
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            WpGridSquareTile(
-                                title = stringResource(R.string.call_hold),
-                                icon = if (isOnHold) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                isActive = isOnHold,
-                                // Not every network lets a call be parked; the button says so.
-                                enabled = callStatus == CallStatus.ACTIVE && canHold,
-                                onClick = { CallManager.toggleHold() },
-                                modifier = Modifier.weight(1f)
-                            )
-                            WpGridSquareTile(
-                                title = stringResource(R.string.phone_keypad),
-                                icon = Icons.Default.Dialpad,
-                                isActive = isKeypadOpen,
-                                enabled = callStatus == CallStatus.ACTIVE,
-                                onClick = { CallManager.toggleKeypad() },
-                                modifier = Modifier.weight(1f)
-                            )
-                            WpGridSquareTile(
-                                title = stringResource(R.string.call_bluetooth),
-                                icon = Icons.Default.Bluetooth,
-                                isActive = audioRoute == CallAudioRoute.BLUETOOTH,
-                                enabled = isLive,
-                                onClick = {
-                                    // Telecom decides whether there is a headset to route to; if
-                                    // there is not, the route simply stays where it was.
-                                    CallManager.setAudioRoute(
-                                        if (audioRoute == CallAudioRoute.BLUETOOTH) {
-                                            CallAudioRoute.EARPIECE
-                                        } else {
-                                            CallAudioRoute.BLUETOOTH
-                                        }
-                                    )
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-
-                        // Row 3: end call (2/3 width), swap (1/3 width, alive with a second call)
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Surface(
-                                color = zuneColors.accentColor,
-                                modifier = Modifier
-                                    .weight(2f)
-                                    .fillMaxHeight()
-                                    .clickable { CallManager.endCall() }
-                            ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.call_hang_up),
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 19.sp
-                                        ),
-                                        color = Color.White
-                                    )
-                                }
-                            }
-
-                            WpGridSquareTile(
-                                title = stringResource(R.string.call_swap),
-                                icon = Icons.Default.SwapCalls,
-                                isActive = false,
-                                enabled = callCount > 1,
-                                onClick = { CallManager.swapCalls() },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                            )
-                        }
-                    }
+                            .padding(3.dp)
+                    )
                 }
             }
         }
@@ -489,7 +407,9 @@ fun WpCallScreen(
         AnimatedVisibility(
             visible = isKeypadOpen && callStatus == CallStatus.ACTIVE,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            // On a tablet the keys take the controls' column, leaving the caller in view.
+            modifier = if (isWideScreen) Modifier.align(Alignment.CenterEnd).width(WIDE_CALL_COLUMN).fillMaxHeight() else Modifier
         ) {
             Surface(
                 color = Color(0xFF141414),
@@ -607,7 +527,8 @@ fun WpCallScreen(
         AnimatedVisibility(
             visible = isAddCallOpen && callStatus == CallStatus.ACTIVE,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = if (isWideScreen) Modifier.align(Alignment.CenterEnd).width(WIDE_CALL_COLUMN).fillMaxHeight() else Modifier
         ) {
             AddCallPane(
                 onClose = { isAddCallOpen = false },
@@ -629,14 +550,16 @@ fun WpCallScreen(
                     .clickable { isQuickSmsOpen = false }
             ) {
                 Box(
-                    contentAlignment = Alignment.BottomCenter,
+                    // On a tablet the replies come up under the controls' column, not across
+                    // the whole width.
+                    contentAlignment = if (isWideScreen) Alignment.BottomEnd else Alignment.BottomCenter,
                     modifier = Modifier.fillMaxSize()
                 ) {
                     Surface(
                         color = Color(0xFF222222),
                         border = androidx.compose.foundation.BorderStroke(1.dp, zuneColors.accentColor.copy(alpha = 0.5f)),
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .then(if (isWideScreen) Modifier.width(WIDE_CALL_COLUMN) else Modifier.fillMaxWidth())
                             .navigationBarsPadding()
                             .padding(16.dp)
                     ) {
@@ -1272,5 +1195,354 @@ private fun loadPhotoBitmap(context: Context, uriString: String?): android.graph
         }
     } catch (e: Exception) {
         null
+    }
+}
+
+/**
+ * The call's tiles, three by three: speaker, mute, add a call; hold, keypad, Bluetooth; and the
+ * accent bar that hangs up, beside swapping to the other call. The phone has them under the
+ * photo; a tablet in the column beside it.
+ */
+@Composable
+private fun CallControlGrid(
+    callStatus: CallStatus,
+    isSpeakerOn: Boolean,
+    isMuted: Boolean,
+    isAddCallOpen: Boolean,
+    callCount: Int,
+    isOnHold: Boolean,
+    canHold: Boolean,
+    isKeypadOpen: Boolean,
+    audioRoute: CallAudioRoute,
+    onAddCall: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val zuneColors = LocalZuneColors.current
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        // Row 1: speaker, mute, add call
+        // Speaker and mute are wanted while the far end is still ringing too —
+        // a call put on speaker as it is dialled is the commonest case of all.
+        val isLive = callStatus == CallStatus.ACTIVE || callStatus == CallStatus.OUTGOING
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            WpGridSquareTile(
+                title = stringResource(R.string.call_speaker),
+                icon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                isActive = isSpeakerOn,
+                enabled = isLive,
+                onClick = { CallManager.toggleSpeaker() },
+                modifier = Modifier.weight(1f)
+            )
+            WpGridSquareTile(
+                title = stringResource(R.string.call_mute),
+                icon = if (isMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                isActive = isMuted,
+                enabled = isLive,
+                onClick = { CallManager.toggleMute() },
+                modifier = Modifier.weight(1f)
+            )
+            WpGridSquareTile(
+                title = stringResource(R.string.call_add),
+                icon = Icons.Default.PersonAdd,
+                isActive = isAddCallOpen,
+                // Telecom parks the first call itself when the second is placed.
+                enabled = callStatus == CallStatus.ACTIVE && callCount < 2,
+                onClick = onAddCall,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // Row 2: hold, klavye, bluetooth
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            WpGridSquareTile(
+                title = stringResource(R.string.call_hold),
+                icon = if (isOnHold) Icons.Default.PlayArrow else Icons.Default.Pause,
+                isActive = isOnHold,
+                // Not every network lets a call be parked; the button says so.
+                enabled = callStatus == CallStatus.ACTIVE && canHold,
+                onClick = { CallManager.toggleHold() },
+                modifier = Modifier.weight(1f)
+            )
+            WpGridSquareTile(
+                title = stringResource(R.string.phone_keypad),
+                icon = Icons.Default.Dialpad,
+                isActive = isKeypadOpen,
+                enabled = callStatus == CallStatus.ACTIVE,
+                onClick = { CallManager.toggleKeypad() },
+                modifier = Modifier.weight(1f)
+            )
+            WpGridSquareTile(
+                title = stringResource(R.string.call_bluetooth),
+                icon = Icons.Default.Bluetooth,
+                isActive = audioRoute == CallAudioRoute.BLUETOOTH,
+                enabled = isLive,
+                onClick = {
+                    // Telecom decides whether there is a headset to route to; if
+                    // there is not, the route simply stays where it was.
+                    CallManager.setAudioRoute(
+                        if (audioRoute == CallAudioRoute.BLUETOOTH) {
+                            CallAudioRoute.EARPIECE
+                        } else {
+                            CallAudioRoute.BLUETOOTH
+                        }
+                    )
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // Row 3: end call (2/3 width), swap (1/3 width, alive with a second call)
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Surface(
+                color = zuneColors.accentColor,
+                modifier = Modifier
+                    .weight(2f)
+                    .fillMaxHeight()
+                    .clickable { CallManager.endCall() }
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Text(
+                        text = stringResource(R.string.call_hang_up),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 19.sp
+                        ),
+                        color = Color.White
+                    )
+                }
+            }
+
+            WpGridSquareTile(
+                title = stringResource(R.string.call_swap),
+                icon = Icons.Default.SwapCalls,
+                isActive = false,
+                enabled = callCount > 1,
+                onClick = { CallManager.swapCalls() },
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            )
+        }
+    }
+}
+
+/** How wide a tablet's column of call controls is; the caller has the rest. */
+private val WIDE_CALL_COLUMN = 480.dp
+
+/**
+ * The call screen on a tablet, which is wide where a phone is tall: whoever it is fills the left
+ * of the screen, their name large over the bottom of their picture, and the column on the right
+ * holds what can be done - answer, ignore or reply while it rings, the call's tiles once it is
+ * under way. A tablet is not carried in a pocket, so answering is a plain tap on a tile rather
+ * than the phone's swipe, which is there to stop a pocket answering.
+ */
+@Composable
+private fun WideCallLayout(
+    callStatus: CallStatus,
+    statusText: String,
+    contactName: String,
+    phoneNumber: String,
+    numberLine: String,
+    simLabel: String?,
+    photoUri: String?,
+    currentTime: String,
+    canReply: Boolean,
+    onOpenQuickSms: () -> Unit,
+    controls: @Composable (Modifier) -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    Row(modifier = Modifier.fillMaxSize()) {
+        // ── The caller ──
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+        ) {
+            val bitmap = rememberContactPhoto(photoUri)
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = contactName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    zuneColors.accentColor.copy(alpha = 0.85f),
+                                    Color(0xFF0F1B29),
+                                    Color.Black
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = (contactName.firstOrNull() ?: 'P').uppercaseChar().toString(),
+                        style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Thin, fontSize = 240.sp),
+                        color = Color.White.copy(alpha = 0.22f)
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.75f))
+                        )
+                    )
+            )
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .navigationBarsPadding()
+                    .padding(start = 56.dp, end = 40.dp, bottom = 48.dp)
+            ) {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal, fontSize = 24.sp),
+                    color = zuneColors.accentColor
+                )
+                Text(
+                    text = contactName.ifBlank { phoneNumber },
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 64.sp,
+                        lineHeight = 68.sp,
+                        letterSpacing = (-1).sp
+                    ),
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                // A caller the address book does not know is already named by their number.
+                if (phoneNumber.isNotBlank() && numberLine != contactName.ifBlank { phoneNumber }) {
+                    Text(
+                        text = numberLine,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal, fontSize = 22.sp),
+                        color = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+                simLabel?.let { line ->
+                    Text(
+                        text = line,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
+
+        // ── What can be done ──
+        Column(
+            modifier = Modifier
+                .width(WIDE_CALL_COLUMN)
+                .fillMaxHeight()
+                .background(Color.Black)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 32.dp, top = 24.dp, bottom = 32.dp)
+        ) {
+            Text(
+                text = currentTime,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal, fontSize = 20.sp),
+                color = Color.White,
+                modifier = Modifier.align(Alignment.End)
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            if (callStatus == CallStatus.INCOMING) {
+                WideCallTile(
+                    label = stringResource(R.string.call_answer_cap).lowercase(Locale.getDefault()),
+                    icon = Icons.Default.Call,
+                    background = zuneColors.accentColor,
+                    onClick = { CallManager.answerCall() }
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                WideCallTile(
+                    label = stringResource(R.string.call_ignore_cap).lowercase(Locale.getDefault()),
+                    icon = Icons.Default.CallEnd,
+                    background = Color(0xFF262626),
+                    onClick = { CallManager.declineCall() }
+                )
+                if (canReply) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(top = 20.dp)
+                            .clickable(onClick = onOpenQuickSms)
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sms,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = stringResource(R.string.call_reply_message),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 20.sp),
+                            color = Color.White
+                        )
+                    }
+                }
+            } else {
+                controls(Modifier.fillMaxWidth().height(420.dp))
+            }
+        }
+    }
+}
+
+/** One of the two big tiles a tablet answers or turns a call away with. */
+@Composable
+private fun WideCallTile(label: String, icon: ImageVector, background: Color, onClick: () -> Unit) {
+    Surface(
+        color = background,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(116.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(34.dp).align(Alignment.TopStart)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal, fontSize = 22.sp),
+                color = Color.White,
+                modifier = Modifier.align(Alignment.BottomStart)
+            )
+        }
     }
 }

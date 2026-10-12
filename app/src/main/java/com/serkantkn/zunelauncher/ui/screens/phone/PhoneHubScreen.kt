@@ -1,5 +1,16 @@
 package com.serkantkn.zunelauncher.ui.screens.phone
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.ui.unit.Dp
+import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBarStrip
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
+import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
+import com.serkantkn.zunelauncher.ui.components.ZuneWidePaneHeader
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -98,6 +109,7 @@ fun PhoneHubScreen(
 ) {
     val zuneColors = LocalZuneColors.current
     val context = LocalContext.current
+    val isWideScreen = LocalIsWideScreen.current
 
     val callGroups by viewModel.callGroups.collectAsState()
     val missedOnly by viewModel.missedOnly.collectAsState()
@@ -187,7 +199,12 @@ fun PhoneHubScreen(
         val number = pendingDial ?: return@LaunchedEffect
         PhoneBridge.consume()
         viewModel.setDialedNumber(number)
-        isDialerOpen = true
+        if (isWideScreen) {
+            isBlockedListOpen = false
+            isSpeedDialPickerOpen = false
+        } else {
+            isDialerOpen = true
+        }
     }
 
     val pager = rememberLoopingPagerState(pageCount = 2)
@@ -203,6 +220,8 @@ fun PhoneHubScreen(
                 isDialerOpen = false
                 viewModel.clearDialedNumber()
             }
+
+            isWideScreen && dialedNumber.isNotEmpty() -> viewModel.clearDialedNumber()
 
             else -> onBack()
         }
@@ -235,187 +254,293 @@ fun PhoneHubScreen(
         }
     }
 
-    val isWideScreen = LocalIsWideScreen.current
+    fun unblock(blocked: BlockedNumber) {
+        viewModel.toggleBlock(blocked.number) { _, worked ->
+            if (!worked) {
+                Toast.makeText(context, R.string.phone_block_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun pickSpeedDial(entry: ContactPhone) {
+        viewModel.addToSpeedDial(entry.contact.name, entry.number, entry.contact.photoUri?.toString())
+        isSpeedDialPickerOpen = false
+    }
+
+    val tabTitles = listOf(
+        stringResource(R.string.common_history),
+        stringResource(R.string.phone_speed_dial)
+    )
+    val renderPage: @Composable (Int) -> Unit = { index ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (index % 2) {
+                0 -> HistoryPage(
+                    hasPermission = hasPermissions,
+                    groups = callGroups,
+                    missedOnly = missedOnly,
+                    errorMessage = errorMessage,
+                    blockedKeys = blockedKeys,
+                    canBlock = canBlock,
+                    hasVoicemail = hasVoicemail,
+                    voicemailWaiting = voicemailWaiting,
+                    onRequestPermission = {
+                        permissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.READ_CALL_LOG,
+                                // Same permission group; this is what lets a
+                                // missed call be marked seen.
+                                Manifest.permission.WRITE_CALL_LOG,
+                                Manifest.permission.READ_CONTACTS,
+                                Manifest.permission.READ_PHONE_STATE
+                            )
+                        )
+                    },
+                    onCall = { group -> call(group.number, group.name.orEmpty()) },
+                    onMessage = { group -> openMessaging(context, group.number) },
+                    onPin = { group ->
+                        viewModel.addToSpeedDial(group.displayName, group.number)
+                    },
+                    onToggleBlock = { group ->
+                        viewModel.toggleBlock(group.number) { blocked, worked ->
+                            Toast.makeText(
+                                context,
+                                when {
+                                    !worked -> context.getString(R.string.phone_block_failed)
+                                    blocked -> context.getString(
+                                        R.string.phone_blocked_toast,
+                                        group.displayName
+                                    )
+
+                                    else -> context.getString(
+                                        R.string.phone_unblocked_toast,
+                                        group.displayName
+                                    )
+                                },
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    },
+                    onVoicemail = { callVoicemail() }
+                )
+
+                else -> SpeedDialPage(
+                    entries = speedDial,
+                    onCall = { entry -> call(entry.number, entry.name) },
+                    onRemove = { entry -> viewModel.removeFromSpeedDial(entry.number) },
+                    onMove = { from, to -> viewModel.moveSpeedDial(from, to) },
+                    onAdd = { isSpeedDialPickerOpen = true }
+                )
+            }
+        }
+    }
+
+    val bottomBarActions = buildList {
+        add(
+            WpBarAction(
+                icon = Icons.Default.Dialpad,
+                label = stringResource(R.string.phone_keypad),
+                onClick = {
+                    viewModel.clearDialedNumber()
+                    // A tablet has the keypad open in its pane already; the button brings it
+                    // back there if a list has taken its place.
+                    if (isWideScreen) {
+                        isBlockedListOpen = false
+                        isSpeedDialPickerOpen = false
+                    } else {
+                        isDialerOpen = true
+                    }
+                }
+            )
+        )
+        if (page == 0) {
+            add(
+                WpBarAction(
+                    icon = Icons.AutoMirrored.Filled.CallMissed,
+                    label = stringResource(
+                        if (missedOnly) R.string.phone_filter_all else R.string.phone_filter_missed
+                    ),
+                    onClick = { viewModel.toggleMissedOnly() }
+                )
+            )
+        } else {
+            add(
+                WpBarAction(
+                    icon = Icons.Default.PersonAdd,
+                    label = stringResource(R.string.phone_speed_dial_add),
+                    onClick = { isSpeedDialPickerOpen = true }
+                )
+            )
+        }
+    }
+
+    // The ellipsis holds what is wanted rarely: the blocked list, and which SIM to call
+    // from. Both are left out entirely where the phone cannot do them.
+    val bottomBarMenu = buildList {
+        if (canBlock) {
+            add(
+                WpBarMenuItem(
+                    text = stringResource(R.string.phone_blocked_list),
+                    onClick = {
+                        viewModel.loadBlocked()
+                        isBlockedListOpen = true
+                    }
+                )
+            )
+        }
+        if (simLines.size > 1) {
+            add(
+                WpBarMenuItem(
+                    text = stringResource(R.string.phone_sim_menu),
+                    onClick = { isSimPreferenceOpen = true }
+                )
+            )
+        }
+    }
+
+    val makeDefault = {
+        PhoneCaller.defaultDialerRequest(context)?.let { dialerRoleRequest.launch(it) }
+        Unit
+    }
 
     ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
         Box(modifier = Modifier.fillMaxSize()) {
-            val tabTitles = listOf(
-                stringResource(R.string.common_history),
-                stringResource(R.string.phone_speed_dial)
-            )
-            Column(modifier = Modifier.fillMaxSize()) {
-                if (isWideScreen) {
-                    // On a tablet the pivot is laid out flat: both pages side by side, under the
-                    // hub's own giant word, like every other wide hub.
-                    ZuneWideHubTitle(text = stringResource(R.string.hub_phone))
-                } else {
-                    Text(
-                        text = stringResource(R.string.hub_phone),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 18.sp,
-                            letterSpacing = 1.sp
-                        ),
-                        color = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f),
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.padding(
-                            top = 28.dp,
-                            bottom = 4.dp,
-                            start = ZuneDimens.ScreenPaddingHorizontal,
-                            end = ZuneDimens.ScreenPaddingHorizontal
-                        )
-                    )
-
-                    ZunePivotTabs(
-                        tabs = tabTitles,
-                        state = pager,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-
-                if (!isDefaultDialer) {
-                    DefaultDialerBanner(
-                        onMakeDefault = {
-                            PhoneCaller.defaultDialerRequest(context)?.let { dialerRoleRequest.launch(it) }
-                        }
-                    )
-                }
-
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    val renderPage: @Composable (Int) -> Unit = { index ->
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            when (index % 2) {
-                                0 -> HistoryPage(
-                                    hasPermission = hasPermissions,
-                                    groups = callGroups,
-                                    missedOnly = missedOnly,
-                                    errorMessage = errorMessage,
-                                    blockedKeys = blockedKeys,
-                                    canBlock = canBlock,
-                                    hasVoicemail = hasVoicemail,
-                                    voicemailWaiting = voicemailWaiting,
-                                    onRequestPermission = {
-                                        permissionLauncher.launch(
-                                            arrayOf(
-                                                Manifest.permission.READ_CALL_LOG,
-                                                // Same permission group; this is what lets a
-                                                // missed call be marked seen.
-                                                Manifest.permission.WRITE_CALL_LOG,
-                                                Manifest.permission.READ_CONTACTS,
-                                                Manifest.permission.READ_PHONE_STATE
-                                            )
+            if (isWideScreen) {
+                // ═══════════════════════════════════════════════════
+                // TABLET: as the other tablet hubs stand - the hub's name small at the top left,
+                // the headings down the left, the calls beside them, and the keypad standing
+                // open in the rest of the width; the blocked list and the speed-dial picker
+                // take its place there when they are asked for.
+                // ═══════════════════════════════════════════════════
+                Row(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .width(ZuneWideNavWidth + PHONE_WIDE_LIST_WIDTH)
+                            .fillMaxHeight()
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            ZuneWideNavHub(
+                                title = stringResource(R.string.hub_phone),
+                                tabs = tabTitles,
+                                state = pager,
+                                modifier = Modifier.weight(1f),
+                                navExtra = if (isDefaultDialer) null else {
+                                    {
+                                        DefaultDialerBanner(
+                                            onMakeDefault = makeDefault,
+                                            modifier = Modifier.fillMaxWidth().padding(top = 28.dp)
                                         )
-                                    },
-                                    onCall = { group -> call(group.number, group.name.orEmpty()) },
-                                    onMessage = { group -> openMessaging(context, group.number) },
-                                    onPin = { group ->
-                                        viewModel.addToSpeedDial(group.displayName, group.number)
-                                    },
-                                    onToggleBlock = { group ->
-                                        viewModel.toggleBlock(group.number) { blocked, worked ->
-                                            Toast.makeText(
-                                                context,
-                                                when {
-                                                    !worked -> context.getString(R.string.phone_block_failed)
-                                                    blocked -> context.getString(
-                                                        R.string.phone_blocked_toast,
-                                                        group.displayName
-                                                    )
+                                    }
+                                }
+                            ) { index -> renderPage(index) }
+                            Spacer(modifier = Modifier.height(72.dp))
+                        }
+                        WindowsPhoneBottomBar(
+                            actions = bottomBarActions,
+                            menuItems = bottomBarMenu,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .then(bottomBarModifier)
+                        )
+                    }
 
-                                                    else -> context.getString(
-                                                        R.string.phone_unblocked_toast,
-                                                        group.displayName
-                                                    )
-                                                },
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    ) {
+                        val widePane = when {
+                            isBlockedListOpen -> WidePhonePane.BLOCKED
+                            isSpeedDialPickerOpen -> WidePhonePane.SPEED_DIAL_PICK
+                            else -> WidePhonePane.KEYPAD
+                        }
+                        AnimatedContent(
+                            targetState = widePane,
+                            transitionSpec = {
+                                (fadeIn(tween(260)) + slideInHorizontally(tween(320)) { it / 12 }) togetherWith fadeOut(tween(90))
+                            },
+                            label = "phone_pane",
+                            modifier = Modifier.fillMaxSize()
+                        ) { pane ->
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                when (pane) {
+                                    WidePhonePane.KEYPAD -> WideKeypadPane(
+                                        dialedNumber = dialedNumber,
+                                        matchingContacts = matchingContacts,
+                                        onPickMatch = { entry ->
+                                            call(entry.number, entry.contact.name)
+                                            viewModel.clearDialedNumber()
+                                        },
+                                        onPaste = { viewModel.setDialedNumber(it) },
+                                        onAppend = viewModel::appendDigit,
+                                        onVoicemail = {
+                                            viewModel.clearDialedNumber()
+                                            callVoicemail()
+                                        },
+                                        onBackspace = { viewModel.backspaceDigit() },
+                                        onCall = {
+                                            if (dialedNumber.isNotEmpty()) {
+                                                call(dialedNumber)
+                                                viewModel.clearDialedNumber()
+                                            }
                                         }
-                                    },
-                                    onVoicemail = { callVoicemail() }
-                                )
-
-                                else -> SpeedDialPage(
-                                    entries = speedDial,
-                                    onCall = { entry -> call(entry.number, entry.name) },
-                                    onRemove = { entry -> viewModel.removeFromSpeedDial(entry.number) },
-                                    onMove = { from, to -> viewModel.moveSpeedDial(from, to) },
-                                    onAdd = { isSpeedDialPickerOpen = true }
-                                )
+                                    )
+                                    WidePhonePane.BLOCKED -> BlockedNumbersSheet(
+                                        numbers = blockedNumbers,
+                                        onUnblock = { blocked -> unblock(blocked) },
+                                        onDismiss = { isBlockedListOpen = false },
+                                        inPane = true
+                                    )
+                                    WidePhonePane.SPEED_DIAL_PICK -> SpeedDialPicker(
+                                        contacts = allContacts,
+                                        onPick = { entry -> pickSpeedDial(entry) },
+                                        onDismiss = { isSpeedDialPickerOpen = false },
+                                        inPane = true
+                                    )
+                                }
+                                WindowsPhoneBottomBarStrip(modifier = Modifier.align(Alignment.BottomCenter))
                             }
                         }
                     }
+                }
+            } else {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = stringResource(R.string.hub_phone),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 18.sp,
+                        letterSpacing = 1.sp
+                    ),
+                    color = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.padding(
+                        top = 28.dp,
+                        bottom = 4.dp,
+                        start = ZuneDimens.ScreenPaddingHorizontal,
+                        end = ZuneDimens.ScreenPaddingHorizontal
+                    )
+                )
 
-                    if (isWideScreen) {
-                        ZuneWidePanorama(tabs = tabTitles, fillPageHeight = true) { index ->
+                ZunePivotTabs(
+                    tabs = tabTitles,
+                    state = pager,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
+                if (!isDefaultDialer) {
+                    DefaultDialerBanner(onMakeDefault = makeDefault)
+                }
+
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize()) { index ->
+                        Box(modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)) {
                             renderPage(index)
-                        }
-                    } else {
-                        ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize()) { index ->
-                            Box(modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)) {
-                                renderPage(index)
-                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(80.dp))
-            }
-
-            val bottomBarActions = buildList {
-                add(
-                    WpBarAction(
-                        icon = Icons.Default.Dialpad,
-                        label = stringResource(R.string.phone_keypad),
-                        onClick = {
-                            viewModel.clearDialedNumber()
-                            isDialerOpen = true
-                        }
-                    )
-                )
-                if (page == 0) {
-                    add(
-                        WpBarAction(
-                            icon = Icons.AutoMirrored.Filled.CallMissed,
-                            label = stringResource(
-                                if (missedOnly) R.string.phone_filter_all else R.string.phone_filter_missed
-                            ),
-                            onClick = { viewModel.toggleMissedOnly() }
-                        )
-                    )
-                } else {
-                    add(
-                        WpBarAction(
-                            icon = Icons.Default.PersonAdd,
-                            label = stringResource(R.string.phone_speed_dial_add),
-                            onClick = { isSpeedDialPickerOpen = true }
-                        )
-                    )
-                }
-            }
-
-            // The ellipsis holds what is wanted rarely: the blocked list, and which SIM to call
-            // from. Both are left out entirely where the phone cannot do them.
-            val bottomBarMenu = buildList {
-                if (canBlock) {
-                    add(
-                        WpBarMenuItem(
-                            text = stringResource(R.string.phone_blocked_list),
-                            onClick = {
-                                viewModel.loadBlocked()
-                                isBlockedListOpen = true
-                            }
-                        )
-                    )
-                }
-                if (simLines.size > 1) {
-                    add(
-                        WpBarMenuItem(
-                            text = stringResource(R.string.phone_sim_menu),
-                            onClick = { isSimPreferenceOpen = true }
-                        )
-                    )
-                }
             }
 
             Box(
@@ -427,10 +552,11 @@ fun PhoneHubScreen(
             ) {
                 WindowsPhoneBottomBar(actions = bottomBarActions, menuItems = bottomBarMenu)
             }
+            }
 
             // ── Keypad ──
             AnimatedVisibility(
-                visible = isDialerOpen,
+                visible = isDialerOpen && !isWideScreen,
                 enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(300)),
                 exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(300)),
                 modifier = Modifier.align(Alignment.BottomCenter)
@@ -570,32 +696,19 @@ fun PhoneHubScreen(
             }
 
             // ── The phone's blocked list ──
-            if (isBlockedListOpen) {
+            if (isBlockedListOpen && !isWideScreen) {
                 BlockedNumbersSheet(
                     numbers = blockedNumbers,
-                    onUnblock = { blocked ->
-                        viewModel.toggleBlock(blocked.number) { _, worked ->
-                            if (!worked) {
-                                Toast.makeText(
-                                    context,
-                                    R.string.phone_block_failed,
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    },
+                    onUnblock = { blocked -> unblock(blocked) },
                     onDismiss = { isBlockedListOpen = false }
                 )
             }
 
             // ── Picking someone for the speed dial ──
-            if (isSpeedDialPickerOpen) {
+            if (isSpeedDialPickerOpen && !isWideScreen) {
                 SpeedDialPicker(
                     contacts = allContacts,
-                    onPick = { entry ->
-                        viewModel.addToSpeedDial(entry.contact.name, entry.number, entry.contact.photoUri?.toString())
-                        isSpeedDialPickerOpen = false
-                    },
+                    onPick = { entry -> pickSpeedDial(entry) },
                     onDismiss = { isSpeedDialPickerOpen = false }
                 )
             }
@@ -626,12 +739,15 @@ private fun openMessaging(context: android.content.Context, number: String) {
  * this says so — and says what happens instead, rather than letting calls quietly go elsewhere.
  */
 @Composable
-private fun DefaultDialerBanner(onMakeDefault: () -> Unit) {
+private fun DefaultDialerBanner(
+    onMakeDefault: () -> Unit,
+    modifier: Modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 8.dp)
+) {
     val zuneColors = LocalZuneColors.current
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 8.dp)
+        modifier = modifier
             .background(zuneColors.accentColor.copy(alpha = 0.18f))
             .clickable(onClick = onMakeDefault)
             .padding(horizontal = 12.dp, vertical = 10.dp)
@@ -1006,9 +1122,57 @@ private fun SpeedDialPage(
 private fun SpeedDialPicker(
     contacts: List<ContactPhone>,
     onPick: (ContactPhone) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    inPane: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
+    PhoneSheet(title = stringResource(R.string.phone_speed_dial_pick), inPane = inPane, onDismiss = onDismiss) {
+            if (contacts.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.phone_speed_dial_no_contacts),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = zuneColors.textDim,
+                    modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = if (inPane) Dp.Unspecified else 420.dp),
+                    contentPadding = PaddingValues(
+                        horizontal = ZuneDimens.ScreenPaddingHorizontal,
+                        vertical = 8.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    items(contacts, key = { it.contact.id + it.number }) { entry ->
+                        MatchingContactItem(
+                            entry = entry,
+                            onClick = { onPick(entry) }
+                        )
+                    }
+                }
+            }
+    }
+}
+
+/**
+ * How the speed-dial picker and the blocked list stand: on a phone, a sheet up from the bottom
+ * over a dimmed hub, closed by a tap above it; on a tablet, the pane beside the list, under the
+ * pane's own head with its ringed close button.
+ */
+@Composable
+private fun PhoneSheet(
+    title: String,
+    inPane: Boolean,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    if (inPane) {
+        Column(modifier = Modifier.fillMaxSize().padding(bottom = 72.dp)) {
+            ZuneWidePaneHeader(section = title, onClose = onDismiss)
+            Column(modifier = Modifier.fillMaxSize().padding(top = 12.dp, end = 8.dp), content = content)
+        }
+        return
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1024,35 +1188,12 @@ private fun SpeedDialPicker(
                 .padding(vertical = 16.dp)
         ) {
             Text(
-                text = stringResource(R.string.phone_speed_dial_pick),
+                text = title,
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light),
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 8.dp)
             )
-            if (contacts.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.phone_speed_dial_no_contacts),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = zuneColors.textDim,
-                    modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
-                    contentPadding = PaddingValues(
-                        horizontal = ZuneDimens.ScreenPaddingHorizontal,
-                        vertical = 8.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    items(contacts, key = { it.contact.id + it.number }) { entry ->
-                        MatchingContactItem(
-                            entry = entry,
-                            onClick = { onPick(entry) }
-                        )
-                    }
-                }
-            }
+            content()
         }
     }
 }
@@ -1335,32 +1476,11 @@ private fun SimPicker(
 private fun BlockedNumbersSheet(
     numbers: List<BlockedNumber>,
     onUnblock: (BlockedNumber) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    inPane: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.72f))
-            .clickable(onClick = onDismiss)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .background(MaterialTheme.colorScheme.background)
-                .navigationBarsPadding()
-                .padding(vertical = 16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.phone_blocked_list),
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light),
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(
-                    horizontal = ZuneDimens.ScreenPaddingHorizontal,
-                    vertical = 8.dp
-                )
-            )
+    PhoneSheet(title = stringResource(R.string.phone_blocked_list), inPane = inPane, onDismiss = onDismiss) {
             Text(
                 text = stringResource(R.string.phone_blocked_note),
                 style = MaterialTheme.typography.bodySmall,
@@ -1376,11 +1496,11 @@ private fun BlockedNumbersSheet(
                     color = zuneColors.textDim,
                     modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
                 )
-                return@Column
+                return@PhoneSheet
             }
 
             LazyColumn(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(max = if (inPane) Dp.Unspecified else 380.dp),
                 contentPadding = PaddingValues(horizontal = ZuneDimens.ScreenPaddingHorizontal),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -1415,6 +1535,87 @@ private fun BlockedNumbersSheet(
                     }
                 }
             }
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// TABLET PANE
+// ════════════════════════════════════════════════════════════
+
+/** What stands in the pane beside a tablet's list of calls. */
+private enum class WidePhonePane { KEYPAD, BLOCKED, SPEED_DIAL_PICK }
+
+/** How wide a tablet's list of calls is; the keypad takes the rest. */
+private val PHONE_WIDE_LIST_WIDTH = 440.dp
+
+/**
+ * A tablet's keypad, standing open beside the calls instead of sliding up over them: its name in
+ * the pane's light type, the people whose numbers match what has been typed filling the room
+ * above, then the number and the keys. The keys are the phone's own; only the room is bigger.
+ */
+@Composable
+private fun WideKeypadPane(
+    dialedNumber: String,
+    matchingContacts: List<ContactPhone>,
+    onPickMatch: (ContactPhone) -> Unit,
+    onPaste: (String) -> Unit,
+    onAppend: (String) -> Unit,
+    onVoicemail: () -> Unit,
+    onBackspace: () -> Unit,
+    onCall: () -> Unit
+) {
+    val context = LocalContext.current
+    val zuneColors = LocalZuneColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 32.dp, top = 40.dp, bottom = 104.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.phone_keypad),
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 30.sp),
+            color = zuneColors.textMuted,
+            maxLines = 1
+        )
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(matchingContacts, key = { it.contact.id + it.number }) { entry ->
+                MatchingContactItem(entry = entry, onClick = { onPickMatch(entry) })
+            }
+        }
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = dialedNumber.ifEmpty { " " },
+                style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Light, fontSize = 48.sp),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+            )
+            // A number copied from somewhere else; only offered while the pad is empty.
+            if (dialedNumber.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.phone_paste),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = zuneColors.accentColor,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .clickable {
+                            val pasted = clipboardText(context)
+                            if (!pasted.isNullOrBlank()) onPaste(pasted)
+                        }
+                        .padding(vertical = 12.dp)
+                )
+            }
+        }
+        Box(modifier = Modifier.fillMaxWidth().height(360.dp)) {
+            DialerKeypad(onAppend = onAppend, onVoicemail = onVoicemail, onBackspace = onBackspace, onCall = onCall)
         }
     }
 }

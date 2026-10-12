@@ -41,6 +41,7 @@ import androidx.compose.material.icons.automirrored.filled.CallMissed
 import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -113,6 +114,8 @@ import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.ZuneDialogButton
 import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+import com.serkantkn.zunelauncher.ui.components.ZuneWidePaneHeader
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneColors
 import java.text.SimpleDateFormat
@@ -180,58 +183,29 @@ fun ContactDetailScreen(
 
     if (currentDisplayDetail != null) {
         if (isWideScreen) {
-            // Tablet Mode: Side Card sliding in from right edge
-            AnimatedVisibility(
-                visible = detail != null,
-                enter = slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(360)
-                ) + fadeIn(tween(300)),
-                exit = slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(300)
-                ) + fadeOut(tween(250)),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.4f))
-                            .clickable { onBack() }
-                    )
-
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(420.dp),
-                        color = if (zuneColors.isDark) Color(0xFF141414) else Color.White,
-                        tonalElevation = 16.dp,
-                        shadowElevation = 16.dp,
-                        shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
-                    ) {
-                        ContactDetailContent(
-                            displayDetail = currentDisplayDetail,
-                            onOpenMessaging = onOpenMessaging,
-                            onEditClick = { onEditContact?.invoke() },
-                            onDeleteClick = { showDeleteConfirmDialog = true },
-                            onCloseTablet = onBack,
-                            isTabletCard = true,
-                            onToggleFavorite = onToggleFavorite?.let { { it(currentDisplayDetail.contact) } },
-                            onPinToStart = onPinToStart?.let { { it(currentDisplayDetail.contact) } },
-                            isPinnedToStart = isPinnedToStart,
-                            allGroups = allGroups,
-                            onToggleGroup = onToggleGroup,
-                            onLinkDuplicate = onLinkDuplicate,
-                            onUnlink = onUnlink,
-                            onPhotoClick = if (onPhotoPicked != null) {
-                                { photoSheetOpen = true }
-                            } else {
-                                null
-                            }
-                        )
+            // Tablet: the person stands in the pane beside the hub's list, on the hub's own
+            // background; the hub moves between people, so nothing here slides in or out.
+            Box(modifier = Modifier.fillMaxSize()) {
+                ContactDetailContent(
+                    displayDetail = currentDisplayDetail,
+                    onOpenMessaging = onOpenMessaging,
+                    onEditClick = { onEditContact?.invoke() },
+                    onDeleteClick = { showDeleteConfirmDialog = true },
+                    onCloseTablet = onBack,
+                    isTabletCard = true,
+                    onToggleFavorite = onToggleFavorite?.let { { it(currentDisplayDetail.contact) } },
+                    onPinToStart = onPinToStart?.let { { it(currentDisplayDetail.contact) } },
+                    isPinnedToStart = isPinnedToStart,
+                    allGroups = allGroups,
+                    onToggleGroup = onToggleGroup,
+                    onLinkDuplicate = onLinkDuplicate,
+                    onUnlink = onUnlink,
+                    onPhotoClick = if (onPhotoPicked != null) {
+                        { photoSheetOpen = true }
+                    } else {
+                        null
                     }
-                }
+                )
             }
         } else {
             // Mobile Mode: Edge-to-edge layout
@@ -463,7 +437,15 @@ private fun ContactDetailContent(
                 .padding(bottom = 80.dp)
         ) {
             // ─── 1. TOP PHOTO (40% OF SCREEN HEIGHT, EDGE-TO-EDGE, NO MARGINS) ───
-            Box(
+            // A tablet's pane is wide and short: the face goes beside the name instead.
+            if (isTabletCard) {
+                WidePaneContactHead(
+                    detail = displayDetail,
+                    fallbackColor = fallbackColor,
+                    onPhotoClick = onPhotoClick,
+                    onClose = { onCloseTablet?.invoke() }
+                )
+            } else Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(photoHeight)
@@ -554,7 +536,10 @@ private fun ContactDetailContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 20.dp)
+                    .then(
+                        if (isTabletCard) Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 32.dp, top = 24.dp, bottom = 20.dp)
+                        else Modifier.padding(horizontal = 20.dp, vertical = 20.dp)
+                    )
             ) {
                 // PRIMARY PHONE & SMS ACTIONS
                 if (displayDetail.phoneNumbers.isNotEmpty()) {
@@ -1204,18 +1189,51 @@ fun EditContactScreen(
     var organization by remember(detail) { mutableStateOf(detail.organization) }
     var jobTitle by remember(detail) { mutableStateOf(detail.jobTitle) }
 
+    val save: () -> Unit = {
+        // Untouched, the name is not written back at all: a middle name or a title
+        // this editor does not show must survive an edit of the phone number.
+        val nameChanged = firstName != nameParts.first || lastName != nameParts.second
+        onSave(
+            ContactEdit(
+                firstName = firstName,
+                lastName = lastName,
+                name = if (nameChanged) {
+                    detail.name.copy(given = firstName.trim(), family = lastName.trim())
+                } else {
+                    null
+                },
+                numbers = numbers.filter { it.number.isNotBlank() },
+                emails = emails.filter { it.address.isNotBlank() },
+                addresses = addresses.filter { it.address.isNotBlank() },
+                birthday = birthday.trim(),
+                note = note.trim(),
+                organization = organization.trim(),
+                jobTitle = jobTitle.trim()
+            )
+        )
+    }
+
+    // On a tablet the editor stands in the pane beside the list, under the pane's head.
+    val isWideScreen = LocalIsWideScreen.current
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = if (zuneColors.isDark) Color(0xFF0F0F0F) else Color(0xFFFAFAFA)
+        color = if (isWideScreen) Color.Transparent else if (zuneColors.isDark) Color(0xFF0F0F0F) else Color(0xFFFAFAFA)
     ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+        if (isWideScreen) {
+            ZuneWidePaneHeader(section = stringResource(R.string.people_edit_contact), onClose = onClose)
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .padding(24.dp)
+                .then(
+                    if (isWideScreen) Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 32.dp, top = 16.dp)
+                    else Modifier.statusBarsPadding().padding(24.dp)
+                )
                 .verticalScroll(rememberScrollState())
         ) {
-            Row(
+            if (!isWideScreen) Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -1234,7 +1252,7 @@ fun EditContactScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            if (!isWideScreen) Spacer(modifier = Modifier.height(24.dp))
 
             EditField(stringResource(R.string.people_first_name), firstName) { firstName = it }
             Spacer(modifier = Modifier.height(16.dp))
@@ -1334,30 +1352,8 @@ fun EditContactScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Button(
-                onClick = {
-                    // Untouched, the name is not written back at all: a middle name or a title
-                    // this editor does not show must survive an edit of the phone number.
-                    val nameChanged = firstName != nameParts.first || lastName != nameParts.second
-                    onSave(
-                        ContactEdit(
-                            firstName = firstName,
-                            lastName = lastName,
-                            name = if (nameChanged) {
-                                detail.name.copy(given = firstName.trim(), family = lastName.trim())
-                            } else {
-                                null
-                            },
-                            numbers = numbers.filter { it.number.isNotBlank() },
-                            emails = emails.filter { it.address.isNotBlank() },
-                            addresses = addresses.filter { it.address.isNotBlank() },
-                            birthday = birthday.trim(),
-                            note = note.trim(),
-                            organization = organization.trim(),
-                            jobTitle = jobTitle.trim()
-                        )
-                    )
-                },
+            if (!isWideScreen) Button(
+                onClick = save,
                 colors = ButtonDefaults.buttonColors(containerColor = zuneColors.accentColor, contentColor = Color.White),
                 shape = RoundedCornerShape(2.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
@@ -1368,7 +1364,19 @@ fun EditContactScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(if (isWideScreen) 96.dp else 24.dp))
+        }
+        }
+        // On a tablet saving is on the pane's bar, as it is on every other page there.
+        if (isWideScreen) {
+            WindowsPhoneBottomBar(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                actions = listOf(
+                    WpBarAction(icon = Icons.Default.Check, label = stringResource(R.string.common_save), onClick = save),
+                    WpBarAction(icon = Icons.Default.Close, label = stringResource(R.string.common_cancel), onClick = onClose)
+                )
+            )
+        }
         }
     }
 }
@@ -1648,4 +1656,86 @@ private fun PhotoSheetAction(label: String, onClick: () -> Unit, color: Color? =
             .clickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 12.dp)
     )
+}
+
+/**
+ * The head of somebody's card in a tablet's pane: their face as a square tile at the left, the
+ * name beside it in the hub's light type, and a ringed button to close. Tapping the face changes
+ * it, as on the phone's big photo.
+ */
+@Composable
+private fun WidePaneContactHead(
+    detail: ContactDetailModel,
+    fallbackColor: Color,
+    onPhotoClick: (() -> Unit)?,
+    onClose: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    val employment = listOfNotNull(
+        detail.jobTitle.takeIf { it.isNotBlank() },
+        detail.organization.takeIf { it.isNotBlank() }
+    ).joinToString(" · ")
+    Row(
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 32.dp, top = 40.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(150.dp)
+                .background(fallbackColor)
+                .then(if (onPhotoClick != null) Modifier.clickable(onClick = onPhotoClick) else Modifier)
+        ) {
+            if (detail.contact.photoUri != null) {
+                AsyncImage(
+                    model = detail.contact.photoUri,
+                    contentDescription = detail.contact.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Text(
+                    text = detail.contact.name.take(1).uppercase(Locale.getDefault()),
+                    style = MaterialTheme.typography.displayLarge.copy(fontSize = 72.sp, fontWeight = FontWeight.Light),
+                    color = Color.White.copy(alpha = 0.85f)
+                )
+            }
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 20.dp, end = 12.dp)
+        ) {
+            Text(
+                text = detail.contact.name.lowercase(Locale.getDefault()),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = FontWeight.Light,
+                    fontSize = 40.sp,
+                    letterSpacing = (-1).sp,
+                    lineHeight = 44.sp
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (employment.isNotEmpty()) {
+                Text(
+                    text = employment,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = zuneColors.textMuted,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+        }
+        com.serkantkn.zunelauncher.ui.screens.messaging.RingButton(
+            icon = Icons.Default.Close,
+            label = stringResource(R.string.common_close_cap),
+            enabled = true,
+            onClick = onClose
+        )
+    }
 }
