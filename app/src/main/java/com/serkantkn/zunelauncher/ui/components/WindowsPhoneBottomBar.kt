@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 
 data class WpBarAction(
@@ -41,6 +42,26 @@ data class WpBarMenuItem(
 )
 
 /**
+ * How far a bar along the bottom stands off the screen's edge: the system's navigation bar while
+ * that is what is down there, and nothing once the keyboard is up. A screen with the keyboard open
+ * has already been lifted clear of it - the keyboard's height takes in the navigation bar - so
+ * adding the navigation bar again left a band of empty space between the keys and the bar.
+ */
+@Composable
+fun barBottomInset(): androidx.compose.ui.unit.Dp =
+    WindowInsets.navigationBars.exclude(WindowInsets.ime).asPaddingValues().calculateBottomPadding()
+
+/**
+ * How much of the bottom of the screen the bar covers, edge and all: Windows Phone's 56dp bar on
+ * a phone, Windows 8's taller one with its names under the commands on a tablet. What has to sit
+ * just clear of the bar - a toolbar docked over it, a mini player, the end of a list - asks this
+ * rather than assuming either.
+ */
+@Composable
+fun bottomBarHeight(): androidx.compose.ui.unit.Dp =
+    (if (LocalIsWideScreen.current) WIN8_BAR_HEIGHT else 56.dp) + barBottomInset()
+
+/**
  * Standard Windows Phone Metro style Bottom Application Bar.
  * Action buttons are centered horizontally and stay above the system navigation bar.
  * Collapsed state (56.dp + insets): Circular outlined icons centered, 3-dot (...) button flush right. Button labels hidden.
@@ -50,10 +71,16 @@ data class WpBarMenuItem(
 fun WindowsPhoneBottomBar(
     actions: List<WpBarAction>,
     modifier: Modifier = Modifier,
-    menuItems: List<WpBarMenuItem> = emptyList()
+    menuItems: List<WpBarMenuItem> = emptyList(),
+    wideCommandsAtStart: Boolean = false
 ) {
+    // A tablet is Windows 8, not Windows Phone: the same commands, on Windows 8's bar.
+    if (LocalIsWideScreen.current) {
+        Win8BarForPhoneCommands(actions, menuItems, wideCommandsAtStart, modifier)
+        return
+    }
     val zuneColors = LocalZuneColors.current
-    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBarBottomPadding = barBottomInset()
     var isExpanded by remember { mutableStateOf(false) }
 
     val baseHeight = 56.dp + navBarBottomPadding
@@ -228,8 +255,12 @@ fun WindowsPhoneBottomBar(
  */
 @Composable
 fun WindowsPhoneBottomBarStrip(modifier: Modifier = Modifier) {
+    if (LocalIsWideScreen.current) {
+        Win8CommandBar(left = emptyList(), right = emptyList(), modifier = modifier)
+        return
+    }
     val zuneColors = LocalZuneColors.current
-    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBarBottomPadding = barBottomInset()
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -238,4 +269,47 @@ fun WindowsPhoneBottomBarStrip(modifier: Modifier = Modifier) {
         tonalElevation = 8.dp,
         shadowElevation = 8.dp
     ) {}
+}
+
+/**
+ * A Windows Phone bar's commands laid out as Windows 8 had them: every command with its name
+ * under it all the time, and what the phone kept behind its "…" in a flyout from a "…" command
+ * of its own. The commands stand at the bar's right end, where Windows 8 put the page's own; a
+ * tablet hub's list asks for the left end, so that with whatever is open beside it the band
+ * across the bottom reads as one bar - the list's commands on the left, the open thing's on the
+ * right.
+ */
+@Composable
+private fun Win8BarForPhoneCommands(
+    actions: List<WpBarAction>,
+    menuItems: List<WpBarMenuItem>,
+    atStart: Boolean,
+    modifier: Modifier
+) {
+    val commands = buildList {
+        actions.forEach { action ->
+            add(Win8Command(icon = action.icon, label = action.label.lowercase(), onClick = action.onClick))
+        }
+        if (menuItems.isNotEmpty()) {
+            add(
+                Win8Command(
+                    icon = Icons.Default.MoreHoriz,
+                    label = stringResource(R.string.bottom_bar_more).lowercase(),
+                    menu = { close ->
+                        menuItems.forEach { item ->
+                            Win8MenuItem(text = item.text.lowercase()) {
+                                close()
+                                item.onClick()
+                            }
+                        }
+                    }
+                )
+            )
+        }
+    }
+    Win8CommandBar(
+        left = if (atStart) commands else emptyList(),
+        right = if (atStart) emptyList() else commands,
+        modifier = modifier
+    )
 }

@@ -1144,7 +1144,7 @@ fun FilesHubScreen(
                                     ) {
                                         BrowsePage()
                                     }
-                                    Spacer(modifier = Modifier.height(72.dp))
+                                    Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
                                 }
                             }
                         } else {

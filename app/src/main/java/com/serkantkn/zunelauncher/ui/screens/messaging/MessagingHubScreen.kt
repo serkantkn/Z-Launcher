@@ -407,8 +407,7 @@ fun MessagingHubScreen(
         }
     }
 
-    val bottomBarClearance = 56.dp + 16.dp +
-        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val bottomBarClearance = com.serkantkn.zunelauncher.ui.components.bottomBarHeight() + 16.dp
 
     // ── The pages ──
     @Composable

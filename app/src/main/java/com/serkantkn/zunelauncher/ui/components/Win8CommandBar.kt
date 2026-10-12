@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -93,7 +94,7 @@ fun Win8CommandBar(
 ) {
     val zuneColors = LocalZuneColors.current
     val fg = if (zuneColors.isDark) Color.White else Color.Black
-    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBottom = barBottomInset()
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(tween(220)) { it } + fadeIn(tween(220)),
@@ -117,6 +118,8 @@ fun Win8CommandBar(
                     modifier = Modifier
                         .horizontalScroll(rememberScrollState())
                         .widthIn(min = maxWidth)
+                        // As tall as a command, so an empty bar runs level with one beside it.
+                        .heightIn(min = COMMAND_HEIGHT + 24.dp)
                         .padding(horizontal = 40.dp, vertical = 12.dp)
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(BAR_GAP)) {
@@ -357,3 +360,9 @@ private fun BandButton(
 }
 
 private val BAR_GAP = 18.dp
+
+/** A command's ring, the gap and its one line of name. */
+private val COMMAND_HEIGHT = 62.dp
+
+/** The bar's own height, above the navigation bar: a command and the band's margins. */
+internal val WIN8_BAR_HEIGHT = COMMAND_HEIGHT + 24.dp

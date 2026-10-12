@@ -326,7 +326,7 @@ fun ClockHubScreen(
                                 state = pager,
                                 modifier = Modifier.weight(1f)
                             ) { index -> Page(index) }
-                            Spacer(modifier = Modifier.height(72.dp))
+                            Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
                         }
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {

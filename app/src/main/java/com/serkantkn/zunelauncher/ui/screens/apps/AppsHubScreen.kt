@@ -225,8 +225,7 @@ fun AppsHubScreen(
         }
     }
 
-    val bottomBarClearance = 56.dp + 12.dp +
-        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val bottomBarClearance = com.serkantkn.zunelauncher.ui.components.bottomBarHeight() + 12.dp
 
     // ── One app, wherever it is drawn ──
     @Composable

@@ -140,7 +140,7 @@ fun PhotoEditorScreen(
     val context = LocalContext.current
     val zuneColors = LocalZuneColors.current
     val coroutineScope = rememberCoroutineScope()
-    val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBarBottomPadding = com.serkantkn.zunelauncher.ui.components.barBottomInset()
 
     var originalBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isLoading by remember { mutableStateOf(true) }

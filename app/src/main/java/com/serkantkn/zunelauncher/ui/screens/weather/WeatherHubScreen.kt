@@ -163,8 +163,7 @@ fun WeatherHubScreen(
     // Filled in once the title has been laid out; until then the drift is the plain one.
     var titleWidthPx by remember { mutableFloatStateOf(0f) }
 
-    val bottomBarClearance = 56.dp + 16.dp +
-        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val bottomBarClearance = com.serkantkn.zunelauncher.ui.components.bottomBarHeight() + 16.dp
 
     val bottomBarActions = listOf(
         WpBarAction(Icons.Default.Refresh, stringResource(R.string.common_refresh)) {

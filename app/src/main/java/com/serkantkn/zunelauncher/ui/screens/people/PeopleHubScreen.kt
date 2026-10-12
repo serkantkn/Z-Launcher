@@ -496,11 +496,13 @@ fun PeopleHubScreen(
                                         else -> renderPage(index)
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(72.dp))
+                                Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
                             }
 
                             if (hasPermission) {
                                 WindowsPhoneBottomBar(
+                                    // The list's commands at the left end; whatever is open beside it has the right.
+                                    wideCommandsAtStart = true,
                                     actions = bottomBarActions,
                                     menuItems = bottomBarMenuItems,
                                     modifier = Modifier

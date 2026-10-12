@@ -117,7 +117,7 @@ fun CalculatorHubScreen(
 
     val headerColor = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f)
     // The keypad fills its page, so it must stop above the app bar (56dp) plus the navigation bar inset.
-    val bottomBarClearance = 56.dp + 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val bottomBarClearance = com.serkantkn.zunelauncher.ui.components.bottomBarHeight() + 16.dp
 
     val bottomBarActions: List<WpBarAction> = when (currentPage) {
         PAGE_HISTORY -> listOf(

@@ -549,7 +549,7 @@ internal fun NoteEditorScreen(
             exit = androidx.compose.animation.slideOutVertically { it } + androidx.compose.animation.fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 56.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .padding(bottom = com.serkantkn.zunelauncher.ui.components.bottomBarHeight())
         ) {
             NoteFormatToolbar(
                 state = richState,

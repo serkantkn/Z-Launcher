@@ -8,6 +8,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.unit.Dp
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBarStrip
+import com.serkantkn.zunelauncher.ui.components.bottomBarHeight
 import com.serkantkn.zunelauncher.ui.components.ZuneWideNavHub
 import com.serkantkn.zunelauncher.ui.components.ZuneWideNavWidth
 import com.serkantkn.zunelauncher.ui.components.ZuneWidePaneHeader
@@ -432,9 +433,11 @@ fun PhoneHubScreen(
                                     }
                                 }
                             ) { index -> renderPage(index) }
-                            Spacer(modifier = Modifier.height(72.dp))
+                            Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
                         }
                         WindowsPhoneBottomBar(
+                            // The list's commands at the left end; whatever is open beside it has the right.
+                            wideCommandsAtStart = true,
                             actions = bottomBarActions,
                             menuItems = bottomBarMenu,
                             modifier = Modifier
@@ -1167,7 +1170,7 @@ private fun PhoneSheet(
     content: @Composable ColumnScope.() -> Unit
 ) {
     if (inPane) {
-        Column(modifier = Modifier.fillMaxSize().padding(bottom = 72.dp)) {
+        Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomBarHeight())) {
             ZuneWidePaneHeader(section = title, onClose = onDismiss)
             Column(modifier = Modifier.fillMaxSize().padding(top = 12.dp, end = 8.dp), content = content)
         }
@@ -1569,7 +1572,7 @@ private fun WideKeypadPane(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 32.dp, top = 40.dp, bottom = 104.dp)
+            .padding(start = ZuneDimens.ScreenPaddingHorizontal, end = 32.dp, top = 40.dp, bottom = bottomBarHeight() + 16.dp)
     ) {
         Text(
             text = stringResource(R.string.phone_keypad),

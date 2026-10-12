@@ -642,9 +642,11 @@ fun EmailHubScreen(
                                         WelcomePage()
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(72.dp))
+                                Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
                             }
                             WindowsPhoneBottomBar(
+                                // The list's commands at the left end; whatever is open beside it has the right.
+                                wideCommandsAtStart = true,
                                 modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
                                 actions = bottomBarActions,
                                 menuItems = bottomBarMenuItems

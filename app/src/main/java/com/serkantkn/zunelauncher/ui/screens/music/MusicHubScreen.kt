@@ -287,7 +287,7 @@ fun MusicHubScreen(
                             onRequest = { requestAudioPermission() }
                         )
                     } else {
-                        ZuneWidePanorama(tabs = pages) { index ->
+                        ZuneWidePanorama(tabs = pages, modifier = Modifier.weight(1f).fillMaxWidth()) { index ->
                             MusicPage(
                                 page = index,
                                 viewModel = viewModel,
@@ -301,6 +301,8 @@ fun MusicHubScreen(
                                 onNewPlaylist = { showNewPlaylist = true }
                             )
                         }
+                        // The columns end where the bar begins, so nothing is left under it.
+                        Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
                     }
                 } else {
                 Box(
@@ -432,8 +434,7 @@ fun MusicHubScreen(
                     onPlayPause = viewModel::playPause,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 56.dp + WindowInsets.navigationBars
-                            .asPaddingValues().calculateBottomPadding())
+                        .padding(bottom = com.serkantkn.zunelauncher.ui.components.bottomBarHeight())
                 )
             }
 
