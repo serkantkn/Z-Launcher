@@ -1294,8 +1294,21 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
             openCloudFolder(item)
             return
         }
+        // A film plays straight off the drive in the launcher's own player, as it arrives,
+        // instead of waiting for the whole of it to come down first.
+        val account = _activeCloudAccount.value
+        if (account != null && !item.isGoogleDocument && !item.isWebOnly && isVideo(item)) {
+            com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.openCloud(application(), account, item)
+            return
+        }
         cloudTransfer(item) { account, progress -> cloudRepository.open(account, item, progress) }
     }
+
+    private fun isVideo(item: CloudItem): Boolean =
+        com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.handles(item.mimeType) ||
+            com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.handles(
+                MimeTypeMap.getSingleton().getMimeTypeFromExtension(item.name.substringAfterLast('.', "").lowercase())
+            )
 
     fun shareCloudItem(item: CloudItem) =
         cloudTransfer(item) { account, progress -> cloudRepository.share(account, item, progress) }

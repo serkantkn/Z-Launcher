@@ -27,7 +27,6 @@ import com.serkantkn.zunelauncher.util.sortAlbumTracks
 import com.serkantkn.zunelauncher.util.sortSongs
 import com.serkantkn.zunelauncher.data.service.ThirdPartyMediaController
 import com.serkantkn.zunelauncher.data.service.LocalMediaController
-import com.serkantkn.zunelauncher.data.service.LocalPlaybackState
 import com.serkantkn.zunelauncher.data.service.QueueEntry
 import androidx.media3.common.Player
 import kotlinx.coroutines.flow.combine
@@ -105,6 +104,68 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
             getApplication(),
             permission
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    // ── The videos ──────────────────────────────────────────────────────────
+
+    /**
+     * The hub is music + videos, as Windows Phone's was, and the videos are a permission of their
+     * own: a phone can let the launcher hear its music without letting it see its films.
+     */
+    private val _hasVideoPermission = MutableStateFlow(checkVideoPermission())
+    val hasVideoPermission: StateFlow<Boolean> = _hasVideoPermission.asStateFlow()
+
+    private val _videos = MutableStateFlow<List<com.serkantkn.zunelauncher.data.repository.LocalVideo>>(emptyList())
+    val videos: StateFlow<List<com.serkantkn.zunelauncher.data.repository.LocalVideo>> = _videos.asStateFlow()
+
+    private var videosWatched = false
+
+    /** Called on every resume, and with the answer from the permission prompt. */
+    fun refreshVideoPermission() {
+        val granted = checkVideoPermission()
+        _hasVideoPermission.value = granted
+        if (granted) {
+            if (!videosWatched) {
+                videosWatched = runCatching {
+                    getApplication<Application>().contentResolver.registerContentObserver(
+                        android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, videoObserver
+                    )
+                }.isSuccess
+            }
+            loadVideos()
+        }
+    }
+
+    fun loadVideos() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            _videos.value = com.serkantkn.zunelauncher.data.repository.VideoLibrary.query(getApplication())
+        }
+    }
+
+    private var videoDebounce: Job? = null
+
+    private val videoObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+            videoDebounce?.cancel()
+            videoDebounce = viewModelScope.launch {
+                kotlinx.coroutines.delay(LIBRARY_DEBOUNCE_MS)
+                loadVideos()
+            }
+        }
+    }
+
+    private fun checkVideoPermission(): Boolean {
+        val app = getApplication<Application>()
+        fun has(permission: String) =
+            ContextCompat.checkSelfPermission(app, permission) == PackageManager.PERMISSION_GRANTED
+        return when {
+            // Android 14 can give access to just the videos somebody picked; those still count.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+                has(android.Manifest.permission.READ_MEDIA_VIDEO) ||
+                    has(android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> has(android.Manifest.permission.READ_MEDIA_VIDEO)
+            else -> has(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
     }
 
     private val _dominantColor = MutableStateFlow<Color?>(null)
@@ -747,6 +808,7 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
 
     override fun onCleared() {
         runCatching { getApplication<Application>().contentResolver.unregisterContentObserver(libraryObserver) }
+        if (videosWatched) runCatching { getApplication<Application>().contentResolver.unregisterContentObserver(videoObserver) }
         globalMediaController.stopListening()
         localMediaController.onPlaybackMoved = null
         localMediaController.stop()

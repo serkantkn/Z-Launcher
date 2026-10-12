@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The video player -->
+    <string name="video_play">play</string>
+    <string name="video_pause">pause</string>
+    <string name="video_back10">10 s back</string>
+    <string name="video_forward10">10 s on</string>
+    <string name="video_rotate">turn</string>
+    <string name="video_pip">small window</string>
+    <string name="video_cant_play">this video can\'t be played</string>
+    <string name="video_open_elsewhere">open it in another app</string>
+    <string name="video_resumed_from">carrying on from %1$s</string>
+    <!-- The videos of music + videos -->
+    <string name="music_tab_videos">videos</string>
+    <string name="music_no_videos">no videos yet</string>
+    <string name="music_no_videos_hint">videos on the phone turn up here</string>
+    <string name="music_video_permission_title">Your videos</string>
+    <string name="music_video_permission_message">To show the videos on this phone, the launcher needs to be allowed to see them.</string>
+</resources>

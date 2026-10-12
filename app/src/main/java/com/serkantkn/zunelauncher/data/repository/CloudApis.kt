@@ -39,6 +39,12 @@ internal interface CloudApi {
     /** Writes the document's bytes into [output]; Google's own formats are exported as PDF. */
     fun download(token: String, item: CloudItem, output: OutputStream, onProgress: (Long, Long) -> Unit = { _, _ -> })
 
+    /**
+     * Where a file's own bytes can be read from as they are, a range at a time - what a video is
+     * played from without being downloaded first. The request needs the account's token.
+     */
+    fun mediaUrlOf(contentId: String): String
+
     /** Sends a file from the device up into a folder. */
     fun upload(token: String, parentId: String, file: File, mimeType: String, onProgress: (Long, Long) -> Unit = { _, _ -> })
 
@@ -176,7 +182,7 @@ internal object GoogleDriveApi : CloudApi {
         val url = if (item.isGoogleDocument) {
             "$BASE/files/${item.contentId}/export?mimeType=${CloudHttp.encode(EXPORT_MIME)}"
         } else {
-            "$BASE/files/${item.contentId}?alt=media&supportsAllDrives=true"
+            mediaUrlOf(item.contentId)
         }
         // An exported document has no size of its own until it arrives, so the known total is the
         // file's own size and zero for a Google format — the bar simply counts up instead.
@@ -209,6 +215,9 @@ internal object GoogleDriveApi : CloudApi {
             onProgress = onProgress
         )
     }
+
+    override fun mediaUrlOf(contentId: String): String =
+        "$BASE/files/$contentId?alt=media&supportsAllDrives=true"
 
     override fun downloadMime(item: CloudItem): String =
         if (item.isGoogleDocument) EXPORT_MIME else super.downloadMime(item)

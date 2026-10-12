@@ -21,7 +21,7 @@ When writing a hub:
 - Phone and tablet carry the same features; only the layout differs.
 
 `HubStandardTest` fails the build when a screen lays out a hub itself. Its exception list holds
-the hubs not yet moved over: music and weather, which are still the old panorama, and files,
+the hubs not yet moved over: weather, which is still the old panorama, and files,
 which is a Windows 8 explorer. Nothing new is added to that list.
 
 ## Build and test

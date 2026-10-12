@@ -430,7 +430,11 @@ fun FilesHubScreen(
 
     /** A file: shown here when the hub knows how, handed to another app when it does not. */
     fun openItem(item: FileItemModel) {
-        if (viewerFor(item.extension) == FileViewer.NONE) {
+        val viewer = viewerFor(item.extension)
+        if (viewer == FileViewer.VIDEO) {
+            // A film goes to the launcher's own player, which can also keep it in a corner.
+            com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, item.file)
+        } else if (viewer == FileViewer.NONE) {
             viewModel.openFile(context, item.file)
         } else {
             viewerTarget = item

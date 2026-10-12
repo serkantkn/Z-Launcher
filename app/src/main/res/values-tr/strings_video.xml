@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_play">oynat</string>
+    <string name="video_pause">duraklat</string>
+    <string name="video_back10">10 sn geri</string>
+    <string name="video_forward10">10 sn ileri</string>
+    <string name="video_rotate">döndür</string>
+    <string name="video_pip">küçük pencere</string>
+    <string name="video_cant_play">bu video oynatılamıyor</string>
+    <string name="video_open_elsewhere">başka bir uygulamayla aç</string>
+    <string name="video_resumed_from">%1$s noktasından devam ediliyor</string>
+    <string name="music_tab_videos">videolar</string>
+    <string name="music_no_videos">henüz video yok</string>
+    <string name="music_no_videos_hint">telefonda video oldukça burada belirir</string>
+    <string name="music_video_permission_title">Videoların</string>
+    <string name="music_video_permission_message">Bu telefondaki videoları gösterebilmesi için başlatıcının onları görmesine izin vermen gerekiyor.</string>
+</resources>

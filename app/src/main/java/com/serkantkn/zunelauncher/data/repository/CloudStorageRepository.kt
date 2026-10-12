@@ -128,6 +128,13 @@ class CloudStorageRepository(
         startWithGrant(Intent(Intent.ACTION_VIEW), file, apiOf(account).downloadMime(item))
     }
 
+    /**
+     * Where a file can be streamed from, and a fresh token to read it with: a video plays from
+     * here as it arrives rather than after a download of the whole thing.
+     */
+    suspend fun streamOf(account: CloudAccount, contentId: String): CloudStream =
+        withContext(Dispatchers.IO) { CloudStream(apiOf(account).mediaUrlOf(contentId), tokenOf(account)) }
+
     /** Opens the item's page on the service's website, in Google's app for it or the browser. */
     fun openWeb(account: CloudAccount, item: CloudItem) {
         val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(apiOf(account).webUrlOf(item)))
@@ -272,3 +279,6 @@ class CloudStorageRepository(
         const val MAX_PAGES = 25
     }
 }
+
+/** A file's bytes as a stream: the address, and the token the request has to carry. */
+data class CloudStream(val url: String, val token: String)

@@ -8,6 +8,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -51,11 +52,11 @@ import androidx.annotation.StringRes
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.ui.geometry.Rect
@@ -67,7 +68,6 @@ import com.serkantkn.zunelauncher.ui.animation.ZuneTitleZoomOverlay
 import com.serkantkn.zunelauncher.ui.animation.rememberZuneTitleZoomState
 import com.serkantkn.zunelauncher.ui.animation.rememberZuneZoomAnchor
 import com.serkantkn.zunelauncher.ui.components.MetroTextField
-import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
 import com.serkantkn.zunelauncher.ui.screens.messaging.MessagingSheet
@@ -80,14 +80,11 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import java.util.Locale
-import com.serkantkn.zunelauncher.ui.components.ZuneHubEntranceLayout
-import com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager
+import com.serkantkn.zunelauncher.ui.components.ZuneHub
+import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
 import com.serkantkn.zunelauncher.ui.components.ZunePivotTabs
-import com.serkantkn.zunelauncher.ui.components.ZuneWideHubTitle
-import com.serkantkn.zunelauncher.ui.components.ZuneWidePanorama
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -96,7 +93,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import androidx.compose.runtime.LaunchedEffect
-import java.util.concurrent.TimeUnit
 
 @Composable
 fun MusicHubScreen(
@@ -119,7 +115,10 @@ fun MusicHubScreen(
 
     // Coming back from the system's permission page has to be noticed: the hub is still standing
     // where it was, and nothing else would tell it that the answer changed.
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshPermissionState() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshPermissionState()
+        viewModel.refreshVideoPermission()
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -179,7 +178,7 @@ fun MusicHubScreen(
     )
 
     CompositionLocalProvider(LocalZuneColors provides musicHubColors) {
-        ZuneHubEntranceLayout(modifier = modifier) { bottomBarModifier ->
+        Box(modifier = modifier.fillMaxSize()) {
             // The cover behind the hub is whatever the hub is playing — its own track first, as
             // the rest of the screen already does — and the scrim over it matches the theme: a
             // black one under black titles made the light theme unreadable.
@@ -190,33 +189,32 @@ fun MusicHubScreen(
                 else -> Color.White.copy(alpha = 0.7f)
             }
             Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
-
-            // The Zune HD's own signature: the artist's name, enormous and faint, behind the hub.
-            if (playback.artist.isNotBlank()) {
-                ZuneArtistBackdrop(
-                    artist = playback.artist,
-                    modifier = Modifier.padding(top = 120.dp)
-                )
+                // The Zune HD's own signature: the artist's name, enormous and faint, behind the hub.
+                if (playback.artist.isNotBlank()) {
+                    ZuneArtistBackdrop(
+                        artist = playback.artist,
+                        modifier = Modifier.padding(top = 120.dp)
+                    )
+                }
+                when {
+                    playback.externalArt != null -> Image(
+                        bitmap = playback.externalArt!!.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.3f
+                    )
+                    playback.artworkUri != null -> AsyncImage(
+                        model = playback.artworkUri,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.3f
+                    )
+                }
             }
 
-            // Dynamic Album Art Background
-            when {
-                playback.externalArt != null -> Image(
-                    bitmap = playback.externalArt!!.asImageBitmap(),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.3f // Dim the background
-                )
-                playback.artworkUri != null -> AsyncImage(
-                    model = playback.artworkUri,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.3f
-                )
-            }
-
+            val isWideScreen = LocalIsWideScreen.current
             val albumsLabel = stringResource(R.string.music_tab_albums)
             val artistsLabel = stringResource(R.string.music_tab_artists)
             val playlistsLabel = stringResource(R.string.music_tab_playlists)
@@ -226,7 +224,8 @@ fun MusicHubScreen(
                 selectedAlbum?.title?.lowercase(Locale.getDefault()) ?: albumsLabel,
                 selectedArtist?.name?.lowercase(Locale.getDefault()) ?: artistsLabel,
                 stringResource(R.string.music_tab_songs),
-                openPlaylist?.name?.lowercase(Locale.getDefault()) ?: playlistsLabel
+                openPlaylist?.name?.lowercase(Locale.getDefault()) ?: playlistsLabel,
+                stringResource(R.string.music_tab_videos)
             )
             val pager = rememberLoopingPagerState(pageCount = pages.size)
 
@@ -235,7 +234,8 @@ fun MusicHubScreen(
                 viewModel.selectAlbum(album)
                 scope.launch {
                     pager.scrollToPage(ALBUMS_TAB)
-                    if (from != null) {
+                    // A tablet has no pivot for the name to fly into; its heading changes instead.
+                    if (from != null && !isWideScreen) {
                         albumZoom.flyToTitle(
                             album.title.lowercase(Locale.getDefault()),
                             from,
@@ -267,155 +267,13 @@ fun MusicHubScreen(
                 }
             }
 
+
             val configuration = LocalConfiguration.current
             val screenWidthDp = configuration.screenWidthDp.dp
             val density = LocalDensity.current
             val screenWidthPx = with(density) { screenWidthDp.toPx() }
             val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
             val overflowYPx = with(density) { (-24).dp.toPx() }
-            val isWideScreen = LocalIsWideScreen.current
-            
-            Column(modifier = Modifier.fillMaxSize()) {
-                if (isWideScreen) {
-                    ZuneWideHubTitle(text = stringResource(R.string.music_hub))
-
-                    if (!hasPermission) {
-                        ZunePermissionRequest(
-                            title = stringResource(R.string.music_permission_title).lowercase(Locale.getDefault()),
-                            message = stringResource(R.string.music_permission_message),
-                            buttonLabel = stringResource(R.string.grant_permission).lowercase(Locale.getDefault()),
-                            onRequest = { requestAudioPermission() }
-                        )
-                    } else {
-                        ZuneWidePanorama(tabs = pages, modifier = Modifier.weight(1f).fillMaxWidth()) { index ->
-                            MusicPage(
-                                page = index,
-                                viewModel = viewModel,
-                                selectedAlbum = selectedAlbum,
-                                selectedArtist = selectedArtist,
-                                onOpenAlbum = { album, _ -> viewModel.selectAlbum(album) },
-                                onOpenArtist = { artist -> viewModel.selectArtist(artist) },
-                                onTrackLongPress = { trackSheetTarget = it },
-                                openPlaylist = openPlaylist,
-                                onOpenPlaylist = { playlist -> viewModel.selectPlaylist(playlist.id) },
-                                onNewPlaylist = { showNewPlaylist = true }
-                            )
-                        }
-                        // The columns end where the bar begins, so nothing is left under it.
-                        Spacer(modifier = Modifier.height(com.serkantkn.zunelauncher.ui.components.bottomBarHeight()))
-                    }
-                } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            top = 28.dp,
-                            bottom = 4.dp,
-                            start = ZuneDimens.ScreenPaddingHorizontal
-                        )
-                ) {
-                    val pageCount = pager.pageCount
-                    val cycle = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % pageCount
-                    val actualCycle = if (cycle < 0) cycle + pageCount else cycle
-                    val threshold = (pageCount - 1).toFloat()
-
-                    val translationX1: Float
-                    val translationX2: Float
-
-                    if (actualCycle <= threshold) {
-                        translationX1 = -actualCycle * parallaxMultiplierPx
-                        translationX2 = screenWidthPx
-                    } else {
-                        val fraction = actualCycle - threshold
-                        translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
-                        translationX2 = screenWidthPx - fraction * screenWidthPx
-                    }
-
-                    Text(
-                        text = stringResource(R.string.music_hub),
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Light,
-                            fontSize = 96.sp,
-                            letterSpacing = (-4).sp,
-                            lineHeight = 96.sp
-                        ),
-                        color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.graphicsLayer {
-                            translationX = translationX1
-                            translationY = overflowYPx
-                        }
-                    )
-                    Text(
-                        text = stringResource(R.string.music_hub),
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Light,
-                            fontSize = 96.sp,
-                            letterSpacing = (-4).sp,
-                            lineHeight = 96.sp
-                        ),
-                        color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.graphicsLayer {
-                            translationX = translationX2
-                            translationY = overflowYPx
-                        }
-                    )
-                }
-
-                ZunePivotTabs(
-                    tabs = pages,
-                    state = pager,
-                    fontSize = MUSIC_PIVOT_FONT_SIZE,
-                    firstTabAnchor = albumTabAnchor,
-                    firstTabAlpha = albumZoom.titleAlpha,
-                    zoomTabIndex = ALBUMS_TAB,
-                    onSelected = { index ->
-                        // Stepping away from an album or an artist closes it, so the tab goes back
-                        // to saying what it is.
-                        if (index != ALBUMS_TAB) viewModel.selectAlbum(null)
-                        if (index != ARTISTS_TAB) viewModel.selectArtist(null)
-                        if (index != PLAYLISTS_TAB) viewModel.selectPlaylist(null)
-                    },
-                    modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
-                )
-
-                if (!hasPermission) {
-                    ZunePermissionRequest(
-                        title = stringResource(R.string.music_permission_title).lowercase(Locale.getDefault()),
-                        message = stringResource(R.string.music_permission_message),
-                        buttonLabel = stringResource(R.string.grant_permission).lowercase(Locale.getDefault()),
-                        onRequest = { requestAudioPermission() }
-                    )
-                } else {
-                    ZuneLoopingPager(
-                        state = pager,
-                        modifier = Modifier.fillMaxSize()
-                    ) { page ->
-                        MusicPage(
-                            page = page,
-                            viewModel = viewModel,
-                            selectedAlbum = selectedAlbum,
-                            selectedArtist = selectedArtist,
-                            onOpenAlbum = ::openAlbum,
-                            onOpenArtist = { artist ->
-                                viewModel.selectArtist(artist)
-                                scope.launch { pager.scrollToPage(ARTISTS_TAB) }
-                            },
-                            onTrackLongPress = { trackSheetTarget = it },
-                            openPlaylist = openPlaylist,
-                            onOpenPlaylist = { playlist ->
-                                viewModel.selectPlaylist(playlist.id)
-                                scope.launch { pager.scrollToPage(PLAYLISTS_TAB) }
-                            },
-                            onNewPlaylist = { showNewPlaylist = true }
-                        )
-                    }
-                }
-                }
-            }
 
             // ── The bottom bar ─────────────────────────────────────────────
             val visibleSongs = when {
@@ -426,21 +284,19 @@ fun MusicHubScreen(
 
             // What is playing, on every page but the one that already shows it.
             val currentPage = (pager.currentPage % pages.size).let { if (it < 0) it + pages.size else it }
-            if (playback.hasSomething && currentPage != 0) {
-                MusicMiniPlayer(
-                    playback = playback,
-                    accent = LocalZuneColors.current.accentColor,
-                    onOpen = { scope.launch { pager.animateScrollToPage(0) } },
-                    onPlayPause = viewModel::playPause,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = com.serkantkn.zunelauncher.ui.components.bottomBarHeight())
-                )
-            }
 
-            WindowsPhoneBottomBar(
-                modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
-                actions = listOf(
+            val onVideos = currentPage == VIDEOS_TAB
+            val barActions = if (onVideos) {
+                listOf(
+                    WpBarAction(Icons.Default.Search, stringResource(R.string.music_action_search)) {
+                        isSearchOpen = true
+                    },
+                    WpBarAction(Icons.Default.Refresh, stringResource(R.string.music_action_refresh)) {
+                        viewModel.loadVideos()
+                    }
+                )
+            } else {
+                listOf(
                     WpBarAction(Icons.Default.Shuffle, stringResource(R.string.music_action_shuffle)) {
                         viewModel.shuffleSongs(visibleSongs)
                     },
@@ -453,160 +309,291 @@ fun MusicHubScreen(
                     WpBarAction(Icons.AutoMirrored.Filled.Sort, stringResource(R.string.music_action_sort)) {
                         showSortSheet = true
                     }
-                ),
-                menuItems = buildList {
-                    selectedAlbum?.let { album ->
-                        val pinned = album.id in pinnedAlbums
-                        add(
-                            WpBarMenuItem(
-                                stringResource(
-                                    if (pinned) R.string.music_unpin_album else R.string.music_pin_album
+                )
+            }
+            val barMenu = if (onVideos) emptyList() else buildList {
+                selectedAlbum?.let { album ->
+                    val pinned = album.id in pinnedAlbums
+                    add(
+                        WpBarMenuItem(
+                            stringResource(
+                                if (pinned) R.string.music_unpin_album else R.string.music_pin_album
+                            )
+                        ) { viewModel.togglePinAlbum(album) }
+                    )
+                }
+                add(WpBarMenuItem(stringResource(R.string.music_sleep_timer)) { showSleepTimer = true })
+                add(WpBarMenuItem(stringResource(R.string.music_equalizer)) { viewModel.openEqualizer(context) })
+                add(WpBarMenuItem(stringResource(R.string.music_action_refresh)) { viewModel.loadLocalSongs() })
+            }
+
+            ZuneHub(
+                title = stringResource(R.string.music_hub),
+                tabs = pages,
+                pager = pager,
+                bar = ZuneHubBar(barActions, barMenu),
+                // The music hub's own header on a phone: its name giant and sliding with the
+                // pivot, and the album heading an album's name flies into.
+                phoneHeader = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                top = 28.dp,
+                                bottom = 4.dp,
+                                start = ZuneDimens.ScreenPaddingHorizontal
+                            )
+                    ) {
+                        val pageCount = pager.pageCount
+                        val cycle = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % pageCount
+                        val actualCycle = if (cycle < 0) cycle + pageCount else cycle
+                        val threshold = (pageCount - 1).toFloat()
+
+                        val translationX1: Float
+                        val translationX2: Float
+
+                        if (actualCycle <= threshold) {
+                            translationX1 = -actualCycle * parallaxMultiplierPx
+                            translationX2 = screenWidthPx
+                        } else {
+                            val fraction = actualCycle - threshold
+                            translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
+                            translationX2 = screenWidthPx - fraction * screenWidthPx
+                        }
+
+                        Text(
+                            text = stringResource(R.string.music_hub),
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontWeight = FontWeight.Light,
+                                fontSize = 96.sp,
+                                letterSpacing = (-4).sp,
+                                lineHeight = 96.sp
+                            ),
+                            color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.graphicsLayer {
+                                translationX = translationX1
+                                translationY = overflowYPx
+                            }
+                        )
+                        Text(
+                            text = stringResource(R.string.music_hub),
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontWeight = FontWeight.Light,
+                                fontSize = 96.sp,
+                                letterSpacing = (-4).sp,
+                                lineHeight = 96.sp
+                            ),
+                            color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.graphicsLayer {
+                                translationX = translationX2
+                                translationY = overflowYPx
+                            }
+                        )
+                    }
+
+                    ZunePivotTabs(
+                        tabs = pages,
+                        state = pager,
+                        fontSize = MUSIC_PIVOT_FONT_SIZE,
+                        firstTabAnchor = albumTabAnchor,
+                        firstTabAlpha = albumZoom.titleAlpha,
+                        zoomTabIndex = ALBUMS_TAB,
+                        onSelected = { index ->
+                            // Stepping away from an album or an artist closes it, so the tab goes back
+                            // to saying what it is.
+                            if (index != ALBUMS_TAB) viewModel.selectAlbum(null)
+                            if (index != ARTISTS_TAB) viewModel.selectArtist(null)
+                            if (index != PLAYLISTS_TAB) viewModel.selectPlaylist(null)
+                        },
+                        modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
+                    )
+                },
+                phonePagePadding = PaddingValues(0.dp),
+                wideOnSelected = { index ->
+                    if (index != ALBUMS_TAB) viewModel.selectAlbum(null)
+                    if (index != ARTISTS_TAB) viewModel.selectArtist(null)
+                    if (index != PLAYLISTS_TAB) viewModel.selectPlaylist(null)
+                },
+                overlay = {
+                    // What is playing, on every page but the one that already shows it.
+                    if (playback.hasSomething && currentPage != 0) {
+                        MusicMiniPlayer(
+                            playback = playback,
+                            accent = LocalZuneColors.current.accentColor,
+                            onOpen = { scope.launch { pager.animateScrollToPage(0) } },
+                            onPlayPause = viewModel::playPause,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = com.serkantkn.zunelauncher.ui.components.bottomBarHeight())
+                        )
+                    }
+                    // ── Searching ──────────────────────────────────────────────────
+                    if (isSearchOpen) {
+                        MusicSearchOverlay(
+                            query = searchQuery,
+                            onQueryChange = viewModel::setSearchQuery,
+                            onClose = {
+                                isSearchOpen = false
+                                viewModel.setSearchQuery("")
+                            }
+                        )
+                    }
+
+                    if (showSortSheet) {
+                        MessagingSheet(
+                            title = stringResource(R.string.music_action_sort),
+                            onDismiss = { showSortSheet = false }
+                        ) {
+                            MusicSort.entries.forEach { option ->
+                                SheetAction(
+                                    label = stringResource(musicSortLabel(option)),
+                                    color = if (option == sort) LocalZuneColors.current.accentColor else null
+                                ) {
+                                    viewModel.setSort(option)
+                                    showSortSheet = false
+                                }
+                            }
+                        }
+                    }
+
+                    if (showQueue) {
+                        MusicQueueSheet(
+                            playback = playback,
+                            onPlayIndex = { viewModel.playQueueIndex(it) },
+                            onRemove = { viewModel.removeFromQueue(it) },
+                            onDismiss = { showQueue = false }
+                        )
+                    }
+
+                    trackSheetTarget?.let { song ->
+                        MessagingSheet(title = song.title, onDismiss = { trackSheetTarget = null }) {
+                            SheetAction(label = stringResource(R.string.music_play_next)) {
+                                viewModel.playNext(song)
+                                trackSheetTarget = null
+                            }
+                            SheetAction(label = stringResource(R.string.music_add_to_queue)) {
+                                viewModel.addToQueue(listOf(song))
+                                trackSheetTarget = null
+                            }
+                            SheetAction(label = stringResource(R.string.music_add_to_playlist)) {
+                                addToPlaylistTarget = song
+                                trackSheetTarget = null
+                            }
+                        }
+                    }
+
+                    addToPlaylistTarget?.let { song ->
+                        MessagingSheet(
+                            title = stringResource(R.string.music_add_to_playlist),
+                            onDismiss = { addToPlaylistTarget = null }
+                        ) {
+                            SheetAction(
+                                label = stringResource(R.string.music_new_playlist),
+                                color = LocalZuneColors.current.accentColor
+                            ) {
+                                addToPlaylistTarget = null
+                                showNewPlaylist = true
+                                newPlaylistName = ""
+                                pendingPlaylistSong = song.id
+                            }
+                            playlists.forEach { playlist ->
+                                SheetAction(label = playlist.name) {
+                                    viewModel.addToPlaylist(playlist.id, listOf(song.id))
+                                    addToPlaylistTarget = null
+                                }
+                            }
+                        }
+                    }
+
+                    if (showSleepTimer) {
+                        val sleepMinutes by viewModel.sleepMinutesLeft.collectAsState()
+                        MessagingSheet(
+                            title = stringResource(R.string.music_sleep_timer),
+                            onDismiss = { showSleepTimer = false }
+                        ) {
+                            if (sleepMinutes > 0) {
+                                SheetAction(
+                                    label = stringResource(R.string.music_sleep_cancel, sleepMinutes),
+                                    color = LocalZuneColors.current.accentColor
+                                ) {
+                                    viewModel.cancelSleepTimer()
+                                    showSleepTimer = false
+                                }
+                            }
+                            listOf(15, 30, 45, 60).forEach { minutes ->
+                                SheetAction(label = stringResource(R.string.music_sleep_minutes, minutes)) {
+                                    viewModel.startSleepTimer(minutes)
+                                    showSleepTimer = false
+                                }
+                            }
+                        }
+                    }
+
+                    if (showNewPlaylist) {
+                        MessagingSheet(
+                            title = stringResource(R.string.music_new_playlist),
+                            onDismiss = {
+                                showNewPlaylist = false
+                                pendingPlaylistSong = null
+                            }
+                        ) {
+                            Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+                                MetroTextField(
+                                    value = newPlaylistName,
+                                    onValueChange = { newPlaylistName = it },
+                                    placeholder = stringResource(R.string.music_playlist_name)
                                 )
-                            ) { viewModel.togglePinAlbum(album) }
-                        )
-                    }
-                    addAll(listOf(
-                    WpBarMenuItem(stringResource(R.string.music_sleep_timer)) { showSleepTimer = true },
-                    WpBarMenuItem(stringResource(R.string.music_equalizer)) { viewModel.openEqualizer(context) },
-                    WpBarMenuItem(stringResource(R.string.music_action_refresh)) { viewModel.loadLocalSongs() }
-                    ))
-                }
-            )
-
-            // ── Searching ──────────────────────────────────────────────────
-            if (isSearchOpen) {
-                MusicSearchOverlay(
-                    query = searchQuery,
-                    onQueryChange = viewModel::setSearchQuery,
-                    onClose = {
-                        isSearchOpen = false
-                        viewModel.setSearchQuery("")
-                    }
-                )
-            }
-
-            if (showSortSheet) {
-                MessagingSheet(
-                    title = stringResource(R.string.music_action_sort),
-                    onDismiss = { showSortSheet = false }
-                ) {
-                    MusicSort.entries.forEach { option ->
-                        SheetAction(
-                            label = stringResource(musicSortLabel(option)),
-                            color = if (option == sort) LocalZuneColors.current.accentColor else null
-                        ) {
-                            viewModel.setSort(option)
-                            showSortSheet = false
+                            }
+                            SheetAction(
+                                label = stringResource(R.string.music_create),
+                                color = LocalZuneColors.current.accentColor
+                            ) {
+                                viewModel.createPlaylist(
+                                    newPlaylistName,
+                                    listOfNotNull(pendingPlaylistSong)
+                                )
+                                newPlaylistName = ""
+                                pendingPlaylistSong = null
+                                showNewPlaylist = false
+                            }
                         }
                     }
                 }
-            }
-
-            if (showQueue) {
-                MusicQueueSheet(
-                    playback = playback,
-                    onPlayIndex = { viewModel.playQueueIndex(it) },
-                    onRemove = { viewModel.removeFromQueue(it) },
-                    onDismiss = { showQueue = false }
-                )
-            }
-
-            trackSheetTarget?.let { song ->
-                MessagingSheet(title = song.title, onDismiss = { trackSheetTarget = null }) {
-                    SheetAction(label = stringResource(R.string.music_play_next)) {
-                        viewModel.playNext(song)
-                        trackSheetTarget = null
-                    }
-                    SheetAction(label = stringResource(R.string.music_add_to_queue)) {
-                        viewModel.addToQueue(listOf(song))
-                        trackSheetTarget = null
-                    }
-                    SheetAction(label = stringResource(R.string.music_add_to_playlist)) {
-                        addToPlaylistTarget = song
-                        trackSheetTarget = null
-                    }
-                }
-            }
-
-            addToPlaylistTarget?.let { song ->
-                MessagingSheet(
-                    title = stringResource(R.string.music_add_to_playlist),
-                    onDismiss = { addToPlaylistTarget = null }
-                ) {
-                    SheetAction(
-                        label = stringResource(R.string.music_new_playlist),
-                        color = LocalZuneColors.current.accentColor
-                    ) {
-                        addToPlaylistTarget = null
-                        showNewPlaylist = true
-                        newPlaylistName = ""
-                        pendingPlaylistSong = song.id
-                    }
-                    playlists.forEach { playlist ->
-                        SheetAction(label = playlist.name) {
-                            viewModel.addToPlaylist(playlist.id, listOf(song.id))
-                            addToPlaylistTarget = null
-                        }
-                    }
-                }
-            }
-
-            if (showSleepTimer) {
-                val sleepMinutes by viewModel.sleepMinutesLeft.collectAsState()
-                MessagingSheet(
-                    title = stringResource(R.string.music_sleep_timer),
-                    onDismiss = { showSleepTimer = false }
-                ) {
-                    if (sleepMinutes > 0) {
-                        SheetAction(
-                            label = stringResource(R.string.music_sleep_cancel, sleepMinutes),
-                            color = LocalZuneColors.current.accentColor
-                        ) {
-                            viewModel.cancelSleepTimer()
-                            showSleepTimer = false
-                        }
-                    }
-                    listOf(15, 30, 45, 60).forEach { minutes ->
-                        SheetAction(label = stringResource(R.string.music_sleep_minutes, minutes)) {
-                            viewModel.startSleepTimer(minutes)
-                            showSleepTimer = false
-                        }
-                    }
-                }
-            }
-
-            if (showNewPlaylist) {
-                MessagingSheet(
-                    title = stringResource(R.string.music_new_playlist),
-                    onDismiss = {
-                        showNewPlaylist = false
-                        pendingPlaylistSong = null
-                    }
-                ) {
-                    Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-                        MetroTextField(
-                            value = newPlaylistName,
-                            onValueChange = { newPlaylistName = it },
-                            placeholder = stringResource(R.string.music_playlist_name)
-                        )
-                    }
-                    SheetAction(
-                        label = stringResource(R.string.music_create),
-                        color = LocalZuneColors.current.accentColor
-                    ) {
-                        viewModel.createPlaylist(
-                            newPlaylistName,
-                            listOfNotNull(pendingPlaylistSong)
-                        )
-                        newPlaylistName = ""
-                        pendingPlaylistSong = null
-                        showNewPlaylist = false
-                    }
+            ) { index ->
+                when {
+                    index == VIDEOS_TAB -> VideosPage(viewModel)
+                    !hasPermission -> ZunePermissionRequest(
+                        title = stringResource(R.string.music_permission_title).lowercase(Locale.getDefault()),
+                        message = stringResource(R.string.music_permission_message),
+                        buttonLabel = stringResource(R.string.grant_permission).lowercase(Locale.getDefault()),
+                        onRequest = { requestAudioPermission() }
+                    )
+                    else -> MusicPage(
+                        page = index,
+                        viewModel = viewModel,
+                        selectedAlbum = selectedAlbum,
+                        selectedArtist = selectedArtist,
+                        onOpenAlbum = ::openAlbum,
+                        onOpenArtist = { artist ->
+                            viewModel.selectArtist(artist)
+                            scope.launch { pager.scrollToPage(ARTISTS_TAB) }
+                        },
+                        onTrackLongPress = { trackSheetTarget = it },
+                        openPlaylist = openPlaylist,
+                        onOpenPlaylist = { playlist ->
+                            viewModel.selectPlaylist(playlist.id)
+                            scope.launch { pager.scrollToPage(PLAYLISTS_TAB) }
+                        },
+                        onNewPlaylist = { showNewPlaylist = true }
+                    )
                 }
             }
         }
     }
-}
 
     // The word in flight, over everything.
     ZuneTitleZoomOverlay(state = albumZoom, letterSpacing = (-1).sp)
@@ -617,6 +604,7 @@ private const val ALBUMS_TAB = 1
 private const val ARTISTS_TAB = 2
 private const val SONGS_TAB = 3
 private const val PLAYLISTS_TAB = 4
+private const val VIDEOS_TAB = 5
 
 /** The pivot's type size, so a word flying into it lands at the right scale. */
 private val MUSIC_PIVOT_FONT_SIZE = 36.sp
@@ -648,7 +636,14 @@ private fun MusicPage(
     onNewPlaylist: () -> Unit
 ) {
     when (page) {
-        0 -> NowPlayingPage(viewModel)
+        0 -> if (com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen.current) {
+            // Across a whole tablet the cover and its controls keep to a column in the middle.
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                Box(modifier = Modifier.widthIn(max = 560.dp).fillMaxHeight()) { NowPlayingPage(viewModel) }
+            }
+        } else {
+            NowPlayingPage(viewModel)
+        }
         ALBUMS_TAB -> if (selectedAlbum != null) {
             AlbumDetailPage(viewModel, selectedAlbum)
         } else {

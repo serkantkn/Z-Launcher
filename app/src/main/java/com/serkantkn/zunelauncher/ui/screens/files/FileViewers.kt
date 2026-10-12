@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.media.MediaPlayer
 import android.os.ParcelFileDescriptor
-import android.widget.VideoView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,7 +62,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.FileItemModel
@@ -111,7 +109,8 @@ internal fun FileViewerScreen(
                     FileViewer.TEXT -> TextViewer(item.file)
                     FileViewer.IMAGE -> ImageViewer(item.file)
                     FileViewer.AUDIO -> AudioPlayer(item.file)
-                    FileViewer.VIDEO -> VideoPlayer(item.file)
+                    // Films open in the launcher's own player, not here.
+                    FileViewer.VIDEO -> Unit
                     FileViewer.PDF -> PdfViewer(item.file)
                     FileViewer.NONE -> Unit
                 }
@@ -325,81 +324,6 @@ private fun AudioPlayer(file: File) {
 }
 
 // ── Film ────────────────────────────────────────────────────────────────────
-
-/** The picture in a box, the same button and line beneath it. */
-@Composable
-private fun VideoPlayer(file: File) {
-    val zuneColors = LocalZuneColors.current
-    var playing by remember(file) { mutableStateOf(false) }
-    var ready by remember(file) { mutableStateOf(false) }
-    var duration by remember(file) { mutableIntStateOf(0) }
-    var position by remember(file) { mutableIntStateOf(0) }
-    var view by remember(file) { mutableStateOf<VideoView?>(null) }
-
-    DisposableEffect(file) { onDispose { runCatching { view?.stopPlayback() } } }
-
-    LaunchedEffect(view, playing) {
-        while (isActive && playing) {
-            position = runCatching { view?.currentPosition ?: 0 }.getOrDefault(position)
-            delay(250)
-        }
-    }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { context ->
-                VideoView(context).apply {
-                    setVideoPath(file.absolutePath)
-                    setOnPreparedListener {
-                        ready = true
-                        duration = it.duration
-                        start()
-                        playing = true
-                    }
-                    setOnCompletionListener { playing = false }
-                    setOnErrorListener { _, _, _ -> true }
-                    setOnClickListener {
-                        if (isPlaying) pause() else start()
-                        playing = isPlaying
-                    }
-                    view = this
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .background(Color.Black)
-        )
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 14.dp)) {
-            RoundButton(
-                icon = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                label = stringResource(if (playing) R.string.files_viewer_pause else R.string.files_viewer_play),
-                enabled = ready
-            ) {
-                val v = view ?: return@RoundButton
-                if (v.isPlaying) v.pause() else v.start()
-                playing = v.isPlaying
-            }
-            Spacer(modifier = Modifier.width(18.dp))
-            Text(
-                text = "${formatClock(position)} / ${formatClock(duration)}",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-        Slider(
-            value = position.toFloat(),
-            onValueChange = { position = it.roundToInt() },
-            onValueChangeFinished = { runCatching { view?.seekTo(position) } },
-            valueRange = 0f..duration.coerceAtLeast(1).toFloat(),
-            enabled = ready,
-            colors = metroSliderColors()
-        )
-        if (!ready) {
-            Text(stringResource(R.string.files_cloud_loading), color = zuneColors.textMuted)
-        }
-    }
-}
 
 // ── PDF ─────────────────────────────────────────────────────────────────────
 

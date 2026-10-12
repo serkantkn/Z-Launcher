@@ -132,6 +132,13 @@ internal suspend fun openAttachment(context: Context, attachment: MmsAttachment)
             file
         }.onFailure { ZuneLog.w("MessageAttachments", "the attachment could not be read", it) }.getOrNull()
     } ?: return false
+    // A film in a message plays in the launcher's own player.
+    val mime = attachment.mimeType.substringBefore(';').trim()
+    if (com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.handles(mime)) {
+        return runCatching { com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, copy, mime); true }
+            .onFailure { ZuneLog.w("MessageAttachments", "the video would not play", it) }
+            .getOrDefault(false)
+    }
     return runCatching {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", copy)
         val view = Intent(Intent.ACTION_VIEW)

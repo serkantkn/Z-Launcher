@@ -246,6 +246,12 @@ private fun AddressLine(label: String, value: String) {
 }
 
 private fun openFile(context: android.content.Context, file: File, mimeType: String) {
+    // A film attached to a mail plays in the launcher's own player.
+    if (com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.handles(mimeType)) {
+        runCatching { com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, file, mimeType) }
+            .onFailure { com.serkantkn.zunelauncher.util.ZuneLog.w("EmailReadScreen", "the video would not play", it) }
+        return
+    }
     try {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         val intent = Intent(Intent.ACTION_VIEW).apply {

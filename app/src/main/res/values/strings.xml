@@ -3,7 +3,7 @@
     <string name="app_name">Z Launcher</string>
     <string name="home_hub">home</string>
     <string name="apps_hub">apps</string>
-    <string name="music_hub">music</string>
+    <string name="music_hub">music + videos</string>
     <string name="people_hub">people</string>
     <string name="pictures_hub">pictures</string>
     <string name="settings_hub">settings</string>

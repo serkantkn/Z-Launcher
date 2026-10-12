@@ -351,17 +351,13 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    /** Opens a video in whatever plays videos on this phone. */
+    /** Plays a video from the roll in the launcher's own player. */
     fun playVideo(context: android.content.Context, photo: MediaImage) {
         runCatching {
-            context.startActivity(
-                android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                    setDataAndType(photo.uri, photo.mimeType.ifBlank { "video/*" })
-                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
+            com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(
+                context, photo.uri, photo.displayName, photo.mimeType.ifBlank { "video/*" }
             )
-        }.onFailure { ZuneLog.w("PicturesHubViewModel", "nothing on this phone plays video", it) }
+        }.onFailure { ZuneLog.w("PicturesHubViewModel", "the video would not play", it) }
     }
 
     /**

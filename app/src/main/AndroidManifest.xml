@@ -410,6 +410,26 @@
             android:exported="false"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|fontScale|layoutDirection|keyboard|keyboardHidden" />
 
+        <!-- The launcher's own video player. A task of its own, since the launcher is the home
+             screen and a home screen cannot shrink into a corner; this can, and keeps playing in a
+             small window when it is left. It also offers itself to other apps for their videos. -->
+        <activity
+            android:name=".ui.screens.video.VideoPlayerActivity"
+            android:taskAffinity="${applicationId}.video"
+            android:launchMode="singleTask"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.ZuneLauncher"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|fontScale|layoutDirection|keyboard|keyboardHidden|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
