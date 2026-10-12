@@ -3,6 +3,7 @@ package com.serkantkn.zunelauncher.ui.screens.email
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.BorderStroke
@@ -65,6 +66,7 @@ import com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog
 import com.serkantkn.zunelauncher.ui.screens.notes.WpCheckBox
 import com.serkantkn.zunelauncher.ui.screens.notes.WpRadioRow
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
+import com.serkantkn.zunelauncher.util.EmailHtml
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import androidx.compose.material.icons.filled.Close
 import java.text.SimpleDateFormat
@@ -303,7 +305,7 @@ internal fun EmailHtmlBody(
            </style>"""
     }
     val page = remember(html, css, inlineImages) {
-        var safe = html.replace(Regex("(?is)<script[^>]*>.*?</script>"), "")
+        var safe = EmailHtml.withSchemes(html.replace(Regex("(?is)<script[^>]*>.*?</script>"), ""))
         // A picture that came with the mail is shown from the mail, not fetched from anywhere.
         inlineImages.forEach { (cid, dataUri) ->
             // The quotes are kept: base64 ends in "=", which an unquoted attribute may not hold.
@@ -313,6 +315,10 @@ internal fun EmailHtmlBody(
         }
         if (safe.contains("<head", ignoreCase = true)) safe.replaceFirst(Regex("(?i)<head[^>]*>"), "$0$css") else "<html><head>$css</head><body>$safe</body></html>"
     }
+    // Read by the WebView's own thread when a picture is asked for; nothing is fetched on the
+    // mail's behalf until the reader has said yes.
+    val networkAllowed = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+    networkAllowed.set(showImages)
     AndroidView(
         modifier = modifier.fillMaxWidth().wrapContentHeight(),
         factory = { ctx ->
@@ -329,7 +335,18 @@ internal fun EmailHtmlBody(
                 settings.blockNetworkLoads = !showImages
                 settings.blockNetworkImage = !showImages
                 settings.loadsImagesAutomatically = true
+                val userAgent = settings.userAgentString
                 webViewClient = object : WebViewClient() {
+                    // A picture asked for over plain http is fetched over https instead: Android
+                    // refuses plain http to the app as a whole, and before this every such
+                    // picture failed in silence once "show pictures" was pressed.
+                    override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                        val url = request?.url?.toString() ?: return null
+                        if (request.isForMainFrame || !networkAllowed.get()) return null
+                        val secure = EmailHtml.httpsVersion(url) ?: return null
+                        return fetchOverHttps(secure, userAgent)
+                    }
+
                     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                         val url = request?.url ?: return true
                         runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -351,6 +368,28 @@ internal fun EmailHtmlBody(
         }
     )
 }
+
+/**
+ * One picture, fetched over https in place of the plain-http address a mail gave for it. Null when
+ * the server does not answer on https either, and the picture is left out as before.
+ */
+private fun fetchOverHttps(url: String, userAgent: String): WebResourceResponse? = runCatching {
+    val connection = java.net.URL(url).openConnection() as javax.net.ssl.HttpsURLConnection
+    connection.connectTimeout = 8_000
+    connection.readTimeout = 15_000
+    connection.instanceFollowRedirects = true
+    connection.setRequestProperty("User-Agent", userAgent)
+    if (connection.responseCode !in 200..299) {
+        connection.disconnect()
+        return@runCatching null
+    }
+    val type = connection.contentType.orEmpty()
+    WebResourceResponse(
+        type.substringBefore(';').trim().ifBlank { "application/octet-stream" },
+        Regex("(?i)charset=([^;]+)").find(type)?.groupValues?.get(1)?.trim(),
+        connection.inputStream
+    )
+}.getOrNull()
 
 // ════════════════════════════════════════════════════════════
 // DIALOGS

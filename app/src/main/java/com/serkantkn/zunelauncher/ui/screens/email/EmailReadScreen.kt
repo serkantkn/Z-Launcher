@@ -85,7 +85,7 @@ internal fun EmailReadScreen(
     val headerColor = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f)
     var showImages by remember(message.key) { mutableStateOf(false) }
     var showDetails by remember(message.key) { mutableStateOf(false) }
-    val hasRemoteImages = remember(message.bodyHtml) { message.bodyHtml?.contains(Regex("(?i)<img[^>]+src=\"?https?://")) == true }
+    val hasRemoteImages = remember(message.bodyHtml) { message.bodyHtml?.let(com.serkantkn.zunelauncher.util.EmailHtml::hasRemoteImages) == true }
 
     // Pictures that travelled inside the mail are safe to show without asking: nothing is
     // fetched. Only the small ones, though — a signature logo, not a ten-megabyte scan.
