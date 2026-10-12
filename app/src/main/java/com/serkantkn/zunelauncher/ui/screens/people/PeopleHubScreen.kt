@@ -1083,8 +1083,13 @@ private fun LetterHeader(letter: Char) {
     )
 }
 
-// ── Contact List Item (W10M Style) ──────────────────────────────────────────
+// ── Contact List Item ───────────────────────────────────────────────────────
 
+/**
+ * One person in the list, as the Windows Phone people hub had them: their picture as a small
+ * square tile, or - with no picture - a tile in the accent with their initial on it, and the
+ * name beside it. Nothing in Metro is round, and a face is no exception.
+ */
 @Composable
 private fun ContactListItem(
     contact: ContactModel,
@@ -1092,10 +1097,6 @@ private fun ContactListItem(
     onClick: (ContactModel) -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
-    val fallbackColor = remember(contact.id) {
-        val colors = listOf(ZuneColors.Pink, ZuneColors.Orange, ZuneColors.Blue, ZuneColors.Green)
-        colors[Math.abs(contact.id.hashCode()) % colors.size]
-    }
 
     Row(
         modifier = Modifier
@@ -1103,42 +1104,38 @@ private fun ContactListItem(
             // On a tablet the person open in the pane is marked in the list beside it.
             .background(if (highlighted) zuneColors.accentColor.copy(alpha = 0.16f) else Color.Transparent)
             .clickable { onClick(contact) }
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (contact.photoUri != null) {
-            AsyncImage(
-                model = contact.photoUri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(fallbackColor, CircleShape)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(fallbackColor, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .background(zuneColors.accentColor),
+            contentAlignment = Alignment.Center
+        ) {
+            if (contact.photoUri != null) {
+                AsyncImage(
+                    model = contact.photoUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
                 Text(
                     text = contact.name.take(1).uppercase(Locale.getDefault()),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light, fontSize = 26.sp),
                     color = Color.White
                 )
             }
         }
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(16.dp))
 
         Text(
             text = contact.name,
-            style = MaterialTheme.typography.bodyLarge.copy(
+            style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Normal,
-                fontSize = 17.sp
+                fontSize = 20.sp
             ),
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1,

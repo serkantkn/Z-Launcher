@@ -441,7 +441,6 @@ private fun ContactDetailContent(
             if (isTabletCard) {
                 WidePaneContactHead(
                     detail = displayDetail,
-                    fallbackColor = fallbackColor,
                     onPhotoClick = onPhotoClick,
                     onClose = { onCloseTablet?.invoke() }
                 )
@@ -856,7 +855,7 @@ private fun WpPrimaryActionButton(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(accentColor, CircleShape),
+                    .background(accentColor),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -983,10 +982,7 @@ private fun ContactCallLogItem(
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .background(
-                    if (zuneColors.isDark) Color(0xFF1E1E1E) else Color(0xFFE8E8E8),
-                    CircleShape
-                ),
+                .background(if (zuneColors.isDark) Color(0xFF1E1E1E) else Color(0xFFE8E8E8)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -1666,7 +1662,6 @@ private fun PhotoSheetAction(label: String, onClick: () -> Unit, color: Color? =
 @Composable
 private fun WidePaneContactHead(
     detail: ContactDetailModel,
-    fallbackColor: Color,
     onPhotoClick: (() -> Unit)?,
     onClose: () -> Unit
 ) {
@@ -1685,7 +1680,8 @@ private fun WidePaneContactHead(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(150.dp)
-                .background(fallbackColor)
+                // The same accent tile the list beside it shows for them.
+                .background(LocalZuneColors.current.accentColor)
                 .then(if (onPhotoClick != null) Modifier.clickable(onClick = onPhotoClick) else Modifier)
         ) {
             if (detail.contact.photoUri != null) {
