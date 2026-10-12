@@ -147,7 +147,7 @@ class CloudStorageRepository(
             putExtra(Intent.EXTRA_STREAM, uri)
             type = apiOf(account).downloadMime(item)
         }
-        startChooser(intent)
+        startChooser(grantReading(intent, uri))
     }
 
     /** Saves the document into the device's Downloads folder and returns the name it got. */
@@ -210,7 +210,21 @@ class CloudStorageRepository(
     private fun startWithGrant(intent: Intent, file: File, mimeType: String) {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         intent.setDataAndType(uri, mimeType)
-        startChooser(intent, R.string.files_open_with)
+        startChooser(grantReading(intent, uri), R.string.files_open_with)
+    }
+
+    /**
+     * Lets whichever app is picked read the copy in the cache.
+     *
+     * The grant has to be on the intent the chooser hands on, not on the chooser: the chooser
+     * carries only the grants its target intent asks for, and with the flag on the chooser alone
+     * the app that was picked got a uri it was not allowed to open - a video player said the file
+     * could not be found while the hub showed its thumbnail perfectly well, having made that
+     * itself. The uri also goes in as the intent's clip, which is what the grant travels with.
+     */
+    private fun grantReading(intent: Intent, uri: android.net.Uri): Intent = intent.apply {
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        clipData = android.content.ClipData.newRawUri(null, uri)
     }
 
     /** [title] says what the chooser is for: opening a file, or sending it somewhere. */
