@@ -53,8 +53,8 @@ AYRICA
 
 GİZLİLİK
 Sunucumuz yok. Reklam yok, analiz yok, kullanıcı hesabı yok. Kişilerin, mesajların ve
-fotoğrafların telefonunda kalır. Hava durumu, şarkı sözü ve arama önerisi dışında hiçbir şey
-dışarı çıkmaz — onlar da yalnızca o özelliği kullandığında ve kimliğin eklenmeden.
+fotoğrafların telefonunda kalır. Hava durumu, haberler, şarkı sözü ve arama önerisi dışında
+hiçbir şey dışarı çıkmaz — onlar da yalnızca o özelliği kullandığında ve kimliğin eklenmeden.
 E-posta şifreleri ve kilitli notlar cihazda şifrelenir.
 
 Gizlilik politikası: <gizlilik politikası adresini buraya yaz>
@@ -112,7 +112,7 @@ ALSO
 
 PRIVACY
 There is no server. No ads, no analytics, no account. Your contacts, messages and pictures
-stay on your phone. Nothing leaves it except the weather, lyrics and search suggestions —
+stay on your phone. Nothing leaves it except the weather, news, lyrics and search suggestions —
 and those only when you use that feature, with nothing identifying attached. Email passwords
 and locked notes are encrypted on the device.
 

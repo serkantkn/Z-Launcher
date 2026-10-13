@@ -43,7 +43,7 @@ telefonlarında çalışıyor — ve hiçbir şeyi hiçbir yere göndermiyor.
 
 ## Başlangıç ekranı
 
-- **Canlı karolar.** Saat, takvim, mesajlar, kişiler, hava durumu ve müzik karoları kendiliğinden döner;
+- **Canlı karolar.** Saat, takvim, mesajlar, kişiler, hava durumu, haberler ve müzik karoları kendiliğinden döner;
   kaydırma ya da çevirme hareketi seçilir, karo başına da ayarlanabilir.
 - **Dört boyut.** Küçük, orta, geniş, büyük. Sürükle, sırala, üst üste bırakıp klasör yap.
 - **Her şey sabitlenir.** Uygulama, kişi, konuşma, albüm, plak, not, web sayfası.
@@ -74,8 +74,9 @@ Hepsi uygulamanın içinde, hepsi aynı dilde yazılmış:
 | **mesajlar** | SMS ve MMS, konuşma sabitleme, hızlı yanıt |
 | **kişiler** | gruplar, mükerrer kayıt birleştirme, kişi karoları |
 | **fotoğraflar** | film rulosu, albümler, video, düzenleyici, favoriler |
-| **müzik** | yerel kitaplık, çalma listeleri, şarkı sözleri, albüm kapakları |
-| **internet** | sekmeler, yer imleri, indirmeler, gizli gezinme |
+| **müzik + videolar** | yerel kitaplık, çalma listeleri, şarkı sözleri, albüm kapakları; telefondaki videolar ve kendi video oynatıcısı |
+| **internet** | sekmeler, yer imleri, okuma görünümü ve okuma listesi, reklam ve izleyici engelleme, gizli gezinme |
+| **haberler** | Google Haberler'in konuları ve takip ettiğin sitelerin RSS akışları; özet, sonra sitenin kendi sayfası |
 | **e-posta** | IMAP/SMTP, birden çok hesap, Google ile oturum açma |
 | **notlar** | kontrol listeleri, resim ve ses, kilitli notlar |
 | **dosyalar** | kopyala · taşı · yapıştır · yeniden adlandır · sil · ayrıntılar; metin, resim, ses, video ve PDF'i kendi açar; bulut sürücüler |
@@ -88,6 +89,37 @@ beyaz bir çizgi menüye açılır.
 <p align="center">
   <img src="docs/img/dosyalar.png" width="180" alt="Dosyalar hub'ında bir klasör">
 </p>
+
+## İnternet, haberler, video
+
+- **Okuma görünümü.** Yazı olan sayfada adres çubuğunun yanında belirir; bir balon haber verir, dokununca sayfa
+  sade bir düzene geçer.
+- **Okuma listesi.** Sayfayı ya da bir haberi sonra okumak için kaydet; yazısı telefonda tutulur, bağlantı yokken
+  de okunur.
+- **Reklam ve izleyici engelleme.** Açık bir engelleme listesiyle; adresin yanındaki kalkan sayfada kaç isteğin
+  durduğunu sayar, bozulan bir sitede tek dokunuşla kapanır.
+- **Güvenlik.** Adresin başında kilit; sertifikası bozuk bir sayfada boş ekran yerine ne olduğunu anlatan bir uyarı.
+- **Basılı tut.** Bağlantıyı yeni ya da gizli sekmede aç, kopyala, paylaş; resmi kaydet ya da kendisini paylaş.
+- **Ve dahası.** Site başına yazı boyutu, sayfayı çevir, PDF olarak kaydet, çekerek yenile. Başlangıç sayfası bir
+  hub: sık ziyaret edilenler, sık kullanılanlar, okuma listesi, geçmiş. Telefonda okurken adres çubuğu ince bir
+  şeride iner.
+- **Haberler.** Manşetler, gündem, dünya, ekonomi, teknoloji, spor Google Haberler'den; "kaynaklarım" takip ettiğin
+  sitelerin RSS akışlarından, hazır Türkçe ve İngilizce kaynaklarla ya da kendi eklediğin adreslerle. Habere
+  dokununca resmi ve özeti, devamı sitenin kendi sayfasında.
+- **Video oynatıcı.** Metro kontrolleri, iki kez dokunup 10 saniye atla, kaldığı yerden devam, ana ekrana dönünce
+  küçük pencerede oynamaya devam. Buluttaki videolar indirilmeden akış olarak oynar.
+
+## Varsayılan uygulama
+
+Z Launcher telefonun varsayılan uygulaması olabilir; bir şey açıldığında karşına yine Metro çıkar:
+
+- **Ana ekran, telefon, SMS, tarayıcı** — Android'in varsayılan uygulama ayarlarından.
+- **Galeri** — galerideki bir fotoğraf albümünün içinde, ekler ve indirilenler fotoğraflar görüntüleyicisinde açılır.
+- **Müzik çalar** — bir şarkı müzik + videolar hub'ında, albümüyle birlikte çalar.
+- **Video oynatıcı** — telefondaki, buluttaki ve webdeki videolar kendi oynatıcısında.
+- **Notlar** — "yeni not" isteği notlar hub'ında boş bir not açar.
+- **Uygulama türleri** — "galeriyi aç", "takvimi aç" diyen her şey ilgili hub'a gelir: galeri, müzik, kişiler,
+  takvim, mesajlar, e-posta, hesap makinesi, dosyalar, hava durumu, tarayıcı.
 
 ## Eylem merkezi
 
@@ -113,6 +145,8 @@ Uygulama listesi onun altında durur — yukarı kaydır ya da sol alttaki oka d
 çıkarken liste alttan gelir; aşağı kaydır, geri döner. Liste harflere göre gruplu, sütunlar önce aşağı sonra
 yana okunur, yana kayar; başlığın yanındaki menü ada, yüklenme tarihine ya da kullanıma göre sıralar. Basılı
 tutunca Windows 8'in uygulama çubuğu alttan gelir. Panoyu ilk grubun ötesine çekince sosyal hub açılır.
+Hub'lar da Windows 8 düzenindedir: başlıklar solda, açılan şey yanındaki bölmede, komutlar alttaki Windows 8
+çubuğunda.
 
 <p align="center">
   <img src="docs/img/tablet.gif" width="480" alt="Karolar yukarı çıkarken uygulama listesi alttan gelir">
@@ -136,8 +170,8 @@ tutunca Windows 8'in uygulama çubuğu alttan gelir. Panoyu ilk grubun ötesine 
 ## Gizlilik
 
 Sunucu yok. Reklam, analiz, kullanıcı hesabı yok. Kişilerin, mesajların ve fotoğrafların telefonda kalır.
-Telefondan yalnızca hava durumu, şarkı sözü ve arama önerisi istekleri çıkar — o da o özelliği kullandığında
-ve kimliğin eklenmeden. E-posta şifreleri ve kilitli notlar cihazda şifrelenir.
+Telefondan yalnızca hava durumu, haberler, şarkı sözü ve arama önerisi istekleri çıkar (tarayıcıda reklam
+engelleme açıksa haftada bir engelleme listesi de indirilir) — o da o özelliği kullandığında ve kimliğin eklenmeden. E-posta şifreleri ve kilitli notlar cihazda şifrelenir.
 Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md) · [web](https://serkantkn.github.io/Z-Launcher/gizlilik.html).
 
 ## Derlemek
@@ -196,14 +230,24 @@ turnstile animations and Zune's thin type, running on today's Android — and se
   Android's shade: quick actions, a thin brightness slider, the music playing, and notifications grouped by
   app — the launcher's own by hub — to open, swipe away or answer in place. On a tablet it is a column from
   the right edge. It runs on an accessibility service, and the lock screen keeps Android's own shade.
-- **Hubs, all in-app.** Phone, Messaging, People, Pictures, Music, Internet, Email, Notes, Files (copy, cut,
+- **Hubs, all in-app.** Phone, Messaging, People, Pictures, Music + Videos (with the launcher's own video
+  player: small window, resume where you left off), Internet, News, Email, Notes, Files (copy, cut,
   paste, rename, delete, details; opens text, pictures, sound, video and PDF itself; cloud drives), Social,
   Clock, Calendar, Weather, Calculator, Camera. Hubs left with Home keep running and come back from the
-  running-hubs strip, a double press of Home, or a two-finger swipe that splits the screen.
+  running-hubs strip, a double press of Home, or a two-finger swipe that splits the screen. On a tablet a hub
+  has its headings down the left, what is open in a pane beside them, and the Windows 8 bar.
+- **Internet and news.** Reading view offered beside the address where a page suits it, a reading list kept
+  for offline, ad and tracker blocking with a per-site switch, a padlock and a proper warning for a bad
+  certificate, a menu for held links and pictures, text size by site, translate, save as PDF, pull to reload.
+  The news hub gathers Google News topics and the RSS feeds of the sites you follow; a story opens to its
+  summary, and the rest is read on its own site.
+- **Default apps.** Besides Home, phone, SMS and browser, the launcher can be the phone's gallery, music
+  player, video player and notes app, and answers when Android asks for the gallery, music, contacts,
+  calendar, messaging, email, calculator, files, weather or browser app.
 - **Looks.** Fourteen accent colours and a custom one, dark and light themes, tile transparency, corner
   style and spacing. The Windows Phone keyboard *(Pro)*.
-- **Privacy.** No server, no ads, no analytics, no account. Only weather, lyrics and search suggestions
-  ever leave the phone, and only when you use them. See [PRIVACY.en.md](PRIVACY.en.md).
+- **Privacy.** No server, no ads, no analytics, no account. Only weather, news, lyrics and search suggestions
+  (and, with blocking on, a weekly blocklist download) ever leave the phone, and only when you use them. See [PRIVACY.en.md](PRIVACY.en.md).
 
 Build with `./gradlew assembleFreeDebug` (flavours `free` and `premium`; minSdk 28). Written in Kotlin,
 all of the UI in Jetpack Compose. **Source-viewing licence:** read, study and build it for yourself;

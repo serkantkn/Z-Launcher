@@ -20,6 +20,14 @@
         <exclude domain="file" path="datastore/calendar_events.preferences_pb" />
         <exclude domain="file" path="datastore/phone.preferences_pb" />
         <exclude domain="file" path="datastore/weather.preferences_pb" />
+        <!-- The reading list and the copies of its pages kept to read offline: places visited. -->
+        <exclude domain="file" path="reading_list.json" />
+        <exclude domain="file" path="reading/" />
+        <!-- Where each video was left: what was watched. -->
+        <exclude domain="sharedpref" path="video_resume.xml" />
+        <!-- Fetched again from the network whenever it is wanted. -->
+        <exclude domain="file" path="news_cache.json" />
+        <exclude domain="file" path="adblock_hosts.txt" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="zune_secrets.xml" />
@@ -34,5 +42,13 @@
         <exclude domain="file" path="datastore/calendar_events.preferences_pb" />
         <exclude domain="file" path="datastore/phone.preferences_pb" />
         <exclude domain="file" path="datastore/weather.preferences_pb" />
+        <!-- The reading list and the copies of its pages kept to read offline: places visited. -->
+        <exclude domain="file" path="reading_list.json" />
+        <exclude domain="file" path="reading/" />
+        <!-- Where each video was left: what was watched. -->
+        <exclude domain="sharedpref" path="video_resume.xml" />
+        <!-- Fetched again from the network whenever it is wanted. -->
+        <exclude domain="file" path="news_cache.json" />
+        <exclude domain="file" path="adblock_hosts.txt" />
     </device-transfer>
 </data-extraction-rules>

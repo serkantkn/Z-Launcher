@@ -1,6 +1,6 @@
 # Z Launcher — Gizlilik Politikası
 
-Son güncelleme: 16 Eylül 2026 · Sürüm 1.0
+Son güncelleme: 13 Ekim 2026 · Sürüm 1.1
 
 ## Kısaca
 
@@ -11,7 +11,7 @@ telefonunuzda kalır.
 
 Telefondan çıkan tek şey, sizin istediğiniz bir işi yapmak için gereken en küçük bilgidir:
 hava durumu için yaklaşık konum, şarkı sözü için parça adı, arama önerisi için yazdığınız
-metin. Aşağıda tek tek yazılı.
+metin, haberler için seçtiğiniz konular ve siteler. Aşağıda tek tek yazılı.
 
 ## Telefonda kalan veriler
 
@@ -61,9 +61,15 @@ sunucumuz da yok.
 Yalnızca Dosyalar hub'ında bir Drive hesabı bağlarsanız. Yetkilendirme Google'ın kendi
 ekranıyla yapılır; jeton telefonda şifreli olarak saklanır.
 
+**Haberler — news.google.com ve takip ettiğiniz siteler**
+Yalnızca haberler hub'ı açıldığında ya da haber karosu başlangıç ekranındayken. Google Haberler'den telefonun dili ve ülkesine göre seçtiğiniz konuların akışı, takip ettiğiniz sitelerin RSS akışları ise doğrudan o sitelerden alınır. Bir haberi açtığınızda resmi ve özeti haberin kendi sayfasından istenebilir. Konum ya da kimlik gönderilmez.
+
+**Reklam ve izleyici engelleme listesi — raw.githubusercontent.com**
+Tarayıcıda engelleme açıksa, Steven Black'in açık engelleme listesi bir kez, sonra haftada bir yalnızca Wi-Fi'dayken indirilir. Yalnızca dosya istenir; hiçbir şey gönderilmez.
+
 **Tarayıcı**
 Ziyaret ettiğiniz siteler doğrudan sizinle o site arasındadır; uygulama araya girmez, bir
-yere bildirmez.
+yere bildirmez. Engelleme açıksa, sayfaların reklam ve izleyici sunucularına yaptığı istekler telefonda durdurulur. Başlangıç sayfasındaki site karolarının simgeleri Google'ın simge servisinden site adıyla istenir. "Sayfayı çevir" seçildiğinde sayfa Google Çeviri üzerinden açılır.
 
 ## Nerede ve nasıl saklanır
 
@@ -74,14 +80,15 @@ Her şey uygulamanın kendi özel alanında, telefonunuzda durur.
 - **Kilitli notlar**: gövdesi aynı şekilde şifrelenir. Telefon kök erişimiyle açılsa bile
   kilitli notun içeriği okunamaz.
 - **Gezinme geçmişi ve indirmeler**: ayrı bir dosyada, yedekleme dışında.
+- **Okuma listesi, çevrimdışı kopyaları ve videoların kaldığınız yerleri**: ayrı dosyalarda, yedekleme dışında.
 
 ## Yedekleme
 
 Android'in yedekleme ve yeni telefona aktarma özelliği açıksa, uygulamanın **görünüm
 ayarları ve başlangıç ekranı düzeni** yedeklenir. Şunlar bilerek dışarıda bırakılmıştır ve
 telefondan çıkmaz: e-posta hesapları ve önbelleği, notlar ve ekleri, klavyenin öğrendiği
-kelimeler ve pano geçmişi, bulut hesapları, takvim kayıtları, gezinme geçmişi, konum
-tercihi, şifre kasası.
+kelimeler ve pano geçmişi, bulut hesapları, takvim kayıtları, gezinme geçmişi, okuma listesi, videoların kaldığınız
+yerleri, konum tercihi, şifre kasası.
 
 ## Çocuklar
 

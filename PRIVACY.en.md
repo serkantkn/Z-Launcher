@@ -1,6 +1,6 @@
 # Z Launcher — Privacy Policy
 
-Last updated: 16 September 2026 · Version 1.0
+Last updated: 13 October 2026 · Version 1.1
 
 ## In short
 
@@ -11,7 +11,7 @@ stays on your phone.
 
 The only things that leave are the smallest pieces needed to do something you asked for:
 approximate location for the weather, a track name for lyrics, what you type for search
-suggestions. Each one is listed below.
+suggestions, the topics and sites you chose for the news. Each one is listed below.
 
 ## What stays on the phone
 
@@ -59,9 +59,15 @@ server of ours.
 Only if you connect a Drive account in the Files hub. Authorisation happens in Google's own
 screen; the token is kept encrypted on your phone.
 
+**News — news.google.com and the sites you follow**
+Only when the news hub is opened, or while its tile is on Start. The feeds of the topics you chose come from Google News, in the edition of your phone's language and country; the RSS feeds of the sites you follow come straight from those sites. When you open a story, its picture and summary may be asked of the story's own page. No location, nothing identifying.
+
+**Ad and tracker blocklist — raw.githubusercontent.com**
+If blocking is on in the browser, Steven Black's open blocklist is downloaded once, then weekly and only on Wi-Fi. The file is fetched; nothing is sent.
+
 **The browser**
 Sites you visit are between you and them. The app does not sit in the middle and does not
-report anywhere.
+report anywhere. With blocking on, the requests pages make to advertising and tracking servers are stopped on the phone. The icons on the start page's site tiles are asked of Google's icon service by the site's name. "Translate page" opens the page through Google Translate.
 
 ## Where it is kept
 
@@ -72,14 +78,15 @@ All of it stays in the app's own private storage, on your phone.
 - **Locked notes**: the body is encrypted the same way. Even with root access to the phone,
   a locked note cannot be read.
 - **Browsing history and downloads**: in a file of their own, excluded from backup.
+- **The reading list, its offline copies and where you left each video**: in files of their own, excluded from backup.
 
 ## Backup
 
 If Android's backup and device-transfer are on, the app's **appearance settings and Start
 screen layout** are included. These are deliberately excluded and never leave the phone:
 email accounts and cached messages, notes and their attachments, the keyboard's learned words
-and clipboard history, cloud accounts, calendar entries, browsing history, the location you
-watch the weather for, and the password vault.
+and clipboard history, cloud accounts, calendar entries, browsing history, the reading list, where you
+left each video, the location you watch the weather for, and the password vault.
 
 ## Children
 
