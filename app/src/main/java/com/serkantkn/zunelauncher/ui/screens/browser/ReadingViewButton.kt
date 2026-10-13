@@ -116,10 +116,12 @@ internal fun ReadingViewButton(
                 modifier = Modifier.size(20.dp)
             )
             if (balloon) {
-                ReadingBalloon(
+                MetroBalloon(
+                    title = stringResource(R.string.browser_reading_view),
+                    message = stringResource(R.string.browser_reading_view_balloon),
                     below = balloonBelow,
                     onDismiss = { balloon = false },
-                    onOpen = {
+                    onClick = {
                         balloon = false
                         onToggle()
                     }
@@ -130,12 +132,18 @@ internal fun ReadingViewButton(
 }
 
 /**
- * The balloon: a block in the accent colour with a point towards the button, saying what reading
- * view is for. Not focusable, so the page and the keyboard carry on as they were; a touch
- * anywhere outside it closes it.
+ * A balloon: a block in the accent colour with a point towards what it is about - the button it
+ * is drawn from. Not focusable, so the page and the keyboard carry on as they were; a touch
+ * anywhere outside it closes it, and [onClick], when there is one, is what touching it does.
  */
 @Composable
-private fun ReadingBalloon(below: Boolean, onDismiss: () -> Unit, onOpen: () -> Unit) {
+internal fun MetroBalloon(
+    title: String,
+    message: String,
+    below: Boolean,
+    onDismiss: () -> Unit,
+    onClick: (() -> Unit)? = null
+) {
     val accent = LocalZuneColors.current.accentColor
     val density = LocalDensity.current
     val gap = with(density) { 6.dp.roundToPx() }
@@ -182,17 +190,17 @@ private fun ReadingBalloon(below: Boolean, onDismiss: () -> Unit, onOpen: () -> 
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = onOpen
+                            onClick = onClick ?: onDismiss
                         )
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.browser_reading_view),
+                        text = title,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
                         color = Color.White
                     )
                     Text(
-                        text = stringResource(R.string.browser_reading_view_balloon),
+                        text = message,
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 19.sp),
                         color = Color.White.copy(alpha = 0.92f),
                         modifier = Modifier.padding(top = 2.dp)

@@ -519,12 +519,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
      * Opens [url] in a tab of its own — for a link that asked for a new window, and for a site
      * pinned to the start screen. Returns the tab's id so the caller can load the page into it.
      */
-    fun openTabWith(url: String): String {
-        val tab = BrowserTab(url = url, showStartScreen = false)
+    fun openTabWith(url: String, isPrivate: Boolean = false): String {
+        val tab = BrowserTab(url = url, showStartScreen = false, isPrivate = isPrivate)
         var openedId = tab.id
         _state.update { currentState ->
             // An empty tab sitting there is the one to use, rather than piling another on top.
-            val blank = currentState.tabs.singleOrNull()?.takeIf { it.url.isBlank() }
+            val blank = currentState.tabs.singleOrNull()?.takeIf { it.url.isBlank() && it.isPrivate == isPrivate }
             if (blank != null) {
                 openedId = blank.id
                 return@update currentState.copy(
@@ -577,6 +577,68 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /** A tab that leaves no trace in the history. */
+    /**
+     * Shares a picture from a page as the picture itself, not its address: it is fetched - with
+     * the page's cookies, as the page itself fetched it - into the cache and handed over from there.
+     */
+    fun sharePicture(context: Context, address: String, userAgent: String?) {
+        viewModelScope.launch {
+            val shared = withContext(Dispatchers.IO) {
+                try {
+                    val dir = java.io.File(context.cacheDir, "shared_pictures").apply { mkdirs() }
+                    dir.listFiles()?.forEach { it.delete() }
+                    val (bytes, mime) = if (address.startsWith("data:")) {
+                        val header = address.substringBefore(',')
+                        val body = address.substringAfter(',')
+                        val type = header.removePrefix("data:").substringBefore(';').ifBlank { "image/png" }
+                        val data = if (header.endsWith(";base64")) {
+                            android.util.Base64.decode(body, android.util.Base64.DEFAULT)
+                        } else {
+                            java.net.URLDecoder.decode(body, "UTF-8").toByteArray()
+                        }
+                        data to type
+                    } else {
+                        val connection = java.net.URL(address).openConnection() as java.net.HttpURLConnection
+                        try {
+                            connection.connectTimeout = 15_000
+                            connection.readTimeout = 15_000
+                            userAgent?.let { connection.setRequestProperty("User-Agent", it) }
+                            android.webkit.CookieManager.getInstance().getCookie(address)
+                                ?.let { connection.setRequestProperty("Cookie", it) }
+                            val type = connection.contentType?.substringBefore(';')?.trim()
+                                ?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
+                            connection.inputStream.use { it.readBytes() } to type
+                        } finally {
+                            connection.disconnect()
+                        }
+                    }
+                    val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: "jpg"
+                    val file = java.io.File(dir, "picture.$extension")
+                    file.writeBytes(bytes)
+                    androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file) to mime
+                } catch (e: Exception) {
+                    ZuneLog.w(TAG, "picture could not be fetched to share", e)
+                    null
+                }
+            }
+            if (shared == null) {
+                _state.update { it.copy(errorMessage = getApplication<Application>().localizedString(R.string.browser_share_picture_failed)) }
+                return@launch
+            }
+            val (uri, mime) = shared
+            val send = Intent(Intent.ACTION_SEND)
+                .setType(mime)
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            send.clipData = android.content.ClipData.newRawUri(null, uri)
+            try {
+                context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (e: Exception) {
+                ZuneLog.w(TAG, "nothing here shares a picture", e)
+            }
+        }
+    }
+
     fun openPrivateTab() {
         _state.update { currentState ->
             if (currentState.tabs.size >= MAX_TABS) {

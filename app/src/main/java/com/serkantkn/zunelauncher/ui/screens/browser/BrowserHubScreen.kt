@@ -101,6 +101,28 @@ fun BrowserHubScreen(
     /** Tabs that were opened from the news hub, whose Back leads back to it. */
     val fromNews = remember { mutableSetOf<String>() }
 
+    /** A link or a picture held down on the page on show, and where, while its menu is open. */
+    var held by remember { mutableStateOf<Triple<PageTarget, Float, Float>?>(null) }
+
+    /** Pages whose certificate did not hold up, by tab, waiting for the user's word. */
+    val certificateProblems = remember { mutableStateMapOf<String, CertificateProblem>() }
+
+    /** Sites the user chose to open despite their certificate, for the rest of this session. */
+    val certificateWaived = remember { mutableStateListOf<String>() }
+
+    /** Turns back from a page whose certificate failed: to the page before it, or to the start. */
+    fun leaveCertificateProblem(tabId: String, problem: CertificateProblem) {
+        problem.goBack()
+        certificateProblems.remove(tabId)
+        val web = webViewCache[tabId]
+        val before = web?.url
+        if (before.isNullOrBlank() || before == "about:blank") {
+            viewModel.goHome(tabId)
+        } else {
+            viewModel.onPageFinished(tabId, before, web.title)
+        }
+    }
+
     /** The page waiting for the file the user is about to pick, if any. */
     var pendingFileChooser by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
 
@@ -126,7 +148,12 @@ fun BrowserHubScreen(
     }
 
     BackHandler {
-        if (fullscreen != null) {
+        val problem = certificateProblems[activeTab.id]
+        if (held != null) {
+            held = null
+        } else if (problem != null) {
+            leaveCertificateProblem(activeTab.id, problem)
+        } else if (fullscreen != null) {
             fullscreen?.callback?.onCustomViewHidden()
             fullscreen = null
         } else if (state.showDownloadsScreen) {
@@ -296,6 +323,12 @@ fun BrowserHubScreen(
 
     val isWideScreen = LocalIsWideScreen.current
     val hingeSpec = rememberHingeSpec()
+    val security = if (activeTab.showStartScreen) PageSecurity.NONE
+    else if (certificateProblems[activeTab.id] != null) PageSecurity.CERTIFICATE_PROBLEM
+    else PageSecurity.of(
+        activeTab.url,
+        certificateIgnored = runCatching { Uri.parse(activeTab.url).host }.getOrNull() in certificateWaived
+    )
     val downloadsHingeAnim = remember { Animatable(0f) }
 
     LaunchedEffect(state.showDownloadsScreen) {
@@ -386,6 +419,7 @@ fun BrowserHubScreen(
                             isReadingView = activeTab.isReadingView,
                             onToggleReadingView = { toggleReadingView() },
                             readingAvailable = activeTab.readingAvailable,
+                            security = security,
                             onNewPrivateTab = { viewModel.openPrivateTab() }
                         )
                     }
@@ -418,7 +452,10 @@ fun BrowserHubScreen(
                                             createBrowserWebView(
                                                 ctx,
                                                 BrowserWebCallbacks(
-                                                    onStarted = { url, title -> viewModel.onPageStarted(tab.id, url, title) },
+                                                    onStarted = { url, title ->
+                                                        certificateProblems.remove(tab.id)
+                                                        viewModel.onPageStarted(tab.id, url, title)
+                                                    },
                                                     onFinished = { url, title ->
                                                         viewModel.onPageFinished(tab.id, url, title)
                                                         probeWhenLoaded(tab.id, url)
@@ -457,7 +494,16 @@ fun BrowserHubScreen(
                                                         }
                                                     },
                                                     onError = { viewModel.reportPageError(it) },
-                                                    onRenderGone = { viewModel.markTabCrashed(tab.id) }
+                                                    onRenderGone = { viewModel.markTabCrashed(tab.id) },
+                                                    onLongPress = { target, x, y -> held = Triple(target, x, y) },
+                                                    onCertificateProblem = { url, error, handler ->
+                                                        val problem = CertificateProblem(url, error, handler)
+                                                        if (problem.host in certificateWaived) {
+                                                            problem.proceed()
+                                                        } else {
+                                                            certificateProblems[tab.id] = problem
+                                                        }
+                                                    }
                                                 ),
                                                 isPrivate = tab.isPrivate
                                             ).also { webViewCache[tab.id] = it }
@@ -497,6 +543,20 @@ fun BrowserHubScreen(
                                     )
                                     }
 
+                                    certificateProblems[tab.id]?.let { problem ->
+                                        if (isVisible) {
+                                            CertificateWarningPage(
+                                                problem = problem,
+                                                onBack = { leaveCertificateProblem(tab.id, problem) },
+                                                onProceed = {
+                                                    certificateWaived += problem.host
+                                                    certificateProblems.remove(tab.id)
+                                                    problem.proceed()
+                                                }
+                                            )
+                                        }
+                                    }
+
                                     if (tab.showStartScreen && isVisible) {
                                         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                                             BrowserStartScreen(
@@ -524,6 +584,42 @@ fun BrowserHubScreen(
                                 }
                             }
                         }
+                        // A link or a picture held down: what can be done with it.
+                        held?.let { (target, x, y) ->
+                            val web = webViewCache[activeTab.id]
+                            val agent = web?.settings?.userAgentString
+                            val actions = buildList {
+                                target.link?.let { link ->
+                                    add(PageMenuAction(stringResource(R.string.browser_open_new_tab)) { viewModel.openTabWith(link) })
+                                    if (!activeTab.isPrivate) {
+                                        add(PageMenuAction(stringResource(R.string.browser_open_private_tab)) { viewModel.openTabWith(link, isPrivate = true) })
+                                    }
+                                    add(PageMenuAction(stringResource(R.string.browser_copy_link)) { copyToClipboard(context, link) })
+                                    add(PageMenuAction(stringResource(R.string.browser_share_link)) { sharePage(context, "", link) })
+                                }
+                                target.image?.let { image ->
+                                    add(PageMenuAction(stringResource(R.string.browser_save_image)) {
+                                        viewModel.startDownload(image, agent, null, null, -1L, activeTab.isPrivate)
+                                    })
+                                    add(PageMenuAction(stringResource(R.string.browser_share_image)) { viewModel.sharePicture(context, image, agent) })
+                                    if (!image.startsWith("data:")) {
+                                        add(PageMenuAction(stringResource(R.string.browser_open_image)) { viewModel.openTabWith(image, activeTab.isPrivate) })
+                                        add(PageMenuAction(stringResource(R.string.browser_copy_image_link)) { copyToClipboard(context, image) })
+                                    }
+                                }
+                            }
+                            Box(modifier = Modifier.fillMaxSize().zIndex(5f)) {
+                                PageContextMenu(
+                                    target = target,
+                                    x = x,
+                                    y = y,
+                                    wide = isWideScreen,
+                                    actions = actions,
+                                    onDismiss = { held = null }
+                                )
+                            }
+                        }
+
                         // Top Header (Optional, like other hubs)
                         if (activeTab.showStartScreen) {
                             Row(
@@ -621,6 +717,7 @@ fun BrowserHubScreen(
                             isReadingView = activeTab.isReadingView,
                             onToggleReadingView = { toggleReadingView() },
                             readingAvailable = activeTab.readingAvailable,
+                            security = security,
                             onNewPrivateTab = { viewModel.openPrivateTab() },
                             thumbnails = thumbnails,
                             onTabsOpened = {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launcher carries a web browser, and the web still has pages served over plain http: Android
+  forbids those to an app by default, and the browser could open none of them. They are allowed,
+  and the browser marks each one "not secure" in its address bar. The launcher's own services are
+  all reached over https regardless, and certificates are trusted only as the system trusts them.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

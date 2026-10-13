@@ -96,6 +96,7 @@ fun WP8AddressBar(
     isReadingView: Boolean = false,
     onToggleReadingView: () -> Unit = {},
     readingAvailable: Boolean = false,
+    security: PageSecurity = PageSecurity.NONE,
     onNewPrivateTab: () -> Unit = {},
     thumbnails: Map<String, androidx.compose.ui.graphics.ImageBitmap> = emptyMap(),
     onTabsOpened: () -> Unit = {},
@@ -230,6 +231,7 @@ fun WP8AddressBar(
                 contentAlignment = Alignment.CenterStart
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    if (!isFocused) SecurityBadge(security, balloonBelow = false, modifier = Modifier.padding(end = 4.dp))
                     Box(modifier = Modifier.weight(1f)) {
                         BasicTextField(
                             value = input,
@@ -579,7 +581,7 @@ fun WP8AddressBar(
 }
 
 @Composable
-private fun WP8MenuItem(
+internal fun WP8MenuItem(
     text: String,
     subtitle: String?,
     enabled: Boolean,

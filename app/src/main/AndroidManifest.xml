@@ -109,6 +109,7 @@
     <application
         android:name=".ZuneLauncherApp"
         android:localeConfig="@xml/locales_config"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:hardwareAccelerated="true"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"

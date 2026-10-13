@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_security_secure">secure connection</string>
+    <string name="browser_security_secure_detail">The connection to this site is encrypted; what you send cannot be read on the way.</string>
+    <string name="browser_security_insecure">not secure</string>
+    <string name="browser_security_insecure_detail">The connection to this site is not encrypted. Do not enter passwords or card details.</string>
+    <string name="browser_security_ignored">certificate problem</string>
+    <string name="browser_security_ignored_detail">This site\'s certificate could not be verified and you chose to go on anyway. Do not enter personal details.</string>
+
+    <string name="browser_cert_title">there is a problem with this site\'s security certificate</string>
+    <string name="browser_cert_expired">The site\'s certificate has expired.</string>
+    <string name="browser_cert_not_yet_valid">The site\'s certificate is not valid yet. The phone\'s clock may be wrong.</string>
+    <string name="browser_cert_mismatch">The certificate belongs to another site; it does not match this address.</string>
+    <string name="browser_cert_untrusted">The certificate was not issued by a trusted authority.</string>
+    <string name="browser_cert_date_invalid">The certificate has expired or is not valid yet. If the phone\'s clock is wrong, put that right first.</string>
+    <string name="browser_cert_invalid">The site\'s certificate could not be verified.</string>
+    <string name="browser_cert_advice">Someone may be trying to get between you and this site. Do not enter passwords, card numbers or personal details here.</string>
+    <string name="browser_cert_back">go back</string>
+    <string name="browser_cert_more">details</string>
+    <string name="browser_cert_less">hide details</string>
+    <string name="browser_cert_proceed_warning">If you are sure you trust this site, you can open it anyway. You will not be asked again about it this session.</string>
+    <string name="browser_cert_proceed">go on to %1$s anyway (not recommended)</string>
+
+    <string name="browser_copied">copied</string>
+    <string name="browser_open_new_tab">open in new tab</string>
+    <string name="browser_open_private_tab">open in private tab</string>
+    <string name="browser_copy_link">copy link</string>
+    <string name="browser_share_link">share link</string>
+    <string name="browser_save_image">save picture</string>
+    <string name="browser_open_image">open picture in new tab</string>
+    <string name="browser_copy_image_link">copy picture address</string>
+    <string name="browser_share_image">share picture</string>
+    <string name="browser_share_picture_failed">The picture could not be fetched to share.</string>
+    <string name="browser_security_problem_detail">This site\'s certificate could not be verified.</string>
+</resources>

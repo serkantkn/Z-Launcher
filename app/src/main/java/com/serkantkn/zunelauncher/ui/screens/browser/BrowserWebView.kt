@@ -37,8 +37,52 @@ internal class BrowserWebCallbacks(
     val onGeolocation: (origin: String, callback: android.webkit.GeolocationPermissions.Callback) -> Unit,
     val onError: (message: String) -> Unit,
     /** The page's renderer died under it; the view is no longer usable and has to go. */
-    val onRenderGone: () -> Unit = {}
+    val onRenderGone: () -> Unit = {},
+    /** A link or a picture was held down; [x] and [y] are where, in the page's own pixels. */
+    val onLongPress: (target: PageTarget, x: Float, y: Float) -> Unit = { _, _, _ -> },
+    /**
+     * The page itself - not a picture or a script on it - came with a certificate that does not
+     * hold up. [handler] is the way on or back, whichever the user picks.
+     */
+    val onCertificateProblem: (url: String, error: android.net.http.SslError, handler: android.webkit.SslErrorHandler) -> Unit =
+        { _, _, handler -> handler.cancel() }
 )
+
+/** What was held down on a page: a link, a picture, or a picture that is also a link. */
+internal data class PageTarget(val link: String?, val image: String?) {
+    val isEmpty: Boolean get() = link == null && image == null
+}
+
+/**
+ * The browser's page. It remembers the address it was last sent to, so a certificate problem
+ * can be told apart: one on the page being opened is the user's to decide, one on a picture or a
+ * script inside an open page is simply refused, as every browser refuses it.
+ */
+internal class BrowserPageView(context: Context) : WebView(context) {
+    /** The address a navigation of the whole page is heading for. */
+    var heading: String? = null
+
+    override fun loadUrl(url: String) {
+        heading = url
+        super.loadUrl(url)
+    }
+
+    override fun loadUrl(url: String, additionalHttpHeaders: MutableMap<String, String>) {
+        heading = url
+        super.loadUrl(url, additionalHttpHeaders)
+    }
+
+    override fun reload() {
+        heading = url
+        super.reload()
+    }
+
+    fun isHeadingFor(address: String?): Boolean {
+        if (address == null) return false
+        fun plain(it: String) = it.substringBefore('#').trimEnd('/')
+        return listOfNotNull(heading, url).any { plain(it) == plain(address) }
+    }
+}
 
 /** The user agent a desktop site expects to see, for the "desktop version" switch. */
 internal const val DESKTOP_USER_AGENT =
@@ -65,7 +109,7 @@ internal fun createBrowserWebView(
     callbacks: BrowserWebCallbacks,
     isPrivate: Boolean = false
 ): WebView =
-    WebView(context).apply {
+    BrowserPageView(context).apply {
         layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
@@ -109,6 +153,53 @@ internal fun createBrowserWebView(
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, !isPrivate)
 
+        // Holding a link or a picture brings up what can be done with it. Anything else held -
+        // text - is left to the page, so words can still be selected.
+        var touchX = 0f
+        var touchY = 0f
+        setOnTouchListener { _, event ->
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                touchX = event.x
+                touchY = event.y
+            }
+            false
+        }
+        setOnLongClickListener { view ->
+            val page = view as WebView
+            val hit = page.hitTestResult
+            fun usable(address: String?) = address?.takeIf {
+                it.startsWith("http://") || it.startsWith("https://") || it.startsWith("data:image")
+            }
+            when (hit.type) {
+                WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
+                    val link = usable(hit.extra) ?: return@setOnLongClickListener false
+                    callbacks.onLongPress(PageTarget(link = link, image = null), touchX, touchY)
+                    true
+                }
+                WebView.HitTestResult.IMAGE_TYPE -> {
+                    val image = usable(hit.extra) ?: return@setOnLongClickListener false
+                    callbacks.onLongPress(PageTarget(link = null, image = image), touchX, touchY)
+                    true
+                }
+                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
+                    // The picture's address comes with the hit; the link around it has to be
+                    // asked for, and arrives a moment later.
+                    val image = usable(hit.extra)
+                    val x = touchX
+                    val y = touchY
+                    val reply = android.os.Handler(android.os.Looper.getMainLooper()) { message ->
+                        val link = usable(message.data.getString("url"))
+                        val target = PageTarget(link = link, image = image)
+                        if (!target.isEmpty) callbacks.onLongPress(target, x, y)
+                        true
+                    }
+                    page.requestFocusNodeHref(reply.obtainMessage())
+                    true
+                }
+                else -> false
+            }
+        }
+
         webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
@@ -132,7 +223,10 @@ internal fun createBrowserWebView(
                 request: WebResourceRequest?
             ): Boolean {
                 val uri = request?.url ?: return false
-                if (uri.scheme == "http" || uri.scheme == "https") return false
+                if (uri.scheme == "http" || uri.scheme == "https") {
+                    if (request.isForMainFrame) (view as? BrowserPageView)?.heading = uri.toString()
+                    return false
+                }
                 return handOverToAnApp(context, uri.toString(), callbacks.onError)
             }
 
@@ -150,6 +244,25 @@ internal fun createBrowserWebView(
                     null
                 }
                 callbacks.onError(description ?: "")
+            }
+
+            /**
+             * A certificate that does not hold up. On the page being opened the user is asked,
+             * as every browser asks; on something inside a page that is already open it is
+             * refused without a word - one bad picture is no reason to stop the whole page.
+             */
+            override fun onReceivedSslError(
+                view: WebView?,
+                handler: android.webkit.SslErrorHandler?,
+                error: android.net.http.SslError?
+            ) {
+                if (handler == null || error == null) return
+                val page = view as? BrowserPageView
+                if (page != null && page.isHeadingFor(error.url)) {
+                    callbacks.onCertificateProblem(error.url, error, handler)
+                } else {
+                    handler.cancel()
+                }
             }
 
             /**

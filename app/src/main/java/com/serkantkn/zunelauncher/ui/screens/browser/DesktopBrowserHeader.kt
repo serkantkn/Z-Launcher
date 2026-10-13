@@ -89,6 +89,7 @@ fun DesktopBrowserHeader(
     isReadingView: Boolean = false,
     onToggleReadingView: () -> Unit = {},
     readingAvailable: Boolean = false,
+    security: PageSecurity = PageSecurity.NONE,
     onNewPrivateTab: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -262,6 +263,7 @@ fun DesktopBrowserHeader(
                 contentAlignment = Alignment.CenterStart
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    if (!isFocused) SecurityBadge(security, balloonBelow = true, modifier = Modifier.padding(end = 6.dp))
                     Box(modifier = Modifier.weight(1f)) {
                         BasicTextField(
                             value = inputText,

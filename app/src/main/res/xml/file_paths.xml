@@ -21,4 +21,6 @@
     <cache-path name="email_attachments" path="email_attachments/" />
     <!-- A picture or a clip from a picture message, copied out of the message store to be opened -->
     <cache-path name="mms_parts" path="mms/" />
+    <!-- A picture held down on a web page, fetched to be shared as itself -->
+    <cache-path name="shared_pictures" path="shared_pictures/" />
 </paths>

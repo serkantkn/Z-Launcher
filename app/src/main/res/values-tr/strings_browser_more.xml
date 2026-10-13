@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_security_secure">güvenli bağlantı</string>
+    <string name="browser_security_secure_detail">Bu siteyle aranızdaki bağlantı şifreli; gönderdiklerin yolda okunamaz.</string>
+    <string name="browser_security_insecure">güvenli değil</string>
+    <string name="browser_security_insecure_detail">Bu siteyle bağlantı şifrelenmiyor. Parola ya da kart bilgisi girme.</string>
+    <string name="browser_security_ignored">sertifika sorunu</string>
+    <string name="browser_security_ignored_detail">Bu sitenin sertifikası doğrulanamadı ve sen yine de devam etmeyi seçtin. Kişisel bilgi girme.</string>
+
+    <string name="browser_cert_title">bu sitenin güvenlik sertifikasında sorun var</string>
+    <string name="browser_cert_expired">Sitenin sertifikasının süresi dolmuş.</string>
+    <string name="browser_cert_not_yet_valid">Sitenin sertifikası henüz geçerli değil. Telefonun saati yanlış olabilir.</string>
+    <string name="browser_cert_mismatch">Sertifika başka bir siteye ait; bu adresle eşleşmiyor.</string>
+    <string name="browser_cert_untrusted">Sertifikayı güvenilir bir kuruluş vermemiş.</string>
+    <string name="browser_cert_date_invalid">Sertifikanın süresi dolmuş ya da henüz başlamamış. Telefonun saati yanlışsa önce onu düzelt.</string>
+    <string name="browser_cert_invalid">Sitenin sertifikası doğrulanamadı.</string>
+    <string name="browser_cert_advice">Biri bu siteyle aranıza girmeye çalışıyor olabilir. Burada parola, kart numarası ya da kişisel bilgi girme.</string>
+    <string name="browser_cert_back">geri dön</string>
+    <string name="browser_cert_more">ayrıntılar</string>
+    <string name="browser_cert_less">ayrıntıları gizle</string>
+    <string name="browser_cert_proceed_warning">Bu siteye güvendiğinden eminsen yine de açabilirsin. Bu oturumda bu site için yeniden sorulmaz.</string>
+    <string name="browser_cert_proceed">%1$s adresine yine de git (önerilmez)</string>
+
+    <string name="browser_copied">kopyalandı</string>
+    <string name="browser_open_new_tab">yeni sekmede aç</string>
+    <string name="browser_open_private_tab">gizli sekmede aç</string>
+    <string name="browser_copy_link">bağlantıyı kopyala</string>
+    <string name="browser_share_link">bağlantıyı paylaş</string>
+    <string name="browser_save_image">resmi kaydet</string>
+    <string name="browser_open_image">resmi yeni sekmede aç</string>
+    <string name="browser_copy_image_link">resim adresini kopyala</string>
+    <string name="browser_share_image">resmi paylaş</string>
+    <string name="browser_share_picture_failed">Resim paylaşmak için alınamadı.</string>
+    <string name="browser_security_problem_detail">Bu sitenin sertifikası doğrulanamadı.</string>
+</resources>
