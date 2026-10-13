@@ -23,4 +23,6 @@
     <cache-path name="mms_parts" path="mms/" />
     <!-- A picture held down on a web page, fetched to be shared as itself -->
     <cache-path name="shared_pictures" path="shared_pictures/" />
+    <!-- A picture another app opened in the launcher, copied in to be shown, shared or set as wallpaper -->
+    <cache-path name="opened_images" path="opened_images/" />
 </paths>

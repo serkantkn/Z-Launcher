@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.MaterialTheme
@@ -73,7 +74,12 @@ fun PhotoViewer(
     onEditPhoto: (MediaImage) -> Unit = {},
     onDeletePhoto: (MediaImage) -> Unit = {},
     onShare: (MediaImage) -> Unit = {},
-    onSetWallpaper: (MediaImage) -> Unit = {}
+    onSetWallpaper: (MediaImage) -> Unit = {},
+    /**
+     * A picture from outside the library - another app's attachment or download: it is not the
+     * launcher's to edit, delete or mark, so only what can be done with any picture is offered.
+     */
+    standalone: Boolean = false
 ) {
     AnimatedVisibility(
         visible = !photos.isNullOrEmpty(),
@@ -190,7 +196,18 @@ fun PhotoViewer(
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
                 WindowsPhoneBottomBar(
-                    actions = listOf(
+                    actions = if (standalone) listOf(
+                        WpBarAction(
+                            icon = Icons.Default.Share,
+                            label = stringResource(R.string.common_share),
+                            onClick = { onShare(currentPhoto) }
+                        ),
+                        WpBarAction(
+                            icon = Icons.Default.Close,
+                            label = stringResource(R.string.common_close),
+                            onClick = onDismiss
+                        )
+                    ) else listOf(
                         WpBarAction(
                             icon = Icons.Default.Edit,
                             label = stringResource(R.string.common_edit),
@@ -212,7 +229,10 @@ fun PhotoViewer(
                             onClick = onDismiss
                         )
                     ),
-                    menuItems = listOf(
+                    menuItems = if (standalone) listOf(
+                        WpBarMenuItem(stringResource(R.string.pics_menu_wallpaper)) { onSetWallpaper(currentPhoto) },
+                        WpBarMenuItem(stringResource(R.string.pics_menu_details)) { showDetails = true }
+                    ) else listOf(
                         WpBarMenuItem(stringResource(R.string.common_share)) { onShare(currentPhoto) },
                         WpBarMenuItem(stringResource(R.string.pics_menu_wallpaper)) {
                             onSetWallpaper(currentPhoto)

@@ -328,6 +328,13 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
+            <!-- "A new note", as the phone's notes app: a stylus button, a lock screen shortcut,
+                 another app asking for one. Where Android has a default notes app, this is what
+                 lets the launcher be it. -->
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_NOTE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <!-- SMS Receivers & Services for Default SMS App eligibility -->
@@ -429,7 +436,136 @@
                 <data android:scheme="content" />
                 <data android:mimeType="video/*" />
             </intent-filter>
+            <!-- A video on the web handed over by address, played as it arrives. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
         </activity>
+
+        <!-- The launcher as the phone's gallery: a picture from the library opens in the pictures
+             hub, anything else in the hub's own viewer, on its own. -->
+        <activity
+            android:name=".ui.openwith.ImageViewerActivity"
+            android:label="@string/pictures_hub"
+            android:taskAffinity="${applicationId}.viewer"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.ZuneLauncher"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|fontScale|layoutDirection|keyboard|keyboardHidden|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- The launcher as the phone's music player: a song another app opens plays in the music hub. -->
+        <activity
+            android:name=".ui.openwith.OpenAudioActivity"
+            android:label="@string/music_hub"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="application/ogg" />
+                <data android:mimeType="application/x-flac" />
+            </intent-filter>
+        </activity>
+
+        <!-- The hubs as the phone's apps of their kind: Android asks for "the gallery", "the music
+             app", "the calendar" by category. Each alias is one category, and its name tells
+             HubShortcutActivity which hub to open. -->
+        <activity
+            android:name=".ui.openwith.HubShortcutActivity"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="false" />
+        <activity-alias android:name=".AppGallery" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/pictures_hub" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_GALLERY" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppMusic" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/music_hub" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_MUSIC" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MUSIC_PLAYER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppContacts" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/people_hub" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_CONTACTS" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppCalendar" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/hub_calendar" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_CALENDAR" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppMessaging" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/hub_messaging" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_MESSAGING" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppEmail" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/hub_email" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_EMAIL" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppCalculator" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/hub_calculator" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_CALCULATOR" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppFiles" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/hub_files" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_FILES" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppWeather" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/hub_weather" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_WEATHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".AppBrowser" android:targetActivity=".ui.openwith.HubShortcutActivity" android:label="@string/hub_internet" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_BROWSER" />
+            </intent-filter>
+        </activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"

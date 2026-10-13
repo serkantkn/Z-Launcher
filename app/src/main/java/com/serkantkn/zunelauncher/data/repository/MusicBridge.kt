@@ -23,4 +23,24 @@ object MusicBridge {
     fun consume() {
         _pendingAlbum.value = null
     }
+
+    /**
+     * A track another app asked the launcher to play, as the phone's music player: one from the
+     * music library by its id, or a file of its own (an attachment, a download) by address.
+     */
+    sealed interface Track {
+        data class FromLibrary(val mediaId: Long) : Track
+        data class FromFile(val uri: android.net.Uri, val title: String, val artist: String) : Track
+    }
+
+    private val _pendingTrack = MutableStateFlow<Track?>(null)
+    val pendingTrack: StateFlow<Track?> = _pendingTrack.asStateFlow()
+
+    fun playTrack(track: Track) {
+        _pendingTrack.value = track
+    }
+
+    fun consumeTrack() {
+        _pendingTrack.value = null
+    }
 }

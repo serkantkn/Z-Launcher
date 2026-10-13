@@ -370,6 +370,49 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /**
+     * Plays the track another app asked for: from the library, the track among the rest of its
+     * record so the next one follows; a file of its own, on its own.
+     */
+    private fun playPendingTrack() {
+        viewModelScope.launch {
+            MusicBridge.pendingTrack.collect { track ->
+                if (track == null) return@collect
+                when (track) {
+                    is MusicBridge.Track.FromLibrary -> {
+                        var waited = 0L
+                        while (_localSongs.value.isEmpty() && waited < RESTORE_TIMEOUT_MS) {
+                            kotlinx.coroutines.delay(RESTORE_POLL_MS)
+                            waited += RESTORE_POLL_MS
+                        }
+                        val id = track.mediaId.toString()
+                        val song = _localSongs.value.firstOrNull { it.id == id }
+                        if (song != null) {
+                            val album = _albums.value.firstOrNull { it.id == song.albumId }
+                            val list = album?.let { tracksOf(it) }?.takeIf { tracks -> tracks.any { it.id == id } } ?: listOf(song)
+                            playSongs(list, list.indexOfFirst { it.id == id }.coerceAtLeast(0))
+                        }
+                    }
+                    is MusicBridge.Track.FromFile -> {
+                        kotlinx.coroutines.withTimeoutOrNull(RESTORE_TIMEOUT_MS) { localMediaController.isReady.first { it } }
+                        val item = androidx.media3.common.MediaItem.Builder()
+                            .setMediaId("file:" + track.uri)
+                            .setUri(track.uri)
+                            .setMediaMetadata(
+                                androidx.media3.common.MediaMetadata.Builder()
+                                    .setTitle(track.title)
+                                    .setArtist(track.artist)
+                                    .build()
+                            )
+                            .build()
+                        localMediaController.playMediaItems(listOf(item), 0)
+                    }
+                }
+                MusicBridge.consumeTrack()
+            }
+        }
+    }
+
     /** Plays the record a pinned tile asked for, once the library has been read. */
     private fun playPendingAlbum() {
         viewModelScope.launch {
@@ -824,6 +867,7 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
      */
     init {
         playPendingAlbum()
+        playPendingTrack()
         followLyrics()
     }
 
