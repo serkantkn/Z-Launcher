@@ -70,7 +70,10 @@ internal fun createBrowserWebView(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         )
-        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        // A page that sets no background of its own is drawn on white, as every browser draws
+        // it; left transparent, the launcher's wallpaper showed through behind its text. In dark
+        // mode the page is darkened algorithmically, and this white with it.
+        setBackgroundColor(android.graphics.Color.WHITE)
 
         settings.apply {
             javaScriptEnabled = true
