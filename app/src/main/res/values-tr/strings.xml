@@ -1231,6 +1231,7 @@
     <string name="browser_mobile_site">mobil sürüm</string>
     <string name="browser_reading_view">okuma görünümü</string>
     <string name="browser_reading_view_off">okuma görünümünden çık</string>
+    <string name="browser_reading_view_balloon">Bu sayfa, yalnızca yazının kaldığı sade bir düzende okunabilir. Açmak için dokun.</string>
     <string name="browser_new_private_tab">yeni gizli sekme</string>
     <string name="browser_private">gizli</string>
     <string name="settings_search_engine">arama motoru</string>

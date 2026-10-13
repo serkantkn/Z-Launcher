@@ -120,9 +120,9 @@ class NewsHubViewModel(application: Application) : AndroidViewModel(application)
         _openStory.value = null
     }
 
-    /** Goes on reading on the story's own site, in the launcher's browser, as its reading view. */
+    /** Goes on reading on the story's own site, in the launcher's browser. */
     fun readOnSite(link: String) {
-        BrowserBridge.openForReading(link)
+        BrowserBridge.openFromNews(link)
         HubBridge.open(HubType.INTERNET)
     }
 

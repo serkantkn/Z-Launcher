@@ -70,3 +70,47 @@ internal fun readingViewScript(isDark: Boolean): String {
     })();
     """.trimIndent()
 }
+
+/**
+ * Asks a loaded page, without touching it, whether reading view would make something of it, in
+ * the way Firefox decides whether to offer its reader: "yes" when the page holds enough long
+ * paragraphs of running text - the shape of an article - and "no" for a front page of headlines,
+ * a search, a gallery; "reading" when it already is in reading view.
+ *
+ * What does not count is what a front page is made of: short teasers, the summaries inside list
+ * items and inside links, paragraphs that are mostly links, and anything in a sidebar, a comment
+ * thread, a footer or an advert - nor the cookie and privacy notices sites open over the page.
+ */
+internal fun readingAvailabilityScript(): String = """
+    (function () {
+      if (window.__zuneReader) { return 'reading'; }
+      var unlikely = /-ad-|ad-break|agegate|banner|breadcrumb|combx|comment|community|disqus|extra|footer|gdpr|header|legends|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|pagination|pager|popup|promo|teaser|card|consent|cookie|privacy|modal|dialog|overlay|notice|newsletter|subscribe/i;
+      var likely = /article|body|column|content|main|story|text/i;
+      var nodes = document.querySelectorAll('p, pre');
+      var score = 0;
+      for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        if (!node.offsetParent && node.offsetHeight === 0) { continue; }
+        if (node.closest('li, a, nav, aside, footer, header, figcaption, dialog, [role=dialog], [role=alertdialog], [aria-modal=true]')) { continue; }
+        var marks = '', up = node;
+        for (var depth = 0; up && depth < 4; depth++, up = up.parentElement) {
+          marks += ' ' + (up.className && up.className.baseVal === undefined ? up.className : '') + ' ' + (up.id || '');
+        }
+        if (unlikely.test(marks) && !likely.test(marks)) { continue; }
+        var length = (node.textContent || '').trim().length;
+        if (length < $MIN_PARAGRAPH) { continue; }
+        var linked = 0, links = node.querySelectorAll('a');
+        for (var j = 0; j < links.length; j++) { linked += (links[j].textContent || '').length; }
+        if (linked / length > 0.3) { continue; }
+        score += Math.sqrt(length - $MIN_PARAGRAPH);
+        if (score > $READABLE_SCORE) { return 'yes'; }
+      }
+      return 'no';
+    })();
+""".trimIndent()
+
+/** A paragraph shorter than this is a caption or a teaser, not running text. */
+private const val MIN_PARAGRAPH = 140
+
+/** How much running text, scored as Firefox scores it, makes a page worth offering reading view for. */
+private const val READABLE_SCORE = 20

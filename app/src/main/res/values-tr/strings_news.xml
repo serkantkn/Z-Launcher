@@ -27,7 +27,7 @@
     <string name="news_read_on">devamını oku</string>
     <string name="news_copy_link">bağlantıyı kopyala</string>
     <string name="news_related">diğer kaynaklarda</string>
-    <string name="news_story_footnote">Haberin tamamı, yayımlayan sitede okuma görünümünde açılır.</string>
+    <string name="news_story_footnote">Haberin tamamı, yayımlayan sitede açılır. Sayfa uygunsa adres çubuğunun yanında okuma görünümü sunulur.</string>
 
     <string name="news_settings_topics">konular</string>
     <string name="news_settings_topics_hint">Google Haberler\'den gelen başlıklar. Manşetler her zaman ilk sırada.</string>

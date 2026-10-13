@@ -16,23 +16,22 @@ object BrowserBridge {
     val pendingUrl: StateFlow<String?> = _pendingUrl.asStateFlow()
 
     fun open(url: String) {
-        readingRequested = false
+        fromNews = false
         _pendingUrl.value = url
     }
 
     /**
-     * Opens [url] and puts it in reading view once it has loaded - a story carried on from the
-     * news hub. Links that pass through a redirect (Google News's do) are read where they land.
+     * Opens a story carried on from the news hub. Its tab goes back to the hub on Back, past the
+     * Google page a Google News link passes through on the way.
      */
-    fun openForReading(url: String) {
-        readingRequested = true
+    fun openFromNews(url: String) {
+        fromNews = true
         _pendingUrl.value = url
     }
 
-    /** Whether the address now pending asked for the reading view; read when it is consumed. */
+    /** Whether the address now pending came from the news hub; read when it is consumed. */
     @Volatile
-    var readingRequested: Boolean = false
-        private set
+    private var fromNews: Boolean = false
 
     /** Returns and clears the pending address. */
     fun consume(): String? {
@@ -41,10 +40,10 @@ object BrowserBridge {
         return current
     }
 
-    /** Returns and clears whether the address just consumed is to be read in reading view. */
-    fun consumeReading(): Boolean {
-        val reading = readingRequested
-        readingRequested = false
-        return reading
+    /** Returns and clears whether the address just consumed came from the news hub. */
+    fun consumeFromNews(): Boolean {
+        val news = fromNews
+        fromNews = false
+        return news
     }
 }

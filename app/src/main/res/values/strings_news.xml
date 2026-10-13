@@ -27,7 +27,7 @@
     <string name="news_read_on">read more</string>
     <string name="news_copy_link">copy link</string>
     <string name="news_related">from other sources</string>
-    <string name="news_story_footnote">The whole story opens on the site that published it, in reading view.</string>
+    <string name="news_story_footnote">The whole story opens on the site that published it. Where the page suits it, reading view is offered beside the address.</string>
 
     <string name="news_settings_topics">topics</string>
     <string name="news_settings_topics_hint">Headings from Google News. Top stories always come first.</string>

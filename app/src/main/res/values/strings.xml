@@ -1231,6 +1231,7 @@
     <string name="browser_mobile_site">mobile version</string>
     <string name="browser_reading_view">reading view</string>
     <string name="browser_reading_view_off">leave reading view</string>
+    <string name="browser_reading_view_balloon">This page can be read in a plain layout, with only the story left. Tap to open it.</string>
     <string name="browser_new_private_tab">new private tab</string>
     <string name="browser_private">private</string>
     <string name="settings_search_engine">search engine</string>

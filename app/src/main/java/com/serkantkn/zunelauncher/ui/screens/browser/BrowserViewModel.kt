@@ -55,6 +55,8 @@ data class BrowserTab(
     val isDesktopSite: Boolean = false,
     /** The page stripped back to what it says, Windows Phone's reading view. */
     val isReadingView: Boolean = false,
+    /** The page reads as an article, so reading view is offered beside the address. */
+    val readingAvailable: Boolean = false,
     /** The page's renderer died; the tab shows an offer to load it again instead of a view. */
     val isCrashed: Boolean = false,
     /** Bumped on every reload after a crash, so the hub builds a fresh view for the tab. */
@@ -595,6 +597,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         updateTab(tabId) { it.copy(isReadingView = on) }
     }
 
+    fun setReadingAvailable(tabId: String, available: Boolean) {
+        updateTab(tabId) { if (it.readingAvailable == available) it else it.copy(readingAvailable = available) }
+    }
+
     fun switchTab(index: Int) {
         _state.update { it.copy(activeTabIndex = index) }
     }
@@ -730,6 +736,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             it.copy(
                 isLoading = true,
                 isReadingView = false,
+                readingAvailable = false,
                 url = url ?: it.url,
                 title = title ?: getApplication<Application>().localizedString(R.string.browser_loading)
             )
@@ -738,7 +745,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     /** The tab's renderer died; the hub drops the view and shows the offer to load it again. */
     fun markTabCrashed(tabId: String) {
-        updateTab(tabId) { it.copy(isCrashed = true, isLoading = false, isReadingView = false) }
+        updateTab(tabId) { it.copy(isCrashed = true, isLoading = false, isReadingView = false, readingAvailable = false) }
     }
 
     /** Builds the crashed tab a fresh page, which then loads the address it had. */

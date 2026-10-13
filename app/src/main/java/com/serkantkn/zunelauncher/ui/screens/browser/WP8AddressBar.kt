@@ -95,6 +95,7 @@ fun WP8AddressBar(
     onToggleDesktopSite: () -> Unit = {},
     isReadingView: Boolean = false,
     onToggleReadingView: () -> Unit = {},
+    readingAvailable: Boolean = false,
     onNewPrivateTab: () -> Unit = {},
     thumbnails: Map<String, androidx.compose.ui.graphics.ImageBitmap> = emptyMap(),
     onTabsOpened: () -> Unit = {},
@@ -300,6 +301,22 @@ fun WP8AddressBar(
                     }
                 }
             }
+
+            // Reading view, beside the address while the page reads as an article. The bar is at
+            // the bottom of a phone, so its balloon stands above it.
+            ReadingViewButton(
+                available = readingAvailable && !isFocused,
+                isReadingView = isReadingView,
+                page = url,
+                balloonBelow = false,
+                onToggle = {
+                    menuExpanded = false
+                    tabsExpanded = false
+                    onToggleReadingView()
+                },
+                size = 38.dp,
+                modifier = Modifier.padding(start = 8.dp)
+            )
 
             Spacer(modifier = Modifier.width(8.dp))
 

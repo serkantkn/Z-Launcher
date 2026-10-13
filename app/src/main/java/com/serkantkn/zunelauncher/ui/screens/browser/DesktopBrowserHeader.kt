@@ -88,6 +88,7 @@ fun DesktopBrowserHeader(
     onToggleDesktopSite: () -> Unit = {},
     isReadingView: Boolean = false,
     onToggleReadingView: () -> Unit = {},
+    readingAvailable: Boolean = false,
     onNewPrivateTab: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -317,6 +318,17 @@ fun DesktopBrowserHeader(
                     }
                 }
             }
+
+            // Reading view, beside the address while the page reads as an article; the header runs
+            // along the top of a tablet, so its balloon hangs below it.
+            ReadingViewButton(
+                available = readingAvailable && !isFocused,
+                isReadingView = isReadingView,
+                page = url,
+                balloonBelow = true,
+                onToggle = onToggleReadingView,
+                modifier = Modifier.padding(start = 4.dp)
+            )
 
             Spacer(modifier = Modifier.width(8.dp))
 

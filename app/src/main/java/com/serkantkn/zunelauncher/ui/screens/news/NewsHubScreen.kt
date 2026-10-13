@@ -96,7 +96,7 @@ private object SettingsPage
 /**
  * The news hub: Google News's front page and topics as headings, then "my sources" - every feed
  * the user follows, newest first. A story opens to its picture, headline and summary, and from
- * there goes on to its site in the launcher's own browser, in reading view.
+ * there goes on to its site in the launcher's own browser.
  *
  * Built on the hub standard ([ZuneHub]): a pivot on a phone with the story hinging in over it,
  * headings down the left on a tablet with the story in the pane.
