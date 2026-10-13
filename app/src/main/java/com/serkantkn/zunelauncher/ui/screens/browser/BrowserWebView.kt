@@ -50,7 +50,9 @@ internal class BrowserWebCallbacks(
      * The page is being pulled down past its top by [distance] pixels; [released] when the finger
      * has let go, which is when a far enough pull reloads it.
      */
-    val onPull: (distance: Float, released: Boolean) -> Unit = { _, _ -> }
+    val onPull: (distance: Float, released: Boolean) -> Unit = { _, _ -> },
+    /** Something the page asked for was refused as an ad or a tracker. */
+    val onBlocked: () -> Unit = {}
 )
 
 /** What was held down on a page: a link, a picture, or a picture that is also a link. */
@@ -66,6 +68,17 @@ internal data class PageTarget(val link: String?, val image: String?) {
 internal class BrowserPageView(context: Context) : WebView(context) {
     /** The address a navigation of the whole page is heading for. */
     var heading: String? = null
+        set(value) {
+            field = value
+            value?.let { pageHost = com.serkantkn.zunelauncher.data.repository.AdBlocker.hostOf(it) }
+        }
+
+    /**
+     * The host of the page on show, for the blocker, which is asked from WebView's network
+     * threads where the view itself cannot be.
+     */
+    @Volatile
+    var pageHost: String? = null
 
     override fun loadUrl(url: String) {
         heading = url
@@ -251,6 +264,7 @@ internal fun createBrowserWebView(
         webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                url?.let { (view as? BrowserPageView)?.pageHost = com.serkantkn.zunelauncher.data.repository.AdBlocker.hostOf(it) }
                 callbacks.onStarted(url, view?.title)
                 callbacks.onNavState(view?.canGoBack() == true, view?.canGoForward() == true)
             }
@@ -292,6 +306,24 @@ internal fun createBrowserWebView(
                     null
                 }
                 callbacks.onError(description ?: "")
+            }
+
+            /**
+             * Ads and trackers: what the page asks for from a host on the blocklist is answered
+             * with nothing. The page itself is never refused, only what it pulls in.
+             */
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): android.webkit.WebResourceResponse? {
+                if (request == null || request.isForMainFrame) return null
+                val page = view as? BrowserPageView ?: return null
+                val url = request.url?.toString() ?: return null
+                if (!com.serkantkn.zunelauncher.data.repository.AdBlocker.shouldBlock(url, page.pageHost)) return null
+                page.post { callbacks.onBlocked() }
+                return android.webkit.WebResourceResponse(
+                    "text/plain", "utf-8", 403, "Blocked", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0))
+                )
             }
 
             /**

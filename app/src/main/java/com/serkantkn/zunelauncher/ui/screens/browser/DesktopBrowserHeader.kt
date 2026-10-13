@@ -91,6 +91,8 @@ fun DesktopBrowserHeader(
     readingAvailable: Boolean = false,
     security: PageSecurity = PageSecurity.NONE,
     menuEntries: List<BrowserMenuEntry> = emptyList(),
+    blocking: BlockingState = BlockingState(0, false, null),
+    onToggleBlockingHere: () -> Unit = {},
     onNewPrivateTab: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -265,6 +267,7 @@ fun DesktopBrowserHeader(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     if (!isFocused) SecurityBadge(security, balloonBelow = true, modifier = Modifier.padding(end = 6.dp))
+                    if (!isFocused) BlockingBadge(blocking, balloonBelow = true, onToggleSite = onToggleBlockingHere, modifier = Modifier.padding(end = 6.dp))
                     Box(modifier = Modifier.weight(1f)) {
                         BasicTextField(
                             value = inputText,

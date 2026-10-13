@@ -38,4 +38,14 @@
     <string name="browser_print">print or save as PDF</string>
     <string name="browser_translate">translate page</string>
     <string name="browser_pull_release">let go to reload</string>
+    <string name="browser_blocking">ad and tracker blocking</string>
+    <string name="browser_blocking_on">blocking ads and trackers: on</string>
+    <string name="browser_blocking_off">blocking ads and trackers: off</string>
+    <string name="browser_blocking_off_here">blocking is off on this site</string>
+    <string name="browser_blocking_turn_off_here">Tap to stop blocking on this site, if it does not work properly. Blocklist: Steven Black\'s hosts.</string>
+    <string name="browser_blocking_turn_on_here">Tap to block ads and trackers here again.</string>
+    <plurals name="browser_blocked_count">
+        <item quantity="one">%1$d ad or tracker blocked</item>
+        <item quantity="other">%1$d ads and trackers blocked</item>
+    </plurals>
 </resources>

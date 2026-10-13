@@ -38,4 +38,14 @@
     <string name="browser_print">yazdır veya PDF olarak kaydet</string>
     <string name="browser_translate">sayfayı çevir</string>
     <string name="browser_pull_release">bırakınca yenilenir</string>
+    <string name="browser_blocking">reklam ve izleyici engelleme</string>
+    <string name="browser_blocking_on">reklam ve izleyici engelleme: açık</string>
+    <string name="browser_blocking_off">reklam ve izleyici engelleme: kapalı</string>
+    <string name="browser_blocking_off_here">bu sitede engelleme kapalı</string>
+    <string name="browser_blocking_turn_off_here">Site düzgün çalışmıyorsa burada engellemeyi kapatmak için dokun. Engelleme listesi: Steven Black hosts.</string>
+    <string name="browser_blocking_turn_on_here">Burada reklamları ve izleyicileri yeniden engellemek için dokun.</string>
+    <plurals name="browser_blocked_count">
+        <item quantity="one">%1$d reklam ya da izleyici engellendi</item>
+        <item quantity="other">%1$d reklam ve izleyici engellendi</item>
+    </plurals>
 </resources>

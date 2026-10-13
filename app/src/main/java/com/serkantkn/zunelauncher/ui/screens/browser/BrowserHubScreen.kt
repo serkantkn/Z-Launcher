@@ -107,6 +107,9 @@ fun BrowserHubScreen(
     /** Pages whose certificate did not hold up, by tab, waiting for the user's word. */
     val certificateProblems = remember { mutableStateMapOf<String, CertificateProblem>() }
 
+    /** Requests refused as ads or trackers on each tab's page. */
+    val blockedCounts = remember { mutableStateMapOf<String, Int>() }
+
     /** How far the page on show is being pulled down past its top, in pixels. */
     var pullDistance by remember { mutableFloatStateOf(0f) }
     val pullThreshold = with(density) { PULL_TO_RELOAD.toPx() }
@@ -333,6 +336,19 @@ fun BrowserHubScreen(
     val isWideScreen = LocalIsWideScreen.current
     val hingeSpec = rememberHingeSpec()
 
+    val pageHost = if (onAPageNow(activeTab)) TextSizes.hostOf(activeTab.url) else null
+    val blocking = BlockingState(
+        blocked = if (state.adBlockEnabled) blockedCounts[activeTab.id] ?: 0 else 0,
+        offHere = state.adBlockEnabled && pageHost != null && pageHost in state.adBlockAllowed,
+        host = pageHost
+    )
+    val toggleBlockingHere: () -> Unit = {
+        pageHost?.let { host ->
+            viewModel.setAdBlockAllowed(host, allowed = host !in state.adBlockAllowed)
+            webViewCache[activeTab.id]?.reload()
+        }
+    }
+
     // What the menu offers beyond the bars' own entries, the same on a phone and a tablet.
     val onAPage = !activeTab.showStartScreen && activeTab.url.isNotBlank()
     val menuEntries = listOf(
@@ -342,6 +358,10 @@ fun BrowserHubScreen(
             if (finalUrl.isNotEmpty()) webViewCache[activeTab.id]?.loadUrl(finalUrl)
         },
         BrowserMenuEntry(stringResource(R.string.browser_text_size), onAPage) { textSizeOpen = true },
+        BrowserMenuEntry(
+            stringResource(if (state.adBlockEnabled) R.string.browser_blocking_on else R.string.browser_blocking_off),
+            true
+        ) { viewModel.setAdBlockEnabled(!state.adBlockEnabled) },
         BrowserMenuEntry(stringResource(R.string.browser_print), onAPage) {
             webViewCache[activeTab.id]?.let { web -> printPage(context, web, activeTab.title.ifBlank { activeTab.url }) }
         }
@@ -444,6 +464,8 @@ fun BrowserHubScreen(
                             readingAvailable = activeTab.readingAvailable,
                             security = security,
                             menuEntries = menuEntries,
+                            blocking = blocking,
+                            onToggleBlockingHere = toggleBlockingHere,
                             onNewPrivateTab = { viewModel.openPrivateTab() }
                         )
                     }
@@ -478,6 +500,7 @@ fun BrowserHubScreen(
                                                 BrowserWebCallbacks(
                                                     onStarted = { url, title ->
                                                         certificateProblems.remove(tab.id)
+                                                        blockedCounts.remove(tab.id)
                                                         viewModel.onPageStarted(tab.id, url, title)
                                                     },
                                                     onFinished = { url, title ->
@@ -520,6 +543,7 @@ fun BrowserHubScreen(
                                                     onError = { viewModel.reportPageError(it) },
                                                     onRenderGone = { viewModel.markTabCrashed(tab.id) },
                                                     onLongPress = { target, x, y -> held = Triple(target, x, y) },
+                                                    onBlocked = { blockedCounts[tab.id] = (blockedCounts[tab.id] ?: 0) + 1 },
                                                     onPull = { distance, released ->
                                                         if (released) {
                                                             if (distance >= pullThreshold) webViewCache[tab.id]?.reload()
@@ -778,6 +802,8 @@ fun BrowserHubScreen(
                             readingAvailable = activeTab.readingAvailable,
                             security = security,
                             menuEntries = menuEntries,
+                            blocking = blocking,
+                            onToggleBlockingHere = toggleBlockingHere,
                             onNewPrivateTab = { viewModel.openPrivateTab() },
                             thumbnails = thumbnails,
                             onTabsOpened = {
@@ -1085,3 +1111,5 @@ private fun printPage(context: Context, web: WebView, title: String) {
         ZuneLog.w("BrowserHubScreen", "the page could not be printed", e)
     }
 }
+
+private fun onAPageNow(tab: BrowserTab): Boolean = !tab.showStartScreen && tab.url.isNotBlank()

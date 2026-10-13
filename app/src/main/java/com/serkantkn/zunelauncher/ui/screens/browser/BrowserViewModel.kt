@@ -3,6 +3,8 @@ package com.serkantkn.zunelauncher.ui.screens.browser
 import com.serkantkn.zunelauncher.util.localizedString
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.util.ZuneLog
+import com.serkantkn.zunelauncher.data.model.toJsonStringArray
+import com.serkantkn.zunelauncher.data.model.parseJsonStringList
 import com.serkantkn.zunelauncher.di.appContainer
 import android.app.Application
 import android.webkit.URLUtil
@@ -84,6 +86,9 @@ data class BrowserState(
     val suggestionsEnabled: Boolean = true,
     /** Text size in percent by host; [TextSizes.EVERY_SITE] for the rest. */
     val textSizes: Map<String, Int> = emptyMap(),
+    val adBlockEnabled: Boolean = true,
+    /** Sites ad blocking was switched off for. */
+    val adBlockAllowed: Set<String> = emptySet(),
     val errorMessage: String? = null
 ) {
     val activeTab: BrowserTab
@@ -173,6 +178,22 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 _state.update { state ->
                     state.copy(pinnedSites = tiles.mapNotNull { it.webUrl }.toSet())
                 }
+            }
+        }
+        viewModelScope.launch {
+            com.serkantkn.zunelauncher.data.repository.AdBlocker.prepare(getApplication())
+        }
+        viewModelScope.launch {
+            browsing.adBlockEnabled.collect { enabled ->
+                com.serkantkn.zunelauncher.data.repository.AdBlocker.enabled = enabled
+                _state.update { it.copy(adBlockEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            browsing.adBlockAllowed.collect { json ->
+                val allowed = parseJsonStringList(json, TAG).toSet()
+                com.serkantkn.zunelauncher.data.repository.AdBlocker.allowedSites = allowed
+                _state.update { it.copy(adBlockAllowed = allowed) }
             }
         }
         viewModelScope.launch {
@@ -644,6 +665,20 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 ZuneLog.w(TAG, "nothing here shares a picture", e)
             }
         }
+    }
+
+    fun setAdBlockEnabled(enabled: Boolean) {
+        com.serkantkn.zunelauncher.data.repository.AdBlocker.enabled = enabled
+        _state.update { it.copy(adBlockEnabled = enabled) }
+        viewModelScope.launch { browsing.setAdBlockEnabled(enabled) }
+    }
+
+    /** Switches blocking off for [host], or back on. */
+    fun setAdBlockAllowed(host: String, allowed: Boolean) {
+        val sites = if (allowed) _state.value.adBlockAllowed + host else _state.value.adBlockAllowed - host
+        com.serkantkn.zunelauncher.data.repository.AdBlocker.allowedSites = sites
+        _state.update { it.copy(adBlockAllowed = sites) }
+        viewModelScope.launch { browsing.setAdBlockAllowed(sites.toList().toJsonStringArray()) }
     }
 
     /** Sets the text size for [host], or for every site without a size of its own when [host] is null. */

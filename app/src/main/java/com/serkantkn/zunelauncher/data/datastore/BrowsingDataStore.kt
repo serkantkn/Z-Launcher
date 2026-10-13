@@ -34,6 +34,22 @@ class BrowsingDataStore(private val context: Context, private val settings: Sett
         private val HISTORY_KEY = stringPreferencesKey("browser_history")
         private val DOWNLOADS_KEY = stringPreferencesKey("browser_downloads")
         private val TEXT_SIZES_KEY = stringPreferencesKey("browser_text_sizes")
+        private val AD_BLOCK_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("browser_ad_block")
+        private val AD_BLOCK_ALLOWED_KEY = stringPreferencesKey("browser_ad_block_allowed")
+    }
+
+    /** Whether ads and trackers are blocked; on unless switched off. */
+    val adBlockEnabled: Flow<Boolean> = context.browsingDataStore.data.map { it[AD_BLOCK_KEY] ?: true }
+
+    /** Sites blocking was switched off for, as a JSON array of hosts. */
+    val adBlockAllowed: Flow<String?> = context.browsingDataStore.data.map { it[AD_BLOCK_ALLOWED_KEY] }
+
+    suspend fun setAdBlockEnabled(enabled: Boolean) {
+        context.browsingDataStore.edit { it[AD_BLOCK_KEY] = enabled }
+    }
+
+    suspend fun setAdBlockAllowed(json: String) {
+        context.browsingDataStore.edit { it[AD_BLOCK_ALLOWED_KEY] = json }
     }
 
     /**

@@ -30,6 +30,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.RemoveModerator
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -484,6 +486,64 @@ internal fun PullToRefreshIndicator(fraction: Float, modifier: Modifier = Modifi
                 modifier = Modifier
                     .background(zuneColors.accentColor)
                     .padding(horizontal = 12.dp, vertical = 6.dp)
+            )
+        }
+    }
+}
+
+// ── Ads and trackers ─────────────────────────────────────────────────────────────────────────
+
+/** What the blocker has done on the page on show, for the badge beside the padlock. */
+class BlockingState(val blocked: Int, val offHere: Boolean, val host: String?) {
+    val shown: Boolean get() = host != null && (blocked > 0 || offHere)
+}
+
+/**
+ * A shield with the number refused on this page; touched, a balloon says so and offers to switch
+ * blocking off for the site - or, where it is off, back on.
+ */
+@Composable
+internal fun BlockingBadge(state: BlockingState, balloonBelow: Boolean, onToggleSite: () -> Unit, modifier: Modifier = Modifier) {
+    if (!state.shown) return
+    val zuneColors = LocalZuneColors.current
+    var balloon by remember(state.host) { mutableStateOf(false) }
+    LaunchedEffect(balloon) {
+        if (balloon) {
+            delay(SECURITY_BALLOON_MILLIS)
+            balloon = false
+        }
+    }
+    androidx.compose.foundation.layout.Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { balloon = !balloon }
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+    ) {
+        Icon(
+            imageVector = if (state.offHere) Icons.Default.RemoveModerator else Icons.Default.Shield,
+            contentDescription = stringResource(R.string.browser_blocking),
+            tint = if (state.offHere) zuneColors.textMuted else zuneColors.accentColor,
+            modifier = Modifier.size(16.dp)
+        )
+        if (!state.offHere) {
+            Text(
+                text = state.blocked.toString(),
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = zuneColors.accentColor,
+                modifier = Modifier.padding(start = 2.dp)
+            )
+        }
+        if (balloon) {
+            MetroBalloon(
+                title = if (state.offHere) stringResource(R.string.browser_blocking_off_here)
+                else androidx.compose.ui.res.pluralStringResource(R.plurals.browser_blocked_count, state.blocked, state.blocked),
+                message = stringResource(if (state.offHere) R.string.browser_blocking_turn_on_here else R.string.browser_blocking_turn_off_here),
+                below = balloonBelow,
+                onDismiss = { balloon = false },
+                onClick = {
+                    balloon = false
+                    onToggleSite()
+                }
             )
         }
     }
