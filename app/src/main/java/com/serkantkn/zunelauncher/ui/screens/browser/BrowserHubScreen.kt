@@ -139,6 +139,30 @@ fun BrowserHubScreen(
     var pullDistance by remember { mutableFloatStateOf(0f) }
     val pullThreshold = with(density) { PULL_TO_RELOAD.toPx() }
 
+    /**
+     * The phone's address bar folded down to a strip while a page is being read: scrolling down
+     * folds it, scrolling back up, reaching the top or touching the strip opens it again.
+     */
+    var barFolded by remember { mutableStateOf(false) }
+    var scrollRun by remember { mutableFloatStateOf(0f) }
+    val foldAfter = with(density) { 56.dp.toPx() }
+    val openAfter = with(density) { 40.dp.toPx() }
+    val activeIdNow by rememberUpdatedState(activeTab.id)
+    val onPageScroll: (String, Int, Int) -> Unit = { tabId, dy, top ->
+        if (tabId == activeIdNow) {
+            if (top <= 0) {
+                barFolded = false
+                scrollRun = 0f
+            } else if (dy > 0) {
+                scrollRun = if (scrollRun < 0f) dy.toFloat() else scrollRun + dy
+                if (scrollRun > foldAfter) barFolded = true
+            } else {
+                scrollRun = if (scrollRun > 0f) dy.toFloat() else scrollRun + dy
+                if (-scrollRun > openAfter) barFolded = false
+            }
+        }
+    }
+
     /** The text size panel, while it is open. */
     var textSizeOpen by remember { mutableStateOf(false) }
 
@@ -593,6 +617,7 @@ fun BrowserHubScreen(
                                                     onRenderGone = { viewModel.markTabCrashed(tab.id) },
                                                     onLongPress = { target, x, y -> held = Triple(target, x, y) },
                                                     onBlocked = { blockedCounts[tab.id] = (blockedCounts[tab.id] ?: 0) + 1 },
+                                                    onScroll = { dy, top -> onPageScroll(tab.id, dy, top) },
                                                     onPull = { distance, released ->
                                                         if (released) {
                                                             if (distance >= pullThreshold) webViewCache[tab.id]?.reload()
@@ -801,7 +826,21 @@ fun BrowserHubScreen(
                     }
 
                     // Bottom Address Bar (Phone only)
-                    if (!isWideScreen) {
+                    // Another tab, the start page, the find bar or a warning: the bar is open again.
+                    LaunchedEffect(activeTab.id, activeTab.showStartScreen, findQuery != null, certificateProblems[activeTab.id] != null) {
+                        barFolded = false
+                        scrollRun = 0f
+                    }
+                    val folded = barFolded && !isWideScreen && !activeTab.showStartScreen && findQuery == null
+                    if (!isWideScreen && folded) {
+                        FoldedAddressBar(
+                            host = TextSizes.hostOf(activeTab.url) ?: activeTab.url,
+                            security = security,
+                            progress = if (activeTab.isLoading) activeTab.progress else 1f,
+                            onOpen = { barFolded = false },
+                            modifier = Modifier.navigationBarsPadding().then(bottomBarModifier)
+                        )
+                    } else if (!isWideScreen) {
                         val wp8MenuBarColor = if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFE6E6E6)
                         WP8AddressBar(
                             url = activeTab.url,

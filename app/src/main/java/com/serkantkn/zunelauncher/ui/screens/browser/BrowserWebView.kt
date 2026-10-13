@@ -52,7 +52,9 @@ internal class BrowserWebCallbacks(
      */
     val onPull: (distance: Float, released: Boolean) -> Unit = { _, _ -> },
     /** Something the page asked for was refused as an ad or a tracker. */
-    val onBlocked: () -> Unit = {}
+    val onBlocked: () -> Unit = {},
+    /** The page scrolled by [dy] pixels and now stands [top] pixels down from its top. */
+    val onScroll: (dy: Int, top: Int) -> Unit = { _, _ -> }
 )
 
 /** What was held down on a page: a link, a picture, or a picture that is also a link. */
@@ -109,6 +111,13 @@ internal class BrowserPageView(context: Context) : WebView(context) {
         if (!down) pressedAgainstTop = false
     }
 
+    var onScrolled: ((dy: Int, top: Int) -> Unit)? = null
+
+    override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
+        super.onScrollChanged(l, t, oldl, oldt)
+        if (t != oldt) onScrolled?.invoke(t - oldt, t)
+    }
+
     override fun onOverScrolled(scrollX: Int, scrollY: Int, clampedX: Boolean, clampedY: Boolean) {
         super.onOverScrolled(scrollX, scrollY, clampedX, clampedY)
         if (fingerDown && clampedY && scrollY <= 0) pressedAgainstTop = true
@@ -147,6 +156,7 @@ internal fun createBrowserWebView(
     isPrivate: Boolean = false
 ): WebView =
     BrowserPageView(context).apply {
+        onScrolled = callbacks.onScroll
         layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT

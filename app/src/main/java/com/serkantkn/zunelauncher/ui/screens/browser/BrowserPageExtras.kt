@@ -548,3 +548,65 @@ internal fun BlockingBadge(state: BlockingState, balloonBelow: Boolean, onToggle
         }
     }
 }
+
+// ── The address bar put away while reading ───────────────────────────────────────────────────
+
+/**
+ * The phone's address bar folded down while a page is being read, as Internet Explorer on
+ * Windows Phone 8.1 folded it: a thin strip with the site's name and the padlock, which opens the
+ * bar again when touched.
+ */
+@Composable
+internal fun FoldedAddressBar(host: String, security: PageSecurity, progress: Float, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    val zuneColors = LocalZuneColors.current
+    val barColor = if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFE6E6E6)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(barColor)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onOpen)
+    ) {
+        if (progress > 0f && progress < 1f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress)
+                    .size(height = 2.dp, width = 0.dp)
+                    .background(zuneColors.accentColor)
+            )
+        }
+        androidx.compose.foundation.layout.Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        ) {
+            val icon = when (security) {
+                PageSecurity.SECURE -> Icons.Default.Lock
+                PageSecurity.INSECURE -> Icons.Default.LockOpen
+                PageSecurity.NONE -> null
+                else -> Icons.Default.Warning
+            }
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (security == PageSecurity.SECURE || security == PageSecurity.INSECURE) zuneColors.textMuted else zuneColors.accentColor,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+            Text(
+                text = host,
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 6.dp).weight(1f)
+            )
+            Text(
+                text = "•••",
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+            )
+        }
+    }
+}

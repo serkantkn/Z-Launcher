@@ -236,6 +236,11 @@ fun WP8AddressBar(
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     if (!isFocused) SecurityBadge(security, balloonBelow = false, modifier = Modifier.padding(end = 4.dp))
                     if (!isFocused) BlockingBadge(blocking, balloonBelow = false, onToggleSite = onToggleBlockingHere)
+                    // Not being typed in, the box says which site the page is on - the whole
+                    // address does not fit beside the padlock and the shield - and touching it
+                    // hands over the whole address, selected, to be changed.
+                    val siteOnly = !isFocused && input.text == url && url.isNotBlank()
+                    val siteName = remember(url) { TextSizes.hostOf(url) ?: url }
                     Box(modifier = Modifier.weight(1f)) {
                         BasicTextField(
                             value = input,
@@ -244,7 +249,7 @@ fun WP8AddressBar(
                                 onInputChanged(it.text)
                             },
                             textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                color = if (zuneColors.isDark) Color.White else Color.Black,
+                                color = if (siteOnly) Color.Transparent else if (zuneColors.isDark) Color.White else Color.Black,
                                 fontSize = 14.sp
                             ),
                             cursorBrush = SolidColor(zuneColors.accentColor),
@@ -278,6 +283,14 @@ fun WP8AddressBar(
                                 text = stringResource(R.string.browser_address_hint),
                                 style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
                                 color = zuneColors.textMuted
+                            )
+                        } else if (siteOnly) {
+                            Text(
+                                text = siteName,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
+                                color = if (zuneColors.isDark) Color.White else Color.Black,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                         }
                     }
