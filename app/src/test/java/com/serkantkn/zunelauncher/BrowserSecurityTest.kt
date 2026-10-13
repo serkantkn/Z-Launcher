@@ -28,3 +28,24 @@ class BrowserSecurityTest {
         assertTrue("user-added certificates are not trusted", !config.contains("src=\"user\""))
     }
 }
+
+class BrowserTextSizeTest {
+    private val sizes = mapOf("bbc.com" to 150, com.serkantkn.zunelauncher.ui.screens.browser.TextSizes.EVERY_SITE to 115)
+
+    @Test
+    fun aSiteKeepsItsOwnSizeAndTheRestTakeEverySites() {
+        val t = com.serkantkn.zunelauncher.ui.screens.browser.TextSizes
+        assertEquals(150, t.forUrl(sizes, "https://www.bbc.com/turkce/articles/x"))
+        assertEquals(115, t.forUrl(sizes, "https://example.com/"))
+        assertEquals(100, t.forUrl(emptyMap(), "https://example.com/"))
+        assertEquals("bbc.com", t.hostOf("https://www.bbc.com/a"))
+        assertEquals(sizes, t.parse(t.toJson(sizes)))
+        assertEquals(emptyMap<String, Int>(), t.parse("not json"))
+    }
+
+    @Test
+    fun translationGoesThroughGoogleTranslateIntoThePhonesLanguage() {
+        val url = com.serkantkn.zunelauncher.ui.screens.browser.translationOf("https://www.bbc.co.uk/news?a=1&b=2", "tr")
+        assertEquals("https://translate.google.com/translate?sl=auto&tl=tr&u=https%3A%2F%2Fwww.bbc.co.uk%2Fnews%3Fa%3D1%26b%3D2", url)
+    }
+}

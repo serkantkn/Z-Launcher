@@ -97,6 +97,7 @@ fun WP8AddressBar(
     onToggleReadingView: () -> Unit = {},
     readingAvailable: Boolean = false,
     security: PageSecurity = PageSecurity.NONE,
+    menuEntries: List<BrowserMenuEntry> = emptyList(),
     onNewPrivateTab: () -> Unit = {},
     thumbnails: Map<String, androidx.compose.ui.graphics.ImageBitmap> = emptyMap(),
     onTabsOpened: () -> Unit = {},
@@ -416,6 +417,14 @@ fun WP8AddressBar(
                     if (onAPage) {
                         menuExpanded = false
                         onToggleReadingView()
+                    }
+                }
+                menuEntries.forEach { entry ->
+                    WP8MenuItem(text = entry.label, subtitle = null, enabled = entry.enabled) {
+                        if (entry.enabled) {
+                            menuExpanded = false
+                            entry.onClick()
+                        }
                     }
                 }
                 WP8MenuItem(text = stringResource(R.string.browser_tabs_count, tabs.size), subtitle = null, enabled = true) {

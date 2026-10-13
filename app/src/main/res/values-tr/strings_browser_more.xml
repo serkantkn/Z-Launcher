@@ -32,4 +32,10 @@
     <string name="browser_share_image">resmi paylaş</string>
     <string name="browser_share_picture_failed">Resim paylaşmak için alınamadı.</string>
     <string name="browser_security_problem_detail">Bu sitenin sertifikası doğrulanamadı.</string>
+    <string name="browser_text_size">yazı boyutu</string>
+    <string name="browser_text_size_site">%1$s için</string>
+    <string name="browser_text_size_all">bu boyutu tüm sitelerde kullan</string>
+    <string name="browser_print">yazdır veya PDF olarak kaydet</string>
+    <string name="browser_translate">sayfayı çevir</string>
+    <string name="browser_pull_release">bırakınca yenilenir</string>
 </resources>

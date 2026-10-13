@@ -364,3 +364,127 @@ internal fun copyToClipboard(context: Context, text: String) {
         Toast.makeText(context, context.getString(R.string.browser_copied), Toast.LENGTH_SHORT).show()
     }
 }
+
+// ── The menu's further entries ───────────────────────────────────────────────────────────────
+
+/**
+ * An entry the hub adds to the browser's menu - the same list for the phone's bar and the
+ * tablet's header, so the two never offer different things.
+ */
+class BrowserMenuEntry(val label: String, val enabled: Boolean, val onClick: () -> Unit)
+
+// ── Text size ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The text size for the site on show: the sizes as a row of squares, the chosen one filled in.
+ * The size stays with the site; "use on every site" makes it every site's.
+ */
+@Composable
+internal fun TextSizePanel(
+    host: String?,
+    current: Int,
+    wide: Boolean,
+    onPick: (Int) -> Unit,
+    onPickForAll: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    val menuColor = if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFE6E6E6)
+    val appear = remember { MutableTransitionState(false).apply { targetState = true } }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.35f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
+    ) {
+        AnimatedVisibility(
+            visibleState = appear,
+            enter = fadeIn(tween(150)) + slideInVertically(tween(200)) { if (wide) -it / 3 else it / 3 },
+            modifier = Modifier
+                .align(if (wide) Alignment.TopEnd else Alignment.BottomCenter)
+                .then(if (wide) Modifier.padding(top = 4.dp, end = 12.dp).width(420.dp) else Modifier.fillMaxWidth())
+        ) {
+            Column(
+                modifier = Modifier
+                    .background(menuColor)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.browser_text_size),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Light, fontSize = 24.sp),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                if (host != null) {
+                    Text(
+                        text = stringResource(R.string.browser_text_size_site, host),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = zuneColors.textMuted
+                    )
+                }
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 14.dp)
+                ) {
+                    com.serkantkn.zunelauncher.ui.screens.browser.TextSizes.CHOICES.forEach { size ->
+                        val chosen = size == current
+                        Box(
+                            modifier = Modifier
+                                .size(width = 64.dp, height = 44.dp)
+                                .border(2.dp, if (chosen) zuneColors.accentColor else zuneColors.textMuted.copy(alpha = 0.5f))
+                                .background(if (chosen) zuneColors.accentColor else Color.Transparent)
+                                .clickable { onPick(size) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "$size%",
+                                style = MaterialTheme.typography.labelLarge.copy(fontSize = (11 + size / 25).sp),
+                                color = if (chosen) Color.White else MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.browser_text_size_all),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                    color = zuneColors.accentColor,
+                    modifier = Modifier
+                        .padding(top = 16.dp)
+                        .clickable(onClick = onPickForAll)
+                        .padding(vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+// ── Pull to refresh ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * How far the page has been pulled down past its top: a line in the accent growing across the
+ * top of the page, and once it is far enough, the word that letting go will load the page again.
+ */
+@Composable
+internal fun PullToRefreshIndicator(fraction: Float, modifier: Modifier = Modifier) {
+    if (fraction <= 0f) return
+    val zuneColors = LocalZuneColors.current
+    Column(modifier = modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                .size(height = 4.dp, width = 0.dp)
+                .background(zuneColors.accentColor)
+        )
+        if (fraction >= 1f) {
+            Text(
+                text = stringResource(R.string.browser_pull_release),
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White,
+                modifier = Modifier
+                    .background(zuneColors.accentColor)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            )
+        }
+    }
+}

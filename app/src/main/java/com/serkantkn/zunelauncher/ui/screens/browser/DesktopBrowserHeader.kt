@@ -90,6 +90,7 @@ fun DesktopBrowserHeader(
     onToggleReadingView: () -> Unit = {},
     readingAvailable: Boolean = false,
     security: PageSecurity = PageSecurity.NONE,
+    menuEntries: List<BrowserMenuEntry> = emptyList(),
     onNewPrivateTab: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -458,6 +459,7 @@ fun DesktopBrowserHeader(
                             onAPage,
                             onToggleReadingView
                         )
+                        menuEntries.forEach { entry -> item(entry.label, entry.enabled, entry.onClick) }
                         item(stringResource(R.string.browser_new_private_tab), true, onNewPrivateTab)
                     }
                 }

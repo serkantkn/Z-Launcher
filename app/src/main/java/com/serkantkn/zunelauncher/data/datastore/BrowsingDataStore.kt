@@ -33,6 +33,18 @@ class BrowsingDataStore(private val context: Context, private val settings: Sett
         private const val TAG = "BrowsingDataStore"
         private val HISTORY_KEY = stringPreferencesKey("browser_history")
         private val DOWNLOADS_KEY = stringPreferencesKey("browser_downloads")
+        private val TEXT_SIZES_KEY = stringPreferencesKey("browser_text_sizes")
+    }
+
+    /**
+     * Text size by site, as a JSON object of host to percent; "*" is the size for every site
+     * without one of its own. Kept here rather than in settings: the list of hosts is a list of
+     * places visited.
+     */
+    val textSizes: Flow<String?> = context.browsingDataStore.data.map { it[TEXT_SIZES_KEY] }
+
+    suspend fun setTextSizes(json: String) {
+        context.browsingDataStore.edit { it[TEXT_SIZES_KEY] = json }
     }
 
     val history: Flow<String?> = flow {

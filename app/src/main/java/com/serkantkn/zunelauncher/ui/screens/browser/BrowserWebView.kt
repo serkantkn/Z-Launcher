@@ -45,7 +45,12 @@ internal class BrowserWebCallbacks(
      * hold up. [handler] is the way on or back, whichever the user picks.
      */
     val onCertificateProblem: (url: String, error: android.net.http.SslError, handler: android.webkit.SslErrorHandler) -> Unit =
-        { _, _, handler -> handler.cancel() }
+        { _, _, handler -> handler.cancel() },
+    /**
+     * The page is being pulled down past its top by [distance] pixels; [released] when the finger
+     * has let go, which is when a far enough pull reloads it.
+     */
+    val onPull: (distance: Float, released: Boolean) -> Unit = { _, _ -> }
 )
 
 /** What was held down on a page: a link, a picture, or a picture that is also a link. */
@@ -75,6 +80,25 @@ internal class BrowserPageView(context: Context) : WebView(context) {
     override fun reload() {
         heading = url
         super.reload()
+    }
+
+    /**
+     * Set while a finger is down and the page has been pushed against its top - the page itself,
+     * not a box scrolling inside it, so a list or a map that scrolls on its own never reloads the
+     * page under it.
+     */
+    var pressedAgainstTop = false
+        private set
+    private var fingerDown = false
+
+    fun fingerDown(down: Boolean) {
+        fingerDown = down
+        if (!down) pressedAgainstTop = false
+    }
+
+    override fun onOverScrolled(scrollX: Int, scrollY: Int, clampedX: Boolean, clampedY: Boolean) {
+        super.onOverScrolled(scrollX, scrollY, clampedX, clampedY)
+        if (fingerDown && clampedY && scrollY <= 0) pressedAgainstTop = true
     }
 
     fun isHeadingFor(address: String?): Boolean {
@@ -157,10 +181,34 @@ internal fun createBrowserWebView(
         // text - is left to the page, so words can still be selected.
         var touchX = 0f
         var touchY = 0f
-        setOnTouchListener { _, event ->
-            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
-                touchX = event.x
-                touchY = event.y
+        // Pull to refresh: counted from where the finger was when the page met its top.
+        var pullFrom = Float.NaN
+        var pulled = 0f
+        setOnTouchListener { view, event ->
+            val page = view as BrowserPageView
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    touchX = event.x
+                    touchY = event.y
+                    page.fingerDown(true)
+                    pullFrom = Float.NaN
+                    pulled = 0f
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    if (page.pressedAgainstTop && event.pointerCount == 1) {
+                        if (pullFrom.isNaN()) pullFrom = event.y
+                        pulled = (event.y - pullFrom).coerceAtLeast(0f)
+                        callbacks.onPull(pulled, false)
+                    }
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    if (!pullFrom.isNaN()) {
+                        callbacks.onPull(if (event.actionMasked == android.view.MotionEvent.ACTION_UP) pulled else 0f, true)
+                    }
+                    page.fingerDown(false)
+                    pullFrom = Float.NaN
+                    pulled = 0f
+                }
             }
             false
         }

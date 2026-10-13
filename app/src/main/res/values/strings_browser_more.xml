@@ -32,4 +32,10 @@
     <string name="browser_share_image">share picture</string>
     <string name="browser_share_picture_failed">The picture could not be fetched to share.</string>
     <string name="browser_security_problem_detail">This site\'s certificate could not be verified.</string>
+    <string name="browser_text_size">text size</string>
+    <string name="browser_text_size_site">for %1$s</string>
+    <string name="browser_text_size_all">use this size on every site</string>
+    <string name="browser_print">print or save as PDF</string>
+    <string name="browser_translate">translate page</string>
+    <string name="browser_pull_release">let go to reload</string>
 </resources>

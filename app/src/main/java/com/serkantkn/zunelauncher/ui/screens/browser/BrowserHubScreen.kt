@@ -107,6 +107,13 @@ fun BrowserHubScreen(
     /** Pages whose certificate did not hold up, by tab, waiting for the user's word. */
     val certificateProblems = remember { mutableStateMapOf<String, CertificateProblem>() }
 
+    /** How far the page on show is being pulled down past its top, in pixels. */
+    var pullDistance by remember { mutableFloatStateOf(0f) }
+    val pullThreshold = with(density) { PULL_TO_RELOAD.toPx() }
+
+    /** The text size panel, while it is open. */
+    var textSizeOpen by remember { mutableStateOf(false) }
+
     /** Sites the user chose to open despite their certificate, for the rest of this session. */
     val certificateWaived = remember { mutableStateListOf<String>() }
 
@@ -151,6 +158,8 @@ fun BrowserHubScreen(
         val problem = certificateProblems[activeTab.id]
         if (held != null) {
             held = null
+        } else if (textSizeOpen) {
+            textSizeOpen = false
         } else if (problem != null) {
             leaveCertificateProblem(activeTab.id, problem)
         } else if (fullscreen != null) {
@@ -323,6 +332,20 @@ fun BrowserHubScreen(
 
     val isWideScreen = LocalIsWideScreen.current
     val hingeSpec = rememberHingeSpec()
+
+    // What the menu offers beyond the bars' own entries, the same on a phone and a tablet.
+    val onAPage = !activeTab.showStartScreen && activeTab.url.isNotBlank()
+    val menuEntries = listOf(
+        BrowserMenuEntry(stringResource(R.string.browser_translate), onAPage) {
+            val translated = translationOf(activeTab.url, java.util.Locale.getDefault().language)
+            val finalUrl = viewModel.loadUrl(activeTab.id, translated)
+            if (finalUrl.isNotEmpty()) webViewCache[activeTab.id]?.loadUrl(finalUrl)
+        },
+        BrowserMenuEntry(stringResource(R.string.browser_text_size), onAPage) { textSizeOpen = true },
+        BrowserMenuEntry(stringResource(R.string.browser_print), onAPage) {
+            webViewCache[activeTab.id]?.let { web -> printPage(context, web, activeTab.title.ifBlank { activeTab.url }) }
+        }
+    )
     val security = if (activeTab.showStartScreen) PageSecurity.NONE
     else if (certificateProblems[activeTab.id] != null) PageSecurity.CERTIFICATE_PROBLEM
     else PageSecurity.of(
@@ -420,6 +443,7 @@ fun BrowserHubScreen(
                             onToggleReadingView = { toggleReadingView() },
                             readingAvailable = activeTab.readingAvailable,
                             security = security,
+                            menuEntries = menuEntries,
                             onNewPrivateTab = { viewModel.openPrivateTab() }
                         )
                     }
@@ -496,6 +520,14 @@ fun BrowserHubScreen(
                                                     onError = { viewModel.reportPageError(it) },
                                                     onRenderGone = { viewModel.markTabCrashed(tab.id) },
                                                     onLongPress = { target, x, y -> held = Triple(target, x, y) },
+                                                    onPull = { distance, released ->
+                                                        if (released) {
+                                                            if (distance >= pullThreshold) webViewCache[tab.id]?.reload()
+                                                            pullDistance = 0f
+                                                        } else {
+                                                            pullDistance = distance
+                                                        }
+                                                    },
                                                     onCertificateProblem = { url, error, handler ->
                                                         val problem = CertificateProblem(url, error, handler)
                                                         if (problem.host in certificateWaived) {
@@ -532,6 +564,8 @@ fun BrowserHubScreen(
                                             ) {
                                                 view.loadUrl(tab.url)
                                             }
+                                            val textSize = TextSizes.forUrl(state.textSizes, tab.url)
+                                            if (view.settings.textZoom != textSize) view.settings.textZoom = textSize
                                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                                 view.settings.isAlgorithmicDarkeningAllowed = zuneColors.isDark
                                             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -584,6 +618,31 @@ fun BrowserHubScreen(
                                 }
                             }
                         }
+                        // The page pulled down past its top: let go far enough down and it reloads.
+                        if (!activeTab.showStartScreen) {
+                            PullToRefreshIndicator(
+                                fraction = pullDistance / pullThreshold,
+                                modifier = Modifier.align(Alignment.TopStart).zIndex(3f)
+                            )
+                        }
+
+                        if (textSizeOpen) {
+                            val host = TextSizes.hostOf(activeTab.url)
+                            Box(modifier = Modifier.fillMaxSize().zIndex(5f)) {
+                                TextSizePanel(
+                                    host = host,
+                                    current = TextSizes.forUrl(state.textSizes, activeTab.url),
+                                    wide = isWideScreen,
+                                    onPick = { viewModel.setTextSize(host, it) },
+                                    onPickForAll = {
+                                        viewModel.setTextSize(null, TextSizes.forUrl(state.textSizes, activeTab.url))
+                                        textSizeOpen = false
+                                    },
+                                    onDismiss = { textSizeOpen = false }
+                                )
+                            }
+                        }
+
                         // A link or a picture held down: what can be done with it.
                         held?.let { (target, x, y) ->
                             val web = webViewCache[activeTab.id]
@@ -718,6 +777,7 @@ fun BrowserHubScreen(
                             onToggleReadingView = { toggleReadingView() },
                             readingAvailable = activeTab.readingAvailable,
                             security = security,
+                            menuEntries = menuEntries,
                             onNewPrivateTab = { viewModel.openPrivateTab() },
                             thumbnails = thumbnails,
                             onTabsOpened = {
@@ -1003,4 +1063,25 @@ private fun isPassingThrough(url: String?): Boolean {
 private fun hasPageBefore(web: android.webkit.WebView?): Boolean {
     val history = web?.copyBackForwardList() ?: return false
     return (0 until history.currentIndex).any { !isPassingThrough(history.getItemAtIndex(it)?.url) }
+}
+
+/** How far down a page has to be pulled past its top for letting go to reload it. */
+private val PULL_TO_RELOAD = 96.dp
+
+/**
+ * The page through Google Translate, into [language]: the translated page opens under Google's
+ * own address for the site, and links on it stay translated.
+ */
+internal fun translationOf(url: String, language: String): String =
+    "https://translate.google.com/translate?sl=auto&tl=${language.ifBlank { "en" }}&u=" +
+        java.net.URLEncoder.encode(url, "UTF-8")
+
+/** Hands the page to Android's printing, which also saves it as a PDF. */
+private fun printPage(context: Context, web: WebView, title: String) {
+    val printing = context.getSystemService(Context.PRINT_SERVICE) as? android.print.PrintManager ?: return
+    try {
+        printing.print(title, web.createPrintDocumentAdapter(title), android.print.PrintAttributes.Builder().build())
+    } catch (e: Exception) {
+        ZuneLog.w("BrowserHubScreen", "the page could not be printed", e)
+    }
 }

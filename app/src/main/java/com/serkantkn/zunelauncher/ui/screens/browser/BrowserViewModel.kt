@@ -82,6 +82,8 @@ data class BrowserState(
     val pinnedSites: Set<String> = emptySet(),
     val searchEngine: SearchEngine = SearchEngine.DEFAULT,
     val suggestionsEnabled: Boolean = true,
+    /** Text size in percent by host; [TextSizes.EVERY_SITE] for the rest. */
+    val textSizes: Map<String, Int> = emptyMap(),
     val errorMessage: String? = null
 ) {
     val activeTab: BrowserTab
@@ -171,6 +173,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 _state.update { state ->
                     state.copy(pinnedSites = tiles.mapNotNull { it.webUrl }.toSet())
                 }
+            }
+        }
+        viewModelScope.launch {
+            browsing.textSizes.collect { json ->
+                _state.update { it.copy(textSizes = TextSizes.parse(json)) }
             }
         }
         viewModelScope.launch {
@@ -639,6 +646,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Sets the text size for [host], or for every site without a size of its own when [host] is null. */
+    fun setTextSize(host: String?, percent: Int) {
+        val key = host ?: TextSizes.EVERY_SITE
+        val sizes = _state.value.textSizes.toMutableMap()
+        if (host != null && percent == (sizes[TextSizes.EVERY_SITE] ?: TextSizes.DEFAULT)) sizes.remove(key) else sizes[key] = percent
+        if (host == null) {
+            // A size chosen for every site replaces the ones sites had of their own.
+            sizes.keys.retainAll(setOf(TextSizes.EVERY_SITE))
+        }
+        _state.update { it.copy(textSizes = sizes) }
+        viewModelScope.launch { browsing.setTextSizes(TextSizes.toJson(sizes)) }
+    }
+
     fun openPrivateTab() {
         _state.update { currentState ->
             if (currentState.tabs.size >= MAX_TABS) {
@@ -988,4 +1008,31 @@ class BrowserViewModelFactory(private val application: Application) : ViewModelP
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
         return BrowserViewModel(application) as T
     }
+}
+
+/** Text sizes by site: how they are kept, and which one a page gets. */
+object TextSizes {
+    const val EVERY_SITE = "*"
+    const val DEFAULT = 100
+    val CHOICES = listOf(80, 90, 100, 115, 130, 150, 175, 200)
+
+    fun hostOf(url: String): String? =
+        runCatching { java.net.URI(url).host?.removePrefix("www.") }.getOrNull()?.takeIf { it.isNotBlank() }
+
+    /** The size for [url]: its site's own, else the one for every site, else 100%. */
+    fun forUrl(sizes: Map<String, Int>, url: String): Int =
+        hostOf(url)?.let { sizes[it] } ?: sizes[EVERY_SITE] ?: DEFAULT
+
+    fun parse(json: String?): Map<String, Int> {
+        if (json.isNullOrBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            obj.keys().asSequence().associateWith { obj.getInt(it) }.filterValues { it in 50..300 }
+        } catch (e: org.json.JSONException) {
+            emptyMap()
+        }
+    }
+
+    fun toJson(sizes: Map<String, Int>): String =
+        org.json.JSONObject().apply { sizes.forEach { (host, size) -> put(host, size) } }.toString()
 }
