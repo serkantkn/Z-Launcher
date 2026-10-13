@@ -56,7 +56,7 @@ internal class BrowserWebCallbacks(
 )
 
 /** What was held down on a page: a link, a picture, or a picture that is also a link. */
-internal data class PageTarget(val link: String?, val image: String?) {
+internal data class PageTarget(val link: String?, val image: String?, val linkTitle: String? = null) {
     val isEmpty: Boolean get() = link == null && image == null
 }
 
@@ -234,7 +234,15 @@ internal fun createBrowserWebView(
             when (hit.type) {
                 WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
                     val link = usable(hit.extra) ?: return@setOnLongClickListener false
-                    callbacks.onLongPress(PageTarget(link = link, image = null), touchX, touchY)
+                    // The link's words come with the focus node, a moment later.
+                    val x = touchX
+                    val y = touchY
+                    val reply = android.os.Handler(android.os.Looper.getMainLooper()) { message ->
+                        val title = message.data.getString("title")?.trim()?.takeIf { it.isNotEmpty() }
+                        callbacks.onLongPress(PageTarget(link = link, image = null, linkTitle = title), x, y)
+                        true
+                    }
+                    page.requestFocusNodeHref(reply.obtainMessage())
                     true
                 }
                 WebView.HitTestResult.IMAGE_TYPE -> {
@@ -250,7 +258,8 @@ internal fun createBrowserWebView(
                     val y = touchY
                     val reply = android.os.Handler(android.os.Looper.getMainLooper()) { message ->
                         val link = usable(message.data.getString("url"))
-                        val target = PageTarget(link = link, image = image)
+                        val title = message.data.getString("title")?.trim()?.takeIf { it.isNotEmpty() }
+                        val target = PageTarget(link = link, image = image, linkTitle = title)
                         if (!target.isEmpty) callbacks.onLongPress(target, x, y)
                         true
                     }

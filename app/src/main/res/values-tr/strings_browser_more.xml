@@ -48,4 +48,12 @@
         <item quantity="one">%1$d reklam ya da izleyici engellendi</item>
         <item quantity="other">%1$d reklam ve izleyici engellendi</item>
     </plurals>
+    <string name="browser_frequent">sık ziyaret edilenler</string>
+    <string name="browser_frequent_empty">En sık açtığın siteler burada toplanacak.</string>
+    <string name="browser_reading_list">okuma listesi</string>
+    <string name="browser_reading_list_empty">Okuma listen boş. Bir sayfayı menüden ya da bir bağlantıyı basılı tutarak ekleyebilirsin.</string>
+    <string name="browser_reading_offline">çevrimdışı okunabilir</string>
+    <string name="browser_add_reading">okuma listesine ekle</string>
+    <string name="browser_remove_reading">okuma listesinden çıkar</string>
+    <string name="browser_reading_added">Okuma listesine eklendi.</string>
 </resources>

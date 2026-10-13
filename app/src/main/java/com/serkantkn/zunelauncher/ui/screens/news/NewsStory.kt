@@ -61,6 +61,8 @@ internal fun NewsStoryScreen(
     inPane: Boolean,
     onClose: () -> Unit,
     onRead: (String) -> Unit,
+    onToggleReadingList: () -> Unit = {},
+    onReadingList: Boolean = false,
     barModifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -104,6 +106,9 @@ internal fun NewsStoryScreen(
                 WpBarAction(Icons.Default.Share, stringResource(R.string.common_share)) { share(context, story) }
             ),
             menuItems = listOf(
+                WpBarMenuItem(
+                    stringResource(if (onReadingList) R.string.browser_remove_reading else R.string.browser_add_reading)
+                ) { onToggleReadingList() },
                 WpBarMenuItem(stringResource(R.string.news_copy_link)) { copyLink(context, story.link) }
             ),
             modifier = barModifier.align(Alignment.BottomCenter)

@@ -114,3 +114,79 @@ private const val MIN_PARAGRAPH = 140
 
 /** How much running text, scored as Firefox scores it, makes a page worth offering reading view for. */
 private const val READABLE_SCORE = 20
+
+/**
+ * The page's story as reading view would keep it, without touching the page: its title, the
+ * story's HTML with pictures and links made absolute, and its share card's picture and summary -
+ * as a JSON string, or "nothing" when there is no story to keep.
+ */
+internal fun readingCopyScript(): String = """
+    (function () {
+      var best = null;
+      if (window.__zuneReader) {
+        best = document.getElementById('zune-reader-body');
+      } else {
+        var candidates = document.querySelectorAll(
+          'article, main, [role=main], #content, #main, .content, .post, .entry, .article, body'
+        );
+        var bestScore = 0;
+        for (var i = 0; i < candidates.length; i++) {
+          var el = candidates[i];
+          var score = (el.innerText || '').length;
+          if (el.tagName === 'ARTICLE') score *= 1.6;
+          if (el.tagName === 'BODY') score *= 0.5;
+          if (score > bestScore) { bestScore = score; best = el; }
+        }
+        if (bestScore < 200) { best = null; }
+      }
+      if (!best) { return 'nothing'; }
+      var copy = best.cloneNode(true);
+      var strip = copy.querySelectorAll(
+        'script, style, iframe, nav, aside, header, footer, form, button, noscript, svg, ' +
+        '[role=navigation], [aria-hidden=true]'
+      );
+      for (var j = 0; j < strip.length; j++) { strip[j].remove(); }
+      var pictures = copy.querySelectorAll('img');
+      for (var k = 0; k < pictures.length; k++) {
+        var img = pictures[k];
+        var src = img.getAttribute('data-src') || img.currentSrc || img.src;
+        if (src) { img.setAttribute('src', new URL(src, location.href).href); }
+        img.removeAttribute('srcset');
+        img.removeAttribute('loading');
+      }
+      var links = copy.querySelectorAll('a[href]');
+      for (var m = 0; m < links.length; m++) { links[m].setAttribute('href', links[m].href); }
+      function meta(name) {
+        var tag = document.querySelector('meta[property="' + name + '"], meta[name="' + name + '"]');
+        return tag ? (tag.getAttribute('content') || '') : '';
+      }
+      return JSON.stringify({
+        title: (meta('og:title') || document.title || '').trim(),
+        html: copy.innerHTML,
+        image: meta('og:image'),
+        excerpt: meta('og:description')
+      });
+    })();
+""".trimIndent()
+
+/** What [readingCopyScript] found, read out of the string evaluateJavascript hands back. */
+internal class ReadingCopy(val title: String, val html: String, val image: String?, val excerpt: String) {
+    companion object {
+        fun parse(result: String?): ReadingCopy? {
+            if (result.isNullOrBlank() || result == "null") return null
+            return try {
+                val text = org.json.JSONArray("[$result]").getString(0)
+                if (text == "nothing") return null
+                val obj = org.json.JSONObject(text)
+                ReadingCopy(
+                    title = obj.optString("title"),
+                    html = obj.optString("html"),
+                    image = obj.optString("image").takeIf { it.startsWith("http") },
+                    excerpt = obj.optString("excerpt")
+                ).takeIf { it.html.isNotBlank() }
+            } catch (e: org.json.JSONException) {
+                null
+            }
+        }
+    }
+}

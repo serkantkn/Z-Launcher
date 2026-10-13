@@ -118,6 +118,7 @@ fun NewsHubScreen(
     val status by viewModel.status.collectAsState()
     val openStory by viewModel.openStory.collectAsState()
     val sourceFilter by viewModel.sourceFilter.collectAsState()
+    val readingLinks by viewModel.readingLinks.collectAsState()
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
 
     val keys = remember(topics) { topics.map { it.sectionKey } + NewsSection.SOURCES_KEY }
@@ -235,6 +236,8 @@ fun NewsHubScreen(
                             inPane = true,
                             onClose = { viewModel.close() },
                             onRead = { viewModel.readOnSite(it) },
+                            onToggleReadingList = { viewModel.toggleReadingList(story) },
+                            onReadingList = story.link in readingLinks,
                             barModifier = barModifier
                         )
                         else -> ZuneWideEmptyPane(
@@ -282,13 +285,18 @@ fun NewsHubScreen(
                         inPane = false,
                         onClose = { settingsOpen = false }
                     )
-                    is NewsItem -> NewsStoryScreen(
+                    is NewsItem -> {
                         // The open story, once its page has filled in its picture.
-                        story = openStory?.takeIf { it.link == subject.link } ?: subject,
-                        inPane = false,
-                        onClose = { viewModel.close() },
-                        onRead = { viewModel.readOnSite(it) }
-                    )
+                        val story = openStory?.takeIf { it.link == subject.link } ?: subject
+                        NewsStoryScreen(
+                            story = story,
+                            inPane = false,
+                            onClose = { viewModel.close() },
+                            onRead = { viewModel.readOnSite(it) },
+                            onToggleReadingList = { viewModel.toggleReadingList(story) },
+                            onReadingList = story.link in readingLinks
+                        )
+                    }
                 }
             }
         }

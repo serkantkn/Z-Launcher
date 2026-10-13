@@ -53,6 +53,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import android.content.Intent
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
+import com.serkantkn.zunelauncher.di.appContainer
+import com.serkantkn.zunelauncher.util.hasNetwork
 import kotlinx.coroutines.launch
 import android.webkit.CookieManager
 import androidx.compose.foundation.clickable
@@ -84,6 +86,29 @@ fun BrowserHubScreen(
 
     val webViewCache = remember { mutableMapOf<String, WebView>() }
     val activeTab = state.activeTab
+    val readingRepo = remember { context.appContainer.readingListRepository }
+    val readingList by readingRepo.items.collectAsState()
+
+    /**
+     * Keeps the text of the page on [tabId] with its reading list entry, so it reads without a
+     * connection; and fills in the entry's picture and summary from the page's share card.
+     */
+    fun keepReadingCopy(tabId: String, url: String) {
+        val web = webViewCache[tabId] ?: return
+        web.evaluateJavascript(readingCopyScript()) { result ->
+            val copy = ReadingCopy.parse(result) ?: return@evaluateJavascript
+            val entry = readingRepo.items.value.firstOrNull { it.url == url } ?: return@evaluateJavascript
+            val source = entry.source.ifBlank { TextSizes.hostOf(url).orEmpty() }
+            readingRepo.add(
+                entry.copy(
+                    title = entry.title.takeIf { it.isNotBlank() && it != url } ?: copy.title.ifBlank { url },
+                    imageUrl = entry.imageUrl ?: copy.image,
+                    excerpt = entry.excerpt.ifBlank { copy.excerpt }
+                )
+            )
+            readingRepo.keepCopy(url, entry.title.ifBlank { copy.title }, source, copy.html)
+        }
+    }
 
     /** What is being looked for on the page, while the find bar is open. */
     var findQuery by remember { mutableStateOf<String?>(null) }
@@ -265,6 +290,8 @@ fun BrowserHubScreen(
             if (web.url != url) return@evaluateJavascript
             if (result.contains("yes")) {
                 viewModel.setReadingAvailable(tabId, true)
+                // A page on the reading list gets its copy kept the first time it is read.
+                if (readingRepo.items.value.any { it.url == url && !it.offline }) keepReadingCopy(tabId, url)
             } else if (!result.contains("reading") && attempt + 1 < READING_PROBES.size) {
                 web.postDelayed({ probeReading(tabId, url, attempt + 1) }, READING_PROBES[attempt + 1])
             }
@@ -358,6 +385,25 @@ fun BrowserHubScreen(
             if (finalUrl.isNotEmpty()) webViewCache[activeTab.id]?.loadUrl(finalUrl)
         },
         BrowserMenuEntry(stringResource(R.string.browser_text_size), onAPage) { textSizeOpen = true },
+        BrowserMenuEntry(
+            stringResource(if (readingList.any { it.url == activeTab.url }) R.string.browser_remove_reading else R.string.browser_add_reading),
+            onAPage
+        ) {
+            val url = activeTab.url
+            if (readingRepo.contains(url)) {
+                readingRepo.remove(url)
+            } else {
+                readingRepo.add(
+                    com.serkantkn.zunelauncher.data.model.ReadingItem(
+                        url = url,
+                        title = activeTab.title.takeIf { it != url }.orEmpty(),
+                        source = TextSizes.hostOf(url).orEmpty()
+                    )
+                )
+                keepReadingCopy(activeTab.id, url)
+                Toast.makeText(context, context.getString(R.string.browser_reading_added), Toast.LENGTH_SHORT).show()
+            }
+        },
         BrowserMenuEntry(
             stringResource(if (state.adBlockEnabled) R.string.browser_blocking_on else R.string.browser_blocking_off),
             true
@@ -466,7 +512,10 @@ fun BrowserHubScreen(
                             menuEntries = menuEntries,
                             blocking = blocking,
                             onToggleBlockingHere = toggleBlockingHere,
-                            onNewPrivateTab = { viewModel.openPrivateTab() }
+                            onNewPrivateTab = { viewModel.openPrivateTab() },
+                            // Above the page area: the start page beneath is a hub of its own, and
+                            // its entrance swings in from beyond its edges.
+                            modifier = Modifier.zIndex(4f)
                         )
                     }
 
@@ -620,10 +669,24 @@ fun BrowserHubScreen(
                                             BrowserStartScreen(
                                                 favorites = state.favorites,
                                                 history = state.history,
+                                                readingList = readingList,
                                                 onUrlSelected = { url ->
                                                     val finalUrl = viewModel.loadUrl(tab.id, url)
                                                     if (finalUrl.isNotEmpty()) webViewCache[tab.id]?.loadUrl(finalUrl)
                                                 },
+                                                onOpenReading = { item ->
+                                                    readingRepo.markRead(item.url)
+                                                    val web = webViewCache[tab.id]
+                                                    val copy = if (!context.hasNetwork() && item.offline) readingRepo.copyOf(item.url) else null
+                                                    viewModel.loadUrl(tab.id, item.url)
+                                                    if (copy != null) {
+                                                        // Without a connection, the kept copy of its text.
+                                                        web?.loadDataWithBaseURL(item.url, copy, "text/html", "utf-8", item.url)
+                                                    } else {
+                                                        web?.loadUrl(item.url)
+                                                    }
+                                                },
+                                                onRemoveReading = { readingRepo.remove(it) },
                                                 onAddFavorite = { title, url, folder ->
                                                     viewModel.addFavorite(title, url, folder)
                                                 },
@@ -677,6 +740,18 @@ fun BrowserHubScreen(
                                     if (!activeTab.isPrivate) {
                                         add(PageMenuAction(stringResource(R.string.browser_open_private_tab)) { viewModel.openTabWith(link, isPrivate = true) })
                                     }
+                                    if (!readingList.any { it.url == link }) {
+                                        add(PageMenuAction(stringResource(R.string.browser_add_reading)) {
+                                            readingRepo.add(
+                                                com.serkantkn.zunelauncher.data.model.ReadingItem(
+                                                    url = link,
+                                                    title = target.linkTitle.orEmpty(),
+                                                    source = TextSizes.hostOf(link).orEmpty()
+                                                )
+                                            )
+                                            Toast.makeText(context, context.getString(R.string.browser_reading_added), Toast.LENGTH_SHORT).show()
+                                        })
+                                    }
                                     add(PageMenuAction(stringResource(R.string.browser_copy_link)) { copyToClipboard(context, link) })
                                     add(PageMenuAction(stringResource(R.string.browser_share_link)) { sharePage(context, "", link) })
                                 }
@@ -703,31 +778,6 @@ fun BrowserHubScreen(
                             }
                         }
 
-                        // Top Header (Optional, like other hubs)
-                        if (activeTab.showStartScreen) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    // The tab underneath claims a z-index of its own, so without
-                                    // one of its own the hub's name is drawn beneath it and never
-                                    // seen.
-                                    .zIndex(2f)
-                                    .padding(
-                                        start = ZuneDimens.ScreenPaddingHorizontal,
-                                        top = if (isWideScreen) 28.dp else 44.dp
-                                    ),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.hub_internet),
-                                    style = MaterialTheme.typography.displayMedium.copy(
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = if (isWideScreen) 48.sp else 36.sp
-                                    ),
-                                    color = if (zuneColors.isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f)
-                                )
-                            }
-                        }
                     }
 
                     // Find on page, just above the address bar as Windows Phone put it.

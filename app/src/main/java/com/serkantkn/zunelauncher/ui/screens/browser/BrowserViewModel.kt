@@ -131,6 +131,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         /** How far back the history goes. */
         const val HISTORY_LIMIT = 300
+
+        /** A page finishing again this soon after the last time is the same visit. */
+        const val SAME_VISIT_MS = 30_000L
     }
 
     private val repository = application.appContainer.settingsDataStore
@@ -879,7 +882,17 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // A private tab is private precisely here: the page is shown and then forgotten.
         if (_state.value.tabs.firstOrNull { it.id == tabId }?.isPrivate == true) return
 
-        val newHistoryItem = BrowserHistory(finalTitle, finalUrl)
+        // "Finished" can come several times for one page as it settles; within a short while of
+        // the last it is the same visit, not another.
+        val now = System.currentTimeMillis()
+        val before = _state.value.history.firstOrNull { it.url == finalUrl }
+        val sameVisit = before != null && now - before.timestamp < SAME_VISIT_MS
+        val newHistoryItem = BrowserHistory(
+            finalTitle,
+            finalUrl,
+            timestamp = now,
+            visits = (before?.visits ?: 0) + if (sameVisit) 0 else 1
+        ).let { if (it.visits < 1) it.copy(visits = 1) else it }
         val updatedHistory = listOf(newHistoryItem) + _state.value.history.filter { it.url != finalUrl }
         saveHistory(updatedHistory.take(HISTORY_LIMIT))
     }
@@ -901,7 +914,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         _state.update { it.copy(history = emptyList()) }
     }
     fun goHome(tabId: String) {
-        updateTab(tabId) { it.copy(showStartScreen = true, url = "", title = "") }
+        updateTab(tabId) {
+            it.copy(showStartScreen = true, url = "", title = "", isReadingView = false, readingAvailable = false)
+        }
     }
     
     fun isFavorite(url: String): Boolean {

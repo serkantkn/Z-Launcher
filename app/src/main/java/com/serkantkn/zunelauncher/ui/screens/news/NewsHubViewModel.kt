@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -31,6 +32,12 @@ import kotlinx.coroutines.launch
 class NewsHubViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = application.appContainer.newsRepository
+    private val readingList = application.appContainer.readingListRepository
+
+    /** The addresses on the browser's reading list, to say whether a story is already there. */
+    val readingLinks: StateFlow<Set<String>> = readingList.items
+        .map { items -> items.map { it.url }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     val topics: StateFlow<List<NewsTopic>> = repository.topics
         .stateIn(viewModelScope, SharingStarted.Eagerly, NewsTopic.DEFAULT)
@@ -118,6 +125,24 @@ class NewsHubViewModel(application: Application) : AndroidViewModel(application)
 
     fun close() {
         _openStory.value = null
+    }
+
+    /** Puts the story on the browser's reading list, or takes it off again. */
+    fun toggleReadingList(story: NewsItem) {
+        if (readingList.contains(story.link)) {
+            readingList.remove(story.link)
+        } else {
+            readingList.add(
+                com.serkantkn.zunelauncher.data.model.ReadingItem(
+                    url = story.link,
+                    title = story.title,
+                    source = story.source,
+                    imageUrl = story.imageUrl,
+                    excerpt = story.summary
+                )
+            )
+            _status.value = R.string.browser_reading_added
+        }
     }
 
     /** Goes on reading on the story's own site, in the launcher's browser. */

@@ -56,23 +56,35 @@ import androidx.compose.runtime.setValue
 import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.data.model.BrowserFavorite
 import com.serkantkn.zunelauncher.data.model.BrowserHistory
+import com.serkantkn.zunelauncher.data.model.FrequentSite
+import com.serkantkn.zunelauncher.data.model.ReadingItem
+import com.serkantkn.zunelauncher.data.model.frequentSites
+import com.serkantkn.zunelauncher.ui.components.wpTilt
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import java.net.URI
 
 
+/** The start page's headings, in the order they stand. */
+private enum class StartPage { FREQUENT, FAVORITES, READING, HISTORY }
+
 /**
- * The page a new tab opens on: the sites kept close by, and where you have been.
+ * The page a new tab opens on, as a hub of its own on the hub standard: the most visited sites
+ * as tiles, the favourites, the reading list and the history - a pivot on a phone, headings down
+ * the left on a tablet.
  *
- * Favourites can be filed into folders — a folder is a tile of its own that the grid drops into —
+ * Favourites can be filed into folders - a folder is a tile of its own that the grid drops into -
  * and the history can be searched and thinned out a row at a time rather than only wiped whole.
  */
 @Composable
 fun BrowserStartScreen(
     favorites: List<BrowserFavorite>,
     history: List<BrowserHistory>,
+    readingList: List<ReadingItem>,
     onUrlSelected: (String) -> Unit,
+    onOpenReading: (ReadingItem) -> Unit,
+    onRemoveReading: (String) -> Unit,
     onAddFavorite: (title: String, url: String, folder: String) -> Unit,
     onUpdateFavorite: (originalUrl: String, title: String, url: String, folder: String) -> Unit,
     onRemoveFavorite: (String) -> Unit,
@@ -98,6 +110,7 @@ fun BrowserStartScreen(
     val shownFavorites = remember(favorites, openFolder) {
         favorites.filter { it.folder == (openFolder ?: "") }
     }
+    val frequent = remember(history) { frequentSites(history) }
     val shownHistory = remember(history, historyQuery) {
         if (historyQuery.isBlank()) {
             history
@@ -116,11 +129,6 @@ fun BrowserStartScreen(
         groupHistoryByDay(shownHistory, todayLabel, yesterdayLabel)
     }
 
-    val gridColumns = if (isWideScreen) GridCells.Fixed(6) else GridCells.Fixed(4)
-    // Room for the hub's name, which is drawn over this by the hub itself.
-    val topPadding = if (isWideScreen) 96.dp else 140.dp
-    val bottomPadding = if (isWideScreen) 40.dp else 120.dp
-
     fun requirePremium(messageRes: Int, block: () -> Unit) {
         if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
             block()
@@ -131,123 +139,130 @@ fun BrowserStartScreen(
         }
     }
 
+    val pages = StartPage.entries
+    val tabs = pages.map {
+        stringResource(
+            when (it) {
+                StartPage.FREQUENT -> R.string.browser_frequent
+                StartPage.FAVORITES -> R.string.browser_favorites
+                StartPage.READING -> R.string.browser_reading_list
+                StartPage.HISTORY -> R.string.common_history
+            }
+        )
+    }
+    val pager = com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState(pageCount = pages.size)
+    val bottomPadding = if (isWideScreen) 40.dp else 32.dp
+
     Box(modifier = modifier.fillMaxSize()) {
-        LazyVerticalGrid(
-            columns = gridColumns,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = ZuneDimens.ScreenPaddingHorizontal,
-                end = ZuneDimens.ScreenPaddingHorizontal,
-                top = topPadding,
-                bottom = bottomPadding
-            ),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    text = openFolder ?: stringResource(R.string.browser_favorites),
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = if (isWideScreen) 36.sp else 32.sp
-                    ),
-                    color = zuneColors.accentColor,
-                    modifier = Modifier.padding(bottom = ZuneDimens.SpacingSm)
-                )
-            }
+        com.serkantkn.zunelauncher.ui.components.ZuneHub(
+            title = stringResource(R.string.hub_internet),
+            tabs = tabs,
+            pager = pager
+        ) { page ->
+            when (pages[page]) {
+                StartPage.FREQUENT -> FrequentPage(frequent, onUrlSelected, bottomPadding)
+                StartPage.READING -> ReadingPage(readingList, onOpenReading, onRemoveReading, bottomPadding)
+                StartPage.FAVORITES -> LazyVerticalGrid(
+                    columns = if (isWideScreen) GridCells.Adaptive(120.dp) else GridCells.Fixed(4),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = bottomPadding),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (openFolder != null) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                text = openFolder.orEmpty(),
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Light),
+                                color = zuneColors.accentColor,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+                        // Inside a folder, the first tile is the way back out of it.
+                        item {
+                            FavoriteActionTile(
+                                title = stringResource(R.string.browser_folder_back),
+                                onClick = { openFolder = null },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    } else {
+                        items(folders, key = { "folder:$it" }) { folder ->
+                            BrowserFolderTile(
+                                name = folder,
+                                count = favorites.count { it.folder == folder },
+                                onClick = { openFolder = folder },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
 
-            // Inside a folder, the first tile is the way back out of it.
-            if (openFolder != null) {
-                item {
-                    FavoriteActionTile(
-                        title = stringResource(R.string.browser_folder_back),
-                        onClick = { openFolder = null },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            } else {
-                items(folders, key = { "folder:$it" }) { folder ->
-                    BrowserFolderTile(
-                        name = folder,
-                        count = favorites.count { it.folder == folder },
-                        onClick = { openFolder = folder },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            itemsIndexed(shownFavorites, key = { _, fav -> fav.url }) { index, fav ->
-                WpFavoriteSiteTile(
-                    title = fav.title,
-                    url = fav.url,
-                    index = index,
-                    onClick = { onUrlSelected(fav.url) },
-                    onLongClick = {
-                        requirePremium(R.string.browser_fav_edit_pro) { favoriteToAction = fav }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            item {
-                FavoriteActionTile(
-                    title = stringResource(R.string.common_add),
-                    onClick = { requirePremium(R.string.browser_fav_add_pro) { showAddDialog = true } },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    text = stringResource(R.string.common_history),
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = if (isWideScreen) 36.sp else 32.sp
-                    ),
-                    color = zuneColors.accentColor,
-                    modifier = Modifier.padding(top = ZuneDimens.SpacingXl, bottom = ZuneDimens.SpacingSm)
-                )
-            }
-
-            // Searching the history only earns its place once there is a history to search.
-            if (history.isNotEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    HistorySearchField(
-                        query = historyQuery,
-                        onQueryChanged = { historyQuery = it },
-                        modifier = Modifier.padding(bottom = ZuneDimens.SpacingSm)
-                    )
-                }
-            }
-
-            if (shownHistory.isEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text(
-                        text = stringResource(
-                            if (history.isEmpty()) R.string.browser_history_empty
-                            else R.string.browser_history_no_match
-                        ),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = zuneColors.textMuted
-                    )
-                }
-            } else {
-                historyDays.forEach { (day, entries) ->
-                    item(span = { GridItemSpan(maxLineSpan) }, key = "day:$day") {
-                        Text(
-                            text = day,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = zuneColors.textMuted,
-                            modifier = Modifier.padding(top = ZuneDimens.SpacingSm, bottom = 2.dp)
+                    itemsIndexed(shownFavorites, key = { _, fav -> fav.url }) { index, fav ->
+                        WpFavoriteSiteTile(
+                            title = fav.title,
+                            url = fav.url,
+                            index = index,
+                            onClick = { onUrlSelected(fav.url) },
+                            onLongClick = {
+                                requirePremium(R.string.browser_fav_edit_pro) { favoriteToAction = fav }
+                            },
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    items(entries, span = { GridItemSpan(maxLineSpan) }, key = { it.url }) { entry ->
-                        BrowserHistoryItem(
-                            title = entry.title,
-                            url = entry.url,
-                            onClick = { onUrlSelected(entry.url) },
-                            onRemove = { onRemoveHistoryEntry(entry.url) }
+
+                    item {
+                        FavoriteActionTile(
+                            title = stringResource(R.string.common_add),
+                            onClick = { requirePremium(R.string.browser_fav_add_pro) { showAddDialog = true } },
+                            modifier = Modifier.fillMaxWidth()
                         )
+                    }
+                }
+                StartPage.HISTORY -> androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = bottomPadding)
+                ) {
+                    // Searching the history only earns its place once there is a history to search.
+                    if (history.isNotEmpty()) {
+                        item {
+                            HistorySearchField(
+                                query = historyQuery,
+                                onQueryChanged = { historyQuery = it },
+                                modifier = Modifier.padding(bottom = ZuneDimens.SpacingSm)
+                            )
+                        }
+                    }
+                    if (shownHistory.isEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(
+                                    if (history.isEmpty()) R.string.browser_history_empty
+                                    else R.string.browser_history_no_match
+                                ),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = zuneColors.textMuted
+                            )
+                        }
+                    } else {
+                        historyDays.forEach { (day, entries) ->
+                            item(key = "day:$day") {
+                                Text(
+                                    text = day,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = zuneColors.textMuted,
+                                    modifier = Modifier.padding(top = ZuneDimens.SpacingSm, bottom = 2.dp)
+                                )
+                            }
+                            items(entries.size, key = { "h:" + entries[it].url }) { i ->
+                                val entry = entries[i]
+                                BrowserHistoryItem(
+                                    title = entry.title,
+                                    url = entry.url,
+                                    onClick = { onUrlSelected(entry.url) },
+                                    onRemove = { onRemoveHistoryEntry(entry.url) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -353,6 +368,151 @@ fun BrowserStartScreen(
         }
     }
 }
+
+/**
+ * The most visited sites as tiles in the accent, the way Internet Explorer's start page set out
+ * its frequent sites: the site's icon in the corner, its name along the bottom.
+ */
+@Composable
+private fun FrequentPage(sites: List<FrequentSite>, onOpen: (String) -> Unit, bottomPadding: androidx.compose.ui.unit.Dp) {
+    val zuneColors = LocalZuneColors.current
+    val isWideScreen = LocalIsWideScreen.current
+    if (sites.isEmpty()) {
+        Text(
+            text = stringResource(R.string.browser_frequent_empty),
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Light),
+            color = zuneColors.textMuted,
+            modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
+        )
+        return
+    }
+    LazyVerticalGrid(
+        columns = if (isWideScreen) GridCells.Adaptive(220.dp) else GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = bottomPadding),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        itemsIndexed(sites, key = { _, site -> site.host }) { index, site ->
+            val interaction = remember { MutableInteractionSource() }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1.6f)
+                    .wpTilt(interaction)
+                    .background(zuneColors.accentColor.copy(alpha = if (index % 3 == 1) 0.82f else 1f))
+                    .clickable(interactionSource = interaction, indication = null) { onOpen(site.url) }
+                    .padding(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color.White),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = "https://www.google.com/s2/favicons?domain=${site.host}&sz=128",
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Column(modifier = Modifier.align(Alignment.BottomStart)) {
+                    Text(
+                        text = site.title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal, fontSize = 16.sp),
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = site.host,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** The reading list: newest kept first, a picture where there is one, the ones read dimmed. */
+@Composable
+private fun ReadingPage(
+    items: List<ReadingItem>,
+    onOpen: (ReadingItem) -> Unit,
+    onRemove: (String) -> Unit,
+    bottomPadding: androidx.compose.ui.unit.Dp
+) {
+    val zuneColors = LocalZuneColors.current
+    if (items.isEmpty()) {
+        Text(
+            text = stringResource(R.string.browser_reading_list_empty),
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Light),
+            color = zuneColors.textMuted,
+            modifier = Modifier.padding(top = ZuneDimens.SpacingLg)
+        )
+        return
+    }
+    androidx.compose.foundation.lazy.LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = bottomPadding)
+    ) {
+        items(items.size, key = { "r:" + items[it].url }) { i ->
+            val item = items[i]
+            val interaction = remember { MutableInteractionSource() }
+            androidx.compose.foundation.layout.Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wpTilt(interaction)
+                    .clickable(interactionSource = interaction, indication = null) { onOpen(item) }
+                    .padding(vertical = 10.dp)
+            ) {
+                if (item.imageUrl != null) {
+                    AsyncImage(
+                        model = item.imageUrl,
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(zuneColors.accentColor.copy(alpha = 0.25f))
+                    )
+                    Spacer(modifier = Modifier.size(12.dp))
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.title.ifBlank { item.url },
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 18.sp, lineHeight = 23.sp),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = if (item.read) 0.55f else 1f),
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = listOfNotNull(
+                            item.source.takeIf { it.isNotBlank() },
+                            if (item.offline) stringResource(R.string.browser_reading_offline) else null
+                        ).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        color = zuneColors.accentColor,
+                        maxLines = 1
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.common_remove),
+                    tint = zuneColors.textMuted,
+                    modifier = Modifier
+                        .clickable { onRemove(item.url) }
+                        .padding(10.dp)
+                        .size(18.dp)
+                )
+            }
+        }
+    }
+}
+
 
 /** A folder of favourites, standing on the shelf among them. */
 @Composable

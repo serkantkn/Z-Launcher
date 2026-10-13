@@ -48,4 +48,12 @@
         <item quantity="one">%1$d ad or tracker blocked</item>
         <item quantity="other">%1$d ads and trackers blocked</item>
     </plurals>
+    <string name="browser_frequent">most visited</string>
+    <string name="browser_frequent_empty">The sites you open most will gather here.</string>
+    <string name="browser_reading_list">reading list</string>
+    <string name="browser_reading_list_empty">Your reading list is empty. Add a page from the menu, or hold a link down.</string>
+    <string name="browser_reading_offline">readable offline</string>
+    <string name="browser_add_reading">add to reading list</string>
+    <string name="browser_remove_reading">remove from reading list</string>
+    <string name="browser_reading_added">Added to the reading list.</string>
 </resources>

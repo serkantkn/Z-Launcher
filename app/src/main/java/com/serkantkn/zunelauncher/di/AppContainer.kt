@@ -82,6 +82,9 @@ class AppContainer(private val appContext: Context) {
     val callLogRepository: CallLogRepository by lazy { CallLogRepository(appContext) }
     val calendarRepository: CalendarRepository by lazy { CalendarRepository(appContext) }
     val weatherRepository: WeatherRepository by lazy { WeatherRepository(appContext, weatherDataStore) }
+    val readingListRepository: com.serkantkn.zunelauncher.data.repository.ReadingListRepository by lazy {
+        com.serkantkn.zunelauncher.data.repository.ReadingListRepository(appContext)
+    }
     val newsRepository: com.serkantkn.zunelauncher.data.repository.NewsRepository by lazy {
         com.serkantkn.zunelauncher.data.repository.NewsRepository(appContext, newsDataStore)
     }
