@@ -375,6 +375,7 @@
     <string name="notes_last_edited">%1$s · son düzenleme %2$s</string>
     <string name="files_internal_storage">Dahili Depolama</string>
     <string name="files_folder">klasör</string>
+    <string name="files_folder_empty_short">boş</string>
     <string name="files_new_folder">yeni klasör</string>
     <string name="files_permission_title">Tüm Dosyalara Erişim İzni Gerekli</string>
     <string name="files_permission_message">Cihazınızdaki klasör ve dosyaları Zune tarzında gezebilmek için dosya erişim izni verin.</string>

@@ -809,7 +809,7 @@ private fun DetailsView(
                     DetailText(remember(item.lastModified) { dateFormat.format(Date(item.lastModified)) }, Modifier.width(DATE_WIDTH))
                     DetailText(kind, Modifier.width(TYPE_WIDTH))
                     DetailText(
-                        if (item.isDirectory) "" else formatFileSize(item.size),
+                        if (item.isDirectory) folderSummary(item) else formatFileSize(item.size),
                         Modifier.width(SIZE_WIDTH),
                         alignEnd = true
                     )

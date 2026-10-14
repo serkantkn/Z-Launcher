@@ -160,7 +160,6 @@ internal fun FileTile(
 ) {
     val zuneColors = LocalZuneColors.current
     val source = remember { MutableInteractionSource() }
-    val folderLabel = stringResource(R.string.files_folder)
     // Held and moved, it is dragged (and a folder takes drops); see FilesDragDrop.kt.
     val drag = rememberFileDragSource(item, onLongClick, DropHighlight.TILE)
     Column(
@@ -197,7 +196,7 @@ internal fun FileTile(
                 .then(if (nameAnchor != null) Modifier.zuneZoomAnchor(nameAnchor) else Modifier)
         )
         Text(
-            text = if (item.isDirectory) folderLabel else formatFileSize(item.size),
+            text = if (item.isDirectory) folderSummary(item) else formatFileSize(item.size),
             style = MaterialTheme.typography.labelMedium,
             color = zuneColors.textMuted,
             maxLines = 1

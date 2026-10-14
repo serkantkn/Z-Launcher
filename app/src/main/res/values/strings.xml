@@ -375,6 +375,7 @@
     <string name="notes_last_edited">%1$s · last edited %2$s</string>
     <string name="files_internal_storage">Internal Storage</string>
     <string name="files_folder">folder</string>
+    <string name="files_folder_empty_short">empty</string>
     <string name="files_new_folder">new folder</string>
     <string name="files_permission_title">All Files Access Required</string>
     <string name="files_permission_message">Grant file access to browse the folders and files on your device Zune style.</string>

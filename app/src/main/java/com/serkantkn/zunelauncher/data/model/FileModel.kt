@@ -8,5 +8,7 @@ data class FileItemModel(
     val isDirectory: Boolean,
     val size: Long,
     val lastModified: Long,
-    val extension: String = ""
+    val extension: String = "",
+    /** How many things a folder holds - counting hidden ones only while they are shown; -1 when not known. */
+    val childCount: Int = -1
 )

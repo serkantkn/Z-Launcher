@@ -81,7 +81,7 @@ internal fun FileRow(
     val formattedDate = remember(item.lastModified) {
         SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(item.lastModified))
     }
-    val folderLabel = stringResource(R.string.files_folder)
+    val folderLabel = folderSummary(item)
     val size = remember(item.size, item.isDirectory, folderLabel) {
         if (item.isDirectory) folderLabel else formatFileSize(item.size)
     }
@@ -228,6 +228,17 @@ internal fun CloudRow(
             )
         }
     }
+}
+
+/**
+ * What a folder says under its name: how many things are in it, "boş" for none, and plain
+ * "klasör" when it could not be looked into.
+ */
+@Composable
+internal fun folderSummary(item: FileItemModel): String = when {
+    item.childCount > 0 -> androidx.compose.ui.res.pluralStringResource(R.plurals.files_item_count, item.childCount, item.childCount)
+    item.childCount == 0 -> stringResource(R.string.files_folder_empty_short)
+    else -> stringResource(R.string.files_folder)
 }
 
 // ── Where you are ───────────────────────────────────────────────────────────

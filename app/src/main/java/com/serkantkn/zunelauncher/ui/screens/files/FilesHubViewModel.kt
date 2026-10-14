@@ -971,8 +971,15 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         isDirectory = isDirectory,
         size = if (isDirectory) 0L else length(),
         lastModified = lastModified(),
-        extension = extension.lowercase()
+        extension = extension.lowercase(),
+        childCount = if (isDirectory) childCountOf(this) else -1
     )
+
+    /** What a folder holds, as the folder's own listing would show it; -1 when it cannot be read. */
+    private fun childCountOf(folder: File): Int {
+        val names = folder.list() ?: return -1
+        return if (showHidden.value) names.size else names.count { !it.startsWith(".") }
+    }
 
     private fun application(): Application = getApplication()
 
