@@ -128,6 +128,13 @@ val LocalTileTakeOut = staticCompositionLocalOf<(() -> Unit)?> { null }
  */
 val LocalTileIsPreview = staticCompositionLocalOf { false }
 
+/**
+ * Holds every tile on one face: true shows the back of any tile that has one, false the front.
+ * Null, everywhere on the board, lets tiles turn on their own; the debug build's tile gallery sets
+ * it to show each face in turn.
+ */
+val LocalTileFaceOverride = staticCompositionLocalOf<Boolean?> { null }
+
 /** True on the tile of a hub that was left running, which then carries the running mark. */
 val LocalTileRunning = compositionLocalOf { false }
 
@@ -181,6 +188,7 @@ private fun rememberShowBack(
     isEditing: Boolean,
     animation: TileAnimation
 ): Boolean {
+    LocalTileFaceOverride.current?.let { back -> return back && hasBack }
     var showBack by remember(liveKey) { mutableStateOf(false) }
     val slot = remember(liveKey) { abs(liveKey.hashCode()) % FACE_SLOTS }
     // A Start screen that keeps turning over is the most conspicuous motion the launcher has, so

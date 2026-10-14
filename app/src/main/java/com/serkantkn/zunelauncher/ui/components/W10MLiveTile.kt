@@ -153,8 +153,9 @@ private fun relativeDay(millis: Long, now: Long): String = when {
 // ════════════════════════════════════════════════════════════
 
 /**
- * "saat" live tile: the current time in light Segoe-style type, today's date, and the next
- * alarm (icon + time) in the corner. Flips to the alarm details while an alarm is set.
+ * "saat" live tile: the time in light Segoe-style type and today's date, with the alarms that are
+ * set. The small and medium tiles turn over to the next alarm; the wide tile lists the next two
+ * beside the time and the large one the next three under it.
  */
 @Composable
 fun W10MClockTile(
@@ -175,108 +176,137 @@ fun W10MClockTile(
 ) {
     val fg = tileForegroundColor()
     val now = rememberMinuteTicker()
-    val nextAlarm = remember(alarms, now) {
-        alarms.map { it to it.nextTriggerMillis(now) }.filter { it.second > now }.minByOrNull { it.second }
+    val coming = remember(alarms, now) {
+        alarms.map { it to it.nextTriggerMillis(now) }.filter { it.second > now }.sortedBy { it.second }
     }
+    val nextAlarm = coming.firstOrNull()
     val timeText = format(timeFormat, now)
-    val compact = isCompactTile(span, gridColumns)
     val timePattern24 = timeFormat.contains("HH") || timeFormat.contains("H:")
     val alarmTimeOf: (Long) -> String = { format(if (timePattern24) "HH:mm" else "h:mm a", it) }
+    val shape = TileShape.of(span)
+    val alarmLines = coming.map { (alarm, millis) ->
+        TileLine(
+            title = alarmTimeOf(millis),
+            body = alarm.label.takeIf { it.isNotBlank() },
+            meta = relativeDay(millis, now)
+        )
+    }
 
     W10MLiveTileFrame(
         liveKey = "hub:${HubType.CLOCK.name}",
         span = span, gridColumns = gridColumns, spacing = spacing,
         isEditing = isEditing, isDragging = isDragging, cornerStyle = cornerStyle,
-        flipEnabled = nextAlarm != null,
+        // The wide and large tiles already list the alarms on their front.
+        flipEnabled = nextAlarm != null && (shape == TileShape.SMALL || shape == TileShape.MEDIUM),
         onClick = onClick, onLongClick = onLongClick, onRemoveClick = onRemoveClick, onResizeClick = onResizeClick,
         modifier = modifier,
         front = {
-            if (span == 1) {
-                Text(
-                    text = timeText,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
-                    color = fg,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-                if (nextAlarm != null) {
-                    Icon(Icons.Default.Alarm, contentDescription = null, tint = fg.copy(alpha = 0.85f), modifier = Modifier.align(Alignment.BottomEnd).padding(3.dp).size(10.dp))
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(start = 8.dp, top = if (span >= 4) 10.dp else 8.dp, end = 8.dp)
-                ) {
-                    Text(
-                        text = timeText,
-                        style = MaterialTheme.typography.displaySmall.copy(
-                            fontSize = when {
-                                span >= 4 -> if (compact) 30.sp else 40.sp
-                                compact -> 22.sp
-                                else -> 30.sp
-                            },
-                            fontWeight = FontWeight.Light,
-                            letterSpacing = (-1).sp
-                        ),
-                        color = fg,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                    Text(
-                        text = format(if (span >= 4) "EEEE, d MMMM" else "EEE, d MMM", now).lowercase(),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 9.sp else 11.sp, fontWeight = FontWeight.Normal),
-                        color = fg.copy(alpha = 0.8f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (nextAlarm != null) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 6.dp, bottom = 5.dp)
-                    ) {
-                        Icon(Icons.Default.Alarm, contentDescription = stringResource(R.string.tile_next_alarm), tint = fg.copy(alpha = 0.9f), modifier = Modifier.size(if (compact) 10.dp else 13.dp))
+            TileFace(span) { m ->
+                when (m.shape) {
+                    TileShape.SMALL -> {
                         Text(
-                            text = alarmTimeOf(nextAlarm.second),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 9.sp else 11.sp, fontWeight = FontWeight.Medium),
-                            color = fg.copy(alpha = 0.9f)
+                            text = timeText,
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(21f), fontWeight = FontWeight.Light),
+                            color = fg,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.align(Alignment.Center)
                         )
+                        if (nextAlarm != null) {
+                            Icon(Icons.Default.Alarm, contentDescription = null, tint = fg.copy(alpha = 0.85f),
+                                modifier = Modifier.align(Alignment.BottomEnd).padding(m.dp(6f)).size(m.dp(12f)))
+                        }
                     }
-                }
-                TileLabel(stringResource(HubType.CLOCK.titleRes), span, gridColumns, fg)
-            }
-        },
-        back = {
-            val alarm = nextAlarm
-            if (alarm != null) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(8.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Default.Alarm, contentDescription = null, tint = fg, modifier = Modifier.size(if (span == 1) 12.dp else 16.dp))
-                        if (span > 1) {
+                    TileShape.MEDIUM -> TileBody(m) {
+                        Column {
+                            BigNumber(timeText, m.text(46f), fg)
                             Text(
-                                text = stringResource(R.string.tile_next_alarm),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                                color = fg.copy(alpha = 0.7f)
+                                text = format("EEEE", now).lowercase(),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
+                                color = fg, maxLines = 1
+                            )
+                            Text(
+                                text = format("d MMMM", now).lowercase(),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
+                                color = fg.copy(alpha = 0.8f), maxLines = 1
                             )
                         }
+                        if (nextAlarm != null) {
+                            AlarmMark(alarmTimeOf(nextAlarm.second), m, fg, Modifier.align(Alignment.BottomEnd).padding(bottom = m.dp(2f)))
+                        }
+                    }
+                    TileShape.WIDE -> TileBody(m) {
+                        Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                BigNumber(timeText, m.text(64f), fg)
+                                Text(
+                                    text = format("EEEE, d MMMM", now).lowercase(),
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
+                                    color = fg.copy(alpha = 0.85f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            if (alarmLines.isNotEmpty()) {
+                                Column(modifier = Modifier.weight(0.8f).padding(start = m.dp(12f))) {
+                                    TileCaption(Icons.Default.Alarm, stringResource(R.string.tile_next_alarm), m, fg,
+                                        Modifier.padding(bottom = m.dp(6f)))
+                                    TileLineList(alarmLines, m, fg, maxItems = 2)
+                                }
+                            }
+                        }
+                    }
+                    TileShape.LARGE -> TileBody(m) {
+                        // With no alarm to list, the time and the day stand in the middle of the
+                        // tile rather than at the top of an empty one.
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = if (alarmLines.isEmpty()) Arrangement.Center else Arrangement.Top
+                        ) {
+                            BigNumber(timeText, m.text(104f), fg)
+                            Text(
+                                text = format("EEEE", now).lowercase(),
+                                style = MaterialTheme.typography.headlineSmall.copy(fontSize = m.text(26f), fontWeight = FontWeight.Light),
+                                color = fg, maxLines = 1
+                            )
+                            Text(
+                                text = format("d MMMM yyyy", now).lowercase(),
+                                style = MaterialTheme.typography.bodyLarge.copy(fontSize = m.text(18f)),
+                                color = fg.copy(alpha = 0.8f), maxLines = 1
+                            )
+                            if (alarmLines.isNotEmpty()) {
+                                Spacer(modifier = Modifier.weight(1f))
+                                TileCaption(Icons.Default.Alarm, stringResource(R.string.tile_alarms), m, fg,
+                                    Modifier.padding(bottom = m.dp(8f)))
+                                TileLineList(alarmLines, m, fg, maxItems = 3)
+                            }
+                        }
+                    }
+                }
+            }
+            TileLabel(stringResource(HubType.CLOCK.titleRes), span, gridColumns, fg)
+        },
+        back = {
+            val alarm = nextAlarm ?: return@W10MLiveTileFrame
+            TileFace(span) { m ->
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(m.pad),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    if (m.isSmall) {
+                        Icon(Icons.Default.Alarm, contentDescription = null, tint = fg, modifier = Modifier.size(m.dp(16f)))
+                    } else {
+                        TileCaption(Icons.Default.Alarm, stringResource(R.string.tile_next_alarm), m, fg)
                     }
                     Column {
                         Text(
                             text = alarmTimeOf(alarm.second),
                             style = MaterialTheme.typography.headlineSmall.copy(
-                                fontSize = when { span == 1 -> 13.sp; compact -> 20.sp; else -> 26.sp },
+                                fontSize = if (m.isSmall) m.text(19f) else m.text(40f),
                                 fontWeight = FontWeight.Light
                             ),
                             color = fg,
                             maxLines = 1
                         )
-                        if (span > 1) {
+                        if (!m.isSmall) {
                             val detail = buildString {
                                 append(relativeDay(alarm.second, now))
                                 val label = alarm.first.label
@@ -284,7 +314,7 @@ fun W10MClockTile(
                             }
                             Text(
                                 text = detail,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = if (compact) 9.sp else 11.sp),
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = m.text(14f)),
                                 color = fg.copy(alpha = 0.85f),
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
@@ -297,13 +327,49 @@ fun W10MClockTile(
     )
 }
 
+/** A time or a day of the month, in the light, tight type Windows Phone set its numbers in. */
+@Composable
+private fun BigNumber(text: String, size: androidx.compose.ui.unit.TextUnit, color: Color, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.displaySmall.copy(
+            fontSize = size,
+            lineHeight = size * 1.05f,
+            fontWeight = FontWeight.Light,
+            letterSpacing = (-1).sp
+        ),
+        color = color,
+        maxLines = 1,
+        softWrap = false,
+        modifier = modifier
+    )
+}
+
+/** The bell and the time of the next alarm, in the corner of the medium tile. */
+@Composable
+private fun AlarmMark(time: String, m: TileMetrics, ink: Color, modifier: Modifier) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(m.dp(4f)),
+        modifier = modifier
+    ) {
+        Icon(Icons.Default.Alarm, contentDescription = stringResource(R.string.tile_next_alarm), tint = ink.copy(alpha = 0.9f), modifier = Modifier.size(m.dp(14f)))
+        Text(
+            text = time,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(13f), fontWeight = FontWeight.Medium),
+            color = ink.copy(alpha = 0.9f)
+        )
+    }
+}
+
 // ════════════════════════════════════════════════════════════
 // CALENDAR
 // ════════════════════════════════════════════════════════════
 
 /**
- * "takvim" live tile: weekday and big day number like the Windows Phone calendar tile, with the
- * next appointment underneath. Flips to the following appointments while any exist.
+ * "takvim" live tile: the day and its big number, as the Windows Phone calendar tile had them,
+ * with what is coming. The medium tile names the next appointment and turns over to the ones
+ * after it; the wide tile shows two beside the date and the large one is the week's agenda.
  */
 @Composable
 fun W10MCalendarTile(
@@ -323,124 +389,156 @@ fun W10MCalendarTile(
 ) {
     val fg = tileForegroundColor()
     val now = rememberMinuteTicker()
-    val compact = isCompactTile(span, gridColumns)
-
-    // An event knows exactly when it starts now; it used to carry a date and a time separately.
-    fun eventMillis(e: CalendarEvent): Long = e.startMillis
+    val shape = TileShape.of(span)
 
     // Upcoming first (soonest on top); today's already-passed events trail behind them.
     val upcoming = remember(events, now) {
-        events.map { it to eventMillis(it) }
+        events.map { it to it.startMillis }
             .filter { it.second >= now - 60L * 60 * 1000 || isSameDay(it.second, now) }
             .sortedWith(compareBy({ it.second < now - 60L * 60 * 1000 }, { it.second }))
     }
     val next = upcoming.firstOrNull()
+    val allDay = stringResource(R.string.tile_all_day)
+    val lines = upcoming.map { (event, millis) ->
+        TileLine(
+            title = event.title,
+            body = event.location.takeIf { it.isNotBlank() },
+            meta = relativeDay(millis, now) + " " + if (event.isAllDay) allDay else event.formattedTime
+        )
+    }
+    // What the front already shows, so the back starts after it.
+    val onFront = when (shape) { TileShape.SMALL -> 0; TileShape.MEDIUM -> 1; TileShape.WIDE -> 2; TileShape.LARGE -> 5 }
 
     W10MLiveTileFrame(
         liveKey = "hub:${HubType.CALENDAR.name}",
         span = span, gridColumns = gridColumns, spacing = spacing,
         isEditing = isEditing, isDragging = isDragging, cornerStyle = cornerStyle,
-        flipEnabled = upcoming.size > 1,
+        flipEnabled = shape != TileShape.LARGE && lines.size > onFront && (shape != TileShape.SMALL || next != null),
         onClick = onClick, onLongClick = onLongClick, onRemoveClick = onRemoveClick, onResizeClick = onResizeClick,
         modifier = modifier,
         front = {
-            if (span == 1) {
-                Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = format("d", now),
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Light),
-                        color = fg
-                    )
-                }
-                if (next != null) {
-                    Box(modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(5.dp).clip(CircleShape).background(fg))
-                }
-            } else {
-                Row(modifier = Modifier.fillMaxSize().padding(start = 8.dp, top = 6.dp, end = 8.dp, bottom = 18.dp)) {
-                    // Date block (left)
-                    Column {
-                        Text(
-                            text = format("EEEE", now).lowercase(),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 9.sp else 11.sp),
-                            color = fg.copy(alpha = 0.8f),
-                            maxLines = 1
-                        )
-                        Text(
-                            text = format("d", now),
-                            style = MaterialTheme.typography.displaySmall.copy(
-                                fontSize = when { span >= 4 -> 40.sp; compact -> 26.sp; else -> 34.sp },
-                                fontWeight = FontWeight.Light,
-                                letterSpacing = (-1).sp
-                            ),
-                            color = fg,
-                            maxLines = 1
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(if (span >= 4) 14.dp else 8.dp))
-                    // Next appointment (right / below)
-                    Column(
-                        modifier = Modifier.weight(1f).padding(top = if (span >= 4) 4.dp else 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(1.dp)
-                    ) {
+            TileFace(span) { m ->
+                when (m.shape) {
+                    TileShape.SMALL -> {
+                        Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = format("EEE", now).lowercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(11f)),
+                                color = fg.copy(alpha = 0.85f), maxLines = 1
+                            )
+                            BigNumber(format("d", now), m.text(32f), fg)
+                        }
                         if (next != null) {
-                            Text(
-                                text = next.first.title,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = if (compact) 10.sp else 12.sp, fontWeight = FontWeight.SemiBold),
-                                color = fg,
-                                maxLines = if (span >= 4) 2 else 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = relativeDay(next.second, now) + " " + next.first.formattedTime,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 9.sp else 10.sp),
-                                color = fg.copy(alpha = 0.8f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Box(modifier = Modifier.align(Alignment.BottomEnd).padding(m.dp(7f)).size(m.dp(6f)).clip(CircleShape).background(fg))
+                        }
+                    }
+                    TileShape.MEDIUM -> TileBody(m) {
+                        if (next != null) {
+                            Column(modifier = Modifier.align(Alignment.TopStart)) {
+                                Text(
+                                    text = next.first.title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(16f), fontWeight = FontWeight.SemiBold, lineHeight = m.text(19f)),
+                                    color = fg, maxLines = 2, overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = lines.first().meta.orEmpty(),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = m.text(13f)),
+                                    color = fg.copy(alpha = 0.85f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                                )
+                                lines.first().body?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall.copy(fontSize = m.text(13f)),
+                                        color = fg.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
                         } else {
                             Text(
-                                text = stringResource(R.string.tile_no_events),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 9.sp else 10.sp),
-                                color = fg.copy(alpha = 0.6f),
-                                maxLines = 2
+                                text = format("EEEE", now).lowercase(),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
+                                color = fg, maxLines = 1, modifier = Modifier.align(Alignment.TopStart)
                             )
+                        }
+                        // The day's number in the corner the name leaves free, as on Windows Phone.
+                        BigNumber(format("d", now), m.text(if (next != null) 34f else 56f), fg, Modifier.align(Alignment.BottomEnd))
+                    }
+                    TileShape.WIDE -> TileBody(m) {
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            Column(modifier = Modifier.padding(end = m.dp(16f))) {
+                                Text(
+                                    text = format("EEEE", now).lowercase(),
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
+                                    color = fg, maxLines = 1
+                                )
+                                BigNumber(format("d", now), m.text(72f), fg)
+                                Text(
+                                    text = format("MMMM", now).lowercase(),
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(14f)),
+                                    color = fg.copy(alpha = 0.8f), maxLines = 1
+                                )
+                            }
+                            if (lines.isNotEmpty()) {
+                                TileLineList(lines, m, fg, maxItems = 2, bodyLines = 1, modifier = Modifier.weight(1f).padding(top = m.dp(4f)))
+                            } else {
+                                NoEvents(m, fg, Modifier.weight(1f).padding(top = m.dp(4f)))
+                            }
+                        }
+                    }
+                    TileShape.LARGE -> TileBody(m) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                BigNumber(format("d", now), m.text(80f), fg)
+                                Column(modifier = Modifier.padding(start = m.dp(12f), bottom = m.dp(12f))) {
+                                    Text(
+                                        text = format("EEEE", now).lowercase(),
+                                        style = MaterialTheme.typography.headlineSmall.copy(fontSize = m.text(24f), fontWeight = FontWeight.Light),
+                                        color = fg, maxLines = 1
+                                    )
+                                    Text(
+                                        text = format("MMMM yyyy", now).lowercase(),
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = m.text(16f)),
+                                        color = fg.copy(alpha = 0.8f), maxLines = 1
+                                    )
+                                }
+                            }
+                            if (lines.isNotEmpty()) {
+                                TileLineList(lines, m, fg, maxItems = 5, bodyLines = 1, modifier = Modifier.padding(top = m.dp(14f)))
+                            } else {
+                                NoEvents(m, fg, Modifier.padding(top = m.dp(14f)))
+                            }
                         }
                     }
                 }
-                TileLabel(stringResource(HubType.CALENDAR.titleRes), span, gridColumns, fg)
             }
+            TileLabel(stringResource(HubType.CALENDAR.titleRes), span, gridColumns, fg)
         },
         back = {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp)
-            ) {
-                if (span > 1) {
-                    Text(
-                        text = stringResource(R.string.tile_upcoming),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                        color = fg.copy(alpha = 0.7f)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                }
-                upcoming.drop(1).take(if (span >= 4) 3 else if (compact) 2 else 3).forEach { (event, millis) ->
-                    Column {
-                        Text(
-                            text = event.title,
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = if (compact) 9.sp else 11.sp, fontWeight = FontWeight.SemiBold),
-                            color = fg,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = relativeDay(millis, now) + " " + event.formattedTime,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 8.sp else 9.sp),
-                            color = fg.copy(alpha = 0.8f),
-                            maxLines = 1
-                        )
+            TileFace(span) { m ->
+                if (m.isSmall) {
+                    val first = lines.firstOrNull() ?: return@TileFace
+                    Column(modifier = Modifier.fillMaxSize().padding(m.dp(7f)), verticalArrangement = Arrangement.SpaceBetween) {
+                        Text(first.title, style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(11f), fontWeight = FontWeight.SemiBold, lineHeight = m.text(13f)),
+                            color = fg, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        Text(upcoming.first().first.formattedTime, style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(11f)),
+                            color = fg.copy(alpha = 0.85f), maxLines = 1)
                     }
+                    return@TileFace
+                }
+                Column(modifier = Modifier.fillMaxSize().padding(m.pad)) {
+                    TileCaption(null, stringResource(R.string.tile_upcoming), m, fg, Modifier.padding(bottom = m.dp(8f)))
+                    TileLineList(lines.drop(onFront), m, fg, maxItems = if (m.shape == TileShape.WIDE) 2 else 3)
                 }
             }
         }
+    )
+}
+
+/** "Nothing planned", where an agenda would be. */
+@Composable
+private fun NoEvents(m: TileMetrics, ink: Color, modifier: Modifier) {
+    Text(
+        text = stringResource(R.string.tile_no_events),
+        style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
+        color = ink.copy(alpha = 0.7f),
+        maxLines = 2,
+        modifier = modifier
     )
 }

@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.People
@@ -66,27 +68,29 @@ fun W10MPeopleTile(
     modifier: Modifier = Modifier
 ) {
     val title = stringResource(HubType.PEOPLE.titleRes)
-    val columns = mosaicColumns(span)
-    val rows = if (span == 4) columns / 2 else columns
-    val cellCount = columns * rows
-    val hasFaces = contacts.isNotEmpty()
+    val mosaic = remember(span) { mosaicOf(TileShape.of(span)) }
+    val cellCount = mosaic.cells.size
+    // Faces before initials: a mosaic of letters says little, and the alphabet put four people
+    // starting with the same letter side by side. The order among each is the one given.
+    val faces = remember(contacts) { contacts.sortedByDescending { it.photoUri != null } }
+    val hasFaces = faces.isNotEmpty()
 
     // Which contact each square is showing. A square moves on to the next unused contact in turn,
     // so the same face never sits in two squares at once.
-    var assignments by remember(contacts, cellCount) {
-        mutableStateOf(List(cellCount) { index -> if (contacts.isEmpty()) 0 else index % contacts.size })
+    var assignments by remember(faces, cellCount) {
+        mutableStateOf(List(cellCount) { index -> if (faces.isEmpty()) 0 else index % faces.size })
     }
     // Behind an opaque hub the faces stop changing: nobody can see them change.
     val awake = LocalScreenAwake.current
-    LaunchedEffect(contacts, cellCount, isEditing, awake) {
-        if (isEditing || !awake || contacts.size <= cellCount) return@LaunchedEffect
+    LaunchedEffect(faces, cellCount, isEditing, awake) {
+        if (isEditing || !awake || faces.size <= cellCount) return@LaunchedEffect
         var cell = 0
         while (true) {
             delay(FACE_SWAP_MILLIS)
             val taken = assignments.toMutableList()
-            val candidate = generateSequence(taken[cell]) { (it + 1) % contacts.size }
+            val candidate = generateSequence(taken[cell]) { (it + 1) % faces.size }
                 .drop(1)
-                .take(contacts.size)
+                .take(faces.size)
                 .firstOrNull { it !in taken }
             if (candidate != null) {
                 taken[cell] = candidate
@@ -122,41 +126,86 @@ fun W10MPeopleTile(
                 return@W10MTileSurface
             }
 
-            Column(modifier = Modifier.fillMaxSize()) {
-                repeat(rows) { row ->
-                    Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                        repeat(columns) { column ->
-                            val cell = row * columns + column
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                                PersonSquare(
-                                    contact = contacts[assignments[cell] % contacts.size],
-                                    // Squares alternate shade so the mosaic still reads as a grid
-                                    // when the people in it have no photo.
-                                    shade = if ((row + column) % 2 == 0) 0.10f else 0.24f
-                                )
-                            }
+            TileFace(span) { m ->
+                val cellWidth = m.width / mosaic.columns
+                val cellHeight = m.height / mosaic.rows
+                mosaic.cells.forEachIndexed { index, cell ->
+                    val person = faces[assignments[index] % faces.size]
+                    Box(
+                        modifier = Modifier
+                            .offset(x = cellWidth * cell.column, y = cellHeight * cell.row)
+                            .size(cellWidth * cell.width, cellHeight * cell.height)
+                    ) {
+                        PersonSquare(
+                            contact = person,
+                            // Squares alternate shade so the mosaic still reads as a grid when the
+                            // people in it have no photo.
+                            shade = if ((cell.row + cell.column) % 2 == 0) 0.10f else 0.24f,
+                            initialSize = m.dp(22f) * cell.width
+                        )
+                        if (cell.width > 1) {
+                            // The large tile's big square is somebody in particular: it says who.
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(m.dp(40f))
+                                    .align(Alignment.BottomCenter)
+                                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))))
+                            )
+                            Text(
+                                text = person.name,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f), fontWeight = FontWeight.SemiBold),
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.align(Alignment.BottomStart).padding(start = m.dp(8f), end = m.dp(8f), bottom = m.dp(6f))
+                            )
                         }
                     }
                 }
+                if (!m.isSmall) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(m.dp(34f))
+                            .align(Alignment.BottomCenter)
+                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))))
+                    )
+                }
             }
-
-            if (span > 1) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(30.dp)
-                        .align(Alignment.BottomCenter)
-                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))))
-                )
-                TileLabel(title, span, gridColumns, Color.White)
-            }
+            TileLabel(title, span, gridColumns, Color.White)
         }
     )
 }
 
+/** One square, or block of squares, of the mosaic, in grid cells. */
+private data class MosaicCell(val column: Int, val row: Int, val width: Int = 1, val height: Int = 1)
+
+private class Mosaic(val columns: Int, val rows: Int, val cells: List<MosaicCell>)
+
+/**
+ * How the faces are laid out: one on the small tile, three by three on the medium one as on
+ * Windows Phone, three rows of six on the wide one, and on the large one a big face at the top
+ * left among twelve small ones.
+ */
+private fun mosaicOf(shape: TileShape): Mosaic = when (shape) {
+    TileShape.SMALL -> Mosaic(1, 1, listOf(MosaicCell(0, 0)))
+    TileShape.MEDIUM -> grid(3, 3)
+    TileShape.WIDE -> grid(6, 3)
+    TileShape.LARGE -> Mosaic(
+        4, 4,
+        listOf(MosaicCell(0, 0, 2, 2)) + (0 until 4).flatMap { row ->
+            (0 until 4).mapNotNull { column -> MosaicCell(column, row).takeUnless { row < 2 && column < 2 } }
+        }
+    )
+}
+
+private fun grid(columns: Int, rows: Int) =
+    Mosaic(columns, rows, (0 until rows).flatMap { row -> (0 until columns).map { column -> MosaicCell(column, row) } })
+
 /** One square of the mosaic, fading from the face it had to the face it is given. */
 @Composable
-private fun PersonSquare(contact: ContactModel, shade: Float) {
+private fun PersonSquare(contact: ContactModel, shade: Float, initialSize: Dp) {
     Crossfade(
         targetState = contact,
         animationSpec = tween(durationMillis = 600),
@@ -172,14 +221,14 @@ private fun PersonSquare(contact: ContactModel, shade: Float) {
                 modifier = Modifier.fillMaxSize()
             )
         } else {
-            InitialSquare(person.name, shade)
+            InitialSquare(person.name, shade, initialSize)
         }
     }
 }
 
 /** Somebody with no photo: their initial on a slightly darkened patch of the tile colour. */
 @Composable
-private fun InitialSquare(name: String, shade: Float) {
+private fun InitialSquare(name: String, shade: Float, size: Dp) {
     val fg = tileForegroundColor()
     val initial = name.trim().firstOrNull()?.uppercaseChar()?.toString().orEmpty()
     Box(
@@ -193,26 +242,18 @@ private fun InitialSquare(name: String, shade: Float) {
                 imageVector = Icons.Default.Person,
                 contentDescription = null,
                 tint = fg.copy(alpha = 0.8f),
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(size)
             )
         } else {
             Text(
                 text = initial,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Light),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = (size.value * 0.9f).sp, fontWeight = FontWeight.Light),
                 color = fg,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
     }
-}
-
-/** 1×1 shows one face, 2×2 shows four, the wide tile eight, the big square nine. */
-private fun mosaicColumns(span: Int): Int = when {
-    span <= 1 -> 1
-    span == 2 -> 2
-    span == 4 -> 4
-    else -> 3
 }
 
 private const val FACE_SWAP_MILLIS = 3_500L

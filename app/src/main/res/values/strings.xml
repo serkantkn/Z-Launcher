@@ -769,6 +769,9 @@
     <string name="tile_next_alarm">next alarm</string>
     <string name="tile_no_events">no upcoming events</string>
     <string name="tile_upcoming">upcoming</string>
+    <string name="tile_alarms">alarms</string>
+    <string name="tile_all_day">all day</string>
+    <string name="tile_storage_free">%1$s free of %2$s</string>
     <string name="hub_calculator">calculator</string>
     <string name="calc_tab_standard">standard</string>
     <string name="calc_tab_scientific">scientific</string>

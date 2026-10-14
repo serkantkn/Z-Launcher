@@ -111,6 +111,11 @@ fun W10MHubTile(
     badgeCount: Int = 0,
     liveTitle: String? = null,
     liveSubtitle: String? = null,
+    /**
+     * Everything new, newest first, for the wide and large tiles, which have room to list it; the
+     * medium tile turns over to the first. Without it, [liveTitle] and [liveSubtitle] are the one.
+     */
+    liveItems: List<TileLine> = emptyList(),
     cornerStyle: TileCornerStyle = TileCornerStyle.ROUNDED,
     gridColumns: Int = 4,
     photoUris: List<Uri> = emptyList(),
@@ -121,10 +126,20 @@ fun W10MHubTile(
     val title = look.name?.takeIf { it.isNotBlank() } ?: stringResource(hubType.titleRes)
     val customFace = customTileFace()
     val isPicturesLive = hubType == HubType.PICTURES && photoUris.isNotEmpty() && look.picture == null
-    // A small tile's back holds nothing but the count, so without one it has no back to turn
-    // to: it used to flip over to a blank face every twenty seconds.
-    val hasBack = !isPicturesLive && if (span == 1) badgeCount > 0
-        else (badgeCount > 0 || !liveSubtitle.isNullOrBlank() || !liveTitle.isNullOrBlank())
+    val lines = liveItems.ifEmpty {
+        val heading = liveTitle ?: liveSubtitle
+        if (heading.isNullOrBlank()) emptyList()
+        else listOf(TileLine(title = heading, body = liveSubtitle.takeIf { liveTitle != null }))
+    }
+    val shape = TileShape.of(span)
+    // The wide and large tiles say what is new on their front, so they have nothing to turn to.
+    // A small tile's back holds nothing but the count, so without one it has no back either: it
+    // used to flip over to a blank face every twenty seconds.
+    val hasBack = !isPicturesLive && when (shape) {
+        TileShape.SMALL -> badgeCount > 0
+        TileShape.MEDIUM -> badgeCount > 0 || lines.isNotEmpty()
+        else -> false
+    }
 
     W10MTileSurface(
         liveKey = "hub:${hubType.name}",
@@ -147,8 +162,9 @@ fun W10MHubTile(
                 TileTextBack(
                     icon = icon,
                     title = title,
-                    headline = liveTitle,
-                    body = liveSubtitle,
+                    headline = lines.firstOrNull()?.title,
+                    // A missed call has no words of its own: the count's sentence stands in.
+                    body = lines.firstOrNull()?.body ?: liveSubtitle.takeIf { liveTitle != null },
                     badgeCount = badgeCount,
                     span = span,
                     gridColumns = gridColumns
@@ -156,10 +172,18 @@ fun W10MHubTile(
             }
         } else null,
         front = {
-            if (isPicturesLive) {
-                PhotoCycleFace(photoUris = photoUris, title = title, span = span, gridColumns = gridColumns, isEditing = isEditing)
-            } else {
-                HubGlyphFace(
+            when {
+                isPicturesLive -> PhotoCycleFace(photoUris = photoUris, title = title, span = span, gridColumns = gridColumns, isEditing = isEditing)
+                shape.ordinal >= TileShape.WIDE.ordinal && lines.isNotEmpty() && !tileHasPicture() -> IconicListFace(
+                    icon = icon,
+                    face = customFace,
+                    title = title,
+                    count = if (look.notifications) badgeCount else 0,
+                    lines = lines,
+                    span = span,
+                    gridColumns = gridColumns
+                )
+                else -> HubGlyphFace(
                     icon = icon,
                     title = title,
                     badgeCount = badgeCount,
@@ -170,6 +194,69 @@ fun W10MHubTile(
             }
         }
     )
+}
+
+/**
+ * The front of a wide or large tile with something to say, after Windows Phone's iconic tile: the
+ * glyph with the count large beside it, and what is new written out. On the wide tile the words
+ * stand to the right of the glyph; the large tile puts the glyph on top and lists underneath.
+ */
+@Composable
+internal fun BoxScope.IconicListFace(
+    icon: ImageVector?,
+    face: TileIconFace?,
+    title: String,
+    count: Int,
+    lines: List<TileLine>,
+    span: Int,
+    gridColumns: Int
+) {
+    val fg = tileForegroundColor()
+    TileFace(span) { m ->
+        TileBody(m) {
+            if (m.shape == TileShape.WIDE) {
+                Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                    IconicCount(
+                        icon = icon,
+                        face = face,
+                        count = count,
+                        metrics = m,
+                        ink = fg,
+                        iconSize = m.dp(44f) * tileIconScale(),
+                        modifier = Modifier.padding(end = m.dp(14f))
+                    )
+                    TileLineList(
+                        lines = lines,
+                        metrics = m,
+                        ink = fg,
+                        maxItems = 3,
+                        bodyLines = when (lines.size) { 1 -> 4; 2 -> 2; else -> 1 },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    IconicCount(
+                        icon = icon,
+                        face = face,
+                        count = count,
+                        metrics = m,
+                        ink = fg,
+                        iconSize = m.dp(52f) * tileIconScale()
+                    )
+                    TileLineList(
+                        lines = lines,
+                        metrics = m,
+                        ink = fg,
+                        maxItems = 5,
+                        bodyLines = when (lines.size) { 1 -> 10; 2 -> 5; 3 -> 3; 4 -> 2; else -> 1 },
+                        modifier = Modifier.padding(top = m.dp(16f))
+                    )
+                }
+            }
+        }
+    }
+    TileLabel(title, span, gridColumns, fg)
 }
 
 // ════════════════════════════════════════════════════════════
@@ -190,24 +277,26 @@ internal fun BoxScope.HubGlyphFace(
     face: TileIconFace? = null
 ) {
     val fg = tileForegroundColor()
-    val compact = isCompactTile(span, gridColumns)
-    val iconSize = when {
-        span == 1 -> 26.dp
-        span == 2 -> if (compact) 34.dp else 46.dp
-        span == 4 -> if (compact) 44.dp else 54.dp
-        else -> 62.dp
-    } * tileIconScale()
-
     if (!tileHasPicture()) {
-        val iconModifier = Modifier
-            .align(Alignment.Center)
-            // Windows Phone sat the glyph a touch above the middle to leave the name room.
-            .offset(y = if (span > 1) (-5).dp else 0.dp)
-            .size(iconSize)
-        if (face != null) {
-            TileIconImage(face = face, size = iconSize, ink = fg, contentDescription = title, modifier = iconModifier)
-        } else {
-            Icon(imageVector = icon, contentDescription = title, tint = fg, modifier = iconModifier)
+        TileFace(span) { m ->
+            // The glyph takes the same share of every tile of a shape, whatever the grid: a fixed
+            // size that suited the four-column grid sat lost in the middle of the big tile.
+            val iconSize = when (m.shape) {
+                TileShape.SMALL -> m.width * 0.42f
+                TileShape.MEDIUM -> m.width * 0.30f
+                TileShape.WIDE -> m.height * 0.34f
+                TileShape.LARGE -> m.width * 0.24f
+            } * tileIconScale()
+            val iconModifier = Modifier
+                .align(Alignment.Center)
+                // Windows Phone sat the glyph a touch above the middle to leave the name room.
+                .offset(y = if (m.isSmall) 0.dp else -m.dp(6f))
+                .size(iconSize)
+            if (face != null) {
+                TileIconImage(face = face, size = iconSize, ink = fg, contentDescription = title, modifier = iconModifier)
+            } else {
+                Icon(imageVector = icon, contentDescription = title, tint = fg, modifier = iconModifier)
+            }
         }
     }
 
@@ -230,71 +319,45 @@ internal fun BoxScope.TileTextBack(
     gridColumns: Int
 ) {
     val fg = tileForegroundColor()
-    val compact = isCompactTile(span, gridColumns)
-
-    if (span == 1) {
-        // A small tile has no room for words: the count alone is the message.
-        Text(
-            text = if (badgeCount > 0) badgeCount.toString() else "",
-            style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp, fontWeight = FontWeight.Light),
-            color = fg,
-            modifier = Modifier.align(Alignment.Center)
-        )
-        return
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(start = 8.dp, end = 8.dp, top = 7.dp, bottom = 6.dp),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = fg.copy(alpha = 0.75f),
-                modifier = Modifier.size(if (compact) 12.dp else 15.dp)
-            )
+    TileFace(span) { m ->
+        if (m.isSmall) {
+            // A small tile has no room for words: the count alone is the message.
             Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = if (compact) 9.sp else 11.sp,
-                    fontWeight = FontWeight.Normal
-                ),
-                color = fg.copy(alpha = 0.75f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                text = if (badgeCount > 0) badgeCount.toString() else "",
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(30f), fontWeight = FontWeight.Light),
+                color = fg,
+                modifier = Modifier.align(Alignment.Center)
             )
+            return@TileFace
         }
-
-        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            val heading = headline ?: badgeCount.takeIf { it > 0 }?.toString()
-            if (!heading.isNullOrBlank()) {
-                Text(
-                    text = heading,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = when {
-                            headline == null && span >= 4 -> 34.sp
-                            headline == null -> 26.sp
-                            compact -> 11.sp
-                            else -> 13.sp
-                        },
-                        fontWeight = if (headline == null) FontWeight.Light else FontWeight.SemiBold
-                    ),
-                    color = fg,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            if (!body.isNullOrBlank()) {
-                Text(
-                    text = body,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = if (compact) 9.sp else 11.sp),
-                    color = fg.copy(alpha = 0.9f),
-                    maxLines = if (span >= 4) 3 else 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+        Column(
+            modifier = Modifier.fillMaxSize().padding(m.pad),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            TileCaption(icon, title, m, fg)
+            Column(verticalArrangement = Arrangement.spacedBy(m.dp(2f))) {
+                val heading = headline ?: badgeCount.takeIf { it > 0 }?.toString()
+                if (!heading.isNullOrBlank()) {
+                    Text(
+                        text = heading,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = if (headline == null) m.text(44f) else m.text(16f),
+                            fontWeight = if (headline == null) FontWeight.Light else FontWeight.SemiBold
+                        ),
+                        color = fg,
+                        maxLines = if (body.isNullOrBlank()) 3 else 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (!body.isNullOrBlank()) {
+                    Text(
+                        text = body,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = m.text(13f), lineHeight = m.text(16f)),
+                        color = fg.copy(alpha = 0.9f),
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -448,42 +511,43 @@ internal fun isCompactTile(span: Int, gridColumns: Int): Boolean =
 internal fun BoxScope.TileLabel(text: String, span: Int, gridColumns: Int, color: Color) {
     if (span <= 1) return
     val shown = tileLabelText(text) ?: return
-    Text(
-        text = shown,
-        style = MaterialTheme.typography.labelSmall.copy(
-            fontSize = if (isCompactTile(span, gridColumns)) 9.sp else 12.sp,
-            fontWeight = FontWeight.Normal
-        ),
-        color = color.copy(alpha = 0.9f),
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .align(Alignment.BottomStart)
-            .padding(start = 6.dp, bottom = 4.dp, end = 24.dp)
-    )
+    TileFace(span) { m ->
+        Text(
+            text = shown,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(13f), fontWeight = FontWeight.Normal),
+            color = color.copy(alpha = 0.9f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = m.dp(8f), bottom = m.dp(6f), end = m.dp(28f))
+        )
+    }
 }
 
 /** The count, in the top-right corner where a Windows Phone flip tile kept it. */
 @Composable
 internal fun BoxScope.TileBadge(count: Int, span: Int, gridColumns: Int, color: Color) {
     if (count <= 0 || !LocalTileLook.current.notifications) return
-    Text(
-        text = if (count > 99) "99+" else count.toString(),
-        style = MaterialTheme.typography.titleMedium.copy(
-            fontWeight = FontWeight.Light,
-            fontSize = when {
-                span == 1 -> 12.sp
-                isCompactTile(span, gridColumns) -> 16.sp
-                span >= 4 -> 26.sp
-                else -> 22.sp
-            }
-        ),
-        color = color,
-        maxLines = 1,
-        modifier = Modifier
-            .align(Alignment.TopEnd)
-            .padding(end = 7.dp, top = 3.dp)
-    )
+    TileFace(span) { m ->
+        Text(
+            text = if (count > 99) "99+" else count.toString(),
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Light,
+                fontSize = when (m.shape) {
+                    TileShape.SMALL -> m.text(15f)
+                    TileShape.MEDIUM -> m.text(26f)
+                    TileShape.WIDE -> m.text(30f)
+                    TileShape.LARGE -> m.text(40f)
+                }
+            ),
+            color = color,
+            maxLines = 1,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = m.dp(9f), top = m.dp(4f))
+        )
+    }
 }
 
 /**

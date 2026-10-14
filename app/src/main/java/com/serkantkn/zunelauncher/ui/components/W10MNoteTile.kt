@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -66,14 +67,15 @@ fun W10MNoteTile(
     val backText: String? = remember(note) {
         when {
             note == null || note.isLocked -> null
-            note.isChecklist -> note.items.take(4).joinToString("\n") { (if (it.isChecked) "☑ " else "☐ ") + it.text }.ifBlank { null }
-            note.content.isNotBlank() -> note.content.trim().take(160)
+            note.isChecklist -> note.items.take(12).joinToString("\n") { (if (it.isChecked) "☑ " else "☐ ") + it.text }.ifBlank { null }
+            note.content.isNotBlank() -> note.content.trim().take(600)
             else -> null
         }
     }
 
-    val iconSize = if (span == 1) 22.dp else if (gridColumns >= 8) 24.dp else 28.dp
-    val labelSize = if (span == 1) 11.sp else 14.sp
+    val shape = TileShape.of(span)
+    // The wide and large tiles show the note itself on their front; only the medium one turns over.
+    val showsBody = backText != null && (shape == TileShape.WIDE || shape == TileShape.LARGE)
     val label = note?.displayTitle?.lowercase() ?: stringResource(R.string.notes_quick_note)
     val icon = when {
         note == null -> Icons.Default.Add
@@ -97,25 +99,14 @@ fun W10MNoteTile(
         onResizeClick = onResizeClick,
         modifier = modifier,
         tileColor = tileColor,
-        back = if (backText != null) {
+        back = if (backText != null && shape == TileShape.MEDIUM) {
             {
                 val fg = tileForegroundColor(tileColor)
-                Column(modifier = Modifier.fillMaxSize().padding(10.dp)) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                        color = fg.copy(alpha = 0.75f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = backText,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 15.sp),
-                        color = fg,
-                        maxLines = if (span >= 4) 3 else 4,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                TileFace(span) { m ->
+                    Column(modifier = Modifier.fillMaxSize().padding(m.pad)) {
+                        TileCaption(icon, label, m, fg)
+                        NoteText(backText, m, fg, Modifier.padding(top = m.dp(4f)).weight(1f))
+                    }
                 }
             }
         } else null,
@@ -124,30 +115,43 @@ fun W10MNoteTile(
             if (isEditing && !LocalTileIsPreview.current) {
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
             }
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = fg,
-                modifier = Modifier
-                    .align(if (span == 1) Alignment.Center else Alignment.TopStart)
-                    .padding(if (span == 1) 0.dp else 10.dp)
-                    .size(iconSize)
-            )
-            if (span > 1 || note == null) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = labelSize,
-                        fontWeight = FontWeight.Normal
-                    ),
-                    color = fg,
-                    maxLines = if (span >= 4) 2 else 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 8.dp, end = 8.dp, bottom = 6.dp)
-                )
+            if (showsBody) {
+                TileFace(span) { m ->
+                    Column(modifier = Modifier.fillMaxSize().padding(m.pad)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = icon, contentDescription = null, tint = fg, modifier = Modifier.size(m.dp(22f)))
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(if (m.isLarge) 22f else 18f), fontWeight = FontWeight.SemiBold),
+                                color = fg,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(start = m.dp(8f))
+                            )
+                        }
+                        NoteText(backText!!, m, fg, Modifier.padding(top = m.dp(8f)).weight(1f))
+                    }
+                }
+                return@W10MTileSurface
+            }
+            NamedFace(span, label.takeIf { span > 1 }, fg) { size, glyphModifier ->
+                Icon(imageVector = icon, contentDescription = null, tint = fg, modifier = glyphModifier.size(size))
             }
         }
+    )
+}
+
+/** A note's words, or its checklist one row a line, filling what is left of the tile. */
+@Composable
+private fun NoteText(text: String, m: TileMetrics, ink: Color, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall.copy(
+            fontSize = m.text(if (m.isLarge) 17f else 14f),
+            lineHeight = m.text(if (m.isLarge) 23f else 18f)
+        ),
+        color = ink,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
     )
 }

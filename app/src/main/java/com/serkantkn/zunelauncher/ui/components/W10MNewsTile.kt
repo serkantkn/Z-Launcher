@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -74,7 +75,6 @@ fun W10MNewsTile(
             index = (index + 1) % shown.size
         }
     }
-    val compact = isCompactTile(span, gridColumns)
 
     W10MTileSurface(
         liveKey = "hub:${HubType.NEWS.name}",
@@ -102,64 +102,121 @@ fun W10MNewsTile(
                 )
                 return@W10MTileSurface
             }
-            Crossfade(
-                targetState = shown[index.coerceIn(0, shown.lastIndex)],
-                animationSpec = tween(durationMillis = 700),
-                label = "news_tile_story",
-                modifier = Modifier.fillMaxSize()
-            ) { story ->
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (story.imageUrl != null) {
-                        AsyncImage(
-                            model = story.imageUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        Box(
+            val lead = shown[index.coerceIn(0, shown.lastIndex)]
+            TileFace(span) { m ->
+                if (m.isLarge) {
+                    // The large tile is a front page: the story's picture over the top half, its
+                    // headline under it, and the next two stories beneath.
+                    val others = (1..2).map { shown[(index + it) % shown.size] }.filter { it != lead }.distinct()
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Crossfade(
+                            targetState = lead,
+                            animationSpec = tween(durationMillis = 700),
+                            label = "news_tile_lead",
+                            modifier = Modifier.fillMaxWidth().weight(0.55f)
+                        ) { story -> StoryPicture(story) }
+                        Column(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        0.3f to Color.Transparent,
-                                        0.6f to Color.Black.copy(alpha = 0.35f),
-                                        1f to Color.Black.copy(alpha = 0.6f)
-                                    )
+                                .fillMaxWidth()
+                                .weight(0.45f)
+                                .background(Color.Black.copy(alpha = 0.78f))
+                                .padding(start = m.pad, end = m.pad, top = m.dp(10f), bottom = m.dp(6f))
+                        ) {
+                            Text(
+                                text = lead.title,
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(20f), lineHeight = m.text(24f), fontWeight = FontWeight.SemiBold),
+                                color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = lead.source,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(13f)),
+                                color = Color.White.copy(alpha = 0.7f), maxLines = 1,
+                                modifier = Modifier.padding(top = m.dp(2f), bottom = m.dp(8f))
+                            )
+                            others.forEach { story ->
+                                Text(
+                                    text = story.title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f), lineHeight = m.text(18f)),
+                                    color = Color.White.copy(alpha = 0.9f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(bottom = m.dp(5f))
                                 )
-                        )
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(title, style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(13f)),
+                                color = Color.White.copy(alpha = 0.85f), maxLines = 1)
+                        }
                     }
-                    // The headline sits on a band of its own: a news picture often carries big
-                    // lettering of its own, and a fade alone lets the two run into each other.
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .then(if (story.imageUrl != null) Modifier.background(Color.Black.copy(alpha = 0.78f)) else Modifier)
-                            .padding(start = 8.dp, end = 8.dp, top = 5.dp, bottom = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = story.title,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = if (compact) 11.sp else 14.sp,
-                                lineHeight = if (compact) 13.sp else 17.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = Color.White,
-                            maxLines = if (span >= 4 && !compact) 2 else 3,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 9.sp else 11.sp),
-                            color = Color.White.copy(alpha = 0.85f),
-                            maxLines = 1
-                        )
+                    return@TileFace
+                }
+                Crossfade(
+                    targetState = lead,
+                    animationSpec = tween(durationMillis = 700),
+                    label = "news_tile_story",
+                    modifier = Modifier.fillMaxSize()
+                ) { story ->
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        StoryPicture(story)
+                        if (story.imageUrl != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            0.3f to Color.Transparent,
+                                            0.6f to Color.Black.copy(alpha = 0.35f),
+                                            1f to Color.Black.copy(alpha = 0.6f)
+                                        )
+                                    )
+                            )
+                        }
+                        if (m.isSmall) return@Crossfade
+                        // The headline sits on a band of its own: a news picture often carries big
+                        // lettering of its own, and a fade alone lets the two run into each other.
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .fillMaxWidth()
+                                .then(if (story.imageUrl != null) Modifier.background(Color.Black.copy(alpha = 0.78f)) else Modifier)
+                                .padding(start = m.pad, end = m.pad, top = m.dp(6f), bottom = m.dp(6f)),
+                            verticalArrangement = Arrangement.spacedBy(m.dp(2f))
+                        ) {
+                            Text(
+                                text = story.title,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = m.text(if (m.shape == TileShape.WIDE) 17f else 15f),
+                                    lineHeight = m.text(if (m.shape == TileShape.WIDE) 20f else 18f),
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = Color.White,
+                                maxLines = if (m.shape == TileShape.WIDE) 2 else 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = if (m.shape == TileShape.WIDE) "$title · ${story.source}" else title,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(12f)),
+                                color = Color.White.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
         }
     )
+}
+
+/** A story's picture filling its space; nothing at all for a story that came without one. */
+@Composable
+private fun StoryPicture(story: NewsItem) {
+    if (story.imageUrl != null) {
+        AsyncImage(
+            model = story.imageUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
 private const val STORIES_SHOWN = 6

@@ -42,10 +42,16 @@ fun W10MThreadTile(
     modifier: Modifier = Modifier,
     cornerStyle: TileCornerStyle = TileCornerStyle.ROUNDED,
     gridColumns: Int = 8,
-    spacing: Dp = 8.dp
+    spacing: Dp = 8.dp,
+    /** Messages in the conversation not read yet. */
+    unreadCount: Int = 0,
+    /** The newest of them, while there is one; the tile says it. */
+    lastMessage: String? = null
 ) {
     val zuneColors = LocalZuneColors.current
-    val iconSize = if (span == 1) 22.dp else if (gridColumns >= 8) 24.dp else 28.dp
+    val shape = TileShape.of(span)
+    val news = unreadCount > 0 && !lastMessage.isNullOrBlank() && LocalTileLook.current.notifications
+    val hasBack = news && (shape == TileShape.SMALL || shape == TileShape.MEDIUM)
 
     W10MTileSurface(
         liveKey = "sms:$label",
@@ -61,6 +67,19 @@ fun W10MThreadTile(
         onRemoveClick = onRemoveClick,
         onResizeClick = onResizeClick,
         modifier = modifier,
+        back = if (!hasBack) null else {
+            {
+                TileTextBack(
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                    title = label,
+                    headline = label,
+                    body = lastMessage,
+                    badgeCount = unreadCount,
+                    span = span,
+                    gridColumns = gridColumns
+                )
+            }
+        },
         front = {
             val fg = tileForegroundColor(zuneColors.accentColor)
             if (isEditing && !LocalTileIsPreview.current) {
@@ -68,32 +87,28 @@ fun W10MThreadTile(
             }
             val face = customTileFace()
             val shownLabel = tileLabelText(label)
-            if (!tileHasPicture()) {
-                val iconModifier = Modifier
-                    .align(if (span == 1) Alignment.Center else Alignment.TopStart)
-                    .padding(if (span == 1) 0.dp else 10.dp)
-                    .size(iconSize * tileIconScale())
+            if (news && !hasBack && !tileHasPicture()) {
+                // The wide and large tiles say what was written, beside the glyph and the count.
+                IconicListFace(
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                    face = face,
+                    title = label,
+                    count = unreadCount,
+                    lines = listOf(TileLine(title = label, body = lastMessage)),
+                    span = span,
+                    gridColumns = gridColumns
+                )
+                return@W10MTileSurface
+            }
+            NamedFace(span, shownLabel, fg) { size, glyphModifier ->
+                if (tileHasPicture()) return@NamedFace
                 if (face != null) {
-                    TileIconImage(face = face, size = iconSize * tileIconScale(), ink = fg, contentDescription = null, modifier = iconModifier)
+                    TileIconImage(face = face, size = size, ink = fg, contentDescription = null, modifier = glyphModifier.size(size))
                 } else {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = fg, modifier = iconModifier)
+                    Icon(imageVector = Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = fg, modifier = glyphModifier.size(size))
                 }
             }
-            if (span > 1 && shownLabel != null) {
-                Text(
-                    text = shownLabel.lowercase(),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal
-                    ),
-                    color = fg,
-                    maxLines = if (span >= 4) 2 else 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 8.dp, end = 8.dp, bottom = 6.dp)
-                )
-            }
+            if (news) TileBadge(unreadCount, span, gridColumns, fg)
         }
     )
 }

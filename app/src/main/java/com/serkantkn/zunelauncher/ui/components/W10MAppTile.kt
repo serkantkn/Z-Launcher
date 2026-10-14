@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -60,6 +61,12 @@ fun W10MAppTile(
     val label = look.name?.takeIf { it.isNotBlank() } ?: label
     val hasNotifications = look.notifications && notificationCount > 0 &&
         (!notificationTitle.isNullOrBlank() || !notificationText.isNullOrBlank())
+    val shape = TileShape.of(span)
+    val notice = if (hasNotifications) listOf(
+        TileLine(title = notificationTitle?.takeIf { it.isNotBlank() } ?: label, body = notificationText?.takeIf { it.isNotBlank() })
+    ) else emptyList()
+    // The wide and large tiles write the notification on their front, so they have no back.
+    val hasBack = hasNotifications && (shape == TileShape.SMALL || shape == TileShape.MEDIUM)
 
     W10MTileSurface(
         liveKey = "app:$tileKey",
@@ -75,94 +82,87 @@ fun W10MAppTile(
         onRemoveClick = onRemoveClick,
         onResizeClick = onResizeClick,
         modifier = modifier,
-        back = if (hasNotifications && span == 1) {
-            {
-                // A small tile has no room for words: its back is the icon and the count, large.
-                val fg = tileForegroundColor()
-                if (face != TileIconFace.None) {
-                    TileIconImage(face, size = 18.dp, ink = fg, contentDescription = null, modifier = Modifier.align(Alignment.Center))
-                }
-                Text(
-                    text = if (notificationCount > 99) "99+" else notificationCount.toString(),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Light),
-                    color = fg,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(end = 5.dp, top = 2.dp)
-                )
-            }
-        } else if (hasNotifications) {
+        back = if (!hasBack) null else {
             {
                 val fg = tileForegroundColor()
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                TileFace(span) { m ->
+                    if (m.isSmall) {
+                        // A small tile has no room for words: its back is the icon and the count.
                         if (face != TileIconFace.None) {
-                            TileIconImage(face, size = 16.dp, ink = fg, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
+                            TileIconImage(face, size = m.dp(30f), ink = fg, contentDescription = null, modifier = Modifier.align(Alignment.Center))
                         }
                         Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
-                            color = fg.copy(alpha = 0.65f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        if (notificationCount > 1) {
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = "+$notificationCount",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
-                                // The same ink as the rest of the tile: this used to consult the
-                                // theme on its own, which left one number the wrong colour once
-                                // the ink could be chosen.
-                                color = fg
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    if (!notificationTitle.isNullOrBlank()) {
-                        Text(
-                            text = notificationTitle,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
+                            text = if (notificationCount > 99) "99+" else notificationCount.toString(),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(15f), fontWeight = FontWeight.Light),
                             color = fg,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.align(Alignment.TopEnd).padding(end = m.dp(8f), top = m.dp(4f))
                         )
+                        return@TileFace
                     }
-                    if (!notificationText.isNullOrBlank()) {
-                        Text(
-                            text = notificationText,
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = fg.copy(alpha = 0.85f),
-                            maxLines = if (span == 2) 2 else 3,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    Column(modifier = Modifier.fillMaxSize().padding(m.pad), verticalArrangement = Arrangement.SpaceBetween) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            if (face != TileIconFace.None) {
+                                TileIconImage(face, size = m.dp(18f), ink = fg, contentDescription = null)
+                                Spacer(modifier = Modifier.width(m.dp(6f)))
+                            }
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(12f)),
+                                color = fg.copy(alpha = 0.75f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (notificationCount > 1) {
+                                Text(
+                                    text = "+$notificationCount",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(12f), fontWeight = FontWeight.Bold),
+                                    // The same ink as the rest of the tile: this used to consult the
+                                    // theme on its own, which left one number the wrong colour once
+                                    // the ink could be chosen.
+                                    color = fg
+                                )
+                            }
+                        }
+                        TileLineList(notice, m, fg, maxItems = 1, bodyLines = 4)
                     }
                 }
             }
-        } else null,
+        },
         front = {
             val fg = tileForegroundColor()
             if (isEditing && !preview) {
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
             }
-            val iconSize = when {
-                span == 1 -> 26.dp
-                span == 2 -> if (gridColumns >= 8) 36.dp else 46.dp
-                span == 4 -> if (gridColumns >= 8) 46.dp else 56.dp
-                else -> 62.dp
-            } * tileIconScale()
-            if (!tileHasPicture()) {
-                TileIconImage(
+            if (notice.isNotEmpty() && !hasBack && !tileHasPicture()) {
+                IconicListFace(
+                    icon = null,
                     face = face,
-                    size = iconSize,
-                    ink = fg,
-                    contentDescription = label,
-                    modifier = Modifier.align(Alignment.Center)
+                    title = label,
+                    count = notificationCount,
+                    lines = notice,
+                    span = span,
+                    gridColumns = gridColumns
                 )
+                return@W10MTileSurface
+            }
+            if (!tileHasPicture()) {
+                TileFace(span) { m ->
+                    // The icon takes the same share of every tile of a shape, as the hub glyphs do.
+                    val iconSize = when (m.shape) {
+                        TileShape.SMALL -> m.width * 0.44f
+                        TileShape.MEDIUM -> m.width * 0.32f
+                        TileShape.WIDE -> m.height * 0.36f
+                        TileShape.LARGE -> m.width * 0.26f
+                    } * tileIconScale()
+                    TileIconImage(
+                        face = face,
+                        size = iconSize,
+                        ink = fg,
+                        contentDescription = label,
+                        modifier = Modifier.align(Alignment.Center).offset(y = if (m.isSmall) 0.dp else -m.dp(6f))
+                    )
+                }
             }
             TileBadge(notificationCount, span, gridColumns, fg)
             TileLabel(label, span, gridColumns, fg)

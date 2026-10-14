@@ -255,6 +255,26 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    /**
+     * The notes the wide and large notes tiles list: the pinned ones, or the latest edited when
+     * none are pinned, as a title and the start of the text. A locked note shows only that it is.
+     */
+    val notesTileNotes: StateFlow<List<Pair<String, String?>>> = notesDataStore.notesFlow
+        .map { notes ->
+            val active = notes.filter { !it.isArchived && !it.isInTrash }
+            val pinned = active.filter { it.isPinned }.sortedByDescending { it.updatedAt }
+            (if (pinned.isNotEmpty()) pinned else active.sortedByDescending { it.updatedAt }).take(5).map { note ->
+                if (note.isLocked) {
+                    getApplication<Application>().localizedString(R.string.notes_locked_note) to null
+                } else {
+                    val body = if (note.isChecklist) note.items.joinToString(", ") { it.text } else note.content
+                    note.displayTitle to body.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }
+                        .joinToString(" ").takeIf { it.isNotBlank() && it != note.displayTitle }
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     /** Badge for the Notes hub tile: number of pinned, non-archived notes. */
     /** Enabled alarms (clock alarms and note reminders) for the saat live tile. */
     val enabledAlarms: StateFlow<List<Alarm>> = alarmDataStore.alarmsFlow
@@ -301,6 +321,15 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val calculatorTileSubtitle: StateFlow<String?> = application.appContainer.calculatorDataStore.historyFlow
         .map { history -> history.firstOrNull()?.let { entry -> entry.expression + " = " + (entry.result.toBigDecimalOrNull()?.let { com.serkantkn.zunelauncher.util.CalcEngine.format(it) } ?: entry.result) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** The last few sums, for the wide and large calculator tiles. */
+    val calculatorTileHistory: StateFlow<List<String>> = application.appContainer.calculatorDataStore.historyFlow
+        .map { history ->
+            history.take(5).map { entry ->
+                entry.expression + " = " + (entry.result.toBigDecimalOrNull()?.let { com.serkantkn.zunelauncher.util.CalcEngine.format(it) } ?: entry.result)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Unread mail across every inbox: badge of the e-posta tile. */
     val emailUnreadCount: StateFlow<Int> = application.appContainer.emailCache.inboxUnread
@@ -572,6 +601,11 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     private val _lastMissedCaller = MutableStateFlow<String?>(null)
     val lastMissedCaller: StateFlow<String?> = _lastMissedCaller.asStateFlow()
 
+    private val _missedCallList = MutableStateFlow<List<Pair<String, Long>>>(emptyList())
+
+    /** Who the missed calls were from, and when, newest first: the wide and large phone tiles list them. */
+    val missedCallList: StateFlow<List<Pair<String, Long>>> = _missedCallList.asStateFlow()
+
     private val _unreadMessages = MutableStateFlow<List<SmsConversationModel>>(emptyList())
 
     /** Unread text conversations, newest first, behind the messaging tile's count and preview. */
@@ -592,6 +626,19 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
                 ?.let { it.from.display to it.subject }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** The newest unread mail, who from, about what and when, for the wide and large e-mail tiles. */
+    val emailTileMessages: StateFlow<List<Triple<String, String, Long>>> = application.appContainer.emailCache.messages
+        .map { byFolder ->
+            byFolder.values.asSequence()
+                .flatten()
+                .filter { !it.isRead }
+                .sortedByDescending { it.date }
+                .take(5)
+                .map { Triple(it.from.display, it.subject, it.date) }
+                .toList()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Cached forecast for the place the weather hub is set to, for the weather tile. */
     val weatherSnapshot: StateFlow<WeatherSnapshot?> = combine(
@@ -741,6 +788,21 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { refreshWeather() }
         viewModelScope.launch { refreshNews() }
         viewModelScope.launch { refreshMessages() }
+        viewModelScope.launch { refreshStorage() }
+    }
+
+    private val _storage = MutableStateFlow<Pair<Long, Long>?>(null)
+
+    /** Free and total bytes of the phone's own storage, for the wide and large files tiles. */
+    val storage: StateFlow<Pair<Long, Long>?> = _storage.asStateFlow()
+
+    private suspend fun refreshStorage() {
+        _storage.value = withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val stat = android.os.StatFs(android.os.Environment.getDataDirectory().path)
+                stat.availableBytes to stat.totalBytes
+            }.getOrNull()
+        }
     }
 
     private fun refreshRoleHolders() {
@@ -771,10 +833,12 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             val missed = calls.takeWhile { it.type == android.provider.CallLog.Calls.MISSED_TYPE }
             _missedCalls.value = missed.size
             _lastMissedCaller.value = missed.firstOrNull()?.let { it.name?.takeIf { name -> name.isNotBlank() } ?: it.number }
+            _missedCallList.value = missed.take(5).map { (it.name?.takeIf { name -> name.isNotBlank() } ?: it.number) to it.dateMillis }
         } catch (e: Exception) {
             ZuneLog.w("HomeHubViewModel", "call log unavailable for the phone tile", e)
             _missedCalls.value = 0
             _lastMissedCaller.value = null
+            _missedCallList.value = emptyList()
         }
     }
 

@@ -769,6 +769,9 @@
     <string name="tile_next_alarm">sonraki alarm</string>
     <string name="tile_no_events">planlanmış etkinlik yok</string>
     <string name="tile_upcoming">yaklaşan</string>
+    <string name="tile_alarms">alarmlar</string>
+    <string name="tile_all_day">tüm gün</string>
+    <string name="tile_storage_free">%2$s içinde %1$s boş</string>
     <string name="hub_calculator">hesap makinesi</string>
     <string name="calc_tab_standard">standart</string>
     <string name="calc_tab_scientific">bilimsel</string>

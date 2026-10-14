@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,13 +19,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.R
+import com.serkantkn.zunelauncher.data.model.DailyPoint
+import com.serkantkn.zunelauncher.data.model.HourlyPoint
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.model.TemperatureUnit
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
@@ -36,9 +42,11 @@ import com.serkantkn.zunelauncher.util.hoursFrom
 /**
  * The weather tile: what it is doing outside, in the place the hub is set to.
  *
- * The front carries the temperature and the sky; the wide tile also runs the next few hours along
- * the bottom. It turns over to the day's high and low. With nothing cached yet — the hub has never
- * been opened — it falls back to the plain glyph face like any other hub tile.
+ * Every size leads with the temperature and the sky. The medium tile adds the day's high and low
+ * and turns over to the next hours; the wide tile runs the next hours beside the reading and turns
+ * over to the next days; the large tile has all of it at once - the reading with how it feels,
+ * the hours in a strip and the coming days in a table. With nothing cached yet - the hub has never
+ * been opened - it is the plain glyph face like any other hub tile.
  */
 @Composable
 fun W10MWeatherTile(
@@ -61,8 +69,11 @@ fun W10MWeatherTile(
     // The forecast was fetched a while ago: "today" and "the next hours" are the clock's, not
     // the fetch's. Keyed on the snapshot, so a day-old tile still reads today's figures.
     val nowSeconds = remember(snapshot?.fetchedAt) { System.currentTimeMillis() / 1000 }
-    val today = remember(snapshot, nowSeconds) { snapshot?.daysFrom(nowSeconds)?.firstOrNull() }
-    val hours = remember(snapshot, nowSeconds) { snapshot?.hoursFrom(nowSeconds).orEmpty() }
+    val days = remember(snapshot, nowSeconds) { snapshot?.daysFrom(nowSeconds).orEmpty() }
+    val today = days.firstOrNull()
+    val hours = remember(snapshot, nowSeconds) { snapshot?.hoursFrom(nowSeconds).orEmpty().drop(1) }
+    val shape = TileShape.of(span)
+    val degrees: (Double) -> String = { "${temperatureUnit.of(it)}°" }
 
     W10MTileSurface(
         liveKey = "hub:${HubType.WEATHER.name}",
@@ -78,43 +89,25 @@ fun W10MWeatherTile(
         onRemoveClick = onRemoveClick,
         onResizeClick = onResizeClick,
         modifier = modifier,
-        back = if (snapshot != null && today != null) {
+        back = if (snapshot != null && today != null && shape != TileShape.LARGE) {
             {
                 val fg = tileForegroundColor()
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(start = 8.dp, end = 8.dp, top = 7.dp, bottom = 6.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = snapshot.place.name,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = fg.copy(alpha = 0.75f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Column {
-                        Text(
-                            text = stringResource(
-                                R.string.weather_high_low,
-                                "${temperatureUnit.of(today.maxTemperature)}°",
-                                "${temperatureUnit.of(today.minTemperature)}°"
-                            ),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontSize = if (isCompactTile(span, gridColumns)) 16.sp else 22.sp,
-                                fontWeight = FontWeight.Light
-                            ),
-                            color = fg,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = stringResource(snapshot.now.condition.labelRes),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = if (isCompactTile(span, gridColumns)) 9.sp else 11.sp
-                            ),
-                            color = fg.copy(alpha = 0.9f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                TileFace(span) { m ->
+                    when (m.shape) {
+                        TileShape.SMALL -> Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(degrees(today.maxTemperature), style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(18f), fontWeight = FontWeight.Light), color = fg, maxLines = 1)
+                            Text(degrees(today.minTemperature), style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(14f), fontWeight = FontWeight.Light), color = fg.copy(alpha = 0.75f), maxLines = 1)
+                        }
+                        TileShape.MEDIUM -> Column(modifier = Modifier.fillMaxSize().padding(m.pad)) {
+                            TileCaption(null, snapshot.place.name, m, fg, Modifier.padding(bottom = m.dp(6f)))
+                            HourStrip(hours.take(3), snapshot.utcOffsetSeconds, degrees, m, fg, Modifier.fillMaxWidth())
+                            Spacer(modifier = Modifier.weight(1f))
+                            DayTable(days.drop(1).take(2), snapshot.utcOffsetSeconds, degrees, m, fg, short = true)
+                        }
+                        else -> Column(modifier = Modifier.fillMaxSize().padding(m.pad)) {
+                            TileCaption(null, snapshot.place.name, m, fg, Modifier.padding(bottom = m.dp(6f)))
+                            DayStrip(days.take(5), snapshot.utcOffsetSeconds, degrees, m, fg, Modifier.fillMaxWidth())
+                        }
                     }
                 }
             }
@@ -122,109 +115,155 @@ fun W10MWeatherTile(
         front = {
             val fg = tileForegroundColor()
             if (snapshot == null) {
-                HubGlyphFace(
-                    icon = Icons.Default.WbSunny,
-                    title = title,
-                    badgeCount = 0,
-                    span = span,
-                    gridColumns = gridColumns
-                )
+                HubGlyphFace(icon = Icons.Default.WbSunny, title = title, badgeCount = 0, span = span, gridColumns = gridColumns)
                 return@W10MTileSurface
             }
+            val now = snapshot.now
+            val sky = conditionIcon(now.condition, now.isDay)
+            val condition = stringResource(now.condition.labelRes)
+            val highLow = today?.let { stringResource(R.string.weather_high_low, degrees(it.maxTemperature), degrees(it.minTemperature)) }
 
-            val compact = isCompactTile(span, gridColumns)
-            // How many hours fit is a question of width, not of tile size: a wide tile on the
-            // eight-column grid is half as wide as one on the four-column grid, and a fixed strip
-            // would climb straight over the temperature.
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                // A wide tile on the eight-column grid is half the width of one on the four-column
-                // grid, so the reading is sized by how much room there actually is.
-                val roomForBigReading = maxWidth >= 260.dp
-                val readingWidth = if (roomForBigReading) 104.dp else 76.dp
-                val hourSlots = ((maxWidth - readingWidth - 16.dp) / HOUR_COLUMN_WIDTH)
-                    .toInt()
-                    .coerceIn(0, 3)
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${temperatureUnit.of(snapshot.now.temperature)}°",
-                                style = MaterialTheme.typography.displaySmall.copy(
-                                    fontSize = when {
-                                        span == 1 -> 16.sp
-                                        !roomForBigReading -> 26.sp
-                                        else -> 40.sp
-                                    },
-                                    fontWeight = FontWeight.Light,
-                                    letterSpacing = (-1).sp
-                                ),
-                                color = fg,
-                                maxLines = 1
-                            )
-                            if (span > 1) {
-                                Icon(
-                                    imageVector = conditionIcon(snapshot.now.condition, snapshot.now.isDay),
-                                    contentDescription = null,
-                                    tint = fg,
-                                    modifier = Modifier
-                                        .padding(start = 8.dp)
-                                        .size(if (roomForBigReading) 24.dp else 16.dp)
-                                )
+            TileFace(span) { m ->
+                when (m.shape) {
+                    TileShape.SMALL -> Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(sky, contentDescription = condition, tint = fg, modifier = Modifier.size(m.dp(30f)))
+                        Text(degrees(now.temperature), style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(19f), fontWeight = FontWeight.Light), color = fg, maxLines = 1)
+                    }
+                    TileShape.MEDIUM -> TileBody(m) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Reading(degrees(now.temperature), m.text(50f), fg)
+                                Icon(sky, contentDescription = null, tint = fg, modifier = Modifier.padding(start = m.dp(8f)).size(m.dp(34f)))
+                            }
+                            Text(condition, style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (highLow != null) {
+                                Text(highLow, style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(14f)), color = fg.copy(alpha = 0.8f), maxLines = 1)
                             }
                         }
-                        if (span > 1) {
+                    }
+                    TileShape.WIDE -> TileBody(m) {
+                        Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.padding(end = m.dp(14f))) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Reading(degrees(now.temperature), m.text(58f), fg)
+                                    Icon(sky, contentDescription = null, tint = fg, modifier = Modifier.padding(start = m.dp(8f)).size(m.dp(38f)))
+                                }
+                                Text(condition, style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (highLow != null) {
+                                    Text(highLow, style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(14f)), color = fg.copy(alpha = 0.8f), maxLines = 1)
+                                }
+                            }
+                            // As many hours as the width leaves room for: a wide tile on the
+                            // eight-column grid is half as wide as one on the four-column grid.
+                            BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                                val slots = (maxWidth / m.dp(44f)).toInt().coerceIn(0, 5)
+                                if (slots > 0) HourStrip(hours.take(slots), snapshot.utcOffsetSeconds, degrees, m, fg, Modifier.fillMaxWidth())
+                            }
+                        }
+                    }
+                    TileShape.LARGE -> TileBody(m) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Reading(degrees(now.temperature), m.text(88f), fg)
+                                Icon(sky, contentDescription = null, tint = fg, modifier = Modifier.padding(start = m.dp(12f)).size(m.dp(64f)))
+                            }
+                            Text(condition, style = MaterialTheme.typography.headlineSmall.copy(fontSize = m.text(22f), fontWeight = FontWeight.Light), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(
-                                text = stringResource(snapshot.now.condition.labelRes),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 9.sp else 11.sp),
-                                color = fg.copy(alpha = 0.85f),
+                                text = listOfNotNull(highLow, stringResource(R.string.weather_feels_like, degrees(now.apparent))).joinToString("  ·  "),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
+                                color = fg.copy(alpha = 0.8f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                        }
-                    }
-
-                    if (span >= 4 && hourSlots > 0 && hours.size > 1) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            hours.drop(1).take(hourSlots).forEach { hour ->
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.width(HOUR_COLUMN_WIDTH)
-                                ) {
-                                    Text(
-                                        text = formatAt(hour.timeSeconds, snapshot.utcOffsetSeconds, "HH"),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                        color = fg.copy(alpha = 0.75f),
-                                        maxLines = 1
-                                    )
-                                    Icon(
-                                        imageVector = conditionIcon(hour.condition, hour.isDay),
-                                        contentDescription = null,
-                                        tint = fg.copy(alpha = 0.9f),
-                                        modifier = Modifier.padding(vertical = 3.dp).size(14.dp)
-                                    )
-                                    Text(
-                                        text = "${temperatureUnit.of(hour.temperature)}°",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                        color = fg,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            HourStrip(hours.take(6), snapshot.utcOffsetSeconds, degrees, m, fg, Modifier.fillMaxWidth())
+                            Spacer(modifier = Modifier.weight(1f))
+                            DayTable(days.drop(1).take(4), snapshot.utcOffsetSeconds, degrees, m, fg)
                         }
                     }
                 }
             }
-
             TileLabel(snapshot.place.name.ifBlank { title }, span, gridColumns, fg)
         }
     )
 }
 
-/** One hour of the strip on the wide tile. */
-private val HOUR_COLUMN_WIDTH = 38.dp
+/** The temperature, in the light figures the Windows Phone weather tile used. */
+@Composable
+private fun Reading(text: String, size: TextUnit, color: Color) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.displaySmall.copy(fontSize = size, lineHeight = size * 1.05f, fontWeight = FontWeight.Light, letterSpacing = (-1).sp),
+        color = color,
+        maxLines = 1,
+        softWrap = false
+    )
+}
+
+/** The next hours side by side: the hour, the sky, the temperature. */
+@Composable
+private fun HourStrip(
+    hours: List<HourlyPoint>,
+    offsetSeconds: Int,
+    degrees: (Double) -> String,
+    m: TileMetrics,
+    ink: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.SpaceBetween) {
+        hours.forEach { hour ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(formatAt(hour.timeSeconds, offsetSeconds, "HH"), style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(12f)), color = ink.copy(alpha = 0.75f), maxLines = 1)
+                Icon(conditionIcon(hour.condition, hour.isDay), contentDescription = null, tint = ink.copy(alpha = 0.9f),
+                    modifier = Modifier.padding(vertical = m.dp(4f)).size(m.dp(20f)))
+                Text(degrees(hour.temperature), style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(14f)), color = ink, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** The coming days side by side, for the back of the wide tile. */
+@Composable
+private fun DayStrip(
+    days: List<DailyPoint>,
+    offsetSeconds: Int,
+    degrees: (Double) -> String,
+    m: TileMetrics,
+    ink: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.SpaceBetween) {
+        days.forEach { day ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(formatAt(day.timeSeconds, offsetSeconds, "EEE").lowercase(), style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(12f)), color = ink.copy(alpha = 0.75f), maxLines = 1)
+                Icon(conditionIcon(day.condition, true), contentDescription = null, tint = ink.copy(alpha = 0.9f),
+                    modifier = Modifier.padding(vertical = m.dp(4f)).size(m.dp(22f)))
+                Text(degrees(day.maxTemperature), style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(14f)), color = ink, maxLines = 1)
+                Text(degrees(day.minTemperature), style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(12f)), color = ink.copy(alpha = 0.7f), maxLines = 1)
+            }
+        }
+    }
+}
+
+/** The coming days one under another, for the large tile: the day, the sky, high and low. */
+@Composable
+private fun DayTable(
+    days: List<DailyPoint>,
+    offsetSeconds: Int,
+    degrees: (Double) -> String,
+    m: TileMetrics,
+    ink: Color,
+    /** Three-letter day names, for the narrow medium tile. */
+    short: Boolean = false
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(m.dp(5f))) {
+        days.forEach { day ->
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(formatAt(day.timeSeconds, offsetSeconds, if (short) "EEE" else "EEEE").lowercase(), style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)), color = ink, maxLines = 1, modifier = Modifier.weight(1f))
+                Icon(conditionIcon(day.condition, true), contentDescription = null, tint = ink.copy(alpha = 0.9f), modifier = Modifier.padding(horizontal = m.dp(10f)).size(m.dp(20f)))
+                Text(degrees(day.maxTemperature), style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)), color = ink, maxLines = 1, modifier = Modifier.width(m.dp(40f)))
+                Text(degrees(day.minTemperature), style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)), color = ink.copy(alpha = 0.7f), maxLines = 1, modifier = Modifier.width(m.dp(36f)))
+            }
+        }
+    }
+}

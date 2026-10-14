@@ -113,6 +113,8 @@ import com.serkantkn.zunelauncher.data.repository.StartParallax
 import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 import com.serkantkn.zunelauncher.ui.components.TileStyle
 import com.serkantkn.zunelauncher.ui.components.W10MFolderTile
+import com.serkantkn.zunelauncher.ui.components.TileLine
+import com.serkantkn.zunelauncher.util.formatFileSize
 import com.serkantkn.zunelauncher.ui.components.W10MHubTile
 import com.serkantkn.zunelauncher.ui.components.W10MMusicTile
 import com.serkantkn.zunelauncher.ui.components.W10MPeopleTile
@@ -261,6 +263,11 @@ private fun HomeHubScreenContent(
     val unreadMessages by viewModel.unreadMessages.collectAsState()
     val nowPlaying by viewModel.nowPlaying.collectAsState()
     val emailTilePreview by viewModel.emailTilePreview.collectAsState()
+    val emailTileMessages by viewModel.emailTileMessages.collectAsState()
+    val missedCallList by viewModel.missedCallList.collectAsState()
+    val notesTileNotes by viewModel.notesTileNotes.collectAsState()
+    val calculatorTileHistory by viewModel.calculatorTileHistory.collectAsState()
+    val storage by viewModel.storage.collectAsState()
     val weatherSnapshot by viewModel.weatherSnapshot.collectAsState()
     val newsStories by viewModel.newsStories.collectAsState()
     val weatherUnit by viewModel.weatherUnit.collectAsState()
@@ -960,7 +967,8 @@ private fun HomeHubScreenContent(
                         onResizeClick = onResize,
                         modifier = animated
                     )
-                    else -> W10MHubTile(
+                    else -> { val tileContext = androidx.compose.ui.platform.LocalContext.current
+                    W10MHubTile(
                         hubType = hubType,
                         span = model.span,
                         gridColumns = gridColumns,
@@ -993,12 +1001,35 @@ private fun HomeHubScreenContent(
                             HubType.EMAIL -> if (look.notifications) emailTilePreview?.second else null
                             else -> null
                         },
+                        // What the wide and large tiles list. Notes and sums are the tile's own words;
+                        // the rest are notifications and go with them.
+                        liveItems = when (hubType) {
+                            HubType.MESSAGING -> if (!look.notifications) emptyList() else unreadMessages.take(5).map {
+                                TileLine(it.contactName.ifBlank { it.address }, it.snippet, tileTime(tileContext, it.timestamp))
+                            }
+                            HubType.PHONE -> if (!look.notifications) emptyList() else missedCallList.map { (who, at) ->
+                                TileLine(who, null, tileTime(tileContext, at))
+                            }
+                            HubType.EMAIL -> if (!look.notifications) emptyList() else emailTileMessages.map { (from, subject, at) ->
+                                TileLine(from, subject, tileTime(tileContext, at))
+                            }
+                            HubType.NOTES -> notesTileNotes.map { (title, body) -> TileLine(title, body) }
+                            HubType.CALCULATOR -> calculatorTileHistory.map { TileLine(it) }
+                            HubType.FILES -> storage?.let { (free, total) ->
+                                listOf(TileLine(
+                                    stringResource(R.string.files_internal_storage).lowercase(),
+                                    stringResource(R.string.tile_storage_free, formatFileSize(free), formatFileSize(total))
+                                ))
+                            }.orEmpty()
+                            else -> emptyList()
+                        },
                         onClick = { handleLaunch(launchKey) { openHub(hubType) } },
                         onLongClick = { isEditMode = true },
                         onRemoveClick = { onRemoveTile(model.id) },
                         onResizeClick = onResize,
                         modifier = animated
                     )
+                    }
                 }
             }
             is StartTileUIModel.App -> W10MAppTile(
@@ -1062,6 +1093,8 @@ private fun HomeHubScreenContent(
 
             is StartTileUIModel.Thread -> W10MThreadTile(
                 label = model.label,
+                unreadCount = unreadMessages.firstOrNull { it.threadId == model.threadId }?.unreadCount ?: 0,
+                lastMessage = unreadMessages.firstOrNull { it.threadId == model.threadId }?.snippet,
                 span = model.span,
                 gridColumns = gridColumns,
                 spacing = tileSpacing.dp,
@@ -2121,5 +2154,21 @@ private fun SmallFavoriteTile(
                 modifier = Modifier.align(Alignment.Center)
             )
         }
+    }
+}
+
+/**
+ * When something on a live tile happened: the time for today, "dün" for yesterday, the date
+ * before that - in the phone's own 12- or 24-hour clock.
+ */
+private fun tileTime(context: android.content.Context, millis: Long): String {
+    val now = java.util.Calendar.getInstance()
+    val then = java.util.Calendar.getInstance().apply { timeInMillis = millis }
+    val sameYear = now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR)
+    val dayGap = now.get(java.util.Calendar.DAY_OF_YEAR) - then.get(java.util.Calendar.DAY_OF_YEAR)
+    return when {
+        sameYear && dayGap == 0 -> android.text.format.DateFormat.getTimeFormat(context).format(java.util.Date(millis))
+        sameYear && dayGap == 1 -> context.getString(R.string.common_yesterday)
+        else -> java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(java.util.Date(millis)).lowercase()
     }
 }

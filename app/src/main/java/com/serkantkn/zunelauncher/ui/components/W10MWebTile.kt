@@ -44,7 +44,6 @@ fun W10MWebTile(
     spacing: Dp = 8.dp
 ) {
     val zuneColors = LocalZuneColors.current
-    val iconSize = if (span == 1) 22.dp else if (gridColumns >= 8) 24.dp else 28.dp
 
     W10MTileSurface(
         liveKey = "web:$label",
@@ -67,31 +66,13 @@ fun W10MWebTile(
             }
             val face = customTileFace()
             val shownLabel = tileLabelText(label)
-            if (!tileHasPicture()) {
-                val iconModifier = Modifier
-                    .align(if (span == 1) Alignment.Center else Alignment.TopStart)
-                    .padding(if (span == 1) 0.dp else 10.dp)
-                    .size(iconSize * tileIconScale())
+            NamedFace(span, shownLabel.takeUnless { tileHasPicture() && span == 1 }, fg) { size, glyphModifier ->
+                if (tileHasPicture()) return@NamedFace
                 if (face != null) {
-                    TileIconImage(face = face, size = iconSize * tileIconScale(), ink = fg, contentDescription = null, modifier = iconModifier)
+                    TileIconImage(face = face, size = size, ink = fg, contentDescription = null, modifier = glyphModifier.size(size))
                 } else {
-                    Icon(imageVector = Icons.Default.Language, contentDescription = null, tint = fg, modifier = iconModifier)
+                    Icon(imageVector = Icons.Default.Language, contentDescription = null, tint = fg, modifier = glyphModifier.size(size))
                 }
-            }
-            if (span > 1 && shownLabel != null) {
-                Text(
-                    text = shownLabel.lowercase(),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal
-                    ),
-                    color = fg,
-                    maxLines = if (span >= 4) 2 else 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 8.dp, end = 8.dp, bottom = 6.dp)
-                )
             }
         }
     )

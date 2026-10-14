@@ -1,6 +1,10 @@
 package com.serkantkn.zunelauncher.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -63,60 +67,57 @@ fun W10MPersonTile(
         modifier = modifier,
         front = {
             val fg = tileForegroundColor(zuneColors.accentColor)
-
-            if (photoUri != null) {
-                AsyncImage(
-                    model = photoUri,
-                    contentDescription = label,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-                // The name has to stay readable over whatever the photograph happens to be.
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(Color.Black.copy(alpha = 0.28f))
-                )
-            } else {
-                Text(
-                    text = label.firstOrNull()?.uppercaseChar()?.toString().orEmpty(),
-                    style = MaterialTheme.typography.displayMedium.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = if (span == 1) 22.sp else 40.sp
-                    ),
-                    color = fg.copy(alpha = 0.9f),
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-
-            if (isEditing && !LocalTileIsPreview.current) {
-                Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
-            }
-
-            if (span == 1) {
-                if (photoUri == null) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = fg,
-                        modifier = Modifier.align(Alignment.Center).size(22.dp)
+            val shownLabel = tileLabelText(label)
+            TileFace(span) { m ->
+                if (photoUri != null) {
+                    AsyncImage(
+                        model = photoUri,
+                        contentDescription = label,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                    // The name has to stay readable over whatever the photograph happens to be.
+                    if (!m.isSmall) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(m.dp(if (m.isLarge) 90f else 56f))
+                                .align(Alignment.BottomCenter)
+                                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))))
+                        )
+                    }
+                } else {
+                    // Somebody with no picture: their initial, as large as the tile allows.
+                    Text(
+                        text = label.trim().firstOrNull()?.uppercaseChar()?.toString().orEmpty(),
+                        style = MaterialTheme.typography.displayMedium.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = (minOf(m.width, m.height).value * if (m.isSmall) 0.5f else 0.42f).sp
+                        ),
+                        color = fg.copy(alpha = 0.9f),
+                        modifier = Modifier.align(Alignment.Center).offset(y = if (m.isSmall) 0.dp else -m.dp(8f))
                     )
                 }
-            } else {
-                val shownLabel = tileLabelText(label)
-                if (shownLabel != null) Text(
-                    text = shownLabel.lowercase(),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal
-                    ),
-                    color = Color.White,
-                    maxLines = if (span >= 4) 2 else 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 8.dp, end = 8.dp, bottom = 6.dp)
-                )
+
+                if (isEditing && !LocalTileIsPreview.current) {
+                    Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
+                }
+
+                if (!m.isSmall && shownLabel != null) {
+                    Text(
+                        text = shownLabel.lowercase(),
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontSize = m.text(when (m.shape) { TileShape.MEDIUM -> 17f; TileShape.WIDE -> 22f; else -> 30f }),
+                            fontWeight = FontWeight.Light
+                        ),
+                        color = if (photoUri != null) Color.White else fg,
+                        maxLines = if (m.isLarge) 2 else 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = m.pad, end = m.pad, bottom = m.dp(8f))
+                    )
+                }
             }
         }
     )

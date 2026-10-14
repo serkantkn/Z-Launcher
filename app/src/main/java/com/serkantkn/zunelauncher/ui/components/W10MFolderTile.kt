@@ -100,10 +100,16 @@ fun W10MFolderTile(
             return@W10MTileSurface
         }
 
-        val compact = isCompactTile(span, gridColumns)
-        // Small tiles have room for four shrunk tiles, bigger ones for nine.
-        val perSide = if (span == 1 || compact) 2 else 3
-        val shown = folder.children.take(perSide * perSide)
+        // As many shrunk tiles as keep them about square: four on the small tile, nine on the
+        // medium one, two rows of six on the wide one and sixteen on the large one.
+        val (columns, rows) = when (TileShape.of(span)) {
+            TileShape.SMALL -> 2 to 2
+            TileShape.MEDIUM -> 3 to 3
+            TileShape.WIDE -> 6 to 2
+            TileShape.LARGE -> 4 to 4
+        }
+        val perSide = columns
+        val shown = folder.children.take(columns * rows)
 
         Column(
             modifier = Modifier
@@ -112,11 +118,12 @@ fun W10MFolderTile(
                     start = 8.dp,
                     end = 8.dp,
                     top = 8.dp,
-                    bottom = if (span > 1) 20.dp else 6.dp
+                    bottom = if (span > 1) 26.dp else 6.dp
                 ),
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            shown.chunked(perSide).forEach { rowChildren ->
+            val chunks = shown.chunked(perSide)
+            chunks.forEach { rowChildren ->
                 Row(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(3.dp)
@@ -126,7 +133,6 @@ fun W10MFolderTile(
                             child = child,
                             appFace = appFace,
                             foreground = fg,
-                            small = span == 1,
                             modifier = Modifier.weight(1f).fillMaxSize()
                         )
                     }
@@ -136,6 +142,8 @@ fun W10MFolderTile(
                     }
                 }
             }
+            // Rows the folder has no tiles for still take their share, so the chips stay square.
+            repeat(rows - chunks.size) { Box(modifier = Modifier.fillMaxWidth().weight(1f)) }
         }
 
         if (span > 1) TileLabel(name, span, gridColumns, fg)
@@ -152,17 +160,18 @@ private fun FolderChip(
     child: StartTileUIModel,
     appFace: (AppInfo) -> TileIconFace,
     foreground: Color,
-    small: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val iconSize = if (small) 11.dp else 20.dp
-    val glyphPad = if (small) 2.dp else 4.dp
-    Box(
+    androidx.compose.foundation.layout.BoxWithConstraints(
         modifier = modifier
             .clipToBounds()
             .background(Color.White.copy(alpha = 0.14f)),
         contentAlignment = Alignment.Center
     ) {
+        // Drawn to the chip's size, which runs from a few pixels to a quarter of a large tile.
+        val side = minOf(maxWidth, maxHeight)
+        val iconSize = side * 0.56f
+        val glyphPad = side * 0.2f
         when (child) {
             is StartTileUIModel.App -> TileIconImage(
                 face = appFace(child.appInfo),
