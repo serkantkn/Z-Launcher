@@ -124,7 +124,7 @@ fun W10MNewsTile(
                         ) {
                             Text(
                                 text = lead.title,
-                                style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(20f), lineHeight = m.text(24f), fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(20f), lineHeight = m.text(24f), fontWeight = FontWeight.Normal),
                                 color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis
                             )
                             Text(
@@ -133,15 +133,16 @@ fun W10MNewsTile(
                                 color = Color.White.copy(alpha = 0.7f), maxLines = 1,
                                 modifier = Modifier.padding(top = m.dp(2f), bottom = m.dp(8f))
                             )
-                            others.forEach { story ->
-                                Text(
-                                    text = story.title,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f), lineHeight = m.text(18f)),
-                                    color = Color.White.copy(alpha = 0.9f), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(bottom = m.dp(5f))
-                                )
+                            // The other stories, as many as fit whole above the hub's name.
+                            FitColumn(modifier = Modifier.weight(1f), spacing = m.dp(5f)) {
+                                others.forEach { story ->
+                                    Text(
+                                        text = story.title,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f), lineHeight = m.text(18f)),
+                                        color = Color.White.copy(alpha = 0.85f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
-                            Spacer(modifier = Modifier.weight(1f))
                             Text(title, style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(13f)),
                                 color = Color.White.copy(alpha = 0.85f), maxLines = 1)
                         }
@@ -185,7 +186,7 @@ fun W10MNewsTile(
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontSize = m.text(if (m.shape == TileShape.WIDE) 17f else 15f),
                                     lineHeight = m.text(if (m.shape == TileShape.WIDE) 20f else 18f),
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.Normal
                                 ),
                                 color = Color.White,
                                 maxLines = if (m.shape == TileShape.WIDE) 2 else 3,

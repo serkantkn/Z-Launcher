@@ -99,7 +99,7 @@ fun W10MMusicTile(
                             Column {
                                 Text(
                                     text = trackTitle,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(19f), fontWeight = FontWeight.SemiBold, lineHeight = m.text(22f)),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(19f), fontWeight = FontWeight.Normal, lineHeight = m.text(22f)),
                                     color = ink, maxLines = 2, overflow = TextOverflow.Ellipsis
                                 )
                                 if (trackArtist.isNotBlank()) {
@@ -130,7 +130,7 @@ fun W10MMusicTile(
                         text = trackTitle,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontSize = m.text(if (m.isLarge) 24f else 15f),
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Normal
                         ),
                         color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis
                     )

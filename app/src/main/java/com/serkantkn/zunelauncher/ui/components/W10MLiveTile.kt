@@ -376,7 +376,7 @@ private fun AlarmMark(time: String, m: TileMetrics, ink: Color, modifier: Modifi
         Icon(Icons.Default.Alarm, contentDescription = stringResource(R.string.tile_next_alarm), tint = ink.copy(alpha = 0.9f), modifier = Modifier.size(m.dp(14f)))
         Text(
             text = time,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(13f), fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(13f), fontWeight = FontWeight.Normal),
             color = ink.copy(alpha = 0.9f)
         )
     }
@@ -457,7 +457,7 @@ fun W10MCalendarTile(
                             Column(modifier = Modifier.align(Alignment.TopStart)) {
                                 Text(
                                     text = next.first.title,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(16f), fontWeight = FontWeight.SemiBold, lineHeight = m.text(19f)),
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(16f), fontWeight = FontWeight.Normal, lineHeight = m.text(19f)),
                                     color = fg, maxLines = 2, overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
@@ -536,7 +536,7 @@ fun W10MCalendarTile(
                 if (m.isSmall) {
                     val first = lines.firstOrNull() ?: return@TileFace
                     Column(modifier = Modifier.fillMaxSize().padding(m.dp(7f)), verticalArrangement = Arrangement.SpaceBetween) {
-                        Text(first.title, style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(11f), fontWeight = FontWeight.SemiBold, lineHeight = m.text(13f)),
+                        Text(first.title, style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(11f), fontWeight = FontWeight.Normal, lineHeight = m.text(13f)),
                             color = fg, maxLines = 3, overflow = TextOverflow.Ellipsis)
                         Text(upcoming.first().first.formattedTime, style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(11f)),
                             color = fg.copy(alpha = 0.85f), maxLines = 1)

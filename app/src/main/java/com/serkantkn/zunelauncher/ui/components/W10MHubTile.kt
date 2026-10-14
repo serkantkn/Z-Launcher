@@ -342,7 +342,7 @@ internal fun BoxScope.TileTextBack(
                         text = heading,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontSize = if (headline == null) m.figure(44f) else m.text(16f),
-                            fontWeight = if (headline == null) FontWeight.Light else FontWeight.SemiBold
+                            fontWeight = if (headline == null) FontWeight.Light else FontWeight.Normal
                         ),
                         color = fg,
                         maxLines = if (body.isNullOrBlank()) 3 else 1,

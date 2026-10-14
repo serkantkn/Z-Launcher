@@ -160,7 +160,7 @@ fun W10MPeopleTile(
                             )
                             Text(
                                 text = person.name,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f), fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f), fontWeight = FontWeight.Normal),
                                 color = Color.White,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,

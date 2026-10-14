@@ -116,7 +116,7 @@ fun W10MAppTile(
                             if (notificationCount > 1) {
                                 Text(
                                     text = "+$notificationCount",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(12f), fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(12f), fontWeight = FontWeight.Normal),
                                     // The same ink as the rest of the tile: this used to consult the
                                     // theme on its own, which left one number the wrong colour once
                                     // the ink could be chosen.

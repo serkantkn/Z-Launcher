@@ -71,8 +71,9 @@ class TileMetrics(val shape: TileShape, val width: Dp, val height: Dp) {
 
     /**
      * Words of [size] points on the tile the design was drawn for, at this tile's size - but
-     * never much smaller: on the phone's eight-column grid a tile is half the width the design
-     * was drawn for, and names and lines of news set at half size could not be read.
+     * never below three quarters of it: on the phone's eight-column grid a tile is half the width
+     * the design was drawn for, and names and lines of news set at half size could not be read,
+     * while set at nearly full size they crowded the tile.
      */
     fun text(size: Float): TextUnit = (size * maxOf(scale, WORD_FLOOR)).sp
 
@@ -97,7 +98,7 @@ class TileMetrics(val shape: TileShape, val width: Dp, val height: Dp) {
 }
 
 /** How far below the size they were designed at words on a smaller tile may go. */
-private const val WORD_FLOOR = 0.9f
+private const val WORD_FLOOR = 0.75f
 
 /** A face that lays itself out by what [TileMetrics] says about the tile it is on. */
 @Composable
@@ -130,6 +131,11 @@ internal fun TileLineList(
 ) {
     // The large tile is read from further back, as a list rather than a glance: larger type.
     val big = metrics.isLarge
+    // A tile drawn smaller than designed says less rather than squeezing the same in: fewer
+    // things, a line or two of each, room between them - Windows Phone's small grid did the same.
+    val narrow = metrics.scale < 0.75f
+    val shownItems = if (narrow) minOf(maxItems, if (big) 3 else 2) else maxItems
+    val shownBodyLines = if (narrow) minOf(bodyLines, 2) else bodyLines
     // One thing alone on a large tile is the whole tile's message, and is set like one.
     val alone = big && lines.size == 1
     // A list of names alone - missed calls, sums - has the room its bodies would have had.
@@ -139,15 +145,15 @@ internal fun TileLineList(
     val metaBeside = metrics.hasRoomForWords && maxWidth >= 210.dp
     // Only what fits whole: a line cut in half by the tile's edge, or sitting on its name, reads
     // worse than one left out.
-    FitColumn(spacing = metrics.dp(if (big) 14f else 9f)) {
-        lines.take(maxItems).forEach { line ->
+    FitColumn(spacing = metrics.dp(if (big) 14f else 9f).coerceAtLeast(6.dp)) {
+        lines.take(shownItems).forEach { line ->
             Column {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = line.title,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontSize = metrics.text(if (alone) 26f else if (bare && big) 23f else if (big) 19f else if (bare) 17f else 15f),
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Normal
                         ),
                         color = ink,
                         maxLines = 1,
@@ -173,8 +179,8 @@ internal fun TileLineList(
                             fontSize = metrics.text(if (alone) 21f else if (big) 16f else 13f),
                             lineHeight = metrics.text(if (alone) 27f else if (big) 20f else 16f)
                         ),
-                        color = ink.copy(alpha = 0.85f),
-                        maxLines = bodyLines,
+                        color = ink.copy(alpha = 0.75f),
+                        maxLines = shownBodyLines,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -243,7 +249,7 @@ internal fun TileCaption(icon: ImageVector?, text: String, metrics: TileMetrics,
 /** The room a face keeps clear along the bottom for the tile's name. */
 internal fun TileMetrics.labelRoom(): Dp =
     // The name keeps its type size on small grids (see [TileMetrics.text]), so its strip does too.
-    if (isSmall) 0.dp else maxOf(dp(26f), (13f * maxOf(scale, 0.9f) * 1.45f).dp + dp(8f))
+    if (isSmall) 0.dp else maxOf(dp(26f), (13f * maxOf(scale, WORD_FLOOR) * 1.45f).dp + dp(8f))
 
 /** Fills the face with [content], inside the margins, leaving the name its strip at the bottom. */
 @Composable

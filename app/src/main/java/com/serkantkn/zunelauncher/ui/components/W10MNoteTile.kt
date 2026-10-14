@@ -122,7 +122,7 @@ fun W10MNoteTile(
                             Icon(imageVector = icon, contentDescription = null, tint = fg, modifier = Modifier.size(m.dp(22f)))
                             Text(
                                 text = label,
-                                style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(if (m.isLarge) 22f else 18f), fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(if (m.isLarge) 22f else 18f), fontWeight = FontWeight.Normal),
                                 color = fg,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
