@@ -210,6 +210,9 @@ fun CalculatorHubScreen(
             pager = pager,
             bar = ZuneHubBar(bottomBarActions, bottomBarMenuItems),
             phonePagePadding = PaddingValues(0.dp),
+            // A keypad has the whole width: the next keypad's edge beside it made the keys look
+            // squeezed and lopsided rather than say there is more to swipe to.
+            phonePeek = false,
             // The history is not a page on a tablet: it stays open down the right, beside
             // whichever keypad is in use, the way a paper roll sits beside a machine.
             wideHiddenTabs = setOf(PAGE_HISTORY),
