@@ -227,6 +227,8 @@
     <string name="settings_preview">önizleme</string>
     <string name="settings_preview_date">Salı, 18 Ağustos</string>
     <string name="settings_breadcrumb_system">ayarlar &gt; sistem</string>
+    <string name="settings_breadcrumb_about">ayarlar &gt; hakkında</string>
+    <string name="settings_release_notes">sürüm notları</string>
     <string name="settings_date_time_help">ana ekrandaki saat ve tarih gösterim formatını seçin</string>
     <string name="settings_time_format">saat formatı</string>
     <string name="settings_time_24">24 saat</string>
@@ -1697,11 +1699,13 @@
     <!-- Neler değişti -->
     <string name="whats_new_title">neler değişti</string>
     <string name="whats_new_close">anladım</string>
-    <string name="whats_new_v1_title">ilk sürüm</string>
-    <string name="whats_new_v1_line1">Saat, Takvim, Dosyalar, Fotoğraflar ve Müzik hubları</string>
-    <string name="whats_new_v1_line2">film rulosunda videolar ve filtreli bir düzenleyici</string>
-    <string name="whats_new_v1_line3">başlatıcı müziği kendi çalıyor, sıra yeniden başlatmadan sonra da duruyor</string>
-    <string name="whats_new_v1_line4">kapak ve sözler dosyalarından okunuyor ya da internetten bulunuyor</string>
+    <string name="whats_new_v1_title">ilk ön sürüm</string>
+    <string name="whats_new_v1_line1">canlı karolar, hub\'lar ve turnike animasyonlarıyla Windows Phone başlangıç ekranı</string>
+    <string name="whats_new_v1_line2">telefon, mesajlar, kişiler, fotoğraflar, müzik + videolar, internet, haberler, e-posta, notlar ve dosyalar hub\'ları</string>
+    <string name="whats_new_v1_line3">saat, takvim, hava durumu, hesap makinesi ve kamera, her biri kendi canlı karosuyla</string>
+    <string name="whats_new_v1_line4">Windows 10 Mobile eylem merkezi, tabletlerde Windows 8 başlangıcı</string>
+    <string name="whats_new_v1_line5">varsayılan telefon, SMS, tarayıcı, galeri, müzik ve video uygulaması olabiliyor</string>
+    <string name="whats_new_v1_line6">sunucu, reklam ve hesap yok; verilerin telefonunda kalıyor</string>
     <string name="onboarding_perm_notifications">bildirimler</string>
     <string name="onboarding_perm_notifications_why">alarmlar, sayaçlar ve hatırlatmalar sana ulaşsın diye</string>
     <string name="onboarding_perm_location">konum</string>

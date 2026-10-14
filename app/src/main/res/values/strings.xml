@@ -227,6 +227,8 @@
     <string name="settings_preview">preview</string>
     <string name="settings_preview_date">Tuesday, August 18</string>
     <string name="settings_breadcrumb_system">settings &gt; system</string>
+    <string name="settings_breadcrumb_about">settings &gt; about</string>
+    <string name="settings_release_notes">release notes</string>
     <string name="settings_date_time_help">choose how the clock and date are shown on the start screen</string>
     <string name="settings_time_format">time format</string>
     <string name="settings_time_24">24 hour</string>
@@ -1697,11 +1699,13 @@
     <!-- What is new -->
     <string name="whats_new_title">what is new</string>
     <string name="whats_new_close">got it</string>
-    <string name="whats_new_v1_title">first release</string>
-    <string name="whats_new_v1_line1">Clock, Calendar, Files, Pictures and Music hubs</string>
-    <string name="whats_new_v1_line2">videos in the camera roll, and an editor with filters</string>
-    <string name="whats_new_v1_line3">the launcher plays music itself, with a queue that survives a restart</string>
-    <string name="whats_new_v1_line4">covers and lyrics read from your files, or looked up online</string>
+    <string name="whats_new_v1_title">first pre-release</string>
+    <string name="whats_new_v1_line1">the Windows Phone Start screen, with live tiles, hubs and turnstile animations</string>
+    <string name="whats_new_v1_line2">phone, messaging, people, pictures, music + videos, internet, news, e-mail, notes and files hubs</string>
+    <string name="whats_new_v1_line3">clock, calendar, weather, calculator and camera, each with its own live tile</string>
+    <string name="whats_new_v1_line4">the Windows 10 Mobile action centre, and Windows 8\'s Start on tablets</string>
+    <string name="whats_new_v1_line5">it can be the phone\'s dialler, messaging app, browser, gallery, music and video player</string>
+    <string name="whats_new_v1_line6">no server, no ads, no account; what is yours stays on the phone</string>
     <string name="onboarding_perm_notifications">notifications</string>
     <string name="onboarding_perm_notifications_why">so alarms, timers and reminders can reach you</string>
     <string name="onboarding_perm_location">location</string>

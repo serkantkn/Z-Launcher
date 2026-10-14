@@ -179,8 +179,24 @@ fun SettingsScreen(
         }
     }
 
+    // 3D Door Hinge transition state for the launcher's own page (version and release notes)
+    val versionHingeAnim = remember { Animatable(0f) }
+    var isVersionOpen by remember { mutableStateOf(false) }
+
+    fun openVersion() {
+        isVersionOpen = true
+        scope.launch { versionHingeAnim.animateTo(targetValue = 1f, animationSpec = hingeSpec) }
+    }
+
+    fun closeVersion() {
+        scope.launch {
+            versionHingeAnim.animateTo(targetValue = 0f, animationSpec = hingeSpec)
+            isVersionOpen = false
+        }
+    }
+
     val subScreenHingeProgress =
-        maxOf(dateTimeHingeAnim.value, lookHingeAnim.value, sourcesHingeAnim.value, calendarsHingeAnim.value)
+        maxOf(dateTimeHingeAnim.value, lookHingeAnim.value, sourcesHingeAnim.value, calendarsHingeAnim.value, versionHingeAnim.value)
 
     Box(modifier = modifier.fillMaxSize()) {
         // 1. Settings Main Screen (Hinges Out to -90° when filter screen opens)
@@ -228,7 +244,7 @@ fun SettingsScreen(
                             viewModel = viewModel,
                             onOpenDateTimeSettings = { openDateTimeSettings() }
                         )
-                        SettingsTab.ABOUT -> AboutSettingsPage()
+                        SettingsTab.ABOUT -> AboutSettingsPage(onOpenVersion = { openVersion() })
                     }
                 }
             }
@@ -324,6 +340,23 @@ fun SettingsScreen(
                     viewModel = viewModel,
                     onClose = { closeDateTimeSettings() }
                 )
+            }
+        }
+
+        // 6. The launcher's own page: icon, name, version and release notes (Hinges In)
+        if (isVersionOpen || versionHingeAnim.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = versionHingeAnim.value
+                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                    }
+            ) {
+                AboutVersionScreen(onClose = { closeVersion() })
             }
         }
     }

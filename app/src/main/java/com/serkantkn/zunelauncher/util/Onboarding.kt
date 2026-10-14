@@ -127,8 +127,16 @@ fun firstRunAction(
 data class ReleaseNote(
     val version: Int,
     val titleRes: Int,
-    val lineRes: List<Int>
+    val lineRes: List<Int>,
+    /** The version's name as it was published - "0.7.0 beta 1". */
+    val name: String = "",
+    /** The day it was published, as yyyy-MM-dd; empty when it was not. */
+    val released: String = ""
 )
+
+/** The notes of every version up to and including [currentVersion], newest first: the version history. */
+fun releaseHistory(all: List<ReleaseNote>, currentVersion: Int): List<ReleaseNote> =
+    all.filter { it.version <= currentVersion }.sortedByDescending { it.version }
 
 /**
  * The notes somebody has not read yet, newest first.

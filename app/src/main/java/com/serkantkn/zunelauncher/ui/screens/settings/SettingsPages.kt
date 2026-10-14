@@ -1299,7 +1299,7 @@ internal fun SystemSettingsPage(
 }
 
 @Composable
-internal fun AboutSettingsPage() {
+internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
     val context = LocalContext.current
     var permissionTrigger by remember { mutableIntStateOf(0) }
 
@@ -1379,15 +1379,13 @@ internal fun AboutSettingsPage() {
     SettingsLazyColumn {
         item(key = "about") {
             SettingGroup(title = stringResource(R.string.settings_about_group)) {
-                Column(modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)) {
-                    Text(
-                        // The name the build was given, so a bug report says which build it came from.
-                        text = stringResource(R.string.settings_version, com.serkantkn.zunelauncher.BuildConfig.VERSION_NAME),
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Normal,
-                            fontSize = 20.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onBackground
+                Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                    // The name the build was given, so a bug report says which build it came
+                    // from; it opens the launcher's own page with what each version brought.
+                    SystemSettingRow(
+                        title = stringResource(R.string.settings_version, com.serkantkn.zunelauncher.BuildConfig.VERSION_NAME),
+                        subtitle = stringResource(R.string.settings_release_notes),
+                        onClick = onOpenVersion
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
