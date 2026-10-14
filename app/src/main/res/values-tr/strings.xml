@@ -202,8 +202,8 @@
     <string name="settings_default_launcher_sub">ana ekran uygulaması</string>
     <string name="settings_notification_access">bildirim erişimi</string>
     <string name="settings_notification_access_sub">social hub izinleri</string>
-    <string name="settings_about_group">zune launcher</string>
-    <string name="settings_version">sürüm 1.0</string>
+    <string name="settings_about_group">z launcher</string>
+    <string name="settings_version">sürüm %1$s</string>
     <string name="settings_about_inspired">microsoft zune hd ve windows phone metro tasarımından ilham alınmıştır</string>
     <string name="settings_permissions_group">uygulamaya verilen izinler</string>
     <string name="settings_permissions_help">uygulamanın tüm özelliklerini sorunsuz kullanabilmek için aşağıdaki izinleri kontrol edebilir ve değiştirebilirsiniz:</string>

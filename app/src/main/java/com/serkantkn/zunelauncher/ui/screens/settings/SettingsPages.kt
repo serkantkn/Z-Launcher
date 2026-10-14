@@ -1381,7 +1381,8 @@ internal fun AboutSettingsPage() {
             SettingGroup(title = stringResource(R.string.settings_about_group)) {
                 Column(modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)) {
                     Text(
-                        text = stringResource(R.string.settings_version),
+                        // The name the build was given, so a bug report says which build it came from.
+                        text = stringResource(R.string.settings_version, com.serkantkn.zunelauncher.BuildConfig.VERSION_NAME),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Normal,
                             fontSize = 20.sp

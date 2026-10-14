@@ -202,8 +202,8 @@
     <string name="settings_default_launcher_sub">home screen app</string>
     <string name="settings_notification_access">notification access</string>
     <string name="settings_notification_access_sub">social hub permissions</string>
-    <string name="settings_about_group">zune launcher</string>
-    <string name="settings_version">version 1.0</string>
+    <string name="settings_about_group">z launcher</string>
+    <string name="settings_version">version %1$s</string>
     <string name="settings_about_inspired">inspired by the microsoft zune hd and windows phone metro design</string>
     <string name="settings_permissions_group">app permissions</string>
     <string name="settings_permissions_help">you can review and change the permissions below to use every feature of the app without issues:</string>
