@@ -129,12 +129,12 @@ class NewsHubViewModel(application: Application) : AndroidViewModel(application)
 
     /** Puts the story on the browser's reading list, or takes it off again. */
     fun toggleReadingList(story: NewsItem) {
-        if (readingList.contains(story.link)) {
-            readingList.remove(story.link)
+        if (readingList.contains(story.readUrl)) {
+            readingList.remove(story.readUrl)
         } else {
             readingList.add(
                 com.serkantkn.zunelauncher.data.model.ReadingItem(
-                    url = story.link,
+                    url = story.readUrl,
                     title = story.title,
                     source = story.source,
                     imageUrl = story.imageUrl,

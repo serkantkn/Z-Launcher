@@ -80,9 +80,14 @@ data class NewsItem(
     val publishedAt: Long,
     val summary: String = "",
     val imageUrl: String? = null,
-    val related: List<NewsRelated> = emptyList()
+    val related: List<NewsRelated> = emptyList(),
+    /** The publisher's own address for a story Google links to through itself, once found. */
+    val pageUrl: String? = null
 ) {
     val id: String get() = link
+
+    /** Where the story is read: the publisher's page when known, else the link the feed gave. */
+    val readUrl: String get() = pageUrl ?: link
 
     fun toJson(): JSONObject = JSONObject()
         .put("title", title)
@@ -92,6 +97,7 @@ data class NewsItem(
         .put("summary", summary)
         .put("imageUrl", imageUrl ?: JSONObject.NULL)
         .put("related", JSONArray().apply { related.forEach { put(it.toJson()) } })
+        .put("pageUrl", pageUrl ?: JSONObject.NULL)
 
     companion object {
         fun fromJson(json: JSONObject) = NewsItem(
@@ -105,7 +111,8 @@ data class NewsItem(
                 (0 until array.length()).mapNotNull { i ->
                     runCatching { NewsRelated.fromJson(array.getJSONObject(i)) }.getOrNull()
                 }
-            }.orEmpty()
+            }.orEmpty(),
+            pageUrl = json.optStringOrNull("pageUrl")
         )
     }
 }

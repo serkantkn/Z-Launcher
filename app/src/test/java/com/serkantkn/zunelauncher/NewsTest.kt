@@ -4,9 +4,11 @@ import com.serkantkn.zunelauncher.data.model.NewsItem
 import com.serkantkn.zunelauncher.data.model.NewsRelated
 import com.serkantkn.zunelauncher.data.model.NewsSection
 import com.serkantkn.zunelauncher.data.model.NewsTopic
+import com.serkantkn.zunelauncher.data.repository.GoogleSignature
 import com.serkantkn.zunelauncher.data.repository.NewsFeedParser
 import com.serkantkn.zunelauncher.data.repository.NewsPresets
 import com.serkantkn.zunelauncher.data.repository.NewsRepository
+import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -198,11 +200,48 @@ class NewsTest {
             fetchedAt = 42L,
             items = listOf(
                 NewsItem("t", "https://l", "s", 7L, "sum", null, listOf(NewsRelated("r", "https://r", "p"))),
-                NewsItem("u", "https://m", "s", 8L, imageUrl = "https://i")
+                NewsItem("u", "https://m", "s", 8L, imageUrl = "https://i", pageUrl = "https://publisher/u")
             )
         )
         assertEquals(section, NewsSection.fromJson(section.toJson()))
         assertEquals("topic:WORLD", section.key)
         assertEquals(NewsTopic.TOP, NewsTopic.DEFAULT.first())
+    }
+
+    @Test
+    fun aStoryIsReadFromThePublisherOnceItsAddressIsKnown() {
+        val story = NewsItem("t", "https://news.google.com/rss/articles/CBMi", "s", 1L)
+        assertEquals(story.link, story.readUrl)
+        assertEquals("https://publisher/t", story.copy(pageUrl = "https://publisher/t").readUrl)
+        assertEquals(story.link, story.copy(pageUrl = "https://publisher/t").id)
+    }
+
+    @Test
+    fun googlesPageGivesItsSignature() {
+        val page = """<c-wiz><div jscontroller="aLI87" data-n-a-id="CBMi" data-n-a-ts="1791965791" data-n-a-sg="AbIaSL85NsnbxUWYirQNVyxSDxPJ"></div>"""
+        assertEquals(GoogleSignature(1791965791L, "AbIaSL85NsnbxUWYirQNVyxSDxPJ"), NewsRepository.googleSignature(page))
+        assertNull(NewsRepository.googleSignature("<html>consent</html>"))
+    }
+
+    @Test
+    fun theRequestForThePublisherIsTheOneGooglesPageMakes() {
+        val request = JSONArray(NewsRepository.googleDecodeRequest("CBMi", GoogleSignature(17L, "sig")))
+        val call = request.getJSONArray(0).getJSONArray(0)
+        assertEquals("Fbv4je", call.getString(0))
+        assertEquals("generic", call.getString(3))
+        val inner = JSONArray(call.getString(1))
+        assertEquals("garturlreq", inner.getString(0))
+        assertEquals("CBMi", inner.getString(2))
+        assertEquals(17L, inner.getLong(3))
+        assertEquals("sig", inner.getString(4))
+    }
+
+    @Test
+    fun theAnswerGivesThePublishersAddress() {
+        val answer = ")]}'\n\n" +
+            """[["wrb.fr","Fbv4je","[\"garturlres\",\"https://www.ntv.com.tr/turkiye/ankarada-taksici-1746209\",1]",null,null,null,"generic"],["di",13],["af.httprm",12,"-58",84]]"""
+        assertEquals("https://www.ntv.com.tr/turkiye/ankarada-taksici-1746209", NewsRepository.googleDecodedLink(answer))
+        assertNull(NewsRepository.googleDecodedLink(")]}'\n\n[[\"er\",null,null,null,null,400]]"))
+        assertNull(NewsRepository.googleDecodedLink("<html>"))
     }
 }

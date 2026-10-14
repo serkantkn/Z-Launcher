@@ -102,14 +102,14 @@ internal fun NewsStoryScreen(
         }
         WindowsPhoneBottomBar(
             actions = listOf(
-                WpBarAction(Icons.Default.OpenInBrowser, stringResource(R.string.news_read_on)) { onRead(story.link) },
+                WpBarAction(Icons.Default.OpenInBrowser, stringResource(R.string.news_read_on)) { onRead(story.readUrl) },
                 WpBarAction(Icons.Default.Share, stringResource(R.string.common_share)) { share(context, story) }
             ),
             menuItems = listOf(
                 WpBarMenuItem(
                     stringResource(if (onReadingList) R.string.browser_remove_reading else R.string.browser_add_reading)
                 ) { onToggleReadingList() },
-                WpBarMenuItem(stringResource(R.string.news_copy_link)) { copyLink(context, story.link) }
+                WpBarMenuItem(stringResource(R.string.news_copy_link)) { copyLink(context, story.readUrl) }
             ),
             modifier = barModifier.align(Alignment.BottomCenter)
         )
@@ -180,7 +180,7 @@ private fun NewsStoryBody(
 
         MetroButton(
             label = stringResource(R.string.news_read_on),
-            onClick = { onRead(story.link) },
+            onClick = { onRead(story.readUrl) },
             modifier = Modifier.padding(top = 24.dp)
         )
 
@@ -260,7 +260,7 @@ private fun share(context: Context, story: NewsItem) {
     val send = Intent(Intent.ACTION_SEND)
         .setType("text/plain")
         .putExtra(Intent.EXTRA_SUBJECT, story.title)
-        .putExtra(Intent.EXTRA_TEXT, "${story.title}\n${story.link}")
+        .putExtra(Intent.EXTRA_TEXT, "${story.title}\n${story.readUrl}")
     context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 

@@ -121,17 +121,21 @@ fun W10MNewsTile(
                                 .fillMaxSize()
                                 .background(
                                     Brush.verticalGradient(
-                                        0.35f to Color.Transparent,
-                                        1f to Color.Black.copy(alpha = 0.82f)
+                                        0.3f to Color.Transparent,
+                                        0.6f to Color.Black.copy(alpha = 0.35f),
+                                        1f to Color.Black.copy(alpha = 0.6f)
                                     )
                                 )
                         )
                     }
+                    // The headline sits on a band of its own: a news picture often carries big
+                    // lettering of its own, and a fade alone lets the two run into each other.
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .fillMaxWidth()
-                            .padding(start = 8.dp, end = 8.dp, bottom = 6.dp),
+                            .then(if (story.imageUrl != null) Modifier.background(Color.Black.copy(alpha = 0.78f)) else Modifier)
+                            .padding(start = 8.dp, end = 8.dp, top = 5.dp, bottom = 6.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(

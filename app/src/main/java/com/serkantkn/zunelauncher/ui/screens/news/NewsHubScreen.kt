@@ -237,7 +237,7 @@ fun NewsHubScreen(
                             onClose = { viewModel.close() },
                             onRead = { viewModel.readOnSite(it) },
                             onToggleReadingList = { viewModel.toggleReadingList(story) },
-                            onReadingList = story.link in readingLinks,
+                            onReadingList = story.readUrl in readingLinks,
                             barModifier = barModifier
                         )
                         else -> ZuneWideEmptyPane(
@@ -294,7 +294,7 @@ fun NewsHubScreen(
                             onClose = { viewModel.close() },
                             onRead = { viewModel.readOnSite(it) },
                             onToggleReadingList = { viewModel.toggleReadingList(story) },
-                            onReadingList = story.link in readingLinks
+                            onReadingList = story.readUrl in readingLinks
                         )
                     }
                 }

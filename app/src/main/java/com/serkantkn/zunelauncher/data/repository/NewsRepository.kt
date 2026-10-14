@@ -27,13 +27,18 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
+import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+
+/** What Google's page for a story signs its request for the publisher's address with. */
+data class GoogleSignature(val timestamp: Long, val value: String)
 
 /** Why a feed could not be added; the words are the hub's to show. */
 class NewsException(@StringRes val messageRes: Int, cause: Throwable? = null) : Exception(cause)
@@ -212,25 +217,48 @@ class NewsRepository(
     /**
      * Fills in a story's picture and summary from its page's own share card (`og:image`,
      * `og:description`) when the feed gave none. Google's links lead through Google, whose page
-     * has no card of the story's, so those are left as they are.
+     * has no card of the story's: for those the publisher's address is asked of Google first,
+     * and kept, so the story is also read straight from the publisher.
      */
     suspend fun withPageCard(item: NewsItem): NewsItem = withContext(Dispatchers.IO) {
         if (item.imageUrl != null && item.summary.isNotBlank()) return@withContext item
-        if (isGoogleLink(item.link) || !context.hasNetwork()) return@withContext item
+        if (!context.hasNetwork()) return@withContext item
+        val address = item.pageUrl
+            ?: if (isGoogleLink(item.link)) publisherLink(item.link) ?: return@withContext item else item.link
         val page = try {
-            String(download(item.link, PAGE_HEAD_BYTES), Charsets.UTF_8)
+            String(download(address, PAGE_HEAD_BYTES), Charsets.UTF_8)
         } catch (e: IOException) {
-            ZuneLog.w(TAG, "page card of ${item.link} unavailable", e)
-            return@withContext item
+            ZuneLog.w(TAG, "page card of $address unavailable", e)
+            return@withContext item.copy(pageUrl = address.takeIf { it != item.link }).also { if (it != item) replaceEverywhere(it) }
         }
         val image = item.imageUrl ?: metaContent(page, "og:image") ?: metaContent(page, "twitter:image")
         val summary = item.summary.ifBlank { metaContent(page, "og:description") ?: metaContent(page, "description").orEmpty() }
         val filled = item.copy(
             imageUrl = image?.takeIf { it.startsWith("http") },
-            summary = NewsFeedParser.summaryOf(summary)
+            summary = NewsFeedParser.summaryOf(summary),
+            pageUrl = address.takeIf { it != item.link }
         )
         if (filled != item) replaceEverywhere(filled)
         filled
+    }
+
+    /**
+     * The publisher's address behind a Google News link, as Google's own page finds it: the page
+     * carries a signature, and Google's page service trades it for the address. Null when Google
+     * will not say, which leaves the story as it was.
+     */
+    private fun publisherLink(link: String): String? = try {
+        val id = URL(link).path.substringAfterLast('/').takeIf { it.isNotBlank() }
+        val page = id?.let { String(download("https://news.google.com/rss/articles/$it", GOOGLE_PAGE_BYTES), Charsets.UTF_8) }
+        val signature = page?.let { googleSignature(it) }
+        if (id == null || signature == null) {
+            null
+        } else {
+            googleDecodedLink(post(GOOGLE_DECODE_URL, "f.req=" + URLEncoder.encode(googleDecodeRequest(id, signature), "UTF-8")))
+        }
+    } catch (e: IOException) {
+        ZuneLog.w(TAG, "publisher of $link unavailable", e)
+        null
     }
 
     // --- Settings --------------------------------------------------------------------------------
@@ -322,6 +350,10 @@ class NewsRepository(
         private const val SOURCES_LIMIT = 120
         private const val FEED_MAX_BYTES = 6 * 1024 * 1024
         private const val PAGE_HEAD_BYTES = 192 * 1024
+
+        /** Google's page for a story is large, and the signature is near its end. */
+        private const val GOOGLE_PAGE_BYTES = 2 * 1024 * 1024
+        private const val GOOGLE_DECODE_URL = "https://news.google.com/_/DotsSplashUi/data/batchexecute"
         private const val TIMEOUT_MS = 15_000
         private const val MAX_REDIRECTS = 5
         private const val USER_AGENT = "Mozilla/5.0 (Linux; Android) ZLauncher-News/1.0"
@@ -340,6 +372,42 @@ class NewsRepository(
         fun isGoogleLink(link: String): Boolean =
             runCatching { URL(link).host.endsWith("news.google.com") }.getOrDefault(false)
 
+        private val GOOGLE_TIMESTAMP = Regex("""data-n-a-ts="(\d+)"""")
+        private val GOOGLE_SIGNATURE = Regex("""data-n-a-sg="([^"]+)"""")
+
+        /** The signature and its time on Google's page for a story; null when the page has none. */
+        fun googleSignature(page: String): GoogleSignature? {
+            val timestamp = GOOGLE_TIMESTAMP.find(page)?.groupValues?.get(1) ?: return null
+            val signature = GOOGLE_SIGNATURE.find(page)?.groupValues?.get(1) ?: return null
+            return GoogleSignature(timestamp.toLong(), signature)
+        }
+
+        /** The request Google's own page makes to turn a story's id and signature into the address. */
+        fun googleDecodeRequest(id: String, signature: GoogleSignature): String {
+            val inner = JSONArray()
+                .put("garturlreq")
+                .put(JSONArray("[[\"X\",\"X\",[\"X\",\"X\"],null,null,1,1,\"US:en\",null,1,null,null,null,null,null,0,1],\"X\",\"X\",1,[1,1,1],1,1,null,0,0,null,0]"))
+                .put(id)
+                .put(signature.timestamp)
+                .put(signature.value)
+            return JSONArray().put(JSONArray().put(JSONArray().put("Fbv4je").put(inner.toString()).put(JSONObject.NULL).put("generic"))).toString()
+        }
+
+        /** The publisher's address in Google's answer, or null when the answer has none. */
+        fun googleDecodedLink(response: String): String? = try {
+            val entries = JSONArray(response.substring(response.indexOf('[').coerceAtLeast(0)))
+            (0 until entries.length()).firstNotNullOfOrNull { i ->
+                val entry = entries.optJSONArray(i)
+                if (entry?.optString(0) == "wrb.fr" && entry.optString(1) == "Fbv4je") {
+                    JSONArray(entry.getString(2)).optString(1).takeIf { it.startsWith("http") }
+                } else {
+                    null
+                }
+            }
+        } catch (e: JSONException) {
+            null
+        }
+
         private val META = Regex("""<meta\s[^>]*>""", RegexOption.IGNORE_CASE)
         private val ATTRIBUTE = Regex("""([a-zA-Z:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
 
@@ -355,6 +423,25 @@ class NewsRepository(
                 }
             }
             return null
+        }
+
+        /** Sends [form] to [address] as a form, and reads the answer. */
+        private fun post(address: String, form: String): String {
+            val connection = URL(address).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = TIMEOUT_MS
+                connection.readTimeout = TIMEOUT_MS
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.setRequestProperty("User-Agent", USER_AGENT)
+                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
+                connection.outputStream.use { it.write(form.toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                if (code !in 200..299) throw IOException("HTTP $code for $address")
+                return connection.inputStream.use { String(it.readBytes(), Charsets.UTF_8) }
+            } finally {
+                connection.disconnect()
+            }
         }
 
         /** Reads [address] whole, up to [limit] bytes, following redirects across http and https. */
