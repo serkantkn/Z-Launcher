@@ -95,8 +95,8 @@ fun W10MWeatherTile(
                 TileFace(span) { m ->
                     when (m.shape) {
                         TileShape.SMALL -> Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(degrees(today.maxTemperature), style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(18f), fontWeight = FontWeight.Light), color = fg, maxLines = 1)
-                            Text(degrees(today.minTemperature), style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(14f), fontWeight = FontWeight.Light), color = fg.copy(alpha = 0.75f), maxLines = 1)
+                            Text(degrees(today.maxTemperature), style = MaterialTheme.typography.titleMedium.copy(fontSize = m.figure(18f), fontWeight = FontWeight.Light), color = fg, maxLines = 1)
+                            Text(degrees(today.minTemperature), style = MaterialTheme.typography.titleMedium.copy(fontSize = m.figure(14f), fontWeight = FontWeight.Light), color = fg.copy(alpha = 0.75f), maxLines = 1)
                         }
                         TileShape.MEDIUM -> Column(modifier = Modifier.fillMaxSize().padding(m.pad)) {
                             TileCaption(null, snapshot.place.name, m, fg, Modifier.padding(bottom = m.dp(6f)))
@@ -127,12 +127,12 @@ fun W10MWeatherTile(
                 when (m.shape) {
                     TileShape.SMALL -> Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(sky, contentDescription = condition, tint = fg, modifier = Modifier.size(m.dp(30f)))
-                        Text(degrees(now.temperature), style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(19f), fontWeight = FontWeight.Light), color = fg, maxLines = 1)
+                        Text(degrees(now.temperature), style = MaterialTheme.typography.titleMedium.copy(fontSize = m.figure(19f), fontWeight = FontWeight.Light), color = fg, maxLines = 1)
                     }
                     TileShape.MEDIUM -> TileBody(m) {
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Reading(degrees(now.temperature), m.text(50f), fg)
+                                Reading(degrees(now.temperature), m.figure(50f), fg)
                                 Icon(sky, contentDescription = null, tint = fg, modifier = Modifier.padding(start = m.dp(8f)).size(m.dp(34f)))
                             }
                             Text(condition, style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -145,7 +145,7 @@ fun W10MWeatherTile(
                         Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.padding(end = m.dp(14f))) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Reading(degrees(now.temperature), m.text(58f), fg)
+                                    Reading(degrees(now.temperature), m.figure(58f), fg)
                                     Icon(sky, contentDescription = null, tint = fg, modifier = Modifier.padding(start = m.dp(8f)).size(m.dp(38f)))
                                 }
                                 Text(condition, style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -164,7 +164,7 @@ fun W10MWeatherTile(
                     TileShape.LARGE -> TileBody(m) {
                         Column(modifier = Modifier.fillMaxSize()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Reading(degrees(now.temperature), m.text(88f), fg)
+                                Reading(degrees(now.temperature), m.figure(88f), fg)
                                 Icon(sky, contentDescription = null, tint = fg, modifier = Modifier.padding(start = m.dp(12f)).size(m.dp(64f)))
                             }
                             Text(condition, style = MaterialTheme.typography.headlineSmall.copy(fontSize = m.text(22f), fontWeight = FontWeight.Light), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -256,7 +256,8 @@ private fun DayTable(
     /** Three-letter day names, for the narrow medium tile. */
     short: Boolean = false
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(m.dp(5f))) {
+    // As many days as there is room for: the large tile on the eight-column grid has fewer.
+    FitColumn(spacing = m.dp(5f)) {
         days.forEach { day ->
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(formatAt(day.timeSeconds, offsetSeconds, if (short) "EEE" else "EEEE").lowercase(), style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)), color = ink, maxLines = 1, modifier = Modifier.weight(1f))

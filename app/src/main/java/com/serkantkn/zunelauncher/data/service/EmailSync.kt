@@ -5,6 +5,11 @@ import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.job.JobInfo
+import android.app.job.JobParameters
+import android.app.job.JobScheduler
+import android.app.job.JobService
+import android.content.ComponentName
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -24,7 +29,9 @@ import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.RequestCodes
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.serkantkn.zunelauncher.util.localizedString
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -76,20 +83,23 @@ class EmailSyncScheduler(private val context: Context) {
     }
 }
 
-/** Background sync entry point (alarm). Runs the inbox sync for every account. */
+/**
+ * Background sync entry point (alarm). It hands the sync to [EmailSyncJobService] and returns at
+ * once: a receiver woken by an alarm has about ten seconds, a mail server is allowed twenty to
+ * answer and forty for each step after that, and the blocking mail calls do not stop when a
+ * coroutine is cancelled - the sync used to run on inside the receiver past its deadline and the
+ * launcher was reported as not responding.
+ */
 class EmailSyncReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != EmailSyncScheduler.ACTION_SYNC) return
-        val pendingResult = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                syncAllInboxes(context.applicationContext, notify = true)
-            } catch (e: Exception) {
-                ZuneLog.e("EmailSyncReceiver", "onReceive failed", e)
-            } finally {
-                pendingResult.finish()
-            }
-        }
+        val scheduler = context.getSystemService(JobScheduler::class.java) ?: return
+        val job = JobInfo.Builder(EmailSyncJobService.JOB_ID, ComponentName(context, EmailSyncJobService::class.java))
+            // A sync needs a connection, and waiting for one is better than failing for want of it.
+            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+            .build()
+        val result = scheduler.schedule(job)
+        if (result != JobScheduler.RESULT_SUCCESS) ZuneLog.w("EmailSyncReceiver", "sync job refused")
     }
 
     companion object {
@@ -129,8 +139,45 @@ class EmailSyncReceiver : BroadcastReceiver() {
             return found
         }
 
-        /** Under the ~30 s a receiver has before the system gives up on it. */
-        private const val SYNC_DEADLINE_MILLIS = 25_000L
+        /**
+         * Well inside the ten minutes a job is given. The blocking mail calls run on past it until
+         * their own timeouts, but nothing waits on them any more.
+         */
+        private const val SYNC_DEADLINE_MILLIS = 180_000L
+    }
+}
+
+/** Runs the inbox sync an alarm asked for, with the minutes a job is given. */
+class EmailSyncJobService : JobService() {
+
+    private var running: Job? = null
+
+    override fun onStartJob(params: JobParameters): Boolean {
+        running = CoroutineScope(Dispatchers.IO).launch {
+            var stopped = false
+            try {
+                EmailSyncReceiver.syncAllInboxes(applicationContext, notify = true)
+            } catch (e: CancellationException) {
+                stopped = true
+                throw e
+            } catch (e: Exception) {
+                ZuneLog.e("EmailSyncJob", "sync failed", e)
+            } finally {
+                // A job the system stopped is not reported finished: it said so already.
+                if (!stopped) jobFinished(params, false)
+            }
+        }
+        return true
+    }
+
+    /** The system wants the time back: give up; the next alarm tries again. */
+    override fun onStopJob(params: JobParameters): Boolean {
+        running?.cancel()
+        return false
+    }
+
+    companion object {
+        const val JOB_ID = 4102
     }
 }
 

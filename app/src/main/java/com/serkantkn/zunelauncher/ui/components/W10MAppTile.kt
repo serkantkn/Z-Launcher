@@ -93,7 +93,7 @@ fun W10MAppTile(
                         }
                         Text(
                             text = if (notificationCount > 99) "99+" else notificationCount.toString(),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(15f), fontWeight = FontWeight.Light),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = m.figure(15f), fontWeight = FontWeight.Light),
                             color = fg,
                             modifier = Modifier.align(Alignment.TopEnd).padding(end = m.dp(8f), top = m.dp(4f))
                         )

@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -67,8 +69,19 @@ class TileMetrics(val shape: TileShape, val width: Dp, val height: Dp) {
         TileShape.LARGE -> width / 372.dp
     }.coerceIn(0.45f, 1.45f)
 
-    /** Type of [size] points on the tile the design was drawn for, at this tile's size. */
-    fun text(size: Float): TextUnit = (size * scale).sp
+    /**
+     * Words of [size] points on the tile the design was drawn for, at this tile's size - but
+     * never much smaller: on the phone's eight-column grid a tile is half the width the design
+     * was drawn for, and names and lines of news set at half size could not be read.
+     */
+    fun text(size: Float): TextUnit = (size * maxOf(scale, WORD_FLOOR)).sp
+
+    /**
+     * A figure - the time, the temperature, the day of the month - of [size] points on the tile
+     * the design was drawn for, at exactly this tile's size: figures are sized to fill their tile,
+     * and one that kept a floor would no longer fit in it.
+     */
+    fun figure(size: Float): TextUnit = (size * scale).sp
 
     /** A length of [size] dp on the tile the design was drawn for, at this tile's size. */
     fun dp(size: Float): Dp = (size * scale).dp
@@ -82,6 +95,9 @@ class TileMetrics(val shape: TileShape, val width: Dp, val height: Dp) {
     /** Wide or large: there is room for a column of words beside, or under, the glyph. */
     val hasRoomForWords: Boolean get() = shape == TileShape.WIDE || shape == TileShape.LARGE
 }
+
+/** How far below the size they were designed at words on a smaller tile may go. */
+private const val WORD_FLOOR = 0.9f
 
 /** A face that lays itself out by what [TileMetrics] says about the tile it is on. */
 @Composable
@@ -118,9 +134,12 @@ internal fun TileLineList(
     val alone = big && lines.size == 1
     // A list of names alone - missed calls, sums - has the room its bodies would have had.
     val bare = lines.none { !it.body.isNullOrBlank() }
-    // On a medium tile a time beside the name leaves the name no room: it goes under it instead.
-    val metaBeside = metrics.hasRoomForWords
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(metrics.dp(if (big) 14f else 9f))) {
+    BoxWithConstraints(modifier = modifier) {
+    // In a narrow list a time beside the name leaves the name no room: it goes under it instead.
+    val metaBeside = metrics.hasRoomForWords && maxWidth >= 210.dp
+    // Only what fits whole: a line cut in half by the tile's edge, or sitting on its name, reads
+    // worse than one left out.
+    FitColumn(spacing = metrics.dp(if (big) 14f else 9f)) {
         lines.take(maxItems).forEach { line ->
             Column {
                 Row(verticalAlignment = Alignment.Bottom) {
@@ -138,7 +157,7 @@ internal fun TileLineList(
                     if (metaBeside && !line.meta.isNullOrBlank()) {
                         Text(
                             text = line.meta,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = metrics.text(if (big) 13f else 11f)),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = metrics.text(if (big) 13f else 12f)),
                             color = ink.copy(alpha = 0.7f),
                             maxLines = 1,
                             modifier = Modifier.padding(start = metrics.dp(8f), bottom = metrics.dp(1f))
@@ -161,6 +180,7 @@ internal fun TileLineList(
                 }
             }
         }
+    }
     }
 }
 
@@ -221,7 +241,9 @@ internal fun TileCaption(icon: ImageVector?, text: String, metrics: TileMetrics,
 }
 
 /** The room a face keeps clear along the bottom for the tile's name. */
-internal fun TileMetrics.labelRoom(): Dp = if (isSmall) 0.dp else dp(26f)
+internal fun TileMetrics.labelRoom(): Dp =
+    // The name keeps its type size on small grids (see [TileMetrics.text]), so its strip does too.
+    if (isSmall) 0.dp else maxOf(dp(26f), (13f * maxOf(scale, 0.9f) * 1.45f).dp + dp(8f))
 
 /** Fills the face with [content], inside the margins, leaving the name its strip at the bottom. */
 @Composable
@@ -281,6 +303,39 @@ internal fun BoxScope.NamedFace(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = m.pad, end = m.pad, bottom = m.dp(8f))
             )
+        }
+    }
+}
+
+/**
+ * A column that shows as many of its children as fit whole, from the top, and leaves out the rest
+ * - for a live tile's lists, which have to look finished whatever size the tile is drawn at.
+ */
+@Composable
+internal fun FitColumn(modifier: Modifier = Modifier, spacing: Dp = 0.dp, content: @Composable () -> Unit) {
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val gap = spacing.roundToPx()
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val placeables = mutableListOf<Placeable>()
+        var used = 0
+        for (measurable in measurables) {
+            val placeable = measurable.measure(loose)
+            val needed = used + (if (placeables.isEmpty()) 0 else gap) + placeable.height
+            // The first always stays, cut short by the height it is given: an empty list would say
+            // there is nothing new when there is.
+            if (placeables.isNotEmpty() && constraints.hasBoundedHeight && needed > constraints.maxHeight) break
+            used = needed
+            placeables += placeable
+        }
+        // As wide as its widest child, so it can stand beside something else in a row.
+        val width = (placeables.maxOfOrNull { it.width } ?: 0).coerceAtLeast(constraints.minWidth)
+        layout(width, used.coerceAtLeast(constraints.minHeight)) {
+            var y = 0
+            placeables.forEachIndexed { index, placeable ->
+                if (index > 0) y += gap
+                placeable.placeRelative(0, y)
+                y += placeable.height
+            }
         }
     }
 }

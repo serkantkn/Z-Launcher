@@ -206,7 +206,7 @@ fun W10MClockTile(
                     TileShape.SMALL -> {
                         Text(
                             text = timeText,
-                            style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(21f), fontWeight = FontWeight.Light),
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = m.figure(21f), fontWeight = FontWeight.Light),
                             color = fg,
                             maxLines = 1,
                             softWrap = false,
@@ -219,20 +219,22 @@ fun W10MClockTile(
                     }
                     TileShape.MEDIUM -> TileBody(m) {
                         Column {
-                            BigNumber(timeText, m.text(46f), fg)
+                            BigNumber(timeText, m.figure(46f), fg)
                             Text(
                                 text = format("EEEE", now).lowercase(),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
                                 color = fg, maxLines = 1
                             )
-                            Text(
-                                text = format("d MMMM", now).lowercase(),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
-                                color = fg.copy(alpha = 0.8f), maxLines = 1
-                            )
-                        }
-                        if (nextAlarm != null) {
-                            AlarmMark(alarmTimeOf(nextAlarm.second), m, fg, Modifier.align(Alignment.BottomEnd).padding(bottom = m.dp(2f)))
+                            // The date and the next alarm share a line, so neither sits on the other.
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = format("d MMMM", now).lowercase(),
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
+                                    color = fg.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (nextAlarm != null) AlarmMark(alarmTimeOf(nextAlarm.second), m, fg, Modifier.padding(start = m.dp(4f)))
+                            }
                         }
                     }
                     TileShape.WIDE -> TileBody(m) {
@@ -240,7 +242,7 @@ fun W10MClockTile(
                             if (alarmLines.isEmpty()) {
                                 // No alarm to list: the time on the left and the day, written out
                                 // large, on the right, rather than half a tile left empty.
-                                BigNumber(timeText, m.text(72f), fg, Modifier.weight(1f))
+                                BigNumber(timeText, m.figure(72f), fg, Modifier.weight(1f))
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
                                         text = format("EEEE", now).lowercase(),
@@ -256,7 +258,7 @@ fun W10MClockTile(
                                 return@Row
                             }
                             Column(modifier = Modifier.weight(1f)) {
-                                BigNumber(timeText, m.text(64f), fg)
+                                BigNumber(timeText, m.figure(64f), fg)
                                 Text(
                                     text = format("EEEE, d MMMM", now).lowercase(),
                                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
@@ -279,7 +281,7 @@ fun W10MClockTile(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = if (alarmLines.isEmpty()) Arrangement.Center else Arrangement.Top
                         ) {
-                            BigNumber(timeText, m.text(104f), fg)
+                            BigNumber(timeText, m.figure(104f), fg)
                             Text(
                                 text = format("EEEE", now).lowercase(),
                                 style = MaterialTheme.typography.headlineSmall.copy(fontSize = m.text(26f), fontWeight = FontWeight.Light),
@@ -318,7 +320,7 @@ fun W10MClockTile(
                         Text(
                             text = alarmTimeOf(alarm.second),
                             style = MaterialTheme.typography.headlineSmall.copy(
-                                fontSize = if (m.isSmall) m.text(19f) else m.text(40f),
+                                fontSize = if (m.isSmall) m.figure(19f) else m.figure(40f),
                                 fontWeight = FontWeight.Light
                             ),
                             color = fg,
@@ -441,10 +443,10 @@ fun W10MCalendarTile(
                         Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = format("EEE", now).lowercase(),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = m.text(11f)),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = m.figure(11f)),
                                 color = fg.copy(alpha = 0.85f), maxLines = 1
                             )
-                            BigNumber(format("d", now), m.text(32f), fg)
+                            BigNumber(format("d", now), m.figure(32f), fg)
                         }
                         if (next != null) {
                             Box(modifier = Modifier.align(Alignment.BottomEnd).padding(m.dp(7f)).size(m.dp(6f)).clip(CircleShape).background(fg))
@@ -476,17 +478,18 @@ fun W10MCalendarTile(
                             )
                         }
                         // The day's number in the corner the name leaves free, as on Windows Phone.
-                        BigNumber(format("d", now), m.text(if (next != null) 34f else 56f), fg, Modifier.align(Alignment.BottomEnd))
+                        BigNumber(format("d", now), m.figure(if (next != null) 34f else 56f), fg, Modifier.align(Alignment.BottomEnd))
                     }
                     TileShape.WIDE -> TileBody(m) {
                         Row(modifier = Modifier.fillMaxSize()) {
-                            Column(modifier = Modifier.padding(end = m.dp(16f))) {
+                            // The month goes first when the tile is too short for all three.
+                            FitColumn(modifier = Modifier.padding(end = m.dp(16f))) {
                                 Text(
                                     text = format("EEEE", now).lowercase(),
                                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(15f)),
                                     color = fg, maxLines = 1
                                 )
-                                BigNumber(format("d", now), m.text(72f), fg)
+                                BigNumber(format("d", now), m.figure(72f), fg)
                                 Text(
                                     text = format("MMMM", now).lowercase(),
                                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = m.text(14f)),
@@ -503,7 +506,7 @@ fun W10MCalendarTile(
                     TileShape.LARGE -> TileBody(m) {
                         Column(modifier = Modifier.fillMaxSize()) {
                             Row(verticalAlignment = Alignment.Bottom) {
-                                BigNumber(format("d", now), m.text(80f), fg)
+                                BigNumber(format("d", now), m.figure(80f), fg)
                                 Column(modifier = Modifier.padding(start = m.dp(12f), bottom = m.dp(12f))) {
                                     Text(
                                         text = format("EEEE", now).lowercase(),

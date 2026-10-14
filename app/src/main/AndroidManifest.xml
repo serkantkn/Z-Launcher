@@ -294,6 +294,12 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- The mail sync itself: the alarm's receiver hands it here, where it has minutes rather than seconds. -->
+        <service
+            android:name=".data.service.EmailSyncJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
+
         <!-- mailto: links and share sheet target: "paylaş -> E-posta" -->
         <activity
             android:name=".ui.screens.email.ComposeEmailActivity"

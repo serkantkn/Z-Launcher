@@ -249,7 +249,7 @@ internal fun BoxScope.IconicListFace(
                         metrics = m,
                         ink = fg,
                         maxItems = 5,
-                        bodyLines = when (lines.size) { 1 -> 10; 2 -> 5; 3 -> 3; 4 -> 2; else -> 1 },
+                        bodyLines = when (lines.size) { 1 -> 10; 2 -> 4; 3 -> 2; else -> 1 },
                         modifier = Modifier.padding(top = m.dp(16f))
                     )
                 }
@@ -324,7 +324,7 @@ internal fun BoxScope.TileTextBack(
             // A small tile has no room for words: the count alone is the message.
             Text(
                 text = if (badgeCount > 0) badgeCount.toString() else "",
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = m.text(30f), fontWeight = FontWeight.Light),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = m.figure(30f), fontWeight = FontWeight.Light),
                 color = fg,
                 modifier = Modifier.align(Alignment.Center)
             )
@@ -341,7 +341,7 @@ internal fun BoxScope.TileTextBack(
                     Text(
                         text = heading,
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = if (headline == null) m.text(44f) else m.text(16f),
+                            fontSize = if (headline == null) m.figure(44f) else m.text(16f),
                             fontWeight = if (headline == null) FontWeight.Light else FontWeight.SemiBold
                         ),
                         color = fg,
@@ -535,10 +535,10 @@ internal fun BoxScope.TileBadge(count: Int, span: Int, gridColumns: Int, color: 
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Light,
                 fontSize = when (m.shape) {
-                    TileShape.SMALL -> m.text(15f)
-                    TileShape.MEDIUM -> m.text(26f)
-                    TileShape.WIDE -> m.text(30f)
-                    TileShape.LARGE -> m.text(40f)
+                    TileShape.SMALL -> m.figure(15f)
+                    TileShape.MEDIUM -> m.figure(26f)
+                    TileShape.WIDE -> m.figure(30f)
+                    TileShape.LARGE -> m.figure(40f)
                 }
             ),
             color = color,
