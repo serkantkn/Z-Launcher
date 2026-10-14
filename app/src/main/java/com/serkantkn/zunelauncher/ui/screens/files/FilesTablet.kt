@@ -491,9 +491,23 @@ private fun PlaceHeader(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp)) {
+            // Files dropped on the back arrow go up into the folder above this one.
+            val parent = ancestors.firstOrNull()
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
+                    .then(
+                        if (parent != null && !inCloud) {
+                            val parentLabel = if (parent.absolutePath == volumeRoot?.absolutePath) {
+                                currentVolume?.label.orEmpty()
+                            } else {
+                                parent.name
+                            }
+                            Modifier.fileDropTarget(parent, parentLabel, DropHighlight.TILE)
+                        } else {
+                            Modifier
+                        }
+                    )
                     .size(40.dp)
                     .border(2.dp, ink.copy(alpha = if (canGoBack) 0.8f else 0.25f), androidx.compose.foundation.shape.CircleShape)
                     .clickable(

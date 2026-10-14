@@ -232,11 +232,16 @@ internal fun CloudRow(
 
 // ── Where you are ───────────────────────────────────────────────────────────
 
-/** The path, each step of it pressable, in the Zune way: words, not chevrons in boxes. */
+/**
+ * The path, each step of it pressable, in the Zune way: words, not chevrons in boxes. Given the
+ * [folders] the steps stand for, every step but the last also takes files dragged onto it, which
+ * is how a phone moves something up out of the folder it is in.
+ */
 @Composable
 internal fun FilesBreadcrumb(
     crumbs: List<Pair<String, () -> Unit>>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    folders: List<java.io.File>? = null
 ) {
     val zuneColors = LocalZuneColors.current
     LazyRow(
@@ -253,13 +258,17 @@ internal fun FilesBreadcrumb(
                         color = if (index == crumbs.lastIndex) zuneColors.textMuted else zuneColors.accentColor,
                         maxLines = 1,
                         modifier = Modifier
+                            .then(
+                                folders?.getOrNull(index)?.takeIf { index != crumbs.lastIndex }
+                                    ?.let { Modifier.fileDropTarget(it, label, DropHighlight.TILE) } ?: Modifier
+                            )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 enabled = index != crumbs.lastIndex,
                                 onClick = onClick
                             )
-                            .padding(vertical = 4.dp)
+                            .padding(vertical = 8.dp, horizontal = 2.dp)
                     )
                     if (index != crumbs.lastIndex) {
                         Spacer(modifier = Modifier.width(6.dp))

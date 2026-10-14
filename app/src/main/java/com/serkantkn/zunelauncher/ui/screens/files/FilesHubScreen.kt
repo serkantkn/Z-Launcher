@@ -206,7 +206,8 @@ fun FilesHubScreen(
     val filesViewSetting by viewModel.view.collectAsState()
     // Nothing chosen yet: the tablet shows pictures, the phone its list — the same two views on
     // both, only the starting one differs.
-    val filesView = filesViewSetting ?: if (isWideScreen) FilesView.THUMBNAILS else FilesView.LIST
+    // Windows 8's folder of tiles on the phone as on the tablet; the list is a choice in the menu.
+    val filesView = filesViewSetting ?: FilesView.THUMBNAILS
 
     /** Scrolls whichever of the two views is showing; slot 0 is the crumbs above the files. */
     suspend fun scrollBrowseTo(index: Int) {
@@ -488,7 +489,7 @@ fun FilesHubScreen(
             Column(modifier = Modifier.fillMaxWidth()) {
                 val crumbs = breadcrumbsOf(currentDirectory, currentVolume) { viewModel.visit(it) }
                 // At the top of a volume the path is just the volume, which the title already says.
-                if (crumbs.size > 1) FilesBreadcrumb(crumbs = crumbs)
+                if (crumbs.size > 1) FilesBreadcrumb(crumbs = crumbs, folders = crumbFoldersOf(currentDirectory, currentVolume))
                 val volume = currentVolume
                 if (volume != null && deepResults == null && currentDirectory.absolutePath == volume.root.absolutePath) {
                     StorageBar(
@@ -1759,6 +1760,21 @@ private fun breadcrumbsOf(
         }
     }
     return crumbs
+}
+
+/** The folder each step of [breadcrumbsOf]'s path stands for, in the same order. */
+private fun crumbFoldersOf(directory: File, volume: com.serkantkn.zunelauncher.data.model.StorageVolumeInfo?): List<File> {
+    val root = volume?.root ?: directory
+    val folders = mutableListOf(root)
+    val relative = directory.absolutePath.removePrefix(root.absolutePath).trim('/')
+    if (relative.isNotEmpty()) {
+        var walked = root
+        relative.split('/').forEach { part ->
+            walked = File(walked, part)
+            folders += walked
+        }
+    }
+    return folders
 }
 
 @Composable

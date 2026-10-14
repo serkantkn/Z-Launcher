@@ -9,6 +9,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -425,11 +427,19 @@ private fun FilesDragGhost(state: FilesDragState, modifier: Modifier) {
         if (drag != null) {
             val side = ghostSide(drag, density.density)
             val lift = side / 2f + with(density) { GHOST_LIFT.toPx() }
-            val centre = { state.finger - origin - Offset(0f, lift) }
+            val gap = with(density) { CAPTION_GAP.toPx() }
+            // Room the ghost and its words need over the finger, under the status bar. Near the
+            // top - over a path step or a back arrow - there is none, and both go under the
+            // finger instead of off the screen.
+            val ceiling = WindowInsets.statusBars.getTop(density) + with(density) { CAPTION_ROOM.toPx() }
+            val above = { state.finger.y - origin.y - lift - side / 2f - gap > ceiling }
+            val centre = {
+                if (above()) state.finger - origin - Offset(0f, lift) else state.finger - origin + Offset(0f, lift)
+            }
             Ghost(drag, side, centre, alpha = { 1f }, scale = { 1f })
             state.hover?.let { hover ->
-                Caption(hover, Modifier.placedAt(0.5f, 1f) {
-                    centre() - Offset(0f, side / 2f + with(density) { CAPTION_GAP.toPx() })
+                Caption(hover, Modifier.placedAt(0.5f, if (above()) 1f else 0f) {
+                    if (above()) centre() - Offset(0f, side / 2f + gap) else centre() + Offset(0f, side / 2f + gap)
                 })
             }
         } else if (leaving != null) {
@@ -575,6 +585,9 @@ private const val DROP_MILLIS = 180
 private const val RETURN_MILLIS = 260
 private val GHOST_LIFT = 24.dp
 private val CAPTION_GAP = 10.dp
+
+/** About the height of the words over a drag. */
+private val CAPTION_ROOM = 32.dp
 private val STACK_OFFSET = 6.dp
 private val BADGE_SIZE = 26.dp
 private val FRAME_WIDTH = 3.dp
