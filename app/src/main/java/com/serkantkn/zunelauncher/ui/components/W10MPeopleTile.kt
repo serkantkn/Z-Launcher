@@ -71,8 +71,14 @@ fun W10MPeopleTile(
     val mosaic = remember(span) { mosaicOf(TileShape.of(span)) }
     val cellCount = mosaic.cells.size
     // Faces before initials: a mosaic of letters says little, and the alphabet put four people
-    // starting with the same letter side by side. The order among each is the one given.
-    val faces = remember(contacts) { contacts.sortedByDescending { it.photoUri != null } }
+    // starting with the same letter side by side. With photos enough to fill every square only
+    // they take turns; with fewer, the photos stay where they are and the initials around them
+    // take turns - turning in order used to swap every photo out for a letter within a minute.
+    val withPhoto = remember(contacts) { contacts.filter { it.photoUri != null } }
+    val faces = remember(contacts, withPhoto, cellCount) {
+        if (withPhoto.size >= cellCount) withPhoto else withPhoto + contacts.filter { it.photoUri == null }
+    }
+    val settled = if (withPhoto.size >= cellCount) 0 else withPhoto.size
     val hasFaces = faces.isNotEmpty()
 
     // Which contact each square is showing. A square moves on to the next unused contact in turn,
@@ -82,21 +88,21 @@ fun W10MPeopleTile(
     }
     // Behind an opaque hub the faces stop changing: nobody can see them change.
     val awake = LocalScreenAwake.current
-    LaunchedEffect(faces, cellCount, isEditing, awake) {
-        if (isEditing || !awake || faces.size <= cellCount) return@LaunchedEffect
-        var cell = 0
+    LaunchedEffect(faces, cellCount, settled, isEditing, awake) {
+        if (isEditing || !awake || faces.size <= cellCount || settled >= cellCount) return@LaunchedEffect
+        var cell = settled
         while (true) {
             delay(FACE_SWAP_MILLIS)
             val taken = assignments.toMutableList()
             val candidate = generateSequence(taken[cell]) { (it + 1) % faces.size }
                 .drop(1)
                 .take(faces.size)
-                .firstOrNull { it !in taken }
+                .firstOrNull { it !in taken && it >= settled }
             if (candidate != null) {
                 taken[cell] = candidate
                 assignments = taken
             }
-            cell = (cell + 1) % cellCount
+            cell = if (cell + 1 >= cellCount) settled else cell + 1
         }
     }
 

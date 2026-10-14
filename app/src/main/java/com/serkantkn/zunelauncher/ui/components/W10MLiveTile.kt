@@ -237,6 +237,24 @@ fun W10MClockTile(
                     }
                     TileShape.WIDE -> TileBody(m) {
                         Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                            if (alarmLines.isEmpty()) {
+                                // No alarm to list: the time on the left and the day, written out
+                                // large, on the right, rather than half a tile left empty.
+                                BigNumber(timeText, m.text(72f), fg, Modifier.weight(1f))
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = format("EEEE", now).lowercase(),
+                                        style = MaterialTheme.typography.headlineSmall.copy(fontSize = m.text(24f), fontWeight = FontWeight.Light),
+                                        color = fg, maxLines = 1
+                                    )
+                                    Text(
+                                        text = format("d MMMM", now).lowercase(),
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = m.text(17f)),
+                                        color = fg.copy(alpha = 0.8f), maxLines = 1
+                                    )
+                                }
+                                return@Row
+                            }
                             Column(modifier = Modifier.weight(1f)) {
                                 BigNumber(timeText, m.text(64f), fg)
                                 Text(
