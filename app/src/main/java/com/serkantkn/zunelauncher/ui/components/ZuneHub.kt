@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -100,7 +102,9 @@ class ZuneHubPane(
  * people hub's giant sliding name, the pictures' zooming album heading)
  * @param phoneAboveContent anything between the pivot and the pages on a phone (a banner, a search box)
  * @param phonePagePadding the room inside each page on a phone
- * @param phonePeek true for pages laid out as a pivot that shows the edge of the next page
+ * @param phonePeek the edge of the next page showing at the right of this one on a phone, as a
+ * Windows Phone pivot always had it, saying there is more to swipe to; false only for a hub whose
+ * pages must have the whole width
  * @param swipeEnabled false while the pages must hold still on a phone (choosing several)
  * @param wideHiddenTabs headings a tablet does not show, because it shows that page another way
  * @param wideOnSelected called when a heading is chosen on a tablet
@@ -126,7 +130,7 @@ fun ZuneHub(
     phoneHeader: (@Composable ColumnScope.() -> Unit)? = null,
     phoneAboveContent: (@Composable ColumnScope.() -> Unit)? = null,
     phonePagePadding: PaddingValues = PaddingValues(horizontal = ZuneDimens.ScreenPaddingHorizontal),
-    phonePeek: Boolean = false,
+    phonePeek: Boolean = true,
     swipeEnabled: Boolean = true,
     wideHiddenTabs: Set<Int> = emptySet(),
     wideOnSelected: (Int) -> Unit = {},
@@ -240,13 +244,26 @@ private fun BoxScope.PhoneHub(
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
                 takeover != null -> takeover()
-                phonePeek -> ZuneLoopingPager(
-                    state = pager,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = ZuneDimens.ScreenPaddingHorizontal, end = 48.dp),
-                    pageSpacing = 24.dp,
-                    userScrollEnabled = swipeEnabled
-                ) { index -> page(index) }
+                phonePeek -> {
+                    // A page gives up its right margin to the next page's edge: what shows of the
+                    // next page is its own left margin and the first [PIVOT_PEEK] - margin of
+                    // what is on it. The page keeps the rest of the padding it asked for, so a
+                    // hub that pads its own rows is not padded twice.
+                    val direction = LocalLayoutDirection.current
+                    val pagePadding = PaddingValues(
+                        start = phonePagePadding.calculateStartPadding(direction),
+                        top = phonePagePadding.calculateTopPadding(),
+                        bottom = phonePagePadding.calculateBottomPadding()
+                    )
+                    ZuneLoopingPager(
+                        state = pager,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(end = PIVOT_PEEK),
+                        userScrollEnabled = swipeEnabled
+                    ) { index ->
+                        Box(modifier = Modifier.fillMaxSize().padding(pagePadding)) { page(index) }
+                    }
+                }
                 else -> ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize(), userScrollEnabled = swipeEnabled) { index ->
                     Box(modifier = Modifier.fillMaxSize().padding(phonePagePadding)) { page(index) }
                 }
@@ -354,3 +371,10 @@ private fun BoxScope.WideHub(
         }
     }
 }
+
+/**
+ * How much of the right of a phone's pivot page belongs to the next page: the next page's left
+ * margin and a little of what it holds, as on Windows Phone. The weather hub, which lays out its
+ * own pivot, keeps the same.
+ */
+internal val PIVOT_PEEK = ZuneDimens.ScreenPaddingHorizontal * 2

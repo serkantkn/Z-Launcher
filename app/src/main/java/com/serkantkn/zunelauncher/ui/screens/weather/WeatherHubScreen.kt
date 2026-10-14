@@ -19,6 +19,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -342,7 +343,12 @@ fun WeatherHubScreen(
                         modifier = Modifier.padding(bottom = 10.dp)
                     )
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        ZuneLoopingPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
+                        // The next page's edge at the right, as on every other hub's pivot.
+                        ZuneLoopingPager(
+                            state = pager,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(end = com.serkantkn.zunelauncher.ui.components.PIVOT_PEEK)
+                        ) { page ->
                             PageFor(page)
                         }
                     }
