@@ -10,7 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -58,7 +58,6 @@ import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.components.WpBarMenuItem
-import com.serkantkn.zunelauncher.ui.components.ZuneAlphabetIndex
 import com.serkantkn.zunelauncher.ui.components.ZuneEmptyState
 import com.serkantkn.zunelauncher.ui.components.ZuneHub
 import com.serkantkn.zunelauncher.ui.components.ZuneHubBar
@@ -71,6 +70,7 @@ import com.serkantkn.zunelauncher.ui.components.ZuneWidePaneHeader
 import com.serkantkn.zunelauncher.ui.components.rememberLoopingPagerState
 import com.serkantkn.zunelauncher.ui.components.rememberZuneHubEntranceState
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.components.ZunePivotHeader
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
@@ -78,8 +78,8 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 /** People hub entrance: an even slower, heavier landing than the standard hub curve. */
-private val PeopleHubEntranceEasing = CubicBezierEasing(0.0f, 0.98f, 0.05f, 1.0f)
-private const val PeopleHubEntranceDurationMillis = 950
+/** The hub shows itself where it stands in about two frames of a Windows Phone 7's thirty. */
+private const val PeopleHubFadeInMillis = 90
 private const val PeopleHubBottomBarDurationMillis = 380
 
 @Composable
@@ -118,19 +118,37 @@ fun PeopleHubScreen(
     var isTransitioning by remember { mutableStateOf(false) }
 
     // Hoisted so the entrance keeps playing even while the hub is hinged out behind a detail screen.
+    // The hub fades in where it stands and then glides round its sections (see ZuneHub's
+    // glideFrom), rather than swinging in as the other hubs do.
     val entrance = rememberZuneHubEntranceState(
-        entranceDurationMillis = PeopleHubEntranceDurationMillis,
-        entranceEasing = PeopleHubEntranceEasing,
+        entranceDurationMillis = PeopleHubFadeInMillis,
+        entranceEasing = LinearEasing,
         bottomBarDurationMillis = PeopleHubBottomBarDurationMillis
     )
+    val whatsNew by viewModel.whatsNew.collectAsState()
+    val owner by viewModel.owner.collectAsState()
+    val socialViewModel: com.serkantkn.zunelauncher.ui.screens.social.SocialHubViewModel = viewModel()
+    val launcherContext = androidx.compose.ui.platform.LocalContext.current
+    /** The alphabet laid open to jump with, after a letter tile is tapped. */
+    var letterJumpOpen by remember { mutableStateOf(false) }
+    val allListState = rememberLazyListState()
 
+    // The Windows Phone 7 people hub's sections - all, what's new, recent - with the favourites
+    // and groups this hub has as well between them: "recent" stays last, so the hub can come in
+    // on it and glide round to "all" as that one did.
     val tabs = listOf(
         stringResource(R.string.common_all),
+        stringResource(R.string.people_tab_whats_new),
         stringResource(R.string.people_tab_favorites),
-        stringResource(R.string.people_tab_recent),
-        stringResource(R.string.people_groups)
+        stringResource(R.string.people_groups),
+        stringResource(R.string.people_tab_recent)
     ) + if (isWideScreen) listOf(stringResource(R.string.common_search)) else emptyList()
-    val pager = rememberLoopingPagerState(pageCount = tabs.size)
+    // Made on "recent" when the hub is to glide in from there (see ZuneHub's glideFrom), so its
+    // very first frame is already that section.
+    val pager = rememberLoopingPagerState(
+        pageCount = tabs.size,
+        initialPage = if (LocalAnimationsEnabled.current) PEOPLE_RECENT_PAGE else 0
+    )
 
     // On a tablet what is open stands in the pane beside the list instead of hinging in over the
     // hub, so the new and the edit screens are simply on or off there.
@@ -277,7 +295,7 @@ fun PeopleHubScreen(
         }
     }
 
-    val onGroupsPage = pager.pagerState.currentPage % tabs.size == 3
+    val onGroupsPage = pager.currentPage == PEOPLE_GROUPS_PAGE
 
     val bottomBarActions = listOf(
         WpBarAction(
@@ -324,12 +342,14 @@ fun PeopleHubScreen(
         val overflowYPx = with(density) { (-24).dp.toPx() }
 
         val renderPage: @Composable (Int) -> Unit = { tabIndex ->
-            ZunePageTransition {
+            // A panorama's sections are simply there, side by side; only a tablet, which shows one
+            // heading's page at a time, brings each in as it is chosen.
+            PeoplePageEntrance(slideIn = isWideScreen) {
                 when (tabIndex) {
                     0, PEOPLE_SEARCH_PAGE -> {
-                        val listState = rememberLazyListState()
                         // On a tablet the search page is "all" with the box always open above it.
                         val showSearch = if (isWideScreen) tabIndex == PEOPLE_SEARCH_PAGE else isSearchVisible
+                        val showOwner = !showSearch && searchQuery.isBlank()
                         Column(modifier = Modifier.fillMaxSize()) {
                             AnimatedVisibility(visible = showSearch) {
                                 SearchBar(
@@ -347,48 +367,49 @@ fun PeopleHubScreen(
                                         else stringResource(R.string.no_contacts)
                                 )
                             } else {
-                                Box(modifier = Modifier.weight(1f)) {
-                                    LazyColumn(
-                                        state = listState,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(end = 28.dp),
-                                        contentPadding = PaddingValues(bottom = 80.dp)
-                                    ) {
-                                        groupedContacts.forEach { (letter, contactsInGroup) ->
-                                            item(key = "header_$letter") {
-                                                LetterHeader(letter = letter)
-                                            }
-                                            items(contactsInGroup, key = { it.id }) { contact ->
-                                                ContactListItem(contact = contact, highlighted = contact.id == openContactId) {
-                                                    selectContactWithAnimation(it)
+                                LazyColumn(
+                                    // The search page has a list of its own, or jumping in "all"
+                                    // would move the matches too.
+                                    state = if (tabIndex == 0) allListState else rememberLazyListState(),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(bottom = 80.dp, end = 12.dp)
+                                ) {
+                                    if (showOwner) {
+                                        item(key = "owner") {
+                                            PeopleOwnerCard(owner) {
+                                                runCatching {
+                                                    launcherContext.startActivity(
+                                                        android.content.Intent(
+                                                            android.content.Intent.ACTION_VIEW,
+                                                            android.provider.ContactsContract.Profile.CONTENT_URI
+                                                        ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    )
                                                 }
                                             }
                                         }
                                     }
-
-                                    ZuneAlphabetIndex(
-                                        availableLetters = groupedContacts.keys,
-                                        onLetterSelected = { letter ->
-                                            val index = groupedContacts.keys.indexOf(letter)
-                                            if (index >= 0) {
-                                                coroutineScope.launch {
-                                                    var flatIndex = 0
-                                                    for ((l, list) in groupedContacts) {
-                                                        if (l == letter) break
-                                                        flatIndex += 1 + list.size
-                                                    }
-                                                    listState.scrollToItem(flatIndex)
-                                                }
+                                    groupedContacts.forEach { (letter, contactsInGroup) ->
+                                        item(key = "header_$letter") {
+                                            PeopleLetterTile(letter) { if (tabIndex == 0) letterJumpOpen = true }
+                                        }
+                                        items(contactsInGroup, key = { it.id }) { contact ->
+                                            ContactListItem(contact = contact, highlighted = contact.id == openContactId) {
+                                                selectContactWithAnimation(it)
                                             }
-                                        },
-                                        modifier = Modifier.align(Alignment.CenterEnd)
-                                    )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                    1 -> {
+                    PEOPLE_WHATS_NEW_PAGE -> {
+                        PeopleWhatsNewPage(
+                            news = whatsNew,
+                            onOpen = { socialViewModel.openMessage(it.message) },
+                            onOpenPerson = { selectContactWithAnimation(it) }
+                        )
+                    }
+                    PEOPLE_FAVORITES_PAGE -> {
                         if (favoriteContacts.isEmpty()) {
                             ZuneEmptyState(errorMessage?.let { stringResource(R.string.people_load_failed, it) } ?: stringResource(R.string.no_favorite_contacts))
                         } else {
@@ -414,23 +435,16 @@ fun PeopleHubScreen(
                             }
                         }
                     }
-                    2 -> {
-                        if (recentContacts.isEmpty()) {
-                            ZuneEmptyState(errorMessage?.let { stringResource(R.string.people_load_failed, it) } ?: stringResource(R.string.no_recent_contacts))
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp)
-                            ) {
-                                items(recentContacts, key = { it.id }) { contact ->
-                                    ContactListItem(contact = contact, highlighted = contact.id == openContactId) {
-                                        selectContactWithAnimation(it)
-                                    }
-                                }
-                            }
-                        }
+                    PEOPLE_RECENT_PAGE -> {
+                        PeopleRecentGrid(
+                            recent = recentContacts,
+                            emptyText = errorMessage?.let { stringResource(R.string.people_load_failed, it) }
+                                ?: stringResource(R.string.no_recent_contacts),
+                            columns = if (isWideScreen) 4 else 3,
+                            onOpen = { selectContactWithAnimation(it) }
+                        )
                     }
-                    3 -> {
+                    PEOPLE_GROUPS_PAGE -> {
                         GroupsPage(
                             groups = groups,
                             openGroup = openGroup,
@@ -484,77 +498,33 @@ fun PeopleHubScreen(
                 entrance = entrance,
                 entranceScale = { hubHingeAnim.value },
                 offscreenCompositing = false,
-                // The people hub's own header on a phone: its name giant and sliding with the pivot.
-                phoneHeader = {
-                    // Mobile Header — Zune large typography
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                top = 28.dp,
-                                bottom = 4.dp,
-                                start = ZuneDimens.ScreenPaddingHorizontal
-                            )
-                    ) {
-                        val pageCount = pager.pageCount
-                        val cycle = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % pageCount
-                        val actualCycle = if (cycle < 0) cycle + pageCount else cycle
-                        val threshold = (pageCount - 1).toFloat()
-
-                        val translationX1: Float
-                        val translationX2: Float
-
-                        if (actualCycle <= threshold) {
-                            translationX1 = -actualCycle * parallaxMultiplierPx
-                            translationX2 = screenWidthPx
-                        } else {
-                            val fraction = actualCycle - threshold
-                            translationX1 = -threshold * parallaxMultiplierPx - fraction * screenWidthPx
-                            translationX2 = screenWidthPx - fraction * screenWidthPx
-                        }
-
-                        Text(
-                            text = stringResource(R.string.people_hub),
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.Light,
-                                fontSize = 96.sp,
-                                letterSpacing = (-4).sp,
-                                lineHeight = 96.sp
-                            ),
-                            color = if (zuneColors.isDark) Color.White else Color.Black,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.graphicsLayer {
-                                translationX = translationX1
-                                translationY = overflowYPx
-                            }
-                        )
-                        Text(
-                            text = stringResource(R.string.people_hub),
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.Light,
-                                fontSize = 96.sp,
-                                letterSpacing = (-4).sp,
-                                lineHeight = 96.sp
-                            ),
-                            color = if (zuneColors.isDark) Color.White else Color.Black,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.graphicsLayer {
-                                translationX = translationX2
-                                translationY = overflowYPx
-                            }
+                // On a phone the people hub stands as Windows Phone 7's did: a panorama, its name
+                // giant across the top, coming in on "recent" and gliding round to "all".
+                phonePanorama = true,
+                glideFrom = PEOPLE_RECENT_PAGE,
+                overlay = if (letterJumpOpen) {
+                    { _ ->
+                        com.serkantkn.zunelauncher.ui.screens.music.LetterJumpOverlay(
+                            available = groupedContacts.keys.map { it.toString().uppercase(java.util.Locale.getDefault()) }.toSet(),
+                            accent = zuneColors.accentColor,
+                            onPick = { picked ->
+                                letterJumpOpen = false
+                                coroutineScope.launch {
+                                    // The owner's card is the list's first row when it is there.
+                                    val ownerInList = !isSearchVisible && searchQuery.isBlank() &&
+                                        (owner.name != null || owner.photo != null)
+                                    var flatIndex = if (ownerInList) 1 else 0
+                                    for ((letter, list) in groupedContacts) {
+                                        if (letter.toString().uppercase(java.util.Locale.getDefault()) == picked) break
+                                        flatIndex += 1 + list.size
+                                    }
+                                    allListState.scrollToItem(flatIndex)
+                                }
+                            },
+                            onDismiss = { letterJumpOpen = false }
                         )
                     }
-
-                    // Tabs — Zune Pivot
-                    ZunePivotTabs(
-                        tabs = tabs,
-                        state = pager,
-                        fontSize = 36.sp,
-                        modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)
-                    )
-                },
+                } else null,
                 phonePeek = true,
                 wideListWidth = PEOPLE_WIDE_LIST_WIDTH,
                 // Whoever is open - their card, the editor, a new contact - stands in a tablet's pane.
@@ -990,30 +960,12 @@ private fun SearchBar(
 
 // ── Letter Header ───────────────────────────────────────────────────────────
 
-@Composable
-private fun LetterHeader(letter: Char) {
-    val zuneColors = LocalZuneColors.current
-
-    Text(
-        text = letter.lowercase(java.util.Locale.getDefault()),
-        style = MaterialTheme.typography.headlineLarge.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 42.sp
-        ),
-        color = zuneColors.accentColor,
-        modifier = Modifier.padding(
-            top = ZuneDimens.SpacingLg,
-            bottom = ZuneDimens.SpacingSm
-        )
-    )
-}
-
 // ── Contact List Item ───────────────────────────────────────────────────────
 
 /**
  * One person in the list, as the Windows Phone people hub had them: their picture as a small
- * square tile, or - with no picture - a tile in the accent with their initial on it, and the
- * name beside it. Nothing in Metro is round, and a face is no exception.
+ * square tile, or - with no picture - a plain grey one, and the name beside it. Nothing in Metro
+ * is round, and a face is no exception.
  */
 @Composable
 private fun ContactListItem(
@@ -1032,10 +984,12 @@ private fun ContactListItem(
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Somebody with no picture is a plain grey square, as Windows Phone 7 left them: the
+        // accent belongs to the letters.
         Box(
             modifier = Modifier
-                .size(52.dp)
-                .background(zuneColors.accentColor),
+                .size(48.dp)
+                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.14f)),
             contentAlignment = Alignment.Center
         ) {
             if (contact.photoUri != null) {
@@ -1045,22 +999,16 @@ private fun ContactListItem(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-            } else {
-                Text(
-                    text = contact.name.take(1).uppercase(Locale.getDefault()),
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light, fontSize = 26.sp),
-                    color = Color.White
-                )
             }
         }
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(14.dp))
 
         Text(
             text = contact.name,
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Normal,
-                fontSize = 20.sp
+                fontSize = 21.sp
             ),
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1,
@@ -1420,8 +1368,18 @@ private fun NewGroupSheet(onCreate: (String) -> Unit, onDismiss: () -> Unit) {
     }
 }
 
+private const val PEOPLE_WHATS_NEW_PAGE = 1
+private const val PEOPLE_FAVORITES_PAGE = 2
+private const val PEOPLE_GROUPS_PAGE = 3
+/** Last of the sections, where the hub comes in before it glides round to "all". */
+private const val PEOPLE_RECENT_PAGE = 4
 /** The page on a tablet that is "all" with the search box open over it. */
-private const val PEOPLE_SEARCH_PAGE = 4
+private const val PEOPLE_SEARCH_PAGE = 5
 
 /** How wide a tablet's list of people is; whoever is open takes the rest. */
 private val PEOPLE_WIDE_LIST_WIDTH = 440.dp
+
+@Composable
+private fun PeoplePageEntrance(slideIn: Boolean, content: @Composable () -> Unit) {
+    if (slideIn) ZunePageTransition { content() } else Box(modifier = Modifier.fillMaxSize()) { content() }
+}

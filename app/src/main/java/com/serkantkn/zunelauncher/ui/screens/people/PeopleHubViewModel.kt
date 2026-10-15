@@ -21,7 +21,13 @@ import com.serkantkn.zunelauncher.util.recentContacts
 import com.serkantkn.zunelauncher.util.sectionLetterOf
 import java.text.Collator
 import java.util.Locale
+import com.serkantkn.zunelauncher.data.model.SocialMessageModel
+import com.serkantkn.zunelauncher.data.repository.SocialRepository
+import com.serkantkn.zunelauncher.util.DeviceOwner
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -71,6 +77,20 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _groupMembers = MutableStateFlow<List<ContactModel>>(emptyList())
     val groupMembers: StateFlow<List<ContactModel>> = _groupMembers.asStateFlow()
+
+    /**
+     * What the people in the address book have been saying lately - the "what's new" of the
+     * Windows Phone people hub. Its feeds came from Facebook and Windows Live; here they are the
+     * messages the social apps showed as notifications, kept when whoever sent one is somebody
+     * in the address book, newest first.
+     */
+    val whatsNew: StateFlow<List<PersonNews>> = combine(SocialRepository.messages, _allContacts) { messages, contacts ->
+        newsFromPeople(messages, contacts)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _owner = MutableStateFlow(DeviceOwner.NONE)
+    /** Whose phone this is, for the card at the top of "all". */
+    val owner: StateFlow<DeviceOwner> = _owner.asStateFlow()
 
     /** People who already have a tile of their own on the start screen. */
     private val _pinnedContactIds = MutableStateFlow<Set<String>>(emptySet())
@@ -140,6 +160,7 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
                 updateGroupedContacts(contacts, _searchQuery.value)
                 _favoriteContacts.value = contacts.filter { it.isFavorite }
                 _recentContacts.value = loadRecent(contacts)
+                _owner.value = DeviceOwner.load(getApplication())
                 _errorMessage.value = null
             } catch (e: Exception) {
                 ZuneLog.e("PeopleHubViewModel", "loadContacts failed", e)
@@ -418,3 +439,22 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 }
+
+/** Something somebody in the address book said, and who they are when they could be found. */
+data class PersonNews(val message: SocialMessageModel, val contact: ContactModel)
+
+/**
+ * The messages sent by people in the address book, newest first, each with whoever sent it. A
+ * message is matched by the sender's name as the app wrote it - which is the address book's own
+ * name for anybody the app found there - ignoring case and spacing.
+ */
+internal fun newsFromPeople(messages: List<SocialMessageModel>, contacts: List<ContactModel>): List<PersonNews> {
+    if (messages.isEmpty() || contacts.isEmpty()) return emptyList()
+    val byName = contacts.groupBy { personKey(it.name) }
+    return messages
+        .sortedByDescending { it.timestamp }
+        .mapNotNull { message -> byName[personKey(message.title)]?.firstOrNull()?.let { PersonNews(message, it) } }
+}
+
+internal fun personKey(name: String): String =
+    name.trim().replace(Regex("\\s+"), " ").lowercase(Locale.ROOT)

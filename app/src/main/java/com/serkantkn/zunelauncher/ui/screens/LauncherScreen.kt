@@ -941,6 +941,13 @@ fun LauncherScreen(
                                         alpha = progress
                                         return@graphicsLayer
                                     }
+                                    // The people hub does not swing in: as on Windows Phone 7 it
+                                    // shows itself flat once Start has turned away, and then glides
+                                    // round its sections on its own.
+                                    if (isHubHingeOpening && visibleHub == HubType.PEOPLE) {
+                                        alpha = ((progress - PEOPLE_SHOW_FROM) / (1f - PEOPLE_SHOW_FROM)).coerceIn(0f, 1f)
+                                        return@graphicsLayer
+                                    }
                                     // Opening: -90° (outside, in front) -> 0°. Closing: 0° -> +90° (into the depth).
                                     val direction = if (isHubHingeOpening) -1f else 1f
                                     rotationY = direction * HingeAnimation.MAX_ROTATION_DEGREES * (1f - progress)
@@ -949,7 +956,11 @@ fun LauncherScreen(
                                     alpha = (progress * 1.5f - 0.2f).coerceIn(0f, 1f)
                                 }
                         ) {
-                            hubBackground { hubContentFor(visibleHub)() }
+                            CompositionLocalProvider(
+                                com.serkantkn.zunelauncher.ui.components.LocalHubArrival provides { hingeProgress.value }
+                            ) {
+                                hubBackground { hubContentFor(visibleHub)() }
+                            }
                         }
                     }
                 }
@@ -1225,3 +1236,6 @@ private fun StartShade(pagerState: androidx.compose.foundation.pager.PagerState,
         }
     )
 }
+
+/** How far Start has turned away before the people hub shows itself, as a share of the hinge. */
+private const val PEOPLE_SHOW_FROM = 0.55f

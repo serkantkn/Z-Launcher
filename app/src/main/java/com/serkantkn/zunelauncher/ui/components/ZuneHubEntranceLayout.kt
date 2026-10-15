@@ -113,6 +113,12 @@ fun ZuneHubEntranceLayout(
     state: ZuneHubEntranceState = rememberZuneHubEntranceState(),
     progressScale: () -> Float = { 1f },
     offscreenCompositing: Boolean = true,
+    /**
+     * False for a hub that fades in where it stands instead of swinging in from the left (the
+     * people hub, which then glides between its sections). The swing is still how the hub folds
+     * away behind a card, through [progressScale].
+     */
+    swingIn: Boolean = true,
     content: @Composable (bottomBarModifier: Modifier) -> Unit
 ) {
     val density = LocalDensity.current
@@ -124,7 +130,8 @@ fun ZuneHubEntranceLayout(
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer {
-                val p = state.entranceAnim.value * progressScale()
+                val entered = state.entranceAnim.value
+                val p = (if (swingIn) entered else 1f) * progressScale()
                 val inv = 1f - p
                 // Straight approach from the left/front, never drifting past x = 0
                 rotationY = -48f * inv * inv
@@ -135,7 +142,7 @@ fun ZuneHubEntranceLayout(
                 // Hinged on the screen-left edge, same axis as the Start turnstile
                 transformOrigin = TransformOrigin(0f, 0.5f)
                 cameraDistance = 32f * density.density
-                alpha = (p * 3f).coerceIn(0f, 1f)
+                alpha = (p * 3f).coerceIn(0f, 1f) * (if (swingIn) 1f else entered)
 
                 // Force GPU RenderNode Offscreen compositing during active entrance for 120Hz liquid smoothness
                 if (offscreenCompositing) {

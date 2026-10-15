@@ -54,8 +54,8 @@ class HubStandardTest {
 
     @Test
     fun aPivotIsOnlyEverAHubsOwnHeader() {
-        // A pivot is allowed only as a hub's own phone header handed to ZuneHub (people's giant
-        // sliding name, the pictures' zooming album heading).
+        // A pivot is allowed only as a hub's own phone header handed to ZuneHub (the pictures'
+        // zooming album heading).
         val offenders = sources()
             .filter { it.key() !in exceptions }
             .filter { file -> file.readText().let { "ZunePivotTabs(" in it && "ZuneHub(" !in it } }
@@ -64,6 +64,16 @@ class HubStandardTest {
             "These screens draw a pivot outside ZuneHub:\n" + offenders.joinToString("\n"),
             offenders.isEmpty()
         )
+    }
+
+    @Test
+    fun aPanoramaIsThePeopleHubsAlone() {
+        // The phone's panorama, and gliding in round the sections, are how Windows Phone 7's
+        // people hub stood and came in; every other hub is a pivot.
+        val users = sources()
+            .filter { file -> file.readText().let { "phonePanorama = true" in it || "glideFrom =" in it } }
+            .map { it.key() }
+        assertTrue("Only the people hub stands as a panorama: $users", users == listOf("people/PeopleHubScreen.kt"))
     }
 
     @Test

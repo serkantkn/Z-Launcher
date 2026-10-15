@@ -27,6 +27,19 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -105,6 +118,14 @@ class ZuneHubPane(
  * @param phonePeek the edge of the next page showing at the right of this one on a phone, as a
  * Windows Phone pivot always had it, saying there is more to swipe to; false only for a hub whose
  * pages must have the whole width
+ * @param phonePanorama Windows Phone's panorama on a phone instead of the pivot: the hub's name
+ * giant across the top, sliding slower than the sections under it and round again at the end, and
+ * each section under its own heading, the next one's edge showing at the right. Only the people
+ * hub stands this way, as it did on Windows Phone 7; a tablet draws its headings either way
+ * @param glideFrom when set, the hub opens on this page and glides on to its first, the way the
+ * Windows Phone 7 people hub came in on "recent" and slid round to "all": it fades in where it
+ * stands instead of swinging in, then moves. Played once, when the hub is opened; never with the
+ * animations off
  * @param swipeEnabled false while the pages must hold still on a phone (choosing several)
  * @param wideHiddenTabs headings a tablet does not show, because it shows that page another way
  * @param wideOnSelected called when a heading is chosen on a tablet
@@ -131,6 +152,8 @@ fun ZuneHub(
     phoneAboveContent: (@Composable ColumnScope.() -> Unit)? = null,
     phonePagePadding: PaddingValues = PaddingValues(horizontal = ZuneDimens.ScreenPaddingHorizontal),
     phonePeek: Boolean = true,
+    phonePanorama: Boolean = false,
+    glideFrom: Int? = null,
     swipeEnabled: Boolean = true,
     wideHiddenTabs: Set<Int> = emptySet(),
     wideOnSelected: (Int) -> Unit = {},
@@ -142,11 +165,45 @@ fun ZuneHub(
     overlay: (@Composable BoxScope.(barModifier: Modifier) -> Unit)? = null,
     page: @Composable (index: Int) -> Unit
 ) {
+    val animationsOn = LocalAnimationsEnabled.current
+    val gliding = glideFrom != null && animationsOn
+    val arrival = LocalHubArrival.current
+    val wide = LocalIsWideScreen.current
+    val showingPages by rememberUpdatedState(takeover == null)
+    if (gliding) {
+        LaunchedEffect(Unit) {
+            // On the page it glides from - the hub's pager is best made starting there, so not
+            // even a first frame shows another...
+            pager.scrollToPage(glideFrom!!)
+            // ...seen there once it has come in and has its pages to show (not a spinner, not a
+            // question about permissions), then carried on to the first: forward, the short way
+            // round, as one swipe would.
+            snapshotFlow { entrance.progress >= 1f && arrival() >= 1f && showingPages }.first { it }
+            // Two frames for the pages' first layout, which would otherwise eat the glide's start.
+            withFrameNanos { }
+            withFrameNanos { }
+            if (wide) {
+                // A tablet shows one heading's page at a time: no panorama to glide round, and
+                // gliding there would pass through every page between - a search page opens its
+                // keyboard on the way. It holds on the page a moment and then turns to the first,
+                // which comes in the way a chosen heading's page does.
+                delay(WIDE_GLIDE_HOLD_MILLIS)
+                pager.scrollToPage(0)
+                return@LaunchedEffect
+            }
+            val target = pager.pagerState.currentPage + forwardStepsToFirst(glideFrom, pager.pageCount, pager.isLooping)
+            pager.pagerState.animateScrollToPage(
+                page = target,
+                animationSpec = tween(GLIDE_MILLIS, easing = GlideEasing)
+            )
+        }
+    }
     ZuneHubEntranceLayout(
         modifier = modifier,
         state = entrance,
         progressScale = entranceScale,
-        offscreenCompositing = offscreenCompositing
+        offscreenCompositing = offscreenCompositing,
+        swingIn = !gliding
     ) { barModifier ->
         Box(modifier = Modifier.fillMaxSize()) {
             if (LocalIsWideScreen.current) {
@@ -158,13 +215,19 @@ fun ZuneHub(
             } else {
                 PhoneHub(
                     title, tabs, pager, bar, showTabs, takeover, titleTrailing, onTitleClick, barModifier,
-                    phoneHeader, phoneAboveContent, phonePagePadding, phonePeek, swipeEnabled, page
+                    phoneHeader, phoneAboveContent, phonePagePadding, phonePeek, phonePanorama, swipeEnabled, page
                 )
             }
             overlay?.invoke(this, barModifier)
         }
     }
 }
+
+/**
+ * How far in the hub on show has come, 0-1, as whatever opens hubs moves it in: a hub that does
+ * something once it is in (the people hub's glide) waits for 1. Hubs drawn anywhere else are in.
+ */
+val LocalHubArrival = staticCompositionLocalOf<() -> Float> { { 1f } }
 
 object ZuneHubDefaults {
     /** How wide a tablet hub's list is when something opens in a pane beside it. */
@@ -228,12 +291,15 @@ private fun BoxScope.PhoneHub(
     phoneAboveContent: (@Composable ColumnScope.() -> Unit)?,
     phonePagePadding: PaddingValues,
     phonePeek: Boolean,
+    phonePanorama: Boolean,
     swipeEnabled: Boolean,
     page: @Composable (Int) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         if (phoneHeader != null) {
             phoneHeader()
+        } else if (phonePanorama) {
+            PanoramaTitle(title = title, pager = pager)
         } else {
             Column(modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 8.dp)) {
                 ZuneHubPhoneTitle(title = title, onClick = onTitleClick, trailing = titleTrailing)
@@ -244,6 +310,27 @@ private fun BoxScope.PhoneHub(
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
                 takeover != null -> takeover()
+                phonePanorama -> {
+                    // Each section under its own heading, the heading moving with it; the next
+                    // section's edge shows at the right, as the pivot's does.
+                    val direction = LocalLayoutDirection.current
+                    val pagePadding = PaddingValues(
+                        start = phonePagePadding.calculateStartPadding(direction),
+                        top = phonePagePadding.calculateTopPadding(),
+                        bottom = phonePagePadding.calculateBottomPadding()
+                    )
+                    ZuneLoopingPager(
+                        state = pager,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(end = PIVOT_PEEK),
+                        userScrollEnabled = swipeEnabled
+                    ) { index ->
+                        Column(modifier = Modifier.fillMaxSize().padding(pagePadding)) {
+                            if (showTabs) PanoramaSectionHeading(tabs.getOrElse(index) { "" })
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth()) { page(index) }
+                        }
+                    }
+                }
                 phonePeek -> {
                     // A page gives up its right margin to the next page's edge: what shows of the
                     // next page is its own left margin and the first [PIVOT_PEEK] - margin of
@@ -378,3 +465,104 @@ private fun BoxScope.WideHub(
  * own pivot, keeps the same.
  */
 internal val PIVOT_PEEK = ZuneDimens.ScreenPaddingHorizontal * 2
+
+/**
+ * The panorama's name, giant, across the top of a phone. It slides a little with every section
+ * - slower than the sections, as the title of a Windows Phone panorama did - and, going from the
+ * last section round to the first, it is carried off to the left while its next copy comes in
+ * from the right, so the name always starts where the first section does.
+ */
+@Composable
+private fun PanoramaTitle(title: String, pager: ZuneLoopingPagerState) {
+    val zuneColors = LocalZuneColors.current
+    val density = LocalDensity.current
+    val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+    val driftPx = with(density) { PANORAMA_TITLE_DRIFT.toPx() }
+    val style = MaterialTheme.typography.displayLarge.copy(
+        fontWeight = FontWeight.Light,
+        fontSize = 96.sp,
+        letterSpacing = (-4).sp,
+        lineHeight = 96.sp
+    )
+    val ink = if (zuneColors.isDark) Color.White else Color.Black
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 28.dp, start = ZuneDimens.ScreenPaddingHorizontal)
+            // Lifted into the top and cut by it, as a panorama's name was - and the room it rises
+            // out of given back, so the sections' headings sit right under it.
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val lift = PANORAMA_TITLE_LIFT.roundToPx()
+                layout(placeable.width, (placeable.height + lift).coerceAtLeast(0)) { placeable.place(0, lift) }
+            }
+    ) {
+        // Where the sections are, in sections from the first, read as they move.
+        fun cycle(): Float {
+            val count = pager.pageCount.coerceAtLeast(1)
+            val raw = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % count
+            return if (raw < 0) raw + count else raw
+        }
+        fun offsets(): Pair<Float, Float> {
+            val last = (pager.pageCount - 1).coerceAtLeast(0).toFloat()
+            val at = cycle()
+            return if (at <= last) {
+                -at * driftPx to screenWidthPx
+            } else {
+                val fraction = at - last
+                (-last * driftPx - fraction * screenWidthPx) to (screenWidthPx - fraction * screenWidthPx)
+            }
+        }
+        Text(
+            text = title,
+            style = style,
+            color = ink,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.graphicsLayer { translationX = offsets().first }
+        )
+        Text(
+            text = title,
+            style = style,
+            color = ink,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.graphicsLayer { translationX = offsets().second }
+        )
+    }
+}
+
+/** A panorama section's own heading, above what is in it and moving with it. */
+@Composable
+private fun PanoramaSectionHeading(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 36.sp),
+        color = MaterialTheme.colorScheme.onBackground,
+        maxLines = 1,
+        softWrap = false,
+        modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+    )
+}
+
+/** How many pages forward the first page is from [from]: round the end on a looping hub. */
+internal fun forwardStepsToFirst(from: Int, pageCount: Int, looping: Boolean): Int = when {
+    pageCount <= 0 || from <= 0 -> 0
+    looping -> pageCount - from
+    else -> -from
+}
+
+/** How far the panorama's name slides for each section. */
+private val PANORAMA_TITLE_DRIFT = 40.dp
+/** The name sits a little above the top, cut by it, as a panorama's did. */
+private val PANORAMA_TITLE_LIFT = (-24).dp
+
+/**
+ * The glide into the people hub, measured off a Windows Phone 7 frame by frame: a third of the
+ * way in its first tenth of a second, half in two, three quarters in three, and the last of it
+ * eased out over half a second more - a cubic ease-out over eight tenths, near enough exactly.
+ */
+internal const val GLIDE_MILLIS = 800
+/** How long a tablet shows the page it opens on before it turns to the first. */
+private const val WIDE_GLIDE_HOLD_MILLIS = 700L
+internal val GlideEasing = androidx.compose.animation.core.CubicBezierEasing(0.33f, 1f, 0.68f, 1f)

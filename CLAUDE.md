@@ -6,7 +6,10 @@ Every hub is laid out by `ZuneHub` (`app/src/main/java/com/serkantkn/zunelaunche
 A hub supplies its title, headings, pages, bar commands and, on a tablet, what opens in the pane;
 `ZuneHub` picks the layout:
 
-- **Phone:** small title, pivot headings, swiped pages, and the Windows Phone bar.
+- **Phone:** small title, pivot headings, swiped pages, and the Windows Phone bar. The one exception
+  is the people hub, which stands as Windows Phone 7's did - a panorama, its name giant across the
+  top and each section under its own heading - through `ZuneHub(phonePanorama = true)`; it also
+  comes in on "recent" and glides round to "all" (`glideFrom`). No other hub uses either.
 - **Tablet:** small title at the top left, headings down the left, the page beside them, an optional
   pane for whatever is open, and the Windows 8 bar.
 

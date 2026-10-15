@@ -428,6 +428,9 @@
     <string name="people_phone_number">telefon numarası</string>
     <string name="people_email">e-posta adresi</string>
     <string name="people_tab_favorites">favoriler</string>
+    <string name="people_tab_whats_new">yenilikler</string>
+    <string name="people_whats_new_empty">kişilerinden henüz yeni bir şey yok. sosyal uygulamalarda yazdıkları burada belirir.</string>
+    <string name="people_me">ben</string>
     <string name="people_load_failed">kişiler yüklenemedi: %1$s</string>
     <string name="duration_min_sec">%1$d dk %2$d sn</string>
     <string name="duration_sec">%1$d sn</string>

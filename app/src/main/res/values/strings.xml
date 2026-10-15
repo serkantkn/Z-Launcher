@@ -428,6 +428,9 @@
     <string name="people_phone_number">phone number</string>
     <string name="people_email">e-mail address</string>
     <string name="people_tab_favorites">favorites</string>
+    <string name="people_tab_whats_new">what\'s new</string>
+    <string name="people_whats_new_empty">nothing new from your people yet. What they write in the social apps turns up here.</string>
+    <string name="people_me">me</string>
     <string name="people_load_failed">contacts could not be loaded: %1$s</string>
     <string name="duration_min_sec">%1$d min %2$d sec</string>
     <string name="duration_sec">%1$d sec</string>
