@@ -17,6 +17,7 @@ import com.serkantkn.zunelauncher.util.PhoneNumbers
 import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /**
  * The phone's own message store, read the way the messages app reads it.
@@ -413,50 +414,118 @@ object SmsRepository {
     }
 
     /**
-     * Every message whose text contains [query], newest first, across all conversations.
-     * This is what makes the search box find a message rather than only a conversation's last line.
+     * Every message whose text contains [query], newest first, across all conversations - the
+     * picture messages' text as well as the text messages'. This is what makes the search box
+     * find a message rather than only a conversation's last line.
+     *
+     * The phone's database matches letters' case only in the English alphabet: "Şimdi" and
+     * "şimdi" are different words to it. The query is therefore also asked for as the phone's
+     * language writes it in lower case, in upper case and with a capital first letter.
      */
     suspend fun searchMessages(context: Context, query: String, limit: Int = SEARCH_LIMIT): List<SmsMessageModel> =
         withContext(Dispatchers.IO) {
             if (query.isBlank()) return@withContext emptyList()
-            val messages = mutableListOf<SmsMessageModel>()
-            try {
-                context.contentResolver.query(
-                    Telephony.Sms.CONTENT_URI,
-                    arrayOf(
-                        Telephony.Sms._ID,
-                        Telephony.Sms.THREAD_ID,
-                        Telephony.Sms.ADDRESS,
-                        Telephony.Sms.BODY,
-                        Telephony.Sms.DATE,
-                        Telephony.Sms.TYPE,
-                        Telephony.Sms.READ
-                    ),
-                    // Only messages that were sent or received: a draft is not something that
-                    // was said. The escape clause is what makes a typed "%" or "_" literal.
-                    "${Telephony.Sms.BODY} LIKE ? ESCAPE '\\' AND ${Telephony.Sms.TYPE} != ${Telephony.Sms.MESSAGE_TYPE_DRAFT}",
-                    arrayOf("%${escapeLike(query)}%"),
-                    "${Telephony.Sms.DATE} DESC"
-                )?.use { cursor ->
-                    while (cursor.moveToNext() && messages.size < limit) {
-                        val type = cursor.getInt(5)
-                        messages += SmsMessageModel(
-                            id = cursor.getLong(0),
-                            threadId = cursor.getLong(1),
-                            address = cursor.getString(2).orEmpty(),
-                            body = cursor.getString(3).orEmpty(),
-                            timestamp = cursor.getLong(4),
-                            isOutgoing = isOutgoing(type),
-                            isRead = cursor.getInt(6) == 1,
-                            type = type
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                ZuneLog.w(TAG, "the search would not run", e)
-            }
-            messages
+            val patterns = searchVariants(query, Locale.getDefault()).map { "%${escapeLike(it)}%" }
+            (searchSms(context, patterns, limit) + searchMms(context, patterns, limit))
+                .sortedByDescending { it.timestamp }
+                .take(limit)
         }
+
+    private fun searchSms(context: Context, patterns: List<String>, limit: Int): List<SmsMessageModel> {
+        val messages = mutableListOf<SmsMessageModel>()
+        try {
+            val like = patterns.joinToString(" OR ") { "${Telephony.Sms.BODY} LIKE ? ESCAPE '\\'" }
+            context.contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                arrayOf(
+                    Telephony.Sms._ID,
+                    Telephony.Sms.THREAD_ID,
+                    Telephony.Sms.ADDRESS,
+                    Telephony.Sms.BODY,
+                    Telephony.Sms.DATE,
+                    Telephony.Sms.TYPE,
+                    Telephony.Sms.READ
+                ),
+                // Only messages that were sent or received: a draft is not something that
+                // was said. The escape clause is what makes a typed "%" or "_" literal.
+                "($like) AND ${Telephony.Sms.TYPE} != ${Telephony.Sms.MESSAGE_TYPE_DRAFT}",
+                patterns.toTypedArray(),
+                "${Telephony.Sms.DATE} DESC"
+            )?.use { cursor ->
+                while (cursor.moveToNext() && messages.size < limit) {
+                    val type = cursor.getInt(5)
+                    messages += SmsMessageModel(
+                        id = cursor.getLong(0),
+                        threadId = cursor.getLong(1),
+                        address = cursor.getString(2).orEmpty(),
+                        body = cursor.getString(3).orEmpty(),
+                        timestamp = cursor.getLong(4),
+                        isOutgoing = isOutgoing(type),
+                        isRead = cursor.getInt(6) == 1,
+                        type = type
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "the search would not run", e)
+        }
+        return messages
+    }
+
+    /** Picture messages whose text part matches: found by their parts, then read as messages. */
+    private fun searchMms(context: Context, patterns: List<String>, limit: Int): List<SmsMessageModel> {
+        val texts = linkedMapOf<Long, String>()
+        try {
+            val like = patterns.joinToString(" OR ") { "text LIKE ? ESCAPE '\\'" }
+            context.contentResolver.query(
+                MMS_PART_URI,
+                arrayOf("mid", "text"),
+                "ct = 'text/plain' AND ($like)",
+                patterns.toTypedArray(),
+                null
+            )?.use { cursor ->
+                while (cursor.moveToNext() && texts.size < limit) {
+                    val mid = cursor.getLong(0)
+                    texts[mid] = listOfNotNull(texts[mid], cursor.getString(1)).joinToString("\n")
+                }
+            }
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "the picture messages could not be searched", e)
+            return emptyList()
+        }
+        if (texts.isEmpty()) return emptyList()
+        val messages = mutableListOf<SmsMessageModel>()
+        try {
+            context.contentResolver.query(
+                MMS_URI,
+                arrayOf("_id", "thread_id", "date", "msg_box", "read"),
+                "_id IN (${texts.keys.joinToString(",")})",
+                null,
+                "date DESC"
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val mmsId = cursor.getLong(0)
+                    val box = cursor.getInt(3)
+                    if (box == MMS_BOX_DRAFT) continue
+                    messages += SmsMessageModel(
+                        id = MMS_ID_OFFSET + mmsId,
+                        threadId = cursor.getLong(1),
+                        address = "",
+                        body = texts[mmsId].orEmpty(),
+                        // Picture messages are dated in seconds; text messages in thousandths.
+                        timestamp = cursor.getLong(2) * 1000L,
+                        isOutgoing = box == MMS_BOX_SENT || box == MMS_BOX_OUTBOX,
+                        isRead = cursor.getInt(4) == 1,
+                        type = if (box == MMS_BOX_SENT) Telephony.Sms.MESSAGE_TYPE_SENT else Telephony.Sms.MESSAGE_TYPE_INBOX,
+                        isMms = true
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "the picture messages could not be searched", e)
+        }
+        return messages
+    }
 
     /**
      * The thread the phone keeps for [numbers], starting one if there is none.
@@ -690,6 +759,7 @@ object SmsRepository {
 
     private const val MMS_BOX_SENT = 2
     private const val MMS_BOX_OUTBOX = 4
+    private const val MMS_BOX_DRAFT = 3
     /** PduHeaders.FROM: the address row that names a picture message's sender. */
     private const val MMS_ADDR_FROM = 137
     private const val SEARCH_LIMIT = 200
@@ -699,5 +769,21 @@ object SmsRepository {
  * The LIKE wildcards and the escape itself, each escaped for an `ESCAPE '\\'` clause.
  * Top level rather than in the object, so a unit test can reach it without a provider.
  */
+/**
+ * The ways [query] may be written that the phone's database would not match by itself: as typed,
+ * in lower and upper case and with a capital first letter, the way [locale] writes those - Turkish
+ * has an "i" and an "ı" where English has one.
+ */
+internal fun searchVariants(query: String, locale: Locale): List<String> {
+    val typed = query.trim()
+    val lower = typed.lowercase(locale)
+    return listOf(
+        typed,
+        lower,
+        typed.uppercase(locale),
+        lower.replaceFirstChar { it.titlecase(locale) }
+    ).distinct()
+}
+
 internal fun escapeLike(text: String): String =
     text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

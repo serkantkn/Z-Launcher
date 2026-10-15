@@ -1,6 +1,13 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Search
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -97,7 +104,10 @@ internal fun ConversationScreen(
     onMessageLongPress: (SmsMessageModel) -> Unit,
     modifier: Modifier = Modifier,
     onVisibilityChange: (Boolean) -> Unit = {},
-    onOpenAttachment: (MmsAttachment) -> Unit = {}
+    onOpenAttachment: (MmsAttachment) -> Unit = {},
+    /** A search result this conversation was opened from: be at its message, its words marked. */
+    find: ConversationFind? = null,
+    onFindShown: () -> Unit = {}
 ) {
     val zuneColors = LocalZuneColors.current
     // A tablet shows the conversation beside the list, under the hub's own headings: its header
@@ -111,8 +121,55 @@ internal fun ConversationScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { onVisibilityChange(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onVisibilityChange(true) }
 
+    // ── Finding words in it ──
+    var searching by remember(conversation.threadId) { mutableStateOf(false) }
+    var query by remember(conversation.threadId) { mutableStateOf("") }
+    // Which match is shown, by message, so a message arriving does not move the search.
+    var currentId by remember(conversation.threadId) { mutableStateOf<Long?>(null) }
+    val matches = remember(messages, query) {
+        if (query.isBlank()) emptyList() else messages.filter { it.body.contains(query, ignoreCase = true) }.map { it.id }
+    }
+    val currentIndex = matches.indexOf(currentId)
+    // Where each message sits in the list: a day's heading, then its messages.
+    val rows = remember(days) {
+        buildMap {
+            var row = 0
+            days.forEach { day ->
+                row++
+                day.messages.forEach { put(it.id, row++) }
+            }
+        }
+    }
+    fun closeSearch() {
+        searching = false
+        query = ""
+        currentId = null
+    }
+    BackHandler(enabled = searching) { closeSearch() }
+
+    // A search result opened this: once its messages are in, open the search at that message.
+    LaunchedEffect(find, messages) {
+        val wanted = find ?: return@LaunchedEffect
+        if (messages.none { it.id == wanted.messageId }) return@LaunchedEffect
+        searching = true
+        query = wanted.query
+        currentId = wanted.messageId
+        onFindShown()
+    }
+    // Typing moves to the newest match; a match that went away gives way to the newest left.
+    LaunchedEffect(matches) {
+        if (currentId !in matches) currentId = matches.lastOrNull()
+    }
+    LaunchedEffect(currentId, rows) {
+        val row = currentId?.let { rows[it] } ?: return@LaunchedEffect
+        // A little down from the top, so the day heading over it shows too.
+        val offset = -listState.layoutInfo.viewportSize.height / 4
+        runCatching { listState.animateScrollToItem(row, offset) }
+    }
+
     LaunchedEffect(messages.size, conversation.threadId) {
-        if (messages.isNotEmpty()) {
+        // Searching, or about to be: the search decides where the list is.
+        if (messages.isNotEmpty() && !searching && find == null) {
             runCatching { listState.scrollToItem(messages.size + days.size) }
         }
     }
@@ -124,7 +181,13 @@ internal fun ConversationScreen(
     ) {
         // ── Who this is with ──
         if (wide) {
-            WideConversationHeader(conversation = conversation, onCall = onCall, onClose = onClose)
+            WideConversationHeader(
+                conversation = conversation,
+                onCall = onCall,
+                onClose = onClose,
+                searching = searching,
+                onSearch = { if (searching) closeSearch() else searching = true }
+            )
         } else Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -153,6 +216,13 @@ internal fun ConversationScreen(
                 )
             }
 
+            IconButton(onClick = { if (searching) closeSearch() else searching = true }) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = stringResource(R.string.msg_find_in_conversation),
+                    tint = if (searching) zuneColors.accentColor else MaterialTheme.colorScheme.onBackground
+                )
+            }
             if (conversation.address.isNotBlank()) {
                 IconButton(onClick = onCall) {
                     Icon(
@@ -169,6 +239,20 @@ internal fun ConversationScreen(
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
+        }
+
+        if (searching) {
+            ConversationSearchBar(
+                query = query,
+                onQueryChange = { query = it },
+                position = if (currentIndex >= 0) currentIndex + 1 else 0,
+                total = matches.size,
+                // Up is further back in the conversation, down nearer now.
+                onOlder = { if (currentIndex > 0) currentId = matches[currentIndex - 1] },
+                onNewer = { if (currentIndex in 0 until matches.lastIndex) currentId = matches[currentIndex + 1] },
+                onClose = { closeSearch() },
+                modifier = Modifier.padding(top = 10.dp)
+            )
         }
 
         if (isBlocked) {
@@ -214,7 +298,9 @@ internal fun ConversationScreen(
                             showSender = conversation.isGroup,
                             onLongClick = { onMessageLongPress(day.messages[index]) },
                             maxWidth = if (wide) 460.dp else 320.dp,
-                            onOpenAttachment = onOpenAttachment
+                            onOpenAttachment = onOpenAttachment,
+                            marked = if (searching) query else "",
+                            isCurrentMatch = searching && day.messages[index].id == currentId
                         )
                     }
                 }
@@ -341,7 +427,11 @@ private fun MessageBubble(
     showSender: Boolean,
     onLongClick: () -> Unit,
     maxWidth: androidx.compose.ui.unit.Dp = 320.dp,
-    onOpenAttachment: (MmsAttachment) -> Unit = {}
+    onOpenAttachment: (MmsAttachment) -> Unit = {},
+    /** Words being searched for, marked wherever they are in the message. */
+    marked: String = "",
+    /** The match the search is on: framed, so it stands out from the others. */
+    isCurrentMatch: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
     val isOut = message.isOutgoing
@@ -362,6 +452,7 @@ private fun MessageBubble(
             shape = RoundedCornerShape(2.dp),
             modifier = Modifier
                 .widthIn(max = maxWidth)
+                .then(if (isCurrentMatch) Modifier.border(3.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(2.dp)) else Modifier)
                 .combinedClickable(onClick = {}, onLongClick = onLongClick)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
@@ -376,7 +467,7 @@ private fun MessageBubble(
                 }
                 if (message.body.isNotBlank()) {
                     Text(
-                        text = message.body,
+                        text = remember(message.body, marked) { markMatches(message.body, marked) },
                         style = MaterialTheme.typography.bodyMedium,
                         color = onBubble
                     )
@@ -449,7 +540,13 @@ private fun DeliveryMark(delivery: MessageDelivery, tint: Color) {
  * name in large light type, and calling and closing as ringed buttons rather than bare glyphs.
  */
 @Composable
-private fun WideConversationHeader(conversation: SmsConversationModel, onCall: () -> Unit, onClose: () -> Unit) {
+private fun WideConversationHeader(
+    conversation: SmsConversationModel,
+    onCall: () -> Unit,
+    onClose: () -> Unit,
+    searching: Boolean,
+    onSearch: () -> Unit
+) {
     val zuneColors = LocalZuneColors.current
     val ink = MaterialTheme.colorScheme.onBackground
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -479,6 +576,8 @@ private fun WideConversationHeader(conversation: SmsConversationModel, onCall: (
                 overflow = TextOverflow.Ellipsis
             )
         }
+        RingButton(Icons.Default.Search, stringResource(R.string.msg_find_in_conversation), enabled = true, onClick = onSearch)
+        Spacer(modifier = Modifier.width(14.dp))
         if (conversation.address.isNotBlank()) {
             RingButton(Icons.Default.Call, stringResource(R.string.msg_call), enabled = true, onClick = onCall)
             Spacer(modifier = Modifier.width(14.dp))
@@ -566,5 +665,82 @@ internal fun RingButton(
             .clickable(enabled = enabled, interactionSource = source, indication = null, onClick = onClick)
     ) {
         Icon(icon, contentDescription = label, tint = ink, modifier = Modifier.size(size * 0.55f))
+    }
+}
+
+/** The words being searched for, marked as a highlighter marks them: dark type on yellow. */
+internal fun markMatches(text: String, query: String): androidx.compose.ui.text.AnnotatedString =
+    androidx.compose.ui.text.buildAnnotatedString {
+        append(text)
+        if (query.isBlank()) return@buildAnnotatedString
+        var at = text.indexOf(query, ignoreCase = true)
+        while (at >= 0) {
+            addStyle(androidx.compose.ui.text.SpanStyle(background = MATCH_MARK, color = Color.Black), at, at + query.length)
+            at = text.indexOf(query, at + query.length, ignoreCase = true)
+        }
+    }
+
+private val MATCH_MARK = Color(0xFFFFD54F)
+
+/**
+ * The search over an open conversation: the words, how far through the matches it is, and up and
+ * down through them - up further back in the conversation, down nearer now.
+ */
+@Composable
+private fun ConversationSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    position: Int,
+    total: Int,
+    onOlder: () -> Unit,
+    onNewer: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val zuneColors = LocalZuneColors.current
+    val ink = MaterialTheme.colorScheme.onBackground
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .border(2.dp, zuneColors.accentColor)
+                .padding(horizontal = 10.dp, vertical = 9.dp)
+        ) {
+            if (query.isEmpty()) {
+                Text(stringResource(R.string.msg_find_in_conversation), color = zuneColors.textMuted, style = MaterialTheme.typography.bodyLarge)
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = ink),
+                cursorBrush = SolidColor(zuneColors.accentColor),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { onOlder() }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus)
+            )
+        }
+        Text(
+            text = when {
+                query.isBlank() -> ""
+                total == 0 -> stringResource(R.string.msg_find_none)
+                else -> stringResource(R.string.msg_find_count, position, total)
+            },
+            style = MaterialTheme.typography.labelLarge,
+            color = zuneColors.textMuted,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 10.dp)
+        )
+        IconButton(onClick = onOlder, enabled = position > 1) {
+            Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.msg_find_older), tint = ink.copy(alpha = if (position > 1) 1f else 0.3f))
+        }
+        IconButton(onClick = onNewer, enabled = position in 1 until total) {
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.msg_find_newer), tint = ink.copy(alpha = if (position in 1 until total) 1f else 0.3f))
+        }
+        IconButton(onClick = onClose) {
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close_cap), tint = ink)
+        }
     }
 }

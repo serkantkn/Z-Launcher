@@ -505,6 +505,11 @@
     <string name="msg_new">new message</string>
     <string name="msg_pick_conversation">pick a conversation</string>
     <string name="msg_search_hint">search conversations...</string>
+    <string name="msg_find_in_conversation">find in conversation</string>
+    <string name="msg_find_count">%1$d / %2$d</string>
+    <string name="msg_find_none">not found</string>
+    <string name="msg_find_older">earlier match</string>
+    <string name="msg_find_newer">later match</string>
     <string name="msg_history_empty">no message history</string>
     <string name="msg_no_messages">no messages yet, start a conversation</string>
     <string name="msg_type_hint">type a message...</string>

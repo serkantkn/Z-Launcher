@@ -579,6 +579,20 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
         _matchingMessages.value = emptyList()
     }
 
+    private val _conversationFind = MutableStateFlow<ConversationFind?>(null)
+
+    /** A search result being opened: the conversation is to open at [ConversationFind.messageId]. */
+    val conversationFind: StateFlow<ConversationFind?> = _conversationFind.asStateFlow()
+
+    /** Opens [message]'s conversation at the message, with [query] marked in it. */
+    fun openAtMessage(message: SmsMessageModel, query: String) {
+        _conversationFind.value = ConversationFind(query, message.id, message.threadId)
+    }
+
+    fun consumeConversationFind() {
+        _conversationFind.value = null
+    }
+
     /** The conversation a matching message belongs to, for tapping a search result. */
     fun conversationOf(message: SmsMessageModel): SmsConversationModel? =
         _conversations.value.firstOrNull { it.threadId == message.threadId }
@@ -589,3 +603,6 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
         const val STATUS_MILLIS = 2600L
     }
 }
+
+/** What a search result asks of the conversation it opens: to be at [messageId], with [query] marked. */
+data class ConversationFind(val query: String, val messageId: Long, val threadId: Long)

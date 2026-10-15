@@ -126,6 +126,7 @@ fun MessagingHubScreen(
     val threadMessages by viewModel.threadMessages.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val matchingMessages by viewModel.matchingMessages.collectAsState()
+    val conversationFind by viewModel.conversationFind.collectAsState()
     val pinnedThreads by viewModel.pinnedThreads.collectAsState()
     val sims by viewModel.simLines.collectAsState()
     val selectedSim by viewModel.selectedSim.collectAsState()
@@ -256,6 +257,32 @@ fun MessagingHubScreen(
                 isTransitioning = false
             }
         }
+    }
+
+    // The window changing between a phone's and a tablet's width - a foldable opened or closed, a
+    // split screen dragged wider - with a conversation or the picker open. A phone turns the hub
+    // away on a hinge to show them; a tablet shows them beside the hub and has no hinge, so a hub
+    // left turned away was a blank screen. The hinges are set to what the new layout shows.
+    LaunchedEffect(isWideScreen) {
+        if (isWideScreen) {
+            if (pickerHingeAnim.value > 0f) widePicker = true
+            pickerHingeAnim.snapTo(0f)
+            detailHingeAnim.snapTo(0f)
+            hubHingeAnim.snapTo(1f)
+        } else {
+            when {
+                widePicker -> {
+                    widePicker = false
+                    hubHingeAnim.snapTo(0f)
+                    pickerHingeAnim.snapTo(1f)
+                }
+                selectedConv != null -> {
+                    hubHingeAnim.snapTo(0f)
+                    detailHingeAnim.snapTo(1f)
+                }
+            }
+        }
+        isTransitioning = false
     }
 
     val closeConversation: () -> Unit = {
@@ -487,7 +514,12 @@ fun MessagingHubScreen(
                     from = owner?.title ?: message.address,
                     query = searchQuery,
                     now = now,
-                    onClick = { owner?.let { openConversation(it) } }
+                    onClick = {
+                        owner?.let {
+                            viewModel.openAtMessage(message, searchQuery)
+                            openConversation(it)
+                        }
+                    }
                 )
             }
             if (matchingConversations.isEmpty() && matchingMessages.isEmpty()) {
@@ -675,6 +707,8 @@ fun MessagingHubScreen(
             onVisibilityChange = viewModel::setConversationVisible,
             onMessageLongPress = { menuMessage = it },
             onOpenAttachment = onOpenAttachment,
+            find = conversationFind?.takeIf { it.threadId == conversation.threadId },
+            onFindShown = viewModel::consumeConversationFind,
             modifier = modifier
         )
     }
