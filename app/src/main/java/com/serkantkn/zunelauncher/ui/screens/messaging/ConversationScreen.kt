@@ -1,6 +1,12 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +54,7 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -107,7 +114,15 @@ internal fun ConversationScreen(
     onOpenAttachment: (MmsAttachment) -> Unit = {},
     /** A search result this conversation was opened from: be at its message, its words marked. */
     find: ConversationFind? = null,
-    onFindShown: () -> Unit = {}
+    onFindShown: () -> Unit = {},
+    /** Pictures and clips going with the next message, which makes it a picture message. */
+    attachments: List<android.net.Uri> = emptyList(),
+    onAttach: () -> Unit = {},
+    onRemoveAttachment: (android.net.Uri) -> Unit = {},
+    /** A picture message announced but not fetched, to be fetched now. */
+    onDownloadMms: (SmsMessageModel) -> Unit = {},
+    /** Rows of waiting picture messages being fetched right now. */
+    downloadingMms: Set<Long> = emptySet()
 ) {
     val zuneColors = LocalZuneColors.current
     // A tablet shows the conversation beside the list, under the hub's own headings: its header
@@ -116,6 +131,27 @@ internal fun ConversationScreen(
     val listState = rememberLazyListState()
     val days = remember(messages) { groupMessagesByDay(messages) }
     val count = remember(input) { messageCount(input) }
+
+    // ── The message flying from the box to its place ──
+    // On send, what was typed leaves the box as it was set there and becomes a bubble on its way
+    // down the list to where the message lands; the bubble in the list stays hidden until it has.
+    var flight by remember(conversation.threadId) { mutableStateOf<SendFlight?>(null) }
+    var fieldBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var screenOrigin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var landingBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var listBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    // The message the flight is for: the newest one we sent with those words, sent since it left.
+    val landing = flight?.let { f ->
+        messages.lastOrNull { it.isOutgoing && it.body == f.text && it.timestamp >= f.startedAt - 2_000L }
+    }
+    val send: () -> Unit = {
+        val from = fieldBounds
+        if (input.isNotBlank() && attachments.isEmpty() && from != null) {
+            landingBounds = null
+            flight = SendFlight(input, from, System.currentTimeMillis())
+        }
+        onSend()
+    }
 
     // A conversation behind another app is not being read; a message arriving then is announced.
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { onVisibilityChange(false) }
@@ -170,12 +206,19 @@ internal fun ConversationScreen(
     LaunchedEffect(messages.size, conversation.threadId) {
         // Searching, or about to be: the search decides where the list is.
         if (messages.isNotEmpty() && !searching && find == null) {
-            runCatching { listState.scrollToItem(messages.size + days.size) }
+            // To the very end of the last message, however tall; and once more when its pictures
+            // have loaded and made it taller, unless somebody has scrolled away meanwhile.
+            runCatching { listState.scrollToItem(messages.size + days.size, Int.MAX_VALUE) }
+            kotlinx.coroutines.delay(PICTURES_SETTLE_MILLIS)
+            if (!listState.isScrollInProgress && listState.canScrollForward) {
+                runCatching { listState.animateScrollToItem(messages.size + days.size, Int.MAX_VALUE) }
+            }
         }
     }
 
+    Box(modifier = modifier.fillMaxSize().onGloballyPositioned { screenOrigin = it.positionInRoot() }) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .padding(if (wide) PaddingValues(bottom = 12.dp) else PaddingValues(16.dp))
     ) {
@@ -281,7 +324,7 @@ internal fun ConversationScreen(
         } else {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).onGloballyPositioned { listBounds = it.boundsInRoot() },
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 days.forEach { day ->
@@ -300,7 +343,11 @@ internal fun ConversationScreen(
                             maxWidth = if (wide) 460.dp else 320.dp,
                             onOpenAttachment = onOpenAttachment,
                             marked = if (searching) query else "",
-                            isCurrentMatch = searching && day.messages[index].id == currentId
+                            isCurrentMatch = searching && day.messages[index].id == currentId,
+                            hidden = flight != null && day.messages[index].id == landing?.id,
+                            onPlaced = if (day.messages[index].id == landing?.id) ({ landingBounds = it }) else null,
+                            onDownload = { onDownloadMms(day.messages[index]) },
+                            downloading = (day.messages[index].id - com.serkantkn.zunelauncher.data.repository.SmsRepository.MMS_ID_OFFSET) in downloadingMms
                         )
                     }
                 }
@@ -354,21 +401,41 @@ internal fun ConversationScreen(
             )
         }
 
+        // ── What goes with it ──
+        if (attachments.isNotEmpty()) {
+            AttachmentStrip(attachments = attachments, onRemove = onRemoveAttachment, modifier = Modifier.padding(bottom = 8.dp))
+        }
+
         // ── Writing ──
+        val canSend = input.isNotBlank() || attachments.isNotEmpty()
         if (wide) {
-            MetroComposer(input = input, onInputChange = onInputChange, onSend = onSend)
+            MetroComposer(
+                input = input,
+                onInputChange = onInputChange,
+                onSend = send,
+                canSend = canSend,
+                onAttach = onAttach,
+                onFieldPlaced = { fieldBounds = it }
+            )
         } else {
             Row(
                 modifier = Modifier.fillMaxWidth().imePadding(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = onAttach) {
+                    Icon(
+                        imageVector = Icons.Default.AttachFile,
+                        contentDescription = stringResource(R.string.msg_attach),
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
                 OutlinedTextField(
                     value = input,
                     onValueChange = onInputChange,
                     placeholder = {
                         Text(stringResource(R.string.msg_type_hint), color = zuneColors.textMuted)
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).onGloballyPositioned { fieldBounds = it.boundsInRoot() },
                     shape = RoundedCornerShape(2.dp),
                     maxLines = 5,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -382,12 +449,12 @@ internal fun ConversationScreen(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
-                    onClick = onSend,
-                    enabled = input.isNotBlank(),
+                    onClick = send,
+                    enabled = canSend,
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            if (input.isNotBlank()) zuneColors.accentColor else zuneColors.textDim,
+                            if (canSend) zuneColors.accentColor else zuneColors.textDim,
                             CircleShape
                         )
                 ) {
@@ -399,6 +466,20 @@ internal fun ConversationScreen(
                 }
             }
         }
+    }
+
+    // ── The flying message, over everything ──
+    flight?.let { current ->
+        SendFlightBubble(
+            flight = current,
+            origin = screenOrigin,
+            maxWidth = if (wide) 460.dp else 320.dp,
+            // Where the message will land: its own bubble once the list has it, until then the
+            // foot of the list, at the right where what we send goes.
+            target = { landingBounds ?: listBounds?.let { list -> androidx.compose.ui.geometry.Rect(list.right - 1f, list.bottom - 1f, list.right, list.bottom) } },
+            onLanded = { flight = null }
+        )
+    }
     }
 }
 
@@ -431,7 +512,13 @@ private fun MessageBubble(
     /** Words being searched for, marked wherever they are in the message. */
     marked: String = "",
     /** The match the search is on: framed, so it stands out from the others. */
-    isCurrentMatch: Boolean = false
+    isCurrentMatch: Boolean = false,
+    /** Kept out of sight while the copy flying from the box has not arrived yet. */
+    hidden: Boolean = false,
+    /** Told where it is, for the flight to land on. */
+    onPlaced: ((androidx.compose.ui.geometry.Rect) -> Unit)? = null,
+    onDownload: () -> Unit = {},
+    downloading: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
     val isOut = message.isOutgoing
@@ -451,6 +538,8 @@ private fun MessageBubble(
             color = bubbleColor,
             shape = RoundedCornerShape(2.dp),
             modifier = Modifier
+                .graphicsLayer { alpha = if (hidden) 0f else 1f }
+                .then(if (onPlaced != null) Modifier.onGloballyPositioned { onPlaced(it.boundsInRoot()) } else Modifier)
                 .widthIn(max = maxWidth)
                 .then(if (isCurrentMatch) Modifier.border(3.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(2.dp)) else Modifier)
                 .combinedClickable(onClick = {}, onLongClick = onLongClick)
@@ -477,6 +566,9 @@ private fun MessageBubble(
                     Box(modifier = Modifier.padding(top = if (index == 0 && message.body.isBlank()) 0.dp else 6.dp)) {
                         MessageAttachmentView(attachment = attachment, ink = onBubble, onOpen = onOpenAttachment)
                     }
+                }
+                if (message.mmsPending) {
+                    PendingMms(message = message, ink = onBubble, downloading = downloading, onDownload = onDownload)
                 }
                 if (message.hasAttachment && message.attachments.isEmpty()) {
                     Text(
@@ -512,6 +604,7 @@ private fun DeliveryMark(delivery: MessageDelivery, tint: Color) {
         MessageDelivery.SENDING -> Icons.Default.Schedule
         MessageDelivery.SENT -> Icons.Default.Done
         MessageDelivery.DELIVERED -> Icons.Default.DoneAll
+        MessageDelivery.READ -> Icons.Default.Visibility
         MessageDelivery.FAILED -> Icons.Default.ErrorOutline
         MessageDelivery.NONE -> null
     } ?: return
@@ -520,6 +613,7 @@ private fun DeliveryMark(delivery: MessageDelivery, tint: Color) {
         MessageDelivery.SENDING -> stringResource(R.string.msg_sending)
         MessageDelivery.SENT -> stringResource(R.string.msg_sent)
         MessageDelivery.DELIVERED -> stringResource(R.string.msg_delivered)
+        MessageDelivery.READ -> stringResource(R.string.msg_read_receipt)
         MessageDelivery.FAILED -> stringResource(R.string.msg_failed)
         MessageDelivery.NONE -> ""
     }
@@ -591,7 +685,14 @@ private fun WideConversationHeader(
  * the accent round it while it is being typed into. Sending is the ringed button beside it.
  */
 @Composable
-private fun MetroComposer(input: String, onInputChange: (String) -> Unit, onSend: () -> Unit) {
+private fun MetroComposer(
+    input: String,
+    onInputChange: (String) -> Unit,
+    onSend: () -> Unit,
+    canSend: Boolean,
+    onAttach: () -> Unit,
+    onFieldPlaced: (androidx.compose.ui.geometry.Rect) -> Unit
+) {
     val zuneColors = LocalZuneColors.current
     val ink = MaterialTheme.colorScheme.onBackground
     val interaction = remember { MutableInteractionSource() }
@@ -601,6 +702,10 @@ private fun MetroComposer(input: String, onInputChange: (String) -> Unit, onSend
         modifier = Modifier.fillMaxWidth().imePadding(),
         verticalAlignment = Alignment.Bottom
     ) {
+        Box(modifier = Modifier.padding(bottom = 4.dp)) {
+            RingButton(Icons.Default.AttachFile, stringResource(R.string.msg_attach), enabled = true, size = 40.dp, onClick = onAttach)
+        }
+        Spacer(modifier = Modifier.width(14.dp))
         // The whole box is the field, so a tap anywhere in it - not only on the line of text -
         // puts the cursor there.
         BasicTextField(
@@ -610,7 +715,7 @@ private fun MetroComposer(input: String, onInputChange: (String) -> Unit, onSend
             cursorBrush = SolidColor(zuneColors.accentColor),
             maxLines = 6,
             interactionSource = interaction,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).onGloballyPositioned { onFieldPlaced(it.boundsInRoot()) },
             decorationBox = { field ->
                 Box(
                     modifier = Modifier
@@ -637,7 +742,7 @@ private fun MetroComposer(input: String, onInputChange: (String) -> Unit, onSend
             RingButton(
                 Icons.AutoMirrored.Filled.Send,
                 stringResource(R.string.msg_send_cap),
-                enabled = input.isNotBlank(),
+                enabled = canSend,
                 size = 40.dp,
                 onClick = onSend
             )
@@ -741,6 +846,133 @@ private fun ConversationSearchBar(
         }
         IconButton(onClick = onClose) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close_cap), tint = ink)
+        }
+    }
+}
+
+/** A message on its way from the box to the list: its words, where they were, and when. */
+internal class SendFlight(val text: String, val from: androidx.compose.ui.geometry.Rect, val startedAt: Long)
+
+/**
+ * The words that were in the box, turning into a bubble as they go to where the message lands:
+ * the accent fills in behind them, the type takes the bubble's size and colour, and the whole
+ * glides down - and, for a short message, over to the right - to the bubble waiting for it.
+ */
+@Composable
+private fun SendFlightBubble(
+    flight: SendFlight,
+    origin: androidx.compose.ui.geometry.Offset,
+    maxWidth: androidx.compose.ui.unit.Dp,
+    target: () -> androidx.compose.ui.geometry.Rect?,
+    onLanded: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    val ink = MaterialTheme.colorScheme.onBackground
+    val progress = remember(flight) { androidx.compose.animation.core.Animatable(0f) }
+    val animate = com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled.current
+    LaunchedEffect(flight) {
+        if (animate) {
+            // Off at once and slowing as it lands, as Windows Phone moved things into place.
+            progress.animateTo(1f, androidx.compose.animation.core.tween(FLIGHT_MILLIS, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
+        }
+        onLanded()
+    }
+    var size by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    // It starts on the screen's own ground, so it covers the box's hint that shows as it empties.
+    val ground = MaterialTheme.colorScheme.background
+    Surface(
+        color = androidx.compose.ui.graphics.lerp(ground, zuneColors.accentColor, progress.value.coerceIn(0f, 1f)),
+        shape = RoundedCornerShape(2.dp),
+        modifier = Modifier
+            .widthIn(max = maxWidth)
+            .onGloballyPositioned { size = it.size }
+            .graphicsLayer {
+                val p = progress.value
+                // It leaves with its words where they were in the box: the box keeps them about
+                // 16dp in from its left edge and halfway down; the bubble about 12dp in and 22dp down.
+                val start = androidx.compose.ui.geometry.Offset(
+                    flight.from.left + 4.dp.toPx(),
+                    flight.from.center.y - 22.dp.toPx()
+                ) - origin
+                // The bubble's own top-left at the end: right-aligned on where the message lands.
+                val end = target()?.let { landed ->
+                    androidx.compose.ui.geometry.Offset(landed.right - size.width, landed.bottom - size.height) - origin
+                } ?: start
+                translationX = start.x + (end.x - start.x) * p
+                translationY = start.y + (end.y - start.y) * p
+                // Words lift off the box a touch larger than they land.
+                val scale = 1f + 0.06f * (1f - p)
+                scaleX = scale; scaleY = scale
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
+            }
+    ) {
+        Text(
+            text = flight.text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = androidx.compose.ui.graphics.lerp(ink, Color.White, progress.value),
+            modifier = Modifier.padding(12.dp).padding(bottom = with(density) { 14.sp.toDp() })
+        )
+    }
+}
+
+private const val FLIGHT_MILLIS = 420
+
+/** Long enough for a message's pictures to have loaded and taken their height. */
+private const val PICTURES_SETTLE_MILLIS = 600L
+
+/** The pictures and clips chosen for the next message, each with a cross to take it off. */
+@Composable
+private fun AttachmentStrip(attachments: List<android.net.Uri>, onRemove: (android.net.Uri) -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.lazy.LazyRow(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(attachments.size, key = { attachments[it].toString() }) { index ->
+            val uri = attachments[index]
+            Box(modifier = Modifier.size(84.dp)) {
+                coil.compose.AsyncImage(
+                    model = uri,
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.15f))
+                )
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(26.dp)
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .clickable { onRemove(uri) }
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.msg_remove_attachment), tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+}
+
+/** A picture message that is only announced so far: how big, and a way to fetch it. */
+@Composable
+private fun PendingMms(message: SmsMessageModel, ink: Color, downloading: Boolean, onDownload: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Default.Image, contentDescription = null, tint = ink.copy(alpha = 0.8f), modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = stringResource(R.string.msg_mms_waiting) + if (message.mmsSize > 0) " · " + com.serkantkn.zunelauncher.util.formatFileSize(message.mmsSize) else "",
+            style = MaterialTheme.typography.bodyMedium,
+            color = ink
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        if (downloading) {
+            Text(stringResource(R.string.msg_mms_downloading), style = MaterialTheme.typography.labelLarge, color = ink.copy(alpha = 0.75f))
+        } else {
+            Text(
+                text = stringResource(R.string.msg_mms_download),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = ink,
+                modifier = Modifier
+                    .border(1.dp, ink.copy(alpha = 0.6f))
+                    .clickable(onClick = onDownload)
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
         }
     }
 }

@@ -1327,6 +1327,12 @@
     <string name="msg_send_no_permission">mesaj gönderme izni yok</string>
     <string name="msg_send_bad_number">bu, mesaj gidebilecek bir numara değil</string>
     <string name="msg_send_failed">mesaj gönderilemedi</string>
+    <string name="msg_mms_too_big">ek, operatörün resimli mesaj sınırına sığmıyor</string>
+    <string name="msg_mms_waiting">resimli mesaj</string>
+    <string name="msg_mms_download">indir</string>
+    <string name="msg_mms_downloading">indiriliyor…</string>
+    <string name="msg_attach">ekle</string>
+    <string name="msg_remove_attachment">eki kaldır</string>
     <string name="msg_needs_default_app">bunu yalnızca telefonun mesaj uygulaması değiştirebilir</string>
     <string name="msg_make_default">mesaj uygulaması yap</string>
     <string name="msg_default_app_prompt">başlatıcı mesajlarınızı okuyabilir, ama okundu işaretlemeyi, silmeyi ve taslak tutmayı yalnızca telefonun mesaj uygulaması yapabilir.</string>
@@ -1346,6 +1352,7 @@
     <string name="msg_resend">yeniden gönder</string>
     <string name="msg_details">ayrıntılar</string>
     <string name="msg_delivered">ulaştı</string>
+    <string name="msg_read_receipt">okundu</string>
     <string name="msg_sent">gönderildi</string>
     <string name="msg_sending">gönderiliyor</string>
     <string name="msg_failed">gönderilemedi</string>

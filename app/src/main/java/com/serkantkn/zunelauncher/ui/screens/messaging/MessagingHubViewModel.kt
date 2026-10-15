@@ -202,6 +202,8 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
                 }
                 // Opening a conversation is reading it.
                 if (conversation.unreadCount > 0 || !conversation.isRead) {
+                    // Senders of picture messages who asked are told, before they stop being unread.
+                    com.serkantkn.zunelauncher.data.repository.MmsTransport.sendReadReports(context, conversation.threadId)
                     SmsRepository.markThreadRead(context, conversation.threadId)
                     MessageNotifier.clear(context, conversation.threadId)
                     _conversations.value = _conversations.value.map {
@@ -389,9 +391,63 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /**
+     * Sends [messageText] and [attachments] as one picture message to everybody in the open
+     * conversation. It is filed before it goes, so it shows as going straight away.
+     */
+    fun sendMms(context: Context, recipientNumber: String, messageText: String, attachments: List<android.net.Uri>, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val conversation = _selectedConversation.value
+            val recipients = conversation?.recipients?.filter { it.isNotBlank() }?.ifEmpty { null } ?: listOf(recipientNumber)
+            val threadId = conversation?.threadId?.takeIf { it > 0L }
+                ?: SmsRepository.getOrCreateThreadId(context, recipients.map(PhoneNumbers::toDialable).toSet()) ?: 0L
+            val result = com.serkantkn.zunelauncher.data.repository.MmsTransport.send(
+                context = context,
+                recipients = recipients,
+                text = messageText,
+                attachments = attachments,
+                threadId = threadId,
+                subscriptionId = _selectedSim.value
+            )
+            when (result) {
+                com.serkantkn.zunelauncher.data.repository.MmsTransport.SendResult.Queued -> Unit
+                com.serkantkn.zunelauncher.data.repository.MmsTransport.SendResult.NoPermission ->
+                    showStatus(context.getString(com.serkantkn.zunelauncher.R.string.msg_send_no_permission))
+                com.serkantkn.zunelauncher.data.repository.MmsTransport.SendResult.TooBig ->
+                    showStatus(context.getString(com.serkantkn.zunelauncher.R.string.msg_mms_too_big))
+                com.serkantkn.zunelauncher.data.repository.MmsTransport.SendResult.Failed ->
+                    showStatus(context.getString(com.serkantkn.zunelauncher.R.string.msg_send_failed))
+            }
+            val queued = result == com.serkantkn.zunelauncher.data.repository.MmsTransport.SendResult.Queued
+            if (queued && threadId > 0L) {
+                _conversations.value = runCatching { SmsRepository.getConversations(context) }.getOrDefault(_conversations.value)
+                _conversations.value.firstOrNull { it.threadId == threadId }?.let { _selectedConversation.value = it }
+                MessagingBridge.visibleThreadId = threadId
+                _threadMessages.value = runCatching { SmsRepository.getMessagesForThread(context, threadId) }.getOrDefault(emptyList())
+            }
+            onComplete(queued)
+        }
+    }
+
+    /** Fetches a picture message that was announced and is waiting on the carrier. */
+    fun downloadMms(context: Context, message: SmsMessageModel) {
+        viewModelScope.launch {
+            com.serkantkn.zunelauncher.data.repository.MmsTransport.downloadRow(context, message.id - SmsRepository.MMS_ID_OFFSET)
+        }
+    }
+
     /** Sends a failed message again, and takes the failed copy out of the conversation. */
     fun resend(context: Context, message: SmsMessageModel) {
         viewModelScope.launch {
+            // A picture message goes again as itself, pictures and all - not as its words alone.
+            if (message.isMms) {
+                val result = com.serkantkn.zunelauncher.data.repository.MmsTransport.resend(context, message.id - SmsRepository.MMS_ID_OFFSET)
+                if (result != com.serkantkn.zunelauncher.data.repository.MmsTransport.SendResult.Queued) {
+                    showStatus(context.getString(com.serkantkn.zunelauncher.R.string.msg_send_failed))
+                }
+                refresh()
+                return@launch
+            }
             val conversation = _selectedConversation.value
             val outcome = SmsSender.resend(
                 context = context,
@@ -464,6 +520,7 @@ class MessagingHubViewModel(application: Application) : AndroidViewModel(applica
 
     fun markThreadRead(context: Context, conversation: SmsConversationModel) {
         viewModelScope.launch {
+            com.serkantkn.zunelauncher.data.repository.MmsTransport.sendReadReports(context, conversation.threadId)
             val done = SmsRepository.markThreadRead(context, conversation.threadId)
             if (done) {
                 MessageNotifier.clear(context, conversation.threadId)

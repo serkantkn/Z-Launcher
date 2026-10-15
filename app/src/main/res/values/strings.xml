@@ -1327,6 +1327,12 @@
     <string name="msg_send_no_permission">there is no permission to send messages</string>
     <string name="msg_send_bad_number">that is not a number a message can go to</string>
     <string name="msg_send_failed">the message would not go out</string>
+    <string name="msg_mms_too_big">the attachment is too big for a picture message on this carrier</string>
+    <string name="msg_mms_waiting">picture message</string>
+    <string name="msg_mms_download">download</string>
+    <string name="msg_mms_downloading">downloading…</string>
+    <string name="msg_attach">attach</string>
+    <string name="msg_remove_attachment">remove attachment</string>
     <string name="msg_needs_default_app">only the phone\'s messaging app can change this</string>
     <string name="msg_make_default">make this the messaging app</string>
     <string name="msg_default_app_prompt">the launcher can read your messages, but only the phone\'s messaging app may mark them read, delete them or keep a draft.</string>
@@ -1346,6 +1352,7 @@
     <string name="msg_resend">send again</string>
     <string name="msg_details">details</string>
     <string name="msg_delivered">delivered</string>
+    <string name="msg_read_receipt">read</string>
     <string name="msg_sent">sent</string>
     <string name="msg_sending">sending</string>
     <string name="msg_failed">not sent</string>

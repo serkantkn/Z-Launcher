@@ -310,7 +310,7 @@ object SmsRepository {
         try {
             context.contentResolver.query(
                 MMS_URI,
-                arrayOf("_id", "date", "msg_box", "read", "sub_id"),
+                arrayOf("_id", "date", "msg_box", "read", "sub_id", "m_type", "st", "read_status", "m_size"),
                 "thread_id = ?",
                 arrayOf(threadId.toString()),
                 "date ASC"
@@ -321,7 +321,17 @@ object SmsRepository {
                     // thousandths; mixing the two puts every picture in 1970.
                     val date = cursor.getLong(1) * 1000L
                     val box = cursor.getInt(2)
-                    val isOutgoing = box == MMS_BOX_SENT || box == MMS_BOX_OUTBOX
+                    val isOutgoing = box == MMS_BOX_SENT || box == MMS_BOX_OUTBOX || box == MMS_BOX_FAILED
+                    val pending = cursor.getInt(5) == MMS_TYPE_NOTIFICATION_IND
+                    // Where a picture message sent has got to: going, gone, arrived, read.
+                    val delivery = when {
+                        !isOutgoing -> MessageDelivery.NONE
+                        box == MMS_BOX_OUTBOX -> MessageDelivery.SENDING
+                        box == MMS_BOX_FAILED -> MessageDelivery.FAILED
+                        cursor.getInt(7) == com.serkantkn.zunelauncher.util.MmsPdu.READ_STATUS_READ -> MessageDelivery.READ
+                        cursor.getInt(6) == com.serkantkn.zunelauncher.util.MmsPdu.STATUS_RETRIEVED -> MessageDelivery.DELIVERED
+                        else -> MessageDelivery.SENT
+                    }
                     val parts = mmsParts(context, mmsId)
                     // In a group, a picture with no name on it could be from anybody in it.
                     val sender = if (isGroup && !isOutgoing) mmsSender(context, mmsId) else ""
@@ -333,13 +343,20 @@ object SmsRepository {
                         timestamp = date,
                         isOutgoing = isOutgoing,
                         isRead = cursor.getInt(3) == 1,
-                        type = if (box == MMS_BOX_SENT) Telephony.Sms.MESSAGE_TYPE_SENT else Telephony.Sms.MESSAGE_TYPE_INBOX,
-                        delivery = MessageDelivery.NONE,
+                        type = when (box) {
+                            MMS_BOX_SENT -> Telephony.Sms.MESSAGE_TYPE_SENT
+                            MMS_BOX_OUTBOX -> Telephony.Sms.MESSAGE_TYPE_OUTBOX
+                            MMS_BOX_FAILED -> Telephony.Sms.MESSAGE_TYPE_FAILED
+                            else -> Telephony.Sms.MESSAGE_TYPE_INBOX
+                        },
+                        delivery = delivery,
                         isMms = true,
                         hasAttachment = parts.attachments.isNotEmpty(),
                         attachments = parts.attachments,
                         subscriptionId = cursor.getInt(4),
-                        senderName = if (sender.isBlank()) "" else contactNameFor(context, sender)
+                        senderName = if (sender.isBlank()) "" else contactNameFor(context, sender),
+                        mmsPending = pending,
+                        mmsSize = if (pending) cursor.getLong(8) else 0L
                     )
                 }
             }
@@ -760,6 +777,8 @@ object SmsRepository {
     private const val MMS_BOX_SENT = 2
     private const val MMS_BOX_OUTBOX = 4
     private const val MMS_BOX_DRAFT = 3
+    private const val MMS_BOX_FAILED = 5
+    private const val MMS_TYPE_NOTIFICATION_IND = 130
     /** PduHeaders.FROM: the address row that names a picture message's sender. */
     private const val MMS_ADDR_FROM = 137
     private const val SEARCH_LIMIT = 200

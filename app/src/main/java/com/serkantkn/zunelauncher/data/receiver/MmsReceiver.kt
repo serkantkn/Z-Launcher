@@ -10,7 +10,11 @@ import android.provider.Telephony
 import com.serkantkn.zunelauncher.data.repository.MessagingBridge
 import com.serkantkn.zunelauncher.data.repository.SmsRepository
 import com.serkantkn.zunelauncher.data.service.MessageNotifier
+import com.serkantkn.zunelauncher.data.repository.MmsTransport
+import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.BlockedNumbers
+import com.serkantkn.zunelauncher.util.MmsPdu
+import kotlinx.coroutines.flow.first
 import com.serkantkn.zunelauncher.util.MmsNotificationParser
 import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.CoroutineScope
@@ -18,17 +22,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * A picture message, as far as the launcher takes it.
+ * A picture message arriving, or a report about one sent.
  *
  * Android hands `WAP_PUSH_DELIVER` to the messaging app alone, and what it hands over is not the
- * picture but a note that one is waiting: who sent it, how big it is, where to fetch it. The
- * launcher does not fetch pictures. What it must not do is lose the note — so the note is filed
- * into the phone's own message store, the way every messaging app files it, where the
- * conversation shows "a picture came" and any app that does fetch pictures can still find it.
- * The sender is told about by a notification like any other message.
- *
- * This receiver, and RECEIVE_MMS / RECEIVE_WAP_PUSH with it, stay for a second reason: Android
- * will not offer the messaging role at all to an app that does not declare them.
+ * picture but a note that one is waiting: who sent it, how big it is, where to fetch it. The note
+ * is filed into the phone's own message store, the way every messaging app files it, and then -
+ * while the user wants that - the message is fetched and the note becomes it ([MmsTransport]).
+ * The sender is told about by a notification like any other message. A report that a message
+ * sent arrived, or was read, comes the same way and is filed against that message.
  */
 class MmsReceiver : BroadcastReceiver() {
 
@@ -37,7 +38,18 @@ class MmsReceiver : BroadcastReceiver() {
         if (intent?.action != Telephony.Sms.Intents.WAP_PUSH_DELIVER_ACTION) return
         if (intent.type != MMS_CONTENT_TYPE) return
 
-        val push = MmsNotificationParser.parse(intent.getByteArrayExtra("data"))
+        val data = intent.getByteArrayExtra("data")
+        // Not every push is a message waiting: a report that one sent arrived, or was read,
+        // comes the same way.
+        val report = MmsPdu.parse(data)
+        if (report != null && (report.type == MmsPdu.TYPE_DELIVERY_IND || report.type == MmsPdu.TYPE_READ_ORIG_IND)) {
+            val pending = goAsync()
+            CoroutineScope(Dispatchers.IO).launch {
+                try { MmsTransport.onReport(ctx, report) } finally { pending.finish() }
+            }
+            return
+        }
+        val push = MmsNotificationParser.parse(data)
         if (push == null) {
             ZuneLog.w(TAG, "a picture message push could not be read")
             return
@@ -51,8 +63,12 @@ class MmsReceiver : BroadcastReceiver() {
                     ZuneLog.d(TAG, "a picture message from a blocked number was not filed")
                     return@launch
                 }
-                val threadId = file(ctx, push, subscriptionId)
+                val (threadId, row) = file(ctx, push, subscriptionId)
                 MessagingBridge.messagesChanged()
+                // Fetched at once while the user wants that; otherwise it waits to be tapped.
+                if (row > 0L && ctx.appContainer.settingsDataStore.mmsAutoDownload.first()) {
+                    MmsTransport.download(ctx, row, push.contentLocation, subscriptionId)
+                }
                 runCatching { MessageNotifier.showIncomingMms(ctx, push.from, threadId) }
                     .onFailure { ZuneLog.e(TAG, "the picture message was filed but could not be shown", it) }
             } catch (e: Exception) {
@@ -68,7 +84,7 @@ class MmsReceiver : BroadcastReceiver() {
         context: Context,
         push: com.serkantkn.zunelauncher.util.MmsNotification,
         subscriptionId: Int
-    ): Long {
+    ): Pair<Long, Long> {
         val threadId = if (push.from.isBlank()) 0L else try {
             Telephony.Threads.getOrCreateThreadId(context, push.from)
         } catch (e: Exception) {
@@ -95,7 +111,7 @@ class MmsReceiver : BroadcastReceiver() {
             if (threadId > 0L) put(Telephony.Mms.THREAD_ID, threadId)
             if (subscriptionId >= 0) put(Telephony.Mms.SUBSCRIPTION_ID, subscriptionId)
         }
-        val row = context.contentResolver.insert(Telephony.Mms.Inbox.CONTENT_URI, values) ?: return threadId
+        val row = context.contentResolver.insert(Telephony.Mms.Inbox.CONTENT_URI, values) ?: return threadId to 0L
         val mmsId = ContentUris.parseId(row)
 
         if (push.from.isNotBlank()) {
@@ -112,7 +128,7 @@ class MmsReceiver : BroadcastReceiver() {
             }.onFailure { ZuneLog.w(TAG, "the sender could not be filed with the picture message", it) }
         }
         SmsRepository.clearContactCache()
-        return threadId
+        return threadId to mmsId
     }
 
     private companion object {

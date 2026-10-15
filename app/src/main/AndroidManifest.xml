@@ -363,6 +363,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- What the phone says once it has sent a picture message or fetched one -->
+        <receiver
+            android:name=".data.receiver.MmsResultReceiver"
+            android:exported="false" />
+
         <!-- What the network says about a message after it has left: went out, arrived, failed -->
         <receiver
             android:name=".data.receiver.SmsStatusReceiver"

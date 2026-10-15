@@ -128,6 +128,12 @@ fun MessagingHubScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val matchingMessages by viewModel.matchingMessages.collectAsState()
     val conversationFind by viewModel.conversationFind.collectAsState()
+    val downloadingMms by com.serkantkn.zunelauncher.data.repository.MmsTransport.downloading.collectAsState()
+    // Pictures and clips chosen for the next message; with any, it goes as a picture message.
+    var composeAttachments by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
+    val pickMedia = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickMultipleVisualMedia(MAX_ATTACHMENTS)
+    ) { picked -> composeAttachments = (composeAttachments + picked).distinct().take(MAX_ATTACHMENTS) }
     val pinnedThreads by viewModel.pinnedThreads.collectAsState()
     val sims by viewModel.simLines.collectAsState()
     val selectedSim by viewModel.selectedSim.collectAsState()
@@ -247,6 +253,7 @@ fun MessagingHubScreen(
             viewModel.saveDraft(context, composeText)
         }
         widePicker = false
+        if (previous?.threadId != conversation.threadId) composeAttachments = emptyList()
         composeText = pendingForward ?: conversation.draft
         pendingForward = null
         viewModel.openConversation(context, conversation)
@@ -299,12 +306,14 @@ fun MessagingHubScreen(
         if (isWideScreen) {
             viewModel.closeConversation()
             composeText = ""
+            composeAttachments = emptyList()
         } else if (!isTransitioning) {
             isTransitioning = true
             coroutineScope.launch {
                 detailHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
                 viewModel.closeConversation()
                 composeText = ""
+                composeAttachments = emptyList()
                 hubHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
                 isTransitioning = false
             }
@@ -712,8 +721,14 @@ fun MessagingHubScreen(
             isBlocked = isBlocked,
             onSend = {
                 val text = composeText
+                val attached = composeAttachments
                 composeText = ""
-                viewModel.sendSms(context, conversation.address, text)
+                composeAttachments = emptyList()
+                if (attached.isNotEmpty()) {
+                    viewModel.sendMms(context, conversation.address, text, attached)
+                } else {
+                    viewModel.sendSms(context, conversation.address, text)
+                }
             },
             onClose = closeConversation,
             onCall = { callConversation(conversation) },
@@ -722,6 +737,17 @@ fun MessagingHubScreen(
             onOpenAttachment = onOpenAttachment,
             find = conversationFind?.takeIf { it.threadId == conversation.threadId },
             onFindShown = viewModel::consumeConversationFind,
+            attachments = composeAttachments,
+            onAttach = {
+                pickMedia.launch(
+                    androidx.activity.result.PickVisualMediaRequest(
+                        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                    )
+                )
+            },
+            onRemoveAttachment = { uri -> composeAttachments = composeAttachments - uri },
+            onDownloadMms = { viewModel.downloadMms(context, it) },
+            downloadingMms = downloadingMms,
             modifier = modifier
         )
     }
@@ -1029,6 +1055,7 @@ private fun messageDetails(message: SmsMessageModel): List<String> {
         com.serkantkn.zunelauncher.data.model.MessageDelivery.SENDING -> stringResource(R.string.msg_sending)
         com.serkantkn.zunelauncher.data.model.MessageDelivery.SENT -> stringResource(R.string.msg_sent)
         com.serkantkn.zunelauncher.data.model.MessageDelivery.DELIVERED -> stringResource(R.string.msg_delivered)
+        com.serkantkn.zunelauncher.data.model.MessageDelivery.READ -> stringResource(R.string.msg_read_receipt)
         com.serkantkn.zunelauncher.data.model.MessageDelivery.FAILED -> stringResource(R.string.msg_failed)
         com.serkantkn.zunelauncher.data.model.MessageDelivery.NONE -> ""
     }
@@ -1069,3 +1096,6 @@ private val WIDE_LIST_WIDTH = 400.dp
 private fun PhonePadded(content: @Composable () -> Unit) {
     Box(modifier = Modifier.fillMaxSize().padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)) { content() }
 }
+
+/** As many pictures and clips as a picture message is sensibly sent with. */
+private const val MAX_ATTACHMENTS = 5
