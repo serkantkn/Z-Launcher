@@ -21,6 +21,8 @@ object VideoPlayer {
     internal const val EXTRA_TITLE = "video_title"
     internal const val EXTRA_CLOUD_ACCOUNT = "video_cloud_account"
     internal const val EXTRA_CLOUD_ID = "video_cloud_id"
+    internal const val EXTRA_PATH = "video_path"
+    internal const val EXTRA_QUEUE_FOLDER = "video_queue_folder"
 
     /** Whether a file of this type is one the player should take rather than another app. */
     fun handles(mimeType: String?): Boolean =
@@ -36,10 +38,21 @@ object VideoPlayer {
         context.startActivity(intent)
     }
 
-    /** Plays a file on the device, handed over through the launcher's own file provider. */
-    fun open(context: Context, file: File, mimeType: String? = null) {
+    /**
+     * Plays a file on the device, handed over through the launcher's own file provider. With
+     * [withFolder] the other videos in its folder come after it, in the order of their names -
+     * for a folder somebody keeps films in, not for the copy of an attachment.
+     */
+    fun open(context: Context, file: File, mimeType: String? = null, withFolder: Boolean = false) {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        open(context, uri, file.name, mimeType)
+        val intent = Intent(context, VideoPlayerActivity::class.java)
+            .setDataAndType(uri, mimeType?.takeIf { it.isNotBlank() } ?: "video/*")
+            .putExtra(EXTRA_TITLE, file.name)
+            .putExtra(EXTRA_PATH, file.absolutePath)
+            .putExtra(EXTRA_QUEUE_FOLDER, withFolder)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        VideoPlayerActivity.closeSmallWindow()
+        context.startActivity(intent)
     }
 
     /** Plays a video straight off a drive, as it arrives, without downloading it first. */
@@ -54,6 +67,35 @@ object VideoPlayer {
     }
 }
 
+/** How the videos page lays the videos out. */
+internal enum class VideoOrder { DATE, NAME, FOLDER }
+
+/** What happens when a video comes to its end. */
+internal enum class VideoEndAction { STOP, NEXT, REPEAT }
+
+/** How the player was last set up, kept for the next film. */
+internal class VideoPrefs(context: Context) {
+    private val prefs = context.getSharedPreferences("video_prefs", Context.MODE_PRIVATE)
+
+    /** The picture filling the screen, cut at its edges, rather than fitted inside it. */
+    var fill: Boolean
+        get() = prefs.getBoolean("fill", false)
+        set(value) = prefs.edit().putBoolean("fill", value).apply()
+
+    var endAction: VideoEndAction
+        get() = runCatching { VideoEndAction.valueOf(prefs.getString("end", null).orEmpty()) }.getOrDefault(VideoEndAction.NEXT)
+        set(value) = prefs.edit().putString("end", value.name).apply()
+
+    var videosOrder: VideoOrder
+        get() = runCatching { VideoOrder.valueOf(prefs.getString("order", null).orEmpty()) }.getOrDefault(VideoOrder.DATE)
+        set(value) = prefs.edit().putString("order", value.name).apply()
+
+    /** Subtitles shown when a film has some; turned off, they stay off for the next one too. */
+    var subtitles: Boolean
+        get() = prefs.getBoolean("subtitles", true)
+        set(value) = prefs.edit().putBoolean("subtitles", value).apply()
+}
+
 /**
  * Where each video was left, so it starts again from there. Only the last [KEEP] are kept, and
  * a video watched to within a few seconds of its end is forgotten - it was finished.
@@ -62,6 +104,13 @@ internal class VideoResumeStore(context: Context) {
     private val prefs = context.getSharedPreferences("video_resume", Context.MODE_PRIVATE)
 
     fun positionOf(key: String): Long = prefs.getString(key, null)?.substringBefore(':')?.toLongOrNull() ?: 0L
+
+    /** Every video left part way, with where it was left and when: key to (position, saved at). */
+    fun all(): Map<String, Pair<Long, Long>> = prefs.all.mapNotNull { (key, value) ->
+        val text = value as? String ?: return@mapNotNull null
+        val position = text.substringBefore(':').toLongOrNull() ?: return@mapNotNull null
+        key to (position to (text.substringAfter(':').toLongOrNull() ?: 0L))
+    }.toMap()
 
     fun remember(key: String, positionMs: Long, durationMs: Long) {
         val finished = durationMs > 0 && durationMs - positionMs < END_MARGIN_MS
@@ -80,9 +129,21 @@ internal class VideoResumeStore(context: Context) {
         editor.apply()
     }
 
-    private companion object {
-        const val KEEP = 100
-        const val START_MARGIN_MS = 5_000L
-        const val END_MARGIN_MS = 5_000L
+    companion object {
+        /**
+         * The name a video is remembered by. A video in the media store is the same video
+         * whether the pictures or the videos page opened it, so it goes by its number there.
+         */
+        fun keyOf(uri: Uri): String {
+            if (uri.authority == android.provider.MediaStore.AUTHORITY) {
+                val id = runCatching { android.content.ContentUris.parseId(uri) }.getOrDefault(-1L)
+                if (id >= 0) return "media:$id"
+            }
+            return uri.toString()
+        }
+
+        private const val KEEP = 100
+        private const val START_MARGIN_MS = 5_000L
+        private const val END_MARGIN_MS = 5_000L
     }
 }

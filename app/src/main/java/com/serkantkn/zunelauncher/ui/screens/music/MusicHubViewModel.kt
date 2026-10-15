@@ -118,6 +118,19 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
     private val _videos = MutableStateFlow<List<com.serkantkn.zunelauncher.data.repository.LocalVideo>>(emptyList())
     val videos: StateFlow<List<com.serkantkn.zunelauncher.data.repository.LocalVideo>> = _videos.asStateFlow()
 
+    /** Where each video was left, by the name the player remembers it by: (position, saved at). */
+    private val _videoResume = MutableStateFlow<Map<String, Pair<Long, Long>>>(emptyMap())
+    val videoResume: StateFlow<Map<String, Pair<Long, Long>>> = _videoResume.asStateFlow()
+
+    private val videoPrefs = com.serkantkn.zunelauncher.ui.screens.video.VideoPrefs(application)
+    private val _videoOrder = MutableStateFlow(videoPrefs.videosOrder)
+    internal val videoOrder: StateFlow<com.serkantkn.zunelauncher.ui.screens.video.VideoOrder> = _videoOrder.asStateFlow()
+
+    internal fun setVideoOrder(order: com.serkantkn.zunelauncher.ui.screens.video.VideoOrder) {
+        videoPrefs.videosOrder = order
+        _videoOrder.value = order
+    }
+
     private var videosWatched = false
 
     /** Called on every resume, and with the answer from the permission prompt. */
@@ -139,6 +152,7 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
     fun loadVideos() {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             _videos.value = com.serkantkn.zunelauncher.data.repository.VideoLibrary.query(getApplication())
+            _videoResume.value = com.serkantkn.zunelauncher.ui.screens.video.VideoResumeStore(getApplication()).all()
         }
     }
 

@@ -434,7 +434,7 @@ fun FilesHubScreen(
         val viewer = viewerFor(item.extension)
         if (viewer == FileViewer.VIDEO) {
             // A film goes to the launcher's own player, which can also keep it in a corner.
-            com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, item.file)
+            com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, item.file, withFolder = true)
         } else if (viewer == FileViewer.NONE) {
             viewModel.openFile(context, item.file)
         } else {

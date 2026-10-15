@@ -16,6 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,7 +41,10 @@ import coil.compose.AsyncImage
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.repository.LocalVideo
 import com.serkantkn.zunelauncher.ui.components.ZunePermissionRequest
+import com.serkantkn.zunelauncher.ui.screens.video.NaturalOrder
+import com.serkantkn.zunelauncher.ui.screens.video.VideoOrder
 import com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer
+import com.serkantkn.zunelauncher.ui.screens.video.VideoResumeStore
 import com.serkantkn.zunelauncher.ui.screens.video.formatTime
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
@@ -83,6 +90,8 @@ internal fun VideosPage(viewModel: MusicHubViewModel) {
         return
     }
 
+    val watched by viewModel.videoResume.collectAsState()
+    val order by viewModel.videoOrder.collectAsState()
     val shown = remember(videos, query) {
         if (query.isBlank()) videos else videos.filter { it.name.contains(query.trim(), ignoreCase = true) }
     }
@@ -93,6 +102,24 @@ internal fun VideosPage(viewModel: MusicHubViewModel) {
         )
         return
     }
+
+    // The ones left part way, the last watched first: a film is carried on with more often than
+    // it is started.
+    val carryOn = remember(shown, watched) {
+        shown.filter { (watched[it.resumeKey]?.first ?: 0L) > 0L }
+            .sortedByDescending { watched[it.resumeKey]?.second ?: 0L }
+            .take(if (isWideScreen) CARRY_ON_WIDE else CARRY_ON_PHONE)
+    }
+    val sections: List<Pair<String?, List<LocalVideo>>> = remember(shown, order) {
+        when (order) {
+            VideoOrder.DATE -> listOf(null to shown)
+            VideoOrder.NAME -> listOf(null to shown.sortedWith(compareBy(NaturalOrder) { it.title }))
+            VideoOrder.FOLDER -> shown.groupBy { it.folder }
+                .toSortedMap(NaturalOrder)
+                .map { (folder, inFolder) -> folder to inFolder.sortedWith(compareBy(NaturalOrder) { it.title }) }
+        }
+    }
+    val open: (LocalVideo) -> Unit = { video -> VideoPlayer.open(context, video.uri, video.title, video.mimeType) }
 
     LazyVerticalGrid(
         columns = if (isWideScreen) GridCells.Adaptive(220.dp) else GridCells.Fixed(2),
@@ -105,15 +132,82 @@ internal fun VideosPage(viewModel: MusicHubViewModel) {
         ),
         modifier = Modifier.fillMaxSize()
     ) {
-        items(shown, key = { it.id }) { video ->
-            VideoTile(video) { VideoPlayer.open(context, video.uri, video.title, video.mimeType) }
+        item(key = "order", span = { GridItemSpan(maxLineSpan) }) {
+            OrderPicker(order, onPick = viewModel::setVideoOrder)
+        }
+        if (carryOn.isNotEmpty()) {
+            item(key = "carry-on", span = { GridItemSpan(maxLineSpan) }) {
+                SectionHeading(stringResource(R.string.music_videos_continue))
+            }
+            items(carryOn, key = { "carry-on-${it.id}" }) { video ->
+                VideoTile(video, watched[video.resumeKey]?.first ?: 0L, showLeft = true) { open(video) }
+            }
+        }
+        sections.forEach { (folder, inSection) ->
+            // A folder is headed by its name; the one list of all, only to part it from the ones
+            // being carried on with.
+            if (folder != null || carryOn.isNotEmpty()) {
+                item(key = "section-${folder ?: "all"}", span = { GridItemSpan(maxLineSpan) }) {
+                    SectionHeading(
+                        text = folder?.ifBlank { "—" }?.lowercase(Locale.getDefault()) ?: stringResource(R.string.music_videos_all),
+                        count = if (folder != null) inSection.size else null
+                    )
+                }
+            }
+            items(inSection, key = { it.id }) { video ->
+                VideoTile(video, watched[video.resumeKey]?.first ?: 0L) { open(video) }
+            }
+        }
+    }
+}
+
+/** The ways to lay the videos out, as Windows Phone wrote a choice of views: words in a row. */
+@Composable
+private fun OrderPicker(order: VideoOrder, onPick: (VideoOrder) -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    Row(horizontalArrangement = Arrangement.spacedBy(22.dp), modifier = Modifier.padding(bottom = 2.dp)) {
+        listOf(
+            VideoOrder.DATE to R.string.music_videos_by_date,
+            VideoOrder.NAME to R.string.music_videos_by_name,
+            VideoOrder.FOLDER to R.string.music_videos_by_folder
+        ).forEach { (choice, label) ->
+            Text(
+                text = stringResource(label),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 19.sp),
+                color = if (choice == order) MaterialTheme.colorScheme.onBackground else zuneColors.textMuted,
+                modifier = Modifier.clickable { onPick(choice) }.padding(vertical = 6.dp)
+            )
         }
     }
 }
 
 @Composable
-private fun VideoTile(video: LocalVideo, onOpen: () -> Unit) {
+private fun SectionHeading(text: String, count: Int? = null) {
     val zuneColors = LocalZuneColors.current
+    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 10.dp)) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Light, fontSize = 24.sp),
+            color = zuneColors.accentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
+        )
+        if (count != null) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = zuneColors.textMuted,
+                modifier = Modifier.padding(start = 10.dp, bottom = 3.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun VideoTile(video: LocalVideo, watchedMs: Long, showLeft: Boolean = false, onOpen: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    val fraction = if (video.durationMs > 0 && watchedMs > 0) (watchedMs.toFloat() / video.durationMs).coerceIn(0f, 1f) else 0f
     Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
         Box(
             modifier = Modifier
@@ -130,14 +224,36 @@ private fun VideoTile(video: LocalVideo, onOpen: () -> Unit) {
             )
             if (video.durationMs > 0) {
                 Text(
-                    text = formatTime(video.durationMs),
+                    text = if (showLeft && fraction > 0f) {
+                        stringResource(R.string.music_videos_left, formatTime(video.durationMs - watchedMs))
+                    } else {
+                        formatTime(video.durationMs)
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        .padding(bottom = if (fraction > 0f) WATCHED_LINE else 0.dp)
                         .background(Color.Black.copy(alpha = 0.6f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 )
+            }
+            // How much of it has been watched, as a line in the accent along the bottom.
+            if (fraction > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(WATCHED_LINE)
+                        .background(Color.Black.copy(alpha = 0.55f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction)
+                            .fillMaxHeight()
+                            .background(zuneColors.accentColor)
+                    )
+                }
             }
         }
         Text(
@@ -159,3 +275,10 @@ private fun VideoTile(video: LocalVideo, onOpen: () -> Unit) {
         }
     }
 }
+
+/** The name the player remembers a video of the media store by. */
+private val LocalVideo.resumeKey: String get() = VideoResumeStore.keyOf(uri)
+
+private val WATCHED_LINE = 4.dp
+private const val CARRY_ON_PHONE = 4
+private const val CARRY_ON_WIDE = 6

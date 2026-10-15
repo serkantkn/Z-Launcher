@@ -65,7 +65,10 @@ class ThirdPartyMediaController(private val context: Context) {
         }
     }
 
-    private fun updateActiveController(controllers: List<MediaController>?) {
+    private fun updateActiveController(all: List<MediaController>?) {
+        // The launcher's own video player keeps a session for the buttons on headphones; a film
+        // is not what the music tile and the hub mean by what is playing.
+        val controllers = all?.filterNot { isLauncherVideo(it) }
         val newController = controllers?.firstOrNull { 
             it.playbackState?.state == PlaybackState.STATE_PLAYING || 
             it.playbackState?.state == PlaybackState.STATE_BUFFERING 
@@ -78,6 +81,10 @@ class ThirdPartyMediaController(private val context: Context) {
         }
         updateState()
     }
+
+    private fun isLauncherVideo(controller: MediaController): Boolean =
+        controller.packageName == context.packageName &&
+            controller.tag?.endsWith(com.serkantkn.zunelauncher.ui.screens.video.VideoPlayerActivity.SESSION_ID) == true
 
     private fun updateState() {
         val controller = activeController
