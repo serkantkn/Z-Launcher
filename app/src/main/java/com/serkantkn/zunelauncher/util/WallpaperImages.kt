@@ -132,7 +132,12 @@ object WallpaperImages {
                 ?.let { return it }
         }
         val manager = WallpaperManager.getInstance(context)
-        return systemWallpaper(manager, width, height).also { _systemUnreadable.value = it == null }
+        return systemWallpaper(manager, width, height).also { read ->
+            val couldNot = _systemUnreadable.value
+            _systemUnreadable.value = read == null
+            // Read at last - access was given since: every background still without it asks again.
+            if (couldNot && read != null) _generation.value++
+        }
     }
 
     /**

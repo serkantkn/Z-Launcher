@@ -116,7 +116,13 @@ fun ZuneBackground(
     // the settings preview — and they were each decoding the same wallpaper for themselves.
     val wantsBlur = (forceModeOverride ?: mode) == BackgroundMode.BLURRED_WALLPAPER
     val generation by WallpaperImages.generation.collectAsState()
-    LaunchedEffect(wallpaperVersion, effectiveCustomPath, wantsBlur, generation) {
+    // A wallpaper that could not be read is tried again each time the launcher comes back to the
+    // front: access to it is given in the system's settings, and nothing else says it was.
+    var retries by remember { mutableStateOf(0) }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        if (wallpaperBitmap == null) retries++
+    }
+    LaunchedEffect(wallpaperVersion, effectiveCustomPath, wantsBlur, generation, retries) {
         val wallpapers = WallpaperImages.load(context, effectiveCustomPath, wallpaperVersion, wantsBlur)
         if (wallpapers.full != null) {
             wallpaperBitmap = wallpapers.full
