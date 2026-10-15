@@ -191,8 +191,8 @@ internal fun TileLineList(
 }
 
 /**
- * The glyph and the count side by side, the left half of Windows Phone's iconic wide tile: the
- * count large and light beside the glyph, as the messaging tile said "3" next to its smile.
+ * The glyph and the count side by side, the left half of Windows Phone's iconic wide tile, as the
+ * messaging tile said "3" next to its smile.
  */
 @Composable
 internal fun IconicCount(
@@ -204,26 +204,82 @@ internal fun IconicCount(
     iconSize: Dp,
     modifier: Modifier = Modifier
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
-        val glyphModifier = Modifier.size(iconSize)
+    GlyphCount(count = count, iconSize = iconSize, ink = ink, maxWidth = metrics.width, modifier = modifier) { size, glyphModifier ->
         when {
-            face != null -> TileIconImage(face = face, size = iconSize, ink = ink, contentDescription = null, modifier = glyphModifier)
+            face != null -> TileIconImage(face = face, size = size, ink = ink, contentDescription = null, modifier = glyphModifier)
             icon != null -> Icon(imageVector = icon, contentDescription = null, tint = ink, modifier = glyphModifier)
         }
-        if (count > 0) {
+    }
+}
+
+/**
+ * A glyph with its count just to its right, as Windows Phone wrote one on a tile: the figures
+ * standing exactly as tall as the glyph, foot to foot with it, in the regular weight. The two
+ * are one piece, to be centred together; when they would be wider than [maxWidth] - three
+ * figures on a small tile - both shrink alike. With no count, or the tile told to keep its
+ * counts to itself, it is the glyph alone.
+ */
+@Composable
+internal fun GlyphCount(
+    count: Int,
+    iconSize: Dp,
+    ink: Color,
+    maxWidth: Dp,
+    modifier: Modifier = Modifier,
+    glyph: @Composable (size: Dp, modifier: Modifier) -> Unit
+) {
+    val shown = count > 0 && LocalTileLook.current.notifications
+    val text = countText(count)
+    val size = if (shown) fittedGlyphSize(iconSize, text.length, maxWidth) else iconSize
+    Row(modifier = modifier) {
+        // The foot of the drawing - not of its box, which keeps a margin round it - is the line
+        // the figures stand on.
+        glyph(size, Modifier.size(size).alignBy { (it.measuredHeight * (1f - GLYPH_MARGIN)).toInt() })
+        if (shown) {
             Text(
-                text = if (count > 99) "99+" else count.toString(),
-                style = MaterialTheme.typography.displaySmall.copy(
-                    fontSize = (iconSize.value * 0.82f).sp,
-                    fontWeight = FontWeight.Light
-                ),
+                text = text,
+                style = countStyle(size),
                 color = ink,
                 maxLines = 1,
-                modifier = Modifier.padding(start = metrics.dp(8f))
+                softWrap = false,
+                modifier = Modifier.padding(start = size * COUNT_GAP).alignByBaseline()
             )
         }
     }
 }
+
+internal fun countText(count: Int): String = if (count > 99) "99+" else count.toString()
+
+/** The glyph's size once it and [characters] figures beside it fit in [maxWidth]. */
+internal fun fittedGlyphSize(iconSize: Dp, characters: Int, maxWidth: Dp): Dp {
+    val width = iconSize * (1f + COUNT_GAP + characters * FIGURE_ADVANCE)
+    return if (width > maxWidth && width.value > 0f) iconSize * (maxWidth / width) else iconSize
+}
+
+/**
+ * Type whose figures stand as tall as the drawing in a glyph of [glyph]: a figure is 0.71 of the
+ * type's size, and a glyph is drawn inside a margin of a twelfth of its box all round.
+ */
+@Composable
+internal fun countStyle(glyph: Dp): androidx.compose.ui.text.TextStyle {
+    val drawn = glyph * (1f - 2 * GLYPH_MARGIN)
+    val fontSize = with(androidx.compose.ui.platform.LocalDensity.current) { (drawn / FIGURE_HEIGHT).toSp() }
+    return MaterialTheme.typography.displaySmall.copy(
+        fontSize = fontSize,
+        lineHeight = fontSize,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = 0.sp
+    )
+}
+
+/** A figure's height, as a share of the type's size. */
+private const val FIGURE_HEIGHT = 0.71f
+/** The margin a glyph is drawn inside, as a share of its box: two units of the icons' 24. */
+private const val GLYPH_MARGIN = 2f / 24f
+/** A figure's width, as a share of the glyph beside it (0.56 of the type's size). */
+private const val FIGURE_ADVANCE = 0.56f * (1f - 2 * GLYPH_MARGIN) / FIGURE_HEIGHT
+/** The room between the glyph and its count, as a share of the glyph. */
+private const val COUNT_GAP = 0.2f
 
 /** The small grey heading a text face starts with: the glyph and whose tile it is. */
 @Composable
@@ -283,11 +339,12 @@ internal fun BoxScope.NamedFace(
     span: Int,
     name: String?,
     ink: Color,
-    glyph: @Composable (size: Dp, modifier: Modifier) -> Unit
+    /** Draws the glyph at a size, where the modifier puts it, with [room] across for it and a count. */
+    glyph: @Composable (size: Dp, modifier: Modifier, room: Dp) -> Unit
 ) {
     TileFace(span) { m ->
         if (m.isSmall) {
-            glyph(m.width * 0.42f * tileIconScale(), Modifier.align(Alignment.Center))
+            glyph(m.width * 0.42f * tileIconScale(), Modifier.align(Alignment.Center), m.width * 0.84f)
             return@TileFace
         }
         val glyphSize = when (m.shape) {
@@ -295,7 +352,7 @@ internal fun BoxScope.NamedFace(
             TileShape.WIDE -> m.dp(40f)
             else -> m.dp(60f)
         } * tileIconScale()
-        glyph(glyphSize, Modifier.align(Alignment.TopStart).padding(m.pad))
+        glyph(glyphSize, Modifier.align(Alignment.TopStart).padding(m.pad), m.width - m.pad * 2)
         if (name != null) {
             Text(
                 text = name.lowercase(),

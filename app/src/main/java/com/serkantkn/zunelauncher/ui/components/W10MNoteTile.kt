@@ -134,7 +134,7 @@ fun W10MNoteTile(
                 }
                 return@W10MTileSurface
             }
-            NamedFace(span, label.takeIf { span > 1 }, fg) { size, glyphModifier ->
+            NamedFace(span, label.takeIf { span > 1 }, fg) { size, glyphModifier, _ ->
                 Icon(imageVector = icon, contentDescription = null, tint = fg, modifier = glyphModifier.size(size))
             }
         }

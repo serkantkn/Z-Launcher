@@ -100,15 +100,24 @@ fun W10MThreadTile(
                 )
                 return@W10MTileSurface
             }
-            NamedFace(span, shownLabel, fg) { size, glyphModifier ->
+            NamedFace(span, shownLabel, fg) { size, glyphModifier, room ->
                 if (tileHasPicture()) return@NamedFace
-                if (face != null) {
-                    TileIconImage(face = face, size = size, ink = fg, contentDescription = null, modifier = glyphModifier.size(size))
-                } else {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = fg, modifier = glyphModifier.size(size))
+                // The unread count beside the glyph, as Windows Phone wrote it.
+                GlyphCount(
+                    count = if (news) unreadCount else 0,
+                    iconSize = size,
+                    ink = fg,
+                    maxWidth = room,
+                    modifier = glyphModifier
+                ) { glyphSize, sized ->
+                    if (face != null) {
+                        TileIconImage(face = face, size = glyphSize, ink = fg, contentDescription = null, modifier = sized)
+                    } else {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = fg, modifier = sized)
+                    }
                 }
             }
-            if (news) TileBadge(unreadCount, span, gridColumns, fg)
+            if (news && tileHasPicture()) TileBadge(unreadCount, span, gridColumns, fg)
         }
     )
 }

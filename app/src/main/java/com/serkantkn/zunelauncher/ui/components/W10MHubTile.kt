@@ -287,20 +287,27 @@ internal fun BoxScope.HubGlyphFace(
                 TileShape.WIDE -> m.height * 0.34f
                 TileShape.LARGE -> m.width * 0.24f
             } * tileIconScale()
-            val iconModifier = Modifier
-                .align(Alignment.Center)
-                // Windows Phone sat the glyph a touch above the middle to leave the name room.
-                .offset(y = if (m.isSmall) 0.dp else -m.dp(6f))
-                .size(iconSize)
-            if (face != null) {
-                TileIconImage(face = face, size = iconSize, ink = fg, contentDescription = title, modifier = iconModifier)
-            } else {
-                Icon(imageVector = icon, contentDescription = title, tint = fg, modifier = iconModifier)
+            // The glyph and its count, centred together - Windows Phone sat them a touch above
+            // the middle to leave the name room.
+            GlyphCount(
+                count = badgeCount,
+                iconSize = iconSize,
+                ink = fg,
+                maxWidth = m.width * 0.84f,
+                modifier = Modifier.align(Alignment.Center).offset(y = if (m.isSmall) 0.dp else -m.dp(6f))
+            ) { size, glyphModifier ->
+                if (face != null) {
+                    TileIconImage(face = face, size = size, ink = fg, contentDescription = title, modifier = glyphModifier)
+                } else {
+                    Icon(imageVector = icon, contentDescription = title, tint = fg, modifier = glyphModifier)
+                }
             }
         }
+    } else {
+        // A picture fills the tile; its count keeps the corner.
+        TileBadge(badgeCount, span, gridColumns, fg)
     }
 
-    TileBadge(badgeCount, span, gridColumns, fg)
     TileLabel(title, span, gridColumns, fg)
 }
 

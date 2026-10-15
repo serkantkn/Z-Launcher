@@ -88,15 +88,17 @@ fun W10MAppTile(
                 TileFace(span) { m ->
                     if (m.isSmall) {
                         // A small tile has no room for words: its back is the icon and the count.
-                        if (face != TileIconFace.None) {
-                            TileIconImage(face, size = m.dp(30f), ink = fg, contentDescription = null, modifier = Modifier.align(Alignment.Center))
+                        GlyphCount(
+                            count = notificationCount,
+                            iconSize = m.width * 0.36f * tileIconScale(),
+                            ink = fg,
+                            maxWidth = m.width * 0.84f,
+                            modifier = Modifier.align(Alignment.Center)
+                        ) { size, glyphModifier ->
+                            if (face != TileIconFace.None) {
+                                TileIconImage(face, size = size, ink = fg, contentDescription = null, modifier = glyphModifier)
+                            }
                         }
-                        Text(
-                            text = if (notificationCount > 99) "99+" else notificationCount.toString(),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = m.figure(15f), fontWeight = FontWeight.Light),
-                            color = fg,
-                            modifier = Modifier.align(Alignment.TopEnd).padding(end = m.dp(8f), top = m.dp(4f))
-                        )
                         return@TileFace
                     }
                     Column(modifier = Modifier.fillMaxSize().padding(m.pad), verticalArrangement = Arrangement.SpaceBetween) {
@@ -155,16 +157,21 @@ fun W10MAppTile(
                         TileShape.WIDE -> m.height * 0.36f
                         TileShape.LARGE -> m.width * 0.26f
                     } * tileIconScale()
-                    TileIconImage(
-                        face = face,
-                        size = iconSize,
+                    // The icon and its count, centred together, as Windows Phone wrote them.
+                    GlyphCount(
+                        count = notificationCount,
+                        iconSize = iconSize,
                         ink = fg,
-                        contentDescription = label,
+                        maxWidth = m.width * 0.84f,
                         modifier = Modifier.align(Alignment.Center).offset(y = if (m.isSmall) 0.dp else -m.dp(6f))
-                    )
+                    ) { size, glyphModifier ->
+                        TileIconImage(face = face, size = size, ink = fg, contentDescription = label, modifier = glyphModifier)
+                    }
                 }
+            } else {
+                // A picture fills the tile; its count keeps the corner.
+                TileBadge(notificationCount, span, gridColumns, fg)
             }
-            TileBadge(notificationCount, span, gridColumns, fg)
             TileLabel(label, span, gridColumns, fg)
         }
     )

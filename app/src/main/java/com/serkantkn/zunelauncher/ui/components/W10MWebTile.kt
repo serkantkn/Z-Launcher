@@ -66,7 +66,7 @@ fun W10MWebTile(
             }
             val face = customTileFace()
             val shownLabel = tileLabelText(label)
-            NamedFace(span, shownLabel.takeUnless { tileHasPicture() && span == 1 }, fg) { size, glyphModifier ->
+            NamedFace(span, shownLabel.takeUnless { tileHasPicture() && span == 1 }, fg) { size, glyphModifier, _ ->
                 if (tileHasPicture()) return@NamedFace
                 if (face != null) {
                     TileIconImage(face = face, size = size, ink = fg, contentDescription = null, modifier = glyphModifier.size(size))
