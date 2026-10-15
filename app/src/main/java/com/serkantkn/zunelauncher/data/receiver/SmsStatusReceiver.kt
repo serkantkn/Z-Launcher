@@ -7,7 +7,13 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
 import com.serkantkn.zunelauncher.data.repository.MessagingBridge
+import com.serkantkn.zunelauncher.data.service.MessageNotifier
+import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.util.ZuneLog
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
  * What the network says about a message after it has left.
@@ -37,15 +43,43 @@ class SmsStatusReceiver : BroadcastReceiver() {
             }
 
             ACTION_DELIVERED -> {
-                val status = if (resultCode == Activity.RESULT_OK) {
-                    Telephony.Sms.STATUS_COMPLETE
-                } else {
-                    Telephony.Sms.STATUS_FAILED
+                val arrived = resultCode == Activity.RESULT_OK
+                // A long message reports once per part; it arrived when the first part did, and
+                // that is the one time to say so.
+                val firstReport = arrived && currentStatus(ctx, row) != Telephony.Sms.STATUS_COMPLETE
+                update(ctx, row, Telephony.Sms.STATUS to if (arrived) Telephony.Sms.STATUS_COMPLETE else Telephony.Sms.STATUS_FAILED)
+                if (firstReport) {
+                    val pending = goAsync()
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            if (ctx.appContainer.settingsDataStore.smsDeliveredNotice.first()) {
+                                val (address, threadId) = addressOf(ctx, row)
+                                MessageNotifier.showDelivered(ctx, address, threadId)
+                            }
+                        } finally {
+                            pending.finish()
+                        }
+                    }
                 }
-                update(ctx, row, Telephony.Sms.STATUS to status)
             }
         }
         MessagingBridge.messagesChanged()
+    }
+
+    private fun currentStatus(context: Context, row: android.net.Uri): Int = try {
+        context.contentResolver.query(row, arrayOf(Telephony.Sms.STATUS), null, null, null)?.use {
+            if (it.moveToFirst()) it.getInt(0) else -1
+        } ?: -1
+    } catch (e: Exception) {
+        -1
+    }
+
+    private fun addressOf(context: Context, row: android.net.Uri): Pair<String, Long> = try {
+        context.contentResolver.query(row, arrayOf(Telephony.Sms.ADDRESS, Telephony.Sms.THREAD_ID), null, null, null)?.use {
+            if (it.moveToFirst()) it.getString(0).orEmpty() to it.getLong(1) else "" to 0L
+        } ?: ("" to 0L)
+    } catch (e: Exception) {
+        "" to 0L
     }
 
     private fun currentType(context: Context, row: android.net.Uri): Int = try {

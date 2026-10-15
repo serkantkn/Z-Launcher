@@ -17,6 +17,8 @@ import com.serkantkn.zunelauncher.data.receiver.SmsStatusReceiver
 import com.serkantkn.zunelauncher.data.repository.SmsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
+import com.serkantkn.zunelauncher.di.appContainer
 
 /**
  * A SIM a message can leave from.
@@ -93,6 +95,8 @@ object SmsSender {
         }
 
         val filed = if (file) fileAsOutgoing(context, dialable, text, thread, subscriptionId) else null
+        // A delivery report is asked for only while the user wants them.
+        val reports = context.appContainer.settingsDataStore.smsDeliveryReports.first()
 
         return@withContext try {
             val parts = manager.divideMessage(text)
@@ -102,7 +106,7 @@ object SmsSender {
                     null,
                     parts,
                     ArrayList(parts.indices.map { sentIntent(context, filed, it) }),
-                    ArrayList(parts.indices.map { deliveredIntent(context, filed, it) })
+                    if (reports) ArrayList(parts.indices.map { deliveredIntent(context, filed, it) }) else null
                 )
             } else {
                 manager.sendTextMessage(
@@ -110,7 +114,7 @@ object SmsSender {
                     null,
                     text,
                     sentIntent(context, filed, 0),
-                    deliveredIntent(context, filed, 0)
+                    if (reports) deliveredIntent(context, filed, 0) else null
                 )
             }
             // A message just sent is no longer a draft.

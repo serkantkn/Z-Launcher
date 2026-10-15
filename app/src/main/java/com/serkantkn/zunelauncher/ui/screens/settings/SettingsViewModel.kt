@@ -102,6 +102,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val directCallEnabled: StateFlow<Boolean> = settingsDataStore.directCallEnabled.asState(false)
 
+    val smsDeliveryReports: StateFlow<Boolean> = settingsDataStore.smsDeliveryReports.asState(true)
+    val smsDeliveredNotice: StateFlow<Boolean> = settingsDataStore.smsDeliveredNotice.asState(false)
+    val mmsAutoDownload: StateFlow<Boolean> = settingsDataStore.mmsAutoDownload.asState(true)
+    val mmsAskReadReports: StateFlow<Boolean> = settingsDataStore.mmsAskReadReports.asState(false)
+    val mmsSendReadReports: StateFlow<Boolean> = settingsDataStore.mmsSendReadReports.asState(false)
+
+    fun setMessageSetting(key: androidx.datastore.preferences.core.Preferences.Key<Boolean>, on: Boolean) {
+        viewModelScope.launch { settingsDataStore.setMessageSetting(key, on) }
+    }
+
     val wpActionCenter: StateFlow<Boolean> = settingsDataStore.wpActionCenter.asState(true)
 
     val notificationStyle: StateFlow<NotificationStyle> = settingsDataStore.notificationStyle.asState(NotificationStyle.WINDOWS_PHONE)

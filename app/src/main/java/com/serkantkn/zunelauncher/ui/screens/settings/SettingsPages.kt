@@ -288,6 +288,52 @@ internal fun HubSettingsPage(
             }
         }
 
+        item(key = "messaging") {
+            val deliveryReports by viewModel.smsDeliveryReports.collectAsState()
+            val deliveredNotice by viewModel.smsDeliveredNotice.collectAsState()
+            val autoDownload by viewModel.mmsAutoDownload.collectAsState()
+            val askRead by viewModel.mmsAskReadReports.collectAsState()
+            val sendRead by viewModel.mmsSendReadReports.collectAsState()
+            val keys = com.serkantkn.zunelauncher.data.datastore.SettingsDataStore
+            SettingGroup(title = stringResource(R.string.settings_group_messaging)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_sms_delivery_reports),
+                        subtitle = stringResource(R.string.settings_sms_delivery_reports_sub),
+                        checked = deliveryReports,
+                        onCheckedChange = { viewModel.setMessageSetting(keys.SMS_DELIVERY_REPORTS, it) }
+                    )
+                    // Being told needs something to be told about.
+                    if (deliveryReports) {
+                        SettingSwitchRow(
+                            title = stringResource(R.string.settings_sms_delivered_notice),
+                            subtitle = stringResource(R.string.settings_sms_delivered_notice_sub),
+                            checked = deliveredNotice,
+                            onCheckedChange = { viewModel.setMessageSetting(keys.SMS_DELIVERED_NOTICE, it) }
+                        )
+                    }
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_mms_auto_download),
+                        subtitle = stringResource(R.string.settings_mms_auto_download_sub),
+                        checked = autoDownload,
+                        onCheckedChange = { viewModel.setMessageSetting(keys.MMS_AUTO_DOWNLOAD, it) }
+                    )
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_mms_ask_read),
+                        subtitle = stringResource(R.string.settings_mms_ask_read_sub),
+                        checked = askRead,
+                        onCheckedChange = { viewModel.setMessageSetting(keys.MMS_ASK_READ_REPORTS, it) }
+                    )
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_mms_send_read),
+                        subtitle = stringResource(R.string.settings_mms_send_read_sub),
+                        checked = sendRead,
+                        onCheckedChange = { viewModel.setMessageSetting(keys.MMS_SEND_READ_REPORTS, it) }
+                    )
+                }
+            }
+        }
+
         item(key = "internet") {
             val searchEngine by viewModel.searchEngine.collectAsState()
             val suggestionsOn by viewModel.searchSuggestionsEnabled.collectAsState()

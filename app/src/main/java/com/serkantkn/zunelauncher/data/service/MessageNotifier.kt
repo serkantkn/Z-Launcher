@@ -133,6 +133,45 @@ object MessageNotifier {
         }
     }
 
+    /**
+     * A text has reached the other phone. Said quietly and briefly - the tick on the message says
+     * it for good - and in a channel of its own, so it can be silenced without silencing messages.
+     */
+    fun showDelivered(context: Context, address: String, threadId: Long) {
+        if (!canPost(context)) return
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        if (manager.getNotificationChannel(DELIVERED_CHANNEL_ID) == null) {
+            manager.createNotificationChannel(
+                android.app.NotificationChannel(
+                    DELIVERED_CHANNEL_ID,
+                    context.localizedString(R.string.msg_delivered_channel),
+                    NotificationManager.IMPORTANCE_LOW
+                )
+            )
+        }
+        val name = displayName(context, address).ifBlank { address }
+        val notification = NotificationCompat.Builder(context, DELIVERED_CHANNEL_ID)
+            .setSubText(context.localizedString(R.string.hub_messaging))
+            .setSmallIcon(R.drawable.ic_wp_message)
+            .setContentTitle(name)
+            .setContentText(context.localizedString(R.string.msg_delivered_notice))
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setAutoCancel(true)
+            .setTimeoutAfter(DELIVERED_SHOWN_MILLIS)
+            .setContentIntent(openThread(context, threadId))
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(DELIVERED_NOTIFICATION_BASE + (threadId % 100_000L).toInt(), notification)
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "not allowed to say the message arrived", e)
+        }
+    }
+
+    private const val DELIVERED_CHANNEL_ID = "zune_messages_delivered"
+    private const val DELIVERED_NOTIFICATION_BASE = 1_250_000_000
+    private const val DELIVERED_SHOWN_MILLIS = 8_000L
+
     /** Takes a conversation's notification down, for when it has been read in the hub. */
     fun clear(context: Context, threadId: Long) {
         synchronized(unread) { unread.remove(threadId) }

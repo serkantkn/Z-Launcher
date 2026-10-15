@@ -91,6 +91,7 @@ import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.util.PhoneCaller
+import com.serkantkn.zunelauncher.util.PhoneNumbers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -259,10 +260,13 @@ fun MessagingHubScreen(
         }
     }
 
-    // The window changing between a phone's and a tablet's width - a foldable opened or closed, a
-    // split screen dragged wider - with a conversation or the picker open. A phone turns the hub
-    // away on a hinge to show them; a tablet shows them beside the hub and has no hinge, so a hub
-    // left turned away was a blank screen. The hinges are set to what the new layout shows.
+    // The hinges are set to what is open whenever the hub comes onto the screen, and whenever the
+    // window changes between a phone's and a tablet's width - a foldable opened or closed, a split
+    // screen dragged wider. A phone turns the hub away on a hinge to show a conversation or the
+    // picker; a tablet shows them beside it and has no hinge. A turn cut short - the hub moving
+    // into place on the screen as it was being opened from a notification, a pinned tile or a
+    // message link - or a layout with no hinge left the hub turned away over nothing: a blank
+    // screen.
     LaunchedEffect(isWideScreen) {
         if (isWideScreen) {
             if (pickerHingeAnim.value > 0f) widePicker = true
@@ -271,7 +275,7 @@ fun MessagingHubScreen(
             hubHingeAnim.snapTo(1f)
         } else {
             when {
-                widePicker -> {
+                widePicker || pickerHingeAnim.value > 0f -> {
                     widePicker = false
                     hubHingeAnim.snapTo(0f)
                     pickerHingeAnim.snapTo(1f)
@@ -279,6 +283,10 @@ fun MessagingHubScreen(
                 selectedConv != null -> {
                     hubHingeAnim.snapTo(0f)
                     detailHingeAnim.snapTo(1f)
+                }
+                else -> {
+                    detailHingeAnim.snapTo(0f)
+                    hubHingeAnim.snapTo(1f)
                 }
             }
         }
@@ -347,17 +355,22 @@ fun MessagingHubScreen(
     val pendingCompose by MessagingBridge.pendingCompose.collectAsState()
     LaunchedEffect(pendingCompose) {
         val request = pendingCompose ?: return@LaunchedEffect
-        MessagingBridge.consumeCompose()
         if (request.address.isNotBlank()) {
-            pendingForward = request.body.takeIf { it.isNotBlank() }
-            viewModel.openConversationWithContact(context, "", request.address)
+            // The hub is often still settling into the screen when a request arrives, and this
+            // can be cancelled half way; the request is let go of only once it has been seen
+            // through, so a second pass finishes what the first began.
+            if (viewModel.selectedConversation.value?.let { PhoneNumbers.sameNumber(it.address, request.address) } != true) {
+                viewModel.openConversationWithContact(context, "", request.address)
+            }
             composeText = request.body
             pendingForward = null
             if (!isWideScreen) {
                 hubHingeAnim.snapTo(0f)
                 detailHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
             }
+            MessagingBridge.consumeCompose()
         } else {
+            MessagingBridge.consumeCompose()
             pendingForward = request.body.takeIf { it.isNotBlank() }
             openPicker()
         }

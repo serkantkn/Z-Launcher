@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.data.datastore
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
@@ -58,6 +59,11 @@ class SettingsDataStore(private val context: Context) {
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
         val DIRECT_CALL_ENABLED = booleanPreferencesKey("direct_call_enabled")
+        val SMS_DELIVERY_REPORTS = booleanPreferencesKey("sms_delivery_reports")
+        val SMS_DELIVERED_NOTICE = booleanPreferencesKey("sms_delivered_notice")
+        val MMS_AUTO_DOWNLOAD = booleanPreferencesKey("mms_auto_download")
+        val MMS_ASK_READ_REPORTS = booleanPreferencesKey("mms_ask_read_reports")
+        val MMS_SEND_READ_REPORTS = booleanPreferencesKey("mms_send_read_reports")
         val HUB_ORDER = stringPreferencesKey("hub_order")
         val REMOVED_HUBS = stringPreferencesKey("removed_hubs")
         val START_TILES = stringPreferencesKey("start_tiles_v1")
@@ -291,6 +297,29 @@ class SettingsDataStore(private val context: Context) {
 
     val directCallEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[DIRECT_CALL_ENABLED] ?: false
+    }
+
+    // ── Messages ──
+    // Asking the network to say when a text arrived is what the phone always did, so it stays on;
+    // the rest are things a person chooses to have, and start off.
+
+    /** Whether a text asks the network for a delivery report. */
+    val smsDeliveryReports: Flow<Boolean> = context.settingsDataStore.data.map { it[SMS_DELIVERY_REPORTS] ?: true }
+
+    /** Whether a delivery report is announced, rather than only ticked on the message. */
+    val smsDeliveredNotice: Flow<Boolean> = context.settingsDataStore.data.map { it[SMS_DELIVERED_NOTICE] ?: false }
+
+    /** Whether a picture message is fetched as soon as it is announced. */
+    val mmsAutoDownload: Flow<Boolean> = context.settingsDataStore.data.map { it[MMS_AUTO_DOWNLOAD] ?: true }
+
+    /** Whether a picture message sent asks to be told when it has been read. */
+    val mmsAskReadReports: Flow<Boolean> = context.settingsDataStore.data.map { it[MMS_ASK_READ_REPORTS] ?: false }
+
+    /** Whether the sender of a picture message that asks is told it has been read. */
+    val mmsSendReadReports: Flow<Boolean> = context.settingsDataStore.data.map { it[MMS_SEND_READ_REPORTS] ?: false }
+
+    suspend fun setMessageSetting(key: Preferences.Key<Boolean>, on: Boolean) {
+        context.settingsDataStore.edit { it[key] = on }
     }
 
     /**
