@@ -189,8 +189,11 @@ fun WallpaperCropScreen(
  */
 private fun decodeForScreen(context: android.content.Context, uri: Uri, maxWidth: Int, maxHeight: Int): Bitmap? {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+        ZuneLog.w("WallpaperCropScreen", "no size could be read from $uri")
+        return null
+    }
 
     var sample = 1
     while (bounds.outWidth / (sample * 2) >= maxWidth && bounds.outHeight / (sample * 2) >= maxHeight) {

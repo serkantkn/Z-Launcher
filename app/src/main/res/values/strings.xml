@@ -138,6 +138,10 @@
     <string name="settings_tile_look">tile look</string>
     <string name="settings_tile_transparency">transparency</string>
     <string name="settings_tile_transparency_sub">how much of the wallpaper shows through the tiles</string>
+    <string name="settings_tile_blur">blur</string>
+    <string name="settings_tile_blur_sub">how frosted the wallpaper behind the tiles looks</string>
+    <string name="settings_tile_blur_solid">the tiles are solid: make them see-through to see the blur</string>
+    <string name="settings_tile_blur_off">off</string>
     <string name="settings_tile_ink">writing and icons</string>
     <string name="settings_tile_ink_auto">follow the theme</string>
     <string name="settings_tile_ink_auto_sub">black on a light theme, white on a dark one</string>

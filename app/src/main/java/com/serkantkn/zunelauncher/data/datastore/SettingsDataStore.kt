@@ -88,6 +88,7 @@ class SettingsDataStore(private val context: Context) {
         val HUB_BACKGROUND_OPACITY = floatPreferencesKey("hub_background_opacity")
         val TILE_CORNER_STYLE = stringPreferencesKey("tile_corner_style")
         val TILE_OPACITY = intPreferencesKey("tile_opacity")
+        val TILE_BLUR = intPreferencesKey("tile_blur")
         val TILE_ANIMATION = stringPreferencesKey("tile_animation")
         val TILE_INK = stringPreferencesKey("tile_ink")
         val TILE_SPACING = intPreferencesKey("tile_spacing")
@@ -475,6 +476,14 @@ class SettingsDataStore(private val context: Context) {
      */
     val tileOpacity: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         (prefs[TILE_OPACITY] ?: DEFAULT_TILE_OPACITY).coerceIn(0, 100)
+    }
+
+    /**
+     * How frosted the wallpaper behind see-through tiles is, 0-100. Off by default: the tiles
+     * show the wallpaper sharp, as they always have.
+     */
+    val tileBlur: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        (prefs[TILE_BLUR] ?: 0).coerceIn(0, 100)
     }
 
     /** Whether the tiles write in black, in white, or in whatever suits the theme. */
@@ -886,6 +895,12 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setTileSpacing(spacing: Int) {
         context.settingsDataStore.edit { prefs ->
             prefs[TILE_SPACING] = spacing
+        }
+    }
+
+    suspend fun setTileBlur(level: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_BLUR] = level.coerceIn(0, 100)
         }
     }
 

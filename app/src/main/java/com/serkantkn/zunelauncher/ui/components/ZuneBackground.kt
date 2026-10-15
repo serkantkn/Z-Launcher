@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,6 +64,13 @@ fun ZuneBackground(
      * outright because a null override means "use the launcher's", not "use the system's".
      */
     systemWallpaper: Boolean = false,
+    /**
+     * How frosted the wallpaper behind see-through tiles is, 0-100; 0 leaves it sharp. Only a
+     * background with tiles over it asks.
+     */
+    tileBlur: Int = 0,
+    /** Whether the Start screen's shade lies over this wallpaper, to frost under the tiles too. */
+    tileShade: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -117,7 +125,19 @@ fun ZuneBackground(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    val shownMode = forceModeOverride ?: if (solidBackgroundEnabled) BackgroundMode.SOLID else mode
+    val backdrop = rememberTileBackdrop(
+        wallpaper = if (shownMode == BackgroundMode.WALLPAPER) wallpaperBitmap else null,
+        level = tileBlur
+    )
+    val isDark = LocalZuneColors.current.isDark
+    backdrop.drift = {
+        if (parallaxPx != 0f) parallaxPx.coerceIn(0f, backdrop.hostSize.height * (PARALLAX_ZOOM - 1f) / 2f) else 0f
+    }
+    backdrop.driftZoom = { if (parallaxPx != 0f) PARALLAX_ZOOM else 1f }
+    backdrop.shade = if (tileShade) startShade(isDark) else null
+
+    Box(modifier = modifier.fillMaxSize().tileBackdropHost(backdrop)) {
         Crossfade(
             targetState = forceModeOverride ?: if (solidBackgroundEnabled) BackgroundMode.SOLID else mode,
             modifier = Modifier
@@ -145,7 +165,9 @@ fun ZuneBackground(
                 BackgroundMode.SOLID -> SolidBackground()
             }
         }
-        content()
+        CompositionLocalProvider(LocalTileBackdrop provides backdrop.takeIf { tileBlur > 0 }) {
+            content()
+        }
     }
 }
 
@@ -255,17 +277,8 @@ fun ZuneWallpaperOverlay(
                 .graphicsLayer { this.alpha = alpha }
                 .background(
                     brush = Brush.linearGradient(
-                        colors = if (isDark) listOf(
-                            Color(0xFF0A0A0A).copy(alpha = 0.85f),
-                            Color(0xFF202020).copy(alpha = 0.85f),
-                            Color.White.copy(alpha = 0.12f * 0.85f),
-                            Color(0xFF0A0A0A).copy(alpha = 0.85f)
-                        ) else listOf(
-                            Color(0xFFF5F5F5).copy(alpha = 0.85f),
-                            Color(0xFFFFFFFF).copy(alpha = 0.85f),
-                            Color.Black.copy(alpha = 0.08f * 0.85f),
-                            Color(0xFFF5F5F5).copy(alpha = 0.85f)
-                        ),
+                        // The same shade a frosted tile lays over its piece of the wallpaper.
+                        colors = startShadeColors(isDark),
                         start = Offset(0f, 0f),
                         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                     )

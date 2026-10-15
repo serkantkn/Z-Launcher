@@ -41,6 +41,7 @@ import com.serkantkn.zunelauncher.data.model.TileInk
 import com.serkantkn.zunelauncher.data.model.tileInkIsDark
 import com.serkantkn.zunelauncher.ui.components.BackgroundMode
 import com.serkantkn.zunelauncher.ui.components.ZuneBackground
+import com.serkantkn.zunelauncher.ui.components.frostedBackdrop
 import com.serkantkn.zunelauncher.ui.components.ZuneWallpaperOverlay
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.theme.toColor
@@ -57,6 +58,8 @@ fun LookPreviewCard(
     tileSpacing: Int,
     /** 0-100, the same scale the transparency slider works on. */
     tileOpacity: Int = 45,
+    /** 0-100, how frosted the wallpaper behind the tiles is; 0 leaves it sharp. */
+    tileBlur: Int = 0,
     tileInk: TileInk = TileInk.AUTO,
     hubBackgroundOpacity: Float,
     hubBackgroundMode: HubBackgroundMode,
@@ -159,7 +162,9 @@ fun LookPreviewCard(
                 mode = effectiveBgMode,
                 accentColor = animatedAccentColor,
                 customWallpaperPathOverride = customWallpaperPath,
-                forceModeOverride = effectiveBgMode
+                forceModeOverride = effectiveBgMode,
+                tileBlur = tileBlur,
+                tileShade = !solidBackgroundEnabled
             ) {
                 if (!solidBackgroundEnabled) {
                     ZuneWallpaperOverlay(alpha = 1f, isHubOverlay = false)
@@ -404,6 +409,7 @@ private fun MiniTile(
     Box(
         modifier = modifier
             .clip(tileShape)
+            .then(if (tileOpacity < 1f) Modifier.frostedBackdrop() else Modifier)
             .background(accentColor.copy(alpha = tileOpacity))
             .border(0.5.dp, strokeColor, tileShape)
             .padding(horizontal = 6.dp, vertical = 4.dp)

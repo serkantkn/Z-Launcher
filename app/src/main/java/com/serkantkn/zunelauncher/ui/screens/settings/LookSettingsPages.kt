@@ -400,6 +400,7 @@ private fun TileGroups(viewModel: SettingsViewModel) {
     val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
     val tileSpacing by viewModel.tileSpacing.collectAsState()
     val tileOpacity by viewModel.tileOpacity.collectAsState()
+    val tileBlur by viewModel.tileBlur.collectAsState()
     val tileAnimation by viewModel.tileAnimation.collectAsState()
     val tileInk by viewModel.tileInk.collectAsState()
 
@@ -443,6 +444,19 @@ private fun TileGroups(viewModel: SettingsViewModel) {
                 valueRange = 0f..100f,
                 steps = 19,
                 onValueChange = { viewModel.setTileOpacity(100 - it.toInt()) }
+            )
+
+            // Frosts what the transparency lets through; with solid tiles there is nothing to see.
+            SettingSlider(
+                label = stringResource(R.string.settings_tile_blur),
+                sublabel = stringResource(
+                    if (tileOpacity >= 100) R.string.settings_tile_blur_solid else R.string.settings_tile_blur_sub
+                ),
+                value = if (tileBlur == 0) stringResource(R.string.settings_tile_blur_off) else "%$tileBlur",
+                sliderValue = tileBlur.toFloat(),
+                valueRange = 0f..100f,
+                steps = 9,
+                onValueChange = { viewModel.setTileBlur(it.toInt()) }
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -806,7 +820,9 @@ internal fun lookPageSummary(page: LookPage, viewModel: SettingsViewModel): Stri
                 R.string.settings_corners_square
             }
         )
-        "$corner • ${stringResource(R.string.settings_tile_transparency)} %${100 - opacity}"
+        val blur by viewModel.tileBlur.collectAsState()
+        val frosted = if (blur > 0) " • ${stringResource(R.string.settings_tile_blur)} %$blur" else ""
+        "$corner • ${stringResource(R.string.settings_tile_transparency)} %${100 - opacity}$frosted"
     }
 
     LookPage.ICONS -> {

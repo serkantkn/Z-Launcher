@@ -138,6 +138,7 @@ fun LauncherScreen(
     val notificationStyle by settingsViewModel.notificationStyle.collectAsState()
     val socialSources by settingsViewModel.socialSources.collectAsState()
     val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
+    val tileBlur by settingsViewModel.tileBlur.collectAsState()
     val timeFormat by settingsViewModel.timeFormat.collectAsState()
     val dateFormat by settingsViewModel.dateFormat.collectAsState()
     val hubBackgroundMode by settingsViewModel.hubBackgroundMode.collectAsState()
@@ -509,7 +510,9 @@ fun LauncherScreen(
         ZuneBackground(
             mode = if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER,
             accentColor = accentColor,
-            followsStart = true
+            followsStart = true,
+            tileBlur = tileBlur,
+            tileShade = !solidBackgroundEnabled
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (!solidBackgroundEnabled) {

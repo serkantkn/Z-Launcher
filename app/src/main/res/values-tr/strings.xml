@@ -138,6 +138,10 @@
     <string name="settings_tile_look">karo görünümü</string>
     <string name="settings_tile_transparency">şeffaflık</string>
     <string name="settings_tile_transparency_sub">duvar kağıdının karolardan ne kadar görüneceği</string>
+    <string name="settings_tile_blur">bulanıklık</string>
+    <string name="settings_tile_blur_sub">karoların arkasındaki duvar kağıdının ne kadar buzlu görüneceği</string>
+    <string name="settings_tile_blur_solid">karolar tam dolu: bulanıklığı görmek için şeffaflığı aç</string>
+    <string name="settings_tile_blur_off">kapalı</string>
     <string name="settings_tile_ink">yazı ve simgeler</string>
     <string name="settings_tile_ink_auto">temaya uy</string>
     <string name="settings_tile_ink_auto_sub">açık temada siyah, koyu temada beyaz</string>

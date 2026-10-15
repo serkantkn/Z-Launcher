@@ -337,10 +337,14 @@ fun W10MTileSurface(
                 onLongClick = if (isEditing) null else onLongClick
             )
     ) {
+        // Frosted glass under a see-through tile on the board; a tile in a folder sits on the
+        // folder's band and the preview on a settings page, neither of them over the wallpaper.
+        val frosted = fillOpacity < 1f && !preview && LocalTileTakeOut.current == null
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .clip(tileShape)
+                .then(if (frosted) Modifier.frostedBackdrop() else Modifier)
                 .background(fillColor.copy(alpha = fillOpacity))
                 .border(if (highlighted) 2.dp else 0.5.dp, strokeColor, tileShape)
         ) {

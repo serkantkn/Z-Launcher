@@ -729,6 +729,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    val tileBlur: StateFlow<Int> = settingsDataStore.tileBlur.asState(0)
+
+    fun setTileBlur(level: Int) {
+        viewModelScope.launch {
+            settingsDataStore.setTileBlur(level)
+        }
+    }
+
     fun setTileOpacity(opacity: Int) {
         viewModelScope.launch {
             settingsDataStore.setTileOpacity(opacity)
