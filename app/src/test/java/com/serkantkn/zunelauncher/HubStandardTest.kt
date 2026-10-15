@@ -22,7 +22,7 @@ class HubStandardTest {
      * way it joins the standard; nothing new is added to it.
      */
     private val exceptions = mapOf(
-        "weather/WeatherHubScreen.kt" to "still the old panorama on a tablet; joins with its tablet redesign",
+        "weather/WeatherHubScreen.kt" to "a panorama on a tablet by choice: one sky behind every section side by side",
         "files/FilesHubScreen.kt" to "a Windows 8 file explorer on a tablet, not a hub of headings",
         "onboarding/OnboardingLessons.kt" to "a copy of a pivot for the lesson on swiping between pages",
         "onboarding/OnboardingTabletLessons.kt" to "a copy of a tablet hub for the lesson on its headings"
