@@ -1362,6 +1362,14 @@ private fun HomeHubScreenContent(
                     com.serkantkn.zunelauncher.ui.animation.Win8LaunchSplash(splash) { animationProgress.value }
                 }
 
+                // With frosted tiles Start shows its wallpaper bare; the list still needs the
+                // shade under its names, so it fades in as the list rises and out as it goes.
+                if (appsShown && com.serkantkn.zunelauncher.ui.components.LocalTileBackdrop.current != null) {
+                    com.serkantkn.zunelauncher.ui.components.ZuneWallpaperOverlay(
+                        modifier = Modifier.graphicsLayer { alpha = appsReveal.value.coerceIn(0f, 1f) }
+                    )
+                }
+
                 // The app list, coming up from under Start
                 if (appsShown) {
                     Box(

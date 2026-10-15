@@ -168,7 +168,11 @@ fun ZuneBackground(
                 BackgroundMode.SOLID -> SolidBackground()
             }
         }
-        CompositionLocalProvider(LocalTileBackdrop provides backdrop.takeIf { tileBlur > 0 }) {
+        // Offered only over a wallpaper: a plain background has nothing to frost, and Start keeps
+        // its shade there.
+        CompositionLocalProvider(
+            LocalTileBackdrop provides backdrop.takeIf { tileBlur > 0 && shownMode == BackgroundMode.WALLPAPER }
+        ) {
             content()
         }
     }
