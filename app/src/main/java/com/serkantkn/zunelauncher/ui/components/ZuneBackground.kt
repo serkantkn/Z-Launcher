@@ -69,8 +69,6 @@ fun ZuneBackground(
      * background with tiles over it asks.
      */
     tileBlur: Int = 0,
-    /** Whether the Start screen's shade lies over this wallpaper, to frost under the tiles too. */
-    tileShade: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -117,7 +115,8 @@ fun ZuneBackground(
     // several of these backgrounds are alive at once — the Start screen, the hub in front of it,
     // the settings preview — and they were each decoding the same wallpaper for themselves.
     val wantsBlur = (forceModeOverride ?: mode) == BackgroundMode.BLURRED_WALLPAPER
-    LaunchedEffect(wallpaperVersion, effectiveCustomPath, wantsBlur) {
+    val generation by WallpaperImages.generation.collectAsState()
+    LaunchedEffect(wallpaperVersion, effectiveCustomPath, wantsBlur, generation) {
         val wallpapers = WallpaperImages.load(context, effectiveCustomPath, wallpaperVersion, wantsBlur)
         if (wallpapers.full != null) {
             wallpaperBitmap = wallpapers.full
@@ -130,12 +129,10 @@ fun ZuneBackground(
         wallpaper = if (shownMode == BackgroundMode.WALLPAPER) wallpaperBitmap else null,
         level = tileBlur
     )
-    val isDark = LocalZuneColors.current.isDark
     backdrop.drift = {
         if (parallaxPx != 0f) parallaxPx.coerceIn(0f, backdrop.hostSize.height * (PARALLAX_ZOOM - 1f) / 2f) else 0f
     }
     backdrop.driftZoom = { if (parallaxPx != 0f) PARALLAX_ZOOM else 1f }
-    backdrop.shade = if (tileShade) startShade(isDark) else null
 
     Box(modifier = modifier.fillMaxSize().tileBackdropHost(backdrop)) {
         Crossfade(
@@ -277,8 +274,17 @@ fun ZuneWallpaperOverlay(
                 .graphicsLayer { this.alpha = alpha }
                 .background(
                     brush = Brush.linearGradient(
-                        // The same shade a frosted tile lays over its piece of the wallpaper.
-                        colors = startShadeColors(isDark),
+                        colors = if (isDark) listOf(
+                            Color(0xFF0A0A0A).copy(alpha = 0.85f),
+                            Color(0xFF202020).copy(alpha = 0.85f),
+                            Color.White.copy(alpha = 0.12f * 0.85f),
+                            Color(0xFF0A0A0A).copy(alpha = 0.85f)
+                        ) else listOf(
+                            Color(0xFFF5F5F5).copy(alpha = 0.85f),
+                            Color(0xFFFFFFFF).copy(alpha = 0.85f),
+                            Color.Black.copy(alpha = 0.08f * 0.85f),
+                            Color(0xFFF5F5F5).copy(alpha = 0.85f)
+                        ),
                         start = Offset(0f, 0f),
                         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                     )

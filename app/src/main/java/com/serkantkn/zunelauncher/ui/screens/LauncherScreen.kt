@@ -511,12 +511,11 @@ fun LauncherScreen(
             mode = if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER,
             accentColor = accentColor,
             followsStart = true,
-            tileBlur = tileBlur,
-            tileShade = !solidBackgroundEnabled
+            tileBlur = tileBlur
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (!solidBackgroundEnabled) {
-                    ZuneWallpaperOverlay()
+                    StartShade(pagerState = pagerState, frosted = tileBlur > 0)
                 }
 
                 val messagingViewModel: com.serkantkn.zunelauncher.ui.screens.messaging.MessagingHubViewModel = viewModel()
@@ -1204,4 +1203,25 @@ private fun Modifier.blockPointerInput(): Modifier = pointerInput(Unit) {
                 .changes.forEach { it.consume() }
         }
     }
+}
+
+/**
+ * The shade over the wallpaper behind Start and the pages beside it. With frosted tiles, Start
+ * shows its wallpaper bare - the frost under the tiles is what keeps them readable - and the
+ * shade comes back as the pages slide towards the social page or the app list, which still
+ * need it under their text.
+ */
+@Composable
+private fun StartShade(pagerState: androidx.compose.foundation.pager.PagerState, frosted: Boolean) {
+    if (!frosted) {
+        ZuneWallpaperOverlay()
+        return
+    }
+    ZuneWallpaperOverlay(
+        modifier = Modifier.graphicsLayer {
+            // Start is the second page; read here, the slide only redraws the shade.
+            val fromStart = pagerState.currentPage + pagerState.currentPageOffsetFraction - 1f
+            alpha = kotlin.math.abs(fromStart).coerceIn(0f, 1f)
+        }
+    )
 }

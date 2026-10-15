@@ -142,6 +142,8 @@
     <string name="settings_tile_blur_sub">karoların arkasındaki duvar kağıdının ne kadar buzlu görüneceği</string>
     <string name="settings_tile_blur_solid">karolar tam dolu: bulanıklığı görmek için şeffaflığı aç</string>
     <string name="settings_tile_blur_off">kapalı</string>
+    <string name="settings_tile_blur_no_permission">telefonun duvar kağıdı dosyalara erişim izni olmadan okunamıyor, bu yüzden bulanıklaştırılacak bir şey yok. izin ver ya da duvar kağıdı olarak kendi resmini seç.</string>
+    <string name="settings_tile_blur_live_wallpaper">telefonun duvar kağıdı okunamıyor (canlı duvar kağıtları okunamaz), bu yüzden bulanıklaştırılacak bir şey yok. duvar kağıdı olarak kendi resmini seç.</string>
     <string name="settings_tile_ink">yazı ve simgeler</string>
     <string name="settings_tile_ink_auto">temaya uy</string>
     <string name="settings_tile_ink_auto_sub">açık temada siyah, koyu temada beyaz</string>

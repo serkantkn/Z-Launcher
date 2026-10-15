@@ -6,6 +6,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -27,6 +30,26 @@ import java.io.File
 object WallpaperImages {
 
     data class Wallpapers(val full: Bitmap?, val blurred: Bitmap?)
+
+    private val _systemUnreadable = MutableStateFlow(false)
+
+    /**
+     * True when the phone's own wallpaper could not be read the last time it was asked for - a
+     * live wallpaper, or no permission to read pictures. The system still draws it behind the
+     * launcher, but the launcher has no copy of it to frost under the tiles.
+     */
+    val systemUnreadable: StateFlow<Boolean> = _systemUnreadable.asStateFlow()
+
+    private val _generation = MutableStateFlow(0)
+
+    /** Rises when the wallpaper should be read again though nothing about it changed. */
+    val generation: StateFlow<Int> = _generation.asStateFlow()
+
+    /** Reads the wallpaper again: after permission to read pictures was given, say. */
+    fun reload() {
+        trim()
+        _generation.value++
+    }
 
     private val mutex = Mutex()
     private var cachedKey: String? = null
@@ -109,7 +132,7 @@ object WallpaperImages {
                 ?.let { return it }
         }
         val manager = WallpaperManager.getInstance(context)
-        return systemWallpaper(manager, width, height)
+        return systemWallpaper(manager, width, height).also { _systemUnreadable.value = it == null }
     }
 
     /**

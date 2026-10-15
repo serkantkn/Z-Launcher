@@ -163,10 +163,10 @@ fun LookPreviewCard(
                 accentColor = animatedAccentColor,
                 customWallpaperPathOverride = customWallpaperPath,
                 forceModeOverride = effectiveBgMode,
-                tileBlur = tileBlur,
-                tileShade = !solidBackgroundEnabled
+                tileBlur = tileBlur
             ) {
-                if (!solidBackgroundEnabled) {
+                // Start with frosted tiles shows its wallpaper bare, and so does its preview.
+                if (!solidBackgroundEnabled && tileBlur == 0) {
                     ZuneWallpaperOverlay(alpha = 1f, isHubOverlay = false)
                 }
 

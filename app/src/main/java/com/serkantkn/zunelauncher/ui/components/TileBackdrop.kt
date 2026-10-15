@@ -16,13 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.IntOffset
@@ -39,7 +35,8 @@ import kotlin.math.roundToInt
  *
  * The background draws the wallpaper; it also bakes one small, blurred copy of the part of it on
  * screen, and every tile draws its own piece of that copy behind its fill - the piece that lies
- * under it, found from where the tile is on the screen. Nothing is blurred while drawing, so a
+ * under it, found from where the tile is on the screen. Start lays no shade over its wallpaper
+ * while the tiles are frosted, so the piece is the wallpaper alone. Nothing is blurred while drawing, so a
  * board of tiles costs one picture drawn per tile, on any phone.
  */
 @Stable
@@ -52,8 +49,6 @@ class TileBackdrop internal constructor() {
     /** How far the wallpaper has drifted up with the list, and how much it is magnified for it. */
     internal var drift: () -> Float = { 0f }
     internal var driftZoom: () -> Float = { 1f }
-    /** The shade laid over the wallpaper, drawn again over each tile's piece of it. */
-    internal var shade: (DrawScope.(origin: Offset, host: Size) -> Unit)? = null
 }
 
 /** The frosted wallpaper behind the tiles, when the background under them offers one. */
@@ -112,7 +107,6 @@ fun Modifier.frostedBackdrop(): Modifier = composed {
                 dstSize = IntSize(width.roundToInt(), height.roundToInt()),
                 filterQuality = FilterQuality.Low
             )
-            backdrop.shade?.invoke(this, -at, Size(host.width.toFloat(), host.height.toFloat()))
         }
 }
 
@@ -148,26 +142,3 @@ internal fun blurRadius(level: Int): Int {
 private const val BAKE_DIVISOR = 4
 /** At full strength the blur reaches sixteen small pixels - a sixth of a phone's width. */
 private const val MAX_RADIUS = 16
-
-/** The shade the Start screen lays over its wallpaper, for a backdrop to draw again. */
-internal fun startShade(isDark: Boolean): DrawScope.(Offset, Size) -> Unit = { origin, host ->
-    drawRect(
-        brush = Brush.linearGradient(
-            colors = startShadeColors(isDark),
-            start = origin,
-            end = origin + Offset(host.width, host.height)
-        )
-    )
-}
-
-internal fun startShadeColors(isDark: Boolean): List<Color> = if (isDark) listOf(
-    Color(0xFF0A0A0A).copy(alpha = 0.85f),
-    Color(0xFF202020).copy(alpha = 0.85f),
-    Color.White.copy(alpha = 0.12f * 0.85f),
-    Color(0xFF0A0A0A).copy(alpha = 0.85f)
-) else listOf(
-    Color(0xFFF5F5F5).copy(alpha = 0.85f),
-    Color(0xFFFFFFFF).copy(alpha = 0.85f),
-    Color.Black.copy(alpha = 0.08f * 0.85f),
-    Color(0xFFF5F5F5).copy(alpha = 0.85f)
-)

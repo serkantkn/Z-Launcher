@@ -458,6 +458,7 @@ private fun TileGroups(viewModel: SettingsViewModel) {
                 steps = 9,
                 onValueChange = { viewModel.setTileBlur(it.toInt()) }
             )
+            if (tileBlur > 0) UnreadableWallpaperNote(viewModel)
 
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -859,3 +860,74 @@ internal val LookPage.summaryRes: Int
         LookPage.ICONS -> R.string.settings_look_icons_sub
         LookPage.TEXT_AND_MOTION -> R.string.settings_look_text_motion_sub
     }
+
+
+/**
+ * Said under the blur when there is nothing to frost: Start draws the phone's own wallpaper and
+ * the launcher could not read it. Reading another app's wallpaper takes access to all files from
+ * Android 14 on, permission to read pictures before it; a live wallpaper cannot be read at all.
+ * Where access is what is missing, the way to give it is here, and the wallpaper is read again
+ * on the way back.
+ */
+@Composable
+private fun UnreadableWallpaperNote(viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    val customPath by viewModel.customWallpaperPath.collectAsState()
+    val unreadable by com.serkantkn.zunelauncher.util.WallpaperImages.systemUnreadable.collectAsState()
+    var checks by remember { mutableStateOf(0) }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        checks++
+        if (unreadable && wallpaperAccess(context)) com.serkantkn.zunelauncher.util.WallpaperImages.reload()
+    }
+    if (customPath != null || !unreadable) return
+    val granted = remember(checks) { wallpaperAccess(context) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        checks++
+        if (ok) com.serkantkn.zunelauncher.util.WallpaperImages.reload()
+    }
+    Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
+        Text(
+            text = stringResource(
+                if (granted) R.string.settings_tile_blur_live_wallpaper else R.string.settings_tile_blur_no_permission
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalZuneColors.current.textMuted
+        )
+        if (!granted) {
+            Text(
+                text = stringResource(R.string.grant_permission).lowercase(java.util.Locale.getDefault()),
+                style = MaterialTheme.typography.bodyMedium,
+                color = LocalZuneColors.current.accentColor,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .clickable {
+                        when {
+                            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                        android.net.Uri.parse("package:${context.packageName}")
+                                    )
+                                )
+                            }
+                            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU ->
+                                ask.launch(android.Manifest.permission.READ_MEDIA_IMAGES)
+                            else -> ask.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                        }
+                    }
+                    .padding(vertical = 6.dp)
+            )
+        }
+    }
+}
+
+/** Whether the launcher may read the phone's wallpaper, on this version of Android. */
+private fun wallpaperAccess(context: android.content.Context): Boolean = when {
+    android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+        android.os.Environment.isExternalStorageManager()
+    android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU ->
+        androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_MEDIA_IMAGES) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+    else -> androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_EXTERNAL_STORAGE) ==
+        android.content.pm.PackageManager.PERMISSION_GRANTED
+}

@@ -142,6 +142,8 @@
     <string name="settings_tile_blur_sub">how frosted the wallpaper behind the tiles looks</string>
     <string name="settings_tile_blur_solid">the tiles are solid: make them see-through to see the blur</string>
     <string name="settings_tile_blur_off">off</string>
+    <string name="settings_tile_blur_no_permission">the phone\'s wallpaper can\'t be read without access to your files, so there is nothing to blur. Allow it, or pick a picture of your own as the wallpaper.</string>
+    <string name="settings_tile_blur_live_wallpaper">the phone\'s wallpaper can\'t be read (a live wallpaper can\'t), so there is nothing to blur. Pick a picture of your own as the wallpaper.</string>
     <string name="settings_tile_ink">writing and icons</string>
     <string name="settings_tile_ink_auto">follow the theme</string>
     <string name="settings_tile_ink_auto_sub">black on a light theme, white on a dark one</string>
