@@ -344,7 +344,16 @@ fun W10MTileSurface(
             modifier = Modifier
                 .matchParentSize()
                 .clip(tileShape)
-                .then(if (frosted) Modifier.frostedBackdrop() else Modifier)
+                // The flip turns the whole surface over; the frost is turned back the right way.
+                .then(
+                    if (frosted) {
+                        Modifier.frostedBackdrop(turnedOver = {
+                            kotlin.math.cos(Math.toRadians((flipRotation + lean.rotationX).toDouble())) < 0.0
+                        })
+                    } else {
+                        Modifier
+                    }
+                )
                 .background(fillColor.copy(alpha = fillOpacity))
                 .border(if (highlighted) 2.dp else 0.5.dp, strokeColor, tileShape)
         ) {

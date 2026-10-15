@@ -19,6 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.IntOffset
@@ -81,12 +82,25 @@ internal fun Modifier.tileBackdropHost(backdrop: TileBackdrop): Modifier = onGlo
 /**
  * Draws, behind a tile, the frosted piece of the wallpaper under it. Nothing is drawn when the
  * blur is off or the tile is not over a background that offers it.
+ *
+ * [turnedOver] says when the tile has flipped onto its back. The piece is turned with it, so it
+ * is turned back again here: the wallpaper behind a tile stays the right way up whichever face
+ * the tile shows. Where the tile is is taken from whichever of its corners is nearest the top
+ * left of the screen, which a turn does not move, rather than from its own first corner, which a
+ * turn sends to the bottom.
  */
-fun Modifier.frostedBackdrop(): Modifier = composed {
+fun Modifier.frostedBackdrop(turnedOver: () -> Boolean = { false }): Modifier = composed {
     val backdrop = LocalTileBackdrop.current ?: return@composed Modifier
     var origin by remember { mutableStateOf(Offset.Zero) }
     this
-        .onGloballyPositioned { origin = it.positionInWindow() }
+        .onGloballyPositioned { coordinates ->
+            // The corner nearest the top left on the screen, of all four: unclipped, so a tile
+            // half off the screen still finds its piece.
+            val w = coordinates.size.width.toFloat()
+            val h = coordinates.size.height.toFloat()
+            val corners = listOf(Offset.Zero, Offset(w, 0f), Offset(0f, h), Offset(w, h)).map { coordinates.localToWindow(it) }
+            origin = Offset(corners.minOf { it.x }, corners.minOf { it.y })
+        }
         .drawBehind {
             val image = backdrop.image ?: return@drawBehind
             val host = backdrop.hostSize
@@ -101,12 +115,14 @@ fun Modifier.frostedBackdrop(): Modifier = composed {
             val height = host.height * zoom
             val left = (host.width - width) / 2f - at.x
             val top = (host.height - height) / 2f - lift - at.y
-            drawImage(
-                image = image,
-                dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
-                dstSize = IntSize(width.roundToInt(), height.roundToInt()),
-                filterQuality = FilterQuality.Low
-            )
+            withTransform({ if (turnedOver()) scale(1f, -1f, pivot = center) }) {
+                drawImage(
+                    image = image,
+                    dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
+                    dstSize = IntSize(width.roundToInt(), height.roundToInt()),
+                    filterQuality = FilterQuality.Low
+                )
+            }
         }
 }
 
