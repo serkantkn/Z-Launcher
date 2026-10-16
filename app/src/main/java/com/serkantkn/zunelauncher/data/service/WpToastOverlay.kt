@@ -44,8 +44,9 @@ import kotlinx.coroutines.launch
  *
  * The launcher itself renders WpToastNotification inside LauncherScreen while it is in the
  * foreground; this object covers every other moment (WhatsApp open, another app in front, the
- * launcher activity destroyed) by hosting the same composable in a system overlay window
- * (TYPE_APPLICATION_OVERLAY, needs "üstte gösterim" / SYSTEM_ALERT_WINDOW permission).
+ * launcher activity destroyed) by hosting the same composable in a window over them: an
+ * accessibility overlay while the launcher's accessibility service runs, otherwise a
+ * TYPE_APPLICATION_OVERLAY ("üstte gösterim" / SYSTEM_ALERT_WINDOW), which Android announces.
  *
  * The window starts non-focusable so the app underneath keeps its keyboard and back button;
  * it becomes focusable only while the quick-reply field is open.
@@ -69,7 +70,27 @@ object WpToastOverlay {
     private var lifecycleOwner: OverlayLifecycleOwner? = null
 
     fun isAvailable(context: Context): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
+        ZuneKeyAccessibilityService.current != null ||
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
+
+    /**
+     * Where a window over other apps is drawn: as an accessibility overlay while the launcher's
+     * accessibility service runs - Android says nothing about those - and only failing that as a
+     * "draw over other apps" window, which Android announces with a notification of its own for
+     * as long as it is up.
+     */
+    internal fun overlayHost(appContext: Context): Pair<Context, Int> {
+        val service = ZuneKeyAccessibilityService.current
+        return if (service != null) {
+            service to WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+        } else {
+            appContext to if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+            }
+        }
+    }
 
     /** Entry point used by SocialRepository for every new toast-worthy message. */
     fun show(context: Context, message: SocialMessageModel) {
@@ -107,13 +128,13 @@ object WpToastOverlay {
         currentMessage.value = message
         if (overlayView != null) return  // already showing: the composable swaps content by message.id
 
-        val wm = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val (host, type) = overlayHost(appContext)
+        val wm = host.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val owner = OverlayLifecycleOwner().also { it.onCreate() }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
+            type,
             unfocusableFlags(),
             PixelFormat.TRANSLUCENT
         ).apply {

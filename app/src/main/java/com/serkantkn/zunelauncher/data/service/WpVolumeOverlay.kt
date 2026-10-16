@@ -58,13 +58,15 @@ object WpVolumeOverlay {
     private fun attach(appContext: Context) {
         if (overlayView != null) return
 
-        val wm = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        // The bar is driven by the accessibility service, so it is that service's own overlay
+        // and Android posts no "displaying over other apps" notice for it.
+        val (host, type) = WpToastOverlay.overlayHost(appContext)
+        val wm = host.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val owner = OverlayLifecycleOwner().also { it.onCreate() }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
+            type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
