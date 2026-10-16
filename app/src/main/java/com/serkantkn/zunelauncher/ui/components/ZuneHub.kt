@@ -27,12 +27,14 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
@@ -170,18 +172,18 @@ fun ZuneHub(
     val arrival = LocalHubArrival.current
     val wide = LocalIsWideScreen.current
     val showingPages by rememberUpdatedState(takeover == null)
+    // How much of a gliding hub's pages show: none while Start turns away - its ground alone, as
+    // Windows Phone 7 left the screen dark for a moment - then a quick fade, then the glide.
+    val reveal = remember { Animatable(if (gliding) 0f else 1f) }
     if (gliding) {
         LaunchedEffect(Unit) {
             // On the page it glides from - the hub's pager is best made starting there, so not
-            // even a first frame shows another...
+            // even a first frame shows another.
             pager.scrollToPage(glideFrom!!)
-            // ...seen there once it has come in and has its pages to show (not a spinner, not a
-            // question about permissions), then carried on to the first: forward, the short way
-            // round, as one swipe would.
-            snapshotFlow { entrance.progress >= 1f && arrival() >= 1f && showingPages }.first { it }
-            // Two frames for the pages' first layout, which would otherwise eat the glide's start.
-            withFrameNanos { }
-            withFrameNanos { }
+            // Shown once Start is nearly away and the hub has its pages (not a spinner, not a
+            // question about permissions). The pages have been laid out unseen meanwhile.
+            snapshotFlow { arrival() >= GLIDE_REVEAL_AT && showingPages }.first { it }
+            reveal.animateTo(1f, tween(GLIDE_FADE_MILLIS, easing = LinearEasing))
             if (wide) {
                 // A tablet shows one heading's page at a time: no panorama to glide round, and
                 // gliding there would pass through every page between - a search page opens its
@@ -191,6 +193,9 @@ fun ZuneHub(
                 pager.scrollToPage(0)
                 return@LaunchedEffect
             }
+            // Seen standing for a frame or two, then carried on to the first: forward, the short
+            // way round, as one swipe would.
+            delay(GLIDE_HOLD_MILLIS)
             val target = pager.pagerState.currentPage + forwardStepsToFirst(glideFrom, pager.pageCount, pager.isLooping)
             pager.pagerState.animateScrollToPage(
                 page = target,
@@ -203,7 +208,8 @@ fun ZuneHub(
         state = entrance,
         progressScale = entranceScale,
         offscreenCompositing = offscreenCompositing,
-        swingIn = !gliding
+        swingIn = !gliding,
+        fadeIn = { reveal.value }
     ) { barModifier ->
         Box(modifier = Modifier.fillMaxSize()) {
             if (LocalIsWideScreen.current) {
@@ -477,7 +483,7 @@ private fun PanoramaTitle(title: String, pager: ZuneLoopingPagerState) {
     val zuneColors = LocalZuneColors.current
     val density = LocalDensity.current
     val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
-    val driftPx = with(density) { PANORAMA_TITLE_DRIFT.toPx() }
+    val travelPx = with(density) { PANORAMA_TITLE_TRAVEL.toPx() }
     val style = MaterialTheme.typography.displayLarge.copy(
         fontWeight = FontWeight.Light,
         fontSize = 96.sp,
@@ -505,6 +511,9 @@ private fun PanoramaTitle(title: String, pager: ZuneLoopingPagerState) {
         }
         fun offsets(): Pair<Float, Float> {
             val last = (pager.pageCount - 1).coerceAtLeast(0).toFloat()
+            // The name moves only a little over all the sections together; going round from the
+            // last to the first is where it sweeps.
+            val driftPx = if (last > 0f) travelPx / last else 0f
             val at = cycle()
             return if (at <= last) {
                 -at * driftPx to screenWidthPx
@@ -552,8 +561,12 @@ internal fun forwardStepsToFirst(from: Int, pageCount: Int, looping: Boolean): I
     else -> -from
 }
 
-/** How far the panorama's name slides for each section. */
-private val PANORAMA_TITLE_DRIFT = 40.dp
+/**
+ * How far the panorama's name slides over all its sections together. Windows Phone 7's name hardly
+ * moved from section to section - on the last the whole of it still showed - and swept right
+ * round only going from the last back to the first.
+ */
+private val PANORAMA_TITLE_TRAVEL = 32.dp
 /** The name sits a little above the top, cut by it, as a panorama's did. */
 private val PANORAMA_TITLE_LIFT = (-24).dp
 
@@ -565,4 +578,10 @@ private val PANORAMA_TITLE_LIFT = (-24).dp
 internal const val GLIDE_MILLIS = 800
 /** How long a tablet shows the page it opens on before it turns to the first. */
 private const val WIDE_GLIDE_HOLD_MILLIS = 700L
+/** How far in the hub has come when its pages are shown: Start has been gone a little while. */
+private const val GLIDE_REVEAL_AT = 0.93f
+/** The pages' fade, about three frames of the phone's thirty. */
+private const val GLIDE_FADE_MILLIS = 90
+/** How long the pages stand before they glide: a frame or two of the phone's. */
+private const val GLIDE_HOLD_MILLIS = 50L
 internal val GlideEasing = androidx.compose.animation.core.CubicBezierEasing(0.33f, 1f, 0.68f, 1f)

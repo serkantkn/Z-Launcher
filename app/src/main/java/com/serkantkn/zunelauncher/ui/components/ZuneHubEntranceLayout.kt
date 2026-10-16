@@ -119,6 +119,8 @@ fun ZuneHubEntranceLayout(
      * away behind a card, through [progressScale].
      */
     swingIn: Boolean = true,
+    /** For a hub that does not swing in: how far it has faded in, 0-1. */
+    fadeIn: () -> Float = { state.entranceAnim.value },
     content: @Composable (bottomBarModifier: Modifier) -> Unit
 ) {
     val density = LocalDensity.current
@@ -142,7 +144,7 @@ fun ZuneHubEntranceLayout(
                 // Hinged on the screen-left edge, same axis as the Start turnstile
                 transformOrigin = TransformOrigin(0f, 0.5f)
                 cameraDistance = 32f * density.density
-                alpha = (p * 3f).coerceIn(0f, 1f) * (if (swingIn) 1f else entered)
+                alpha = (p * 3f).coerceIn(0f, 1f) * (if (swingIn) 1f else fadeIn())
 
                 // Force GPU RenderNode Offscreen compositing during active entrance for 120Hz liquid smoothness
                 if (offscreenCompositing) {
