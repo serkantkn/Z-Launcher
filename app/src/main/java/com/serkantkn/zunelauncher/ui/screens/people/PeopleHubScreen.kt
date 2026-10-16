@@ -466,9 +466,9 @@ fun PeopleHubScreen(
                 title = stringResource(R.string.people_hub),
                 tabs = tabs,
                 pager = pager,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
+                // No ground of its own: the hub stands on the background chosen for hubs - the
+                // wallpaper, a colour - like every other hub, not on black.
+                modifier = Modifier.fillMaxSize(),
                 bar = if (hasPermission) ZuneHubBar(bottomBarActions, bottomBarMenuItems) else null,
                 takeover = when {
                     !hasPermission -> {

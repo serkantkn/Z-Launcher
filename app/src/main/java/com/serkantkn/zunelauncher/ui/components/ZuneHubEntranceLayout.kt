@@ -159,16 +159,22 @@ fun ZuneHubEntranceLayout(
         if (swingIn) {
             content(bottomBarModifier)
         } else {
-            // A hub that does not swing in still turns in: hinged on the left edge, its right
-            // side far away and coming round flat as it shows - the depth Windows Phone 7 gave
-            // the people hub's tiles as they arrived. Its own layer, with the camera close: the
+            // A hub that does not swing in flies in: from far off to the right, turned with its
+            // right side further still, it comes nearer and round flat while sliding left - nothing
+            // pinned to the screen's edge - and the hub's own glide carries the same slide on, as
+            // the Windows Phone 7 people hub came in. Its own layer, with the camera close: the
             // swing's camera is far enough off that a turn under it reads as a squeeze, not depth.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        rotationY = ARRIVAL_TURN_DEGREES * (1f - fadeIn())
+                        val away = 1f - fadeIn()
                         transformOrigin = TransformOrigin(0f, 0.5f)
+                        translationX = size.width * ARRIVAL_FROM_RIGHT * away
+                        val nearness = 1f - (1f - ARRIVAL_FAR_SCALE) * away
+                        scaleX = nearness
+                        scaleY = nearness
+                        rotationY = ARRIVAL_TURN_DEGREES * away
                         cameraDistance = ARRIVAL_CAMERA_DISTANCE
                     }
             ) {
@@ -183,7 +189,13 @@ fun ZuneHubEntranceLayout(
  * Phone 7 people hub, whose right-hand tiles were two thirds the width of its left-hand ones in
  * the frame they appeared - shown at full strength at once, so the depth is seen.
  */
-internal const val ARRIVAL_TURN_DEGREES = 52f
+internal const val ARRIVAL_TURN_DEGREES = 40f
+
+/** How far right of its place a flying hub starts, as a share of its width. */
+private const val ARRIVAL_FROM_RIGHT = 0.6f
+
+/** How small a flying hub starts - how far off - as a share of its size. */
+private const val ARRIVAL_FAR_SCALE = 0.62f
 
 /**
  * The camera for that turn, in Compose's own unit (it is multiplied by the screen's dpi): close

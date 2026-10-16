@@ -28,7 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -187,9 +187,9 @@ fun ZuneHub(
             // Shown once Start is nearly away and the hub has its pages (not a spinner, not a
             // question about permissions). The pages have been laid out unseen meanwhile.
             snapshotFlow { arrival() >= GLIDE_REVEAL_AT && showingPages }.first { it }
-            // Slow to start, so the first frames shown are still turned well away, then flattening
-            // fast - as the phone's tiles were deep in their first frame and flat by the third.
-            val arriving = launch { reveal.animateTo(1f, tween(GLIDE_FADE_MILLIS, easing = FastOutSlowInEasing)) }
+            // Fast out of the distance and easing as it nears; the glide takes the slide over
+            // before it has stopped, so the two read as one movement.
+            val arriving = launch { reveal.animateTo(1f, tween(GLIDE_FADE_MILLIS, easing = LinearOutSlowInEasing)) }
             if (wide) {
                 arriving.join()
                 // A tablet shows one heading's page at a time: no panorama to glide round, and
@@ -586,7 +586,7 @@ private val PANORAMA_TITLE_LIFT = (-24).dp
  * way in its first tenth of a second, half in two, three quarters in three, and the last of it
  * eased out over half a second more - a cubic ease-out over eight tenths, near enough exactly.
  */
-internal const val GLIDE_MILLIS = 800
+internal const val GLIDE_MILLIS = 1100
 /** How long a tablet shows the page it opens on before it turns to the first. */
 private const val WIDE_GLIDE_HOLD_MILLIS = 700L
 /**
@@ -599,7 +599,7 @@ private const val GLIDE_REVEAL_AT = 0.96f
  * The pages' arrival, turning flat as they show. Longer than the two or three frames the phone
  * filmed at thirty a second, so that at sixty or a hundred and twenty the turn is seen.
  */
-private const val GLIDE_FADE_MILLIS = 200
+private const val GLIDE_FADE_MILLIS = 550
 /** How far the pages have turned flat when the glide sets off. */
-private const val GLIDE_FROM_ARRIVAL = 0.75f
+private const val GLIDE_FROM_ARRIVAL = 0.6f
 internal val GlideEasing = androidx.compose.animation.core.CubicBezierEasing(0.33f, 1f, 0.68f, 1f)
