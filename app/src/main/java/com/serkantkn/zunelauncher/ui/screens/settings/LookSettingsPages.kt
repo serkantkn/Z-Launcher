@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.ui.components.HubGround
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -70,11 +71,7 @@ internal fun LookSubSettingsScreen(
 
     BackHandler { onClose() }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    HubGround(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.ui.components.HubGround
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import android.app.DownloadManager
@@ -71,11 +72,7 @@ fun BrowserDownloadsScreen(
         }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    HubGround(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
 
             // ─── Header (WP Metro style) ───

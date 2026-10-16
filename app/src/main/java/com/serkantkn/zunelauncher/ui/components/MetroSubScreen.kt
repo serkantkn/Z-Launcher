@@ -51,11 +51,7 @@ fun MetroSubScreen(
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    HubGround(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier

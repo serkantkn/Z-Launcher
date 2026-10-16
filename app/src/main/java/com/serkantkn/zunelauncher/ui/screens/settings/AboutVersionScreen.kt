@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.ui.components.HubGround
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -66,7 +67,7 @@ fun AboutVersionScreen(onClose: () -> Unit, modifier: Modifier = Modifier) {
 
     BackHandler { onClose() }
 
-    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    HubGround(modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

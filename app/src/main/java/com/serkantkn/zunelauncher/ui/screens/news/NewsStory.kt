@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.news
 
+import com.serkantkn.zunelauncher.ui.components.HubGround
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -66,11 +67,11 @@ internal fun NewsStoryScreen(
     barModifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (inPane) Modifier else Modifier.background(MaterialTheme.colorScheme.background))
-    ) {
+    // In a pane the story sits on the page beside it; on its own it covers the hub, on the hub's
+    // own ground.
+    val ground: com.serkantkn.zunelauncher.ui.components.HubGroundPainter =
+        if (inPane) { m, c -> Box(modifier = m.fillMaxSize(), content = c) } else { m, c -> HubGround(m, c) }
+    ground(Modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             if (inPane) {
                 ZuneWidePaneHeader(section = story.source, onClose = onClose)

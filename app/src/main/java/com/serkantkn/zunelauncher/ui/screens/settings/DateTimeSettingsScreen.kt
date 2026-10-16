@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.ui.components.HubGround
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
@@ -46,11 +47,7 @@ fun DateTimeSettingsScreen(
 
     BackHandler { onClose() }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    HubGround(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
 
             // ─── Top Header Area (WP style) ───

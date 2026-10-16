@@ -545,19 +545,36 @@ fun LauncherScreen(
                     )
                 }
 
-                /** A hub's own ground inside whichever pane it is drawn in. */
-                val hubBackground: @Composable (content: @Composable () -> Unit) -> Unit = { content ->
+                /**
+                 * A hub's ground: its wallpaper and the shade over it. The hub stands on it, and
+                 * anything that covers the hub - a sub-page, the browser's start page - is handed
+                 * it too (LocalHubGround), so the wallpaper does not vanish under a page.
+                 */
+                val groundAccent = zuneColors.accentColor
+                val hubGround: com.serkantkn.zunelauncher.ui.components.HubGroundPainter = remember(
+                    effectiveHubMode, hubBackdrop, groundAccent, hubBackgroundOpacity
+                ) { { groundModifier, content ->
                     ZuneBackground(
                         mode = effectiveHubMode,
-                        accentColor = zuneColors.accentColor,
+                        accentColor = groundAccent,
                         customWallpaperPathOverride = hubBackdrop.customPath,
                         systemWallpaper = hubBackdrop.systemWallpaper,
-                        forceModeOverride = effectiveHubMode
+                        forceModeOverride = effectiveHubMode,
+                        modifier = groundModifier
                     ) {
                         if (effectiveHubMode != BackgroundMode.SOLID) {
                             ZuneWallpaperOverlay(alpha = hubBackgroundOpacity, isHubOverlay = true)
                         }
-                        content()
+                        Box(modifier = Modifier.fillMaxSize(), content = content)
+                    }
+                } }
+
+                /** A hub's own ground inside whichever pane it is drawn in. */
+                val hubBackground: @Composable (content: @Composable () -> Unit) -> Unit = { content ->
+                    hubGround(Modifier) {
+                        CompositionLocalProvider(com.serkantkn.zunelauncher.ui.components.LocalHubGround provides hubGround) {
+                            content()
+                        }
                     }
                 }
 

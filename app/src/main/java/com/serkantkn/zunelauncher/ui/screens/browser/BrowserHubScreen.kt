@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.ui.components.HubGround
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import android.Manifest
@@ -690,7 +691,7 @@ fun BrowserHubScreen(
                                     }
 
                                     if (tab.showStartScreen && isVisible) {
-                                        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                                        HubGround {
                                             BrowserStartScreen(
                                                 favorites = state.favorites,
                                                 history = state.history,
