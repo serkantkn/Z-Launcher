@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
@@ -476,12 +477,12 @@ fun BrowserHubScreen(
                 Column(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Status Bar Background
+                    // Room for the status bar. It has no colour of its own: the hub's wallpaper
+                    // shows under the bar, as it does in every other hub.
                     Spacer(
                         modifier = Modifier
                             .fillMaxWidth()
                             .windowInsetsTopHeight(WindowInsets.statusBars)
-                            .background(if (zuneColors.isDark) Color.Black else Color.White)
                     )
 
                     val coroutineScope = rememberCoroutineScope()
@@ -556,6 +557,8 @@ fun BrowserHubScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        // A page is drawn inside its own box and nowhere else.
+                                        .clipToBounds()
                                         .alpha(if (isVisible) 1f else 0f)
                                         .zIndex(if (isVisible) 1f else 0f)
                                         .graphicsLayer {
@@ -649,6 +652,11 @@ fun BrowserHubScreen(
                                             }
                                         },
                                         update = { view ->
+                                            // Behind the start page there is nothing to show, and
+                                            // an empty page does not keep to its own box: it paints
+                                            // its white over whatever it may draw on, which was the
+                                            // strip under the status bar. Hidden, it draws nothing.
+                                            view.visibility = if (tab.showStartScreen) android.view.View.INVISIBLE else android.view.View.VISIBLE
                                             val wantedAgent = if (tab.isDesktopSite) DESKTOP_USER_AGENT else null
                                             if (view.settings.userAgentString != wantedAgent &&
                                                 (wantedAgent != null || tab.isDesktopSite)
