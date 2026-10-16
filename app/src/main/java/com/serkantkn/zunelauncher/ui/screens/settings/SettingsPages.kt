@@ -998,28 +998,6 @@ private fun WpDialogTextField(
 }
 
 @Composable
-internal fun ConnectivitySettingsPage(viewModel: SettingsViewModel) {
-    SettingsLazyColumn {
-        item(key = "connections") {
-            SettingGroup(title = stringResource(R.string.settings_tab_connectivity)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SystemSettingRow(
-                        title = stringResource(R.string.settings_wifi),
-                        subtitle = stringResource(R.string.settings_wifi_sub),
-                        onClick = viewModel::openWifiSettings
-                    )
-                    SystemSettingRow(
-                        title = stringResource(R.string.settings_bluetooth),
-                        subtitle = stringResource(R.string.settings_bluetooth_sub),
-                        onClick = viewModel::openBluetoothSettings
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 internal fun SystemSettingsPage(
     viewModel: SettingsViewModel,
     onOpenDateTimeSettings: () -> Unit = {}

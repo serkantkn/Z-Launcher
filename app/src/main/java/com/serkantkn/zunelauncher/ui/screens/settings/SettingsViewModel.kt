@@ -360,20 +360,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsDataStore.setSolidBackgroundEnabled(enabled) }
     }
 
-    fun openDisplaySettings() = openSystemSettings(Settings.ACTION_DISPLAY_SETTINGS)
-
-    fun openWallpaperSettings() = openSystemSettings(Intent.ACTION_SET_WALLPAPER)
-
-    fun openWifiSettings() = openSystemSettings(
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q)
-            Settings.Panel.ACTION_WIFI
-        else Settings.ACTION_WIFI_SETTINGS
-    )
-
-    fun openBluetoothSettings() = openSystemSettings(Settings.ACTION_BLUETOOTH_SETTINGS)
-
-    fun openSoundSettings() = openSystemSettings(Settings.ACTION_SOUND_SETTINGS)
-
     fun openNotificationSettings() {
         // App notification settings require EXTRA_APP_PACKAGE, but for general settings we can use:
         openSystemSettings("android.settings.ALL_APPS_NOTIFICATION_SETTINGS")

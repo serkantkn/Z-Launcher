@@ -239,7 +239,7 @@ fun SettingsScreen(
                         SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(viewModel = viewModel)
                         SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
                         SettingsTab.KEYBOARD -> KeyboardSettingsPage(viewModel = viewModel)
-                        SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage(viewModel = viewModel)
+                        SettingsTab.CONNECTIVITY -> ConnectivitySettingsPage()
                         SettingsTab.SYSTEM -> SystemSettingsPage(
                             viewModel = viewModel,
                             onOpenDateTimeSettings = { openDateTimeSettings() }
