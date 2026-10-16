@@ -348,8 +348,10 @@ private fun HomeHubScreenContent(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) viewModel.refreshLiveTiles()
-            if (event == Lifecycle.Event.ON_START && hasRunInitialAnimation) {
-                // Back from an app the splash went into: Start comes in again from clean.
+            if (event == Lifecycle.Event.ON_START && hasRunInitialAnimation && !hubOpenNow) {
+                // Back from an app the splash went into: Start comes in again from clean. Not
+                // behind an open hub, though: nobody sees it there, and the hub's closing brings
+                // Start in anyway.
                 win8Splash = null
                 coroutineScope.launch {
                     animationProgress.snapTo(0f)
@@ -381,17 +383,26 @@ private fun HomeHubScreenContent(
         }
     }
 
+    // Whether a hub was open the last time this looked: Start comes in whenever one closes.
+    var hubWasOpen by remember { mutableStateOf(isHubOpen) }
     LaunchedEffect(isHubOpen) {
-        // The hub comes up over the splash; once it has, the splash has done its work.
-        if (isHubOpen && win8Splash != null) {
-            delay(WIN8_SPLASH_LINGER_MILLIS)
-            win8Splash = null
-        }
-        if (!isHubOpen && animationProgress.value > 1f) {
+        // Every hub that closes brings Start in on the turnstile, however it was opened. This
+        // used to ask whether the tiles had turned away (progress past 1), which only a tap on a
+        // tile does: a hub opened from the app list, a notification, the search or the switcher
+        // closed onto a board that just stood there, and so did any hub the phone had been away
+        // from - coming back replayed the board behind the hub, where nobody saw it.
+        val closed = hubWasOpen && !isHubOpen
+        hubWasOpen = isHubOpen
+        if (closed) {
             clickedItemKey = null
             launching = false
             animationProgress.snapTo(0f)
             animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
+        }
+        // The hub comes up over the splash; once it has, the splash has done its work.
+        if (isHubOpen && win8Splash != null) {
+            delay(WIN8_SPLASH_LINGER_MILLIS)
+            win8Splash = null
         }
     }
 
