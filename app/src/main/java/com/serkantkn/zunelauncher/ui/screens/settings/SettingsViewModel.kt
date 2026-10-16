@@ -40,7 +40,6 @@ import kotlinx.coroutines.withContext
 import com.serkantkn.zunelauncher.data.model.KeyboardLanguage
 import com.serkantkn.zunelauncher.data.model.OneHandedMode
 import com.serkantkn.zunelauncher.data.model.TextShortcut
-import com.serkantkn.zunelauncher.util.SystemSettingsManager
 import java.io.File
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -65,7 +64,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val tileIconFactory = application.appContainer.tileIconFactory
 
-    private val systemSettings = SystemSettingsManager(application)
 
     private val _appLanguage = MutableStateFlow(AppLocale.current(application))
     /** In-app language (Ayarlar > sistem > dil). */
@@ -87,10 +85,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun clearTargetTab() {
         _targetTab.value = null
     }
-
-    val brightness: StateFlow<Float> = systemSettings.brightness
-    val mediaVolume: StateFlow<Float> = systemSettings.mediaVolume
-    val ringVolume: StateFlow<Float> = systemSettings.ringVolume
 
     val themeMode: StateFlow<ThemeMode> = settingsDataStore.themeMode.asState(ThemeMode.DARK)
 
@@ -364,23 +358,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setSolidBackgroundEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setSolidBackgroundEnabled(enabled) }
-    }
-
-    fun setBrightness(value: Float) {
-        systemSettings.setBrightness(value)
-    }
-
-    fun setMediaVolume(value: Float) {
-        systemSettings.setMediaVolume(value)
-    }
-
-    fun setRingVolume(value: Float) {
-        systemSettings.setRingVolume(value)
-    }
-
-    fun refreshSystemSettings() {
-        systemSettings.updateBrightness()
-        systemSettings.updateVolumes()
     }
 
     fun openDisplaySettings() = openSystemSettings(Settings.ACTION_DISPLAY_SETTINGS)

@@ -52,7 +52,6 @@ import com.serkantkn.zunelauncher.data.datastore.KeyboardDataStore
 import com.serkantkn.zunelauncher.data.model.*
 import com.serkantkn.zunelauncher.data.model.SearchEngine
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
-import com.serkantkn.zunelauncher.ui.components.WpSlider
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import androidx.compose.runtime.remember
@@ -655,164 +654,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.actionCenterItem(view
 }
 
 @Composable
-internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
-    val brightness by viewModel.brightness.collectAsState()
-    val mediaVolume by viewModel.mediaVolume.collectAsState()
-    val ringVolume by viewModel.ringVolume.collectAsState()
-    val volumeBarStyle by viewModel.volumeBarStyle.collectAsState()
-    val musicOnlineExtras by viewModel.musicOnlineExtras.collectAsState()
-    val musicOnlineWifiOnly by viewModel.musicOnlineWifiOnly.collectAsState()
-
-    LaunchedEffect(Unit) {
-        viewModel.refreshSystemSettings()
-    }
-
-    SettingsLazyColumn {
-        item(key = "screen") {
-            SettingGroup(title = stringResource(R.string.settings_display_brightness)) {
-                GlassPanel {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Text(
-                            text = stringResource(R.string.settings_brightness),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Light
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        WpSlider(
-                            value = brightness,
-                            onValueChange = viewModel::setBrightness,
-                            valueRange = 0f..1f,
-                            track = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
-                        )
-                    }
-                }
-            }
-        }
-
-        item(key = "volume_bar_style") {
-            SettingGroup(title = stringResource(R.string.settings_volume_style)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingChoiceRow(
-                        title = stringResource(R.string.volume_bar_wp),
-                        subtitle = stringResource(R.string.settings_volume_wp_sub),
-                        selected = volumeBarStyle == com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE,
-                        onClick = { viewModel.setVolumeBarStyle(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE) }
-                    )
-                    SettingChoiceRow(
-                        title = stringResource(R.string.volume_bar_system),
-                        subtitle = stringResource(R.string.settings_volume_system_sub),
-                        selected = volumeBarStyle == com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM,
-                        onClick = { viewModel.setVolumeBarStyle(com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM) }
-                    )
-
-                    if (volumeBarStyle == com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE) {
-                        val ctx = LocalContext.current
-                        val hasOverlay = android.provider.Settings.canDrawOverlays(ctx)
-                        val hasKeyService = com.serkantkn.zunelauncher.data.service.ZuneKeyAccessibilityService.isEnabled(ctx)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.settings_volume_permissions_info),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LocalZuneColors.current.textMuted
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        SystemSettingRow(
-                            title = stringResource(R.string.settings_overlay_permission),
-                            subtitle = if (hasOverlay) stringResource(R.string.settings_permission_granted) else stringResource(R.string.settings_overlay_permission_sub),
-                            isActive = hasOverlay,
-                            onClick = {
-                                ctx.startActivity(
-                                    android.content.Intent(
-                                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                        android.net.Uri.parse("package:${ctx.packageName}")
-                                    )
-                                )
-                            }
-                        )
-                        SystemSettingRow(
-                            title = stringResource(R.string.settings_key_service),
-                            subtitle = if (hasKeyService) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_key_service_sub),
-                            isActive = hasKeyService,
-                            onClick = { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                        )
-                    }
-                }
-            }
-        }
-
-        item(key = "volume") {
-            SettingGroup(title = stringResource(R.string.settings_volume_levels)) {
-                GlassPanel {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        Text(
-                            text = stringResource(R.string.settings_media_volume),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Light
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        WpSlider(
-                            value = mediaVolume,
-                            onValueChange = viewModel::setMediaVolume,
-                            valueRange = 0f..1f,
-                            track = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = stringResource(R.string.settings_ring_volume),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Light
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        WpSlider(
-                            value = ringVolume,
-                            onValueChange = viewModel::setRingVolume,
-                            valueRange = 0f..1f,
-                            track = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
-                        )
-                    }
-                }
-            }
-        }
-
-        item(key = "music_online") {
-            SettingGroup(title = stringResource(R.string.settings_music_online)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingSwitchRow(
-                        title = stringResource(R.string.music_online_extras),
-                        subtitle = stringResource(R.string.music_online_extras_summary),
-                        checked = musicOnlineExtras,
-                        onCheckedChange = viewModel::setMusicOnlineExtras
-                    )
-                    // Only worth showing once there is something for it to apply to.
-                    if (musicOnlineExtras) {
-                        SettingSwitchRow(
-                            title = stringResource(R.string.music_online_wifi_only),
-                            subtitle = stringResource(R.string.music_online_wifi_only_summary),
-                            checked = musicOnlineWifiOnly,
-                            onCheckedChange = viewModel::setMusicOnlineWifiOnly
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.settings_music_online_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalZuneColors.current.textDim,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 internal fun KeyboardSettingsPage(viewModel: SettingsViewModel) {
     // The two setup rows reflect system state, so they are re-read every time settings come back.
     var setupTrigger by remember { mutableIntStateOf(0) }
@@ -1240,10 +1081,6 @@ internal fun SystemSettingsPage(
     val hasNotificationAccess = remember(defaultAppsTrigger) {
         val enabledListeners = NotificationManagerCompat.getEnabledListenerPackages(context)
         enabledListeners.contains(context.packageName)
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.refreshSystemSettings()
     }
 
     val appLanguage by viewModel.appLanguage.collectAsState()
