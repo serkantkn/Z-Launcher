@@ -1259,6 +1259,10 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
             }
         }
 
+        item(key = "this_device") {
+            AboutDeviceGroup()
+        }
+
         item(key = "permissions") {
             SettingGroup(title = stringResource(R.string.settings_permissions_group)) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

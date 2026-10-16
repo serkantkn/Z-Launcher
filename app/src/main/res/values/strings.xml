@@ -1851,4 +1851,24 @@
     <string name="onboarding_pivot_two">later</string>
     <string name="onboarding_pivot_try">move to the next page</string>
     <string name="onboarding_pivot_hub">calendar</string>
+    <string name="about_this_device">this device</string>
+    <string name="about_device_name">device name</string>
+    <string name="about_model">model</string>
+    <string name="about_android">Android version</string>
+    <string name="about_android_value">%1$s (API %2$d)</string>
+    <string name="about_security_patch">security update</string>
+    <string name="about_build">build number</string>
+    <string name="about_kernel">kernel</string>
+    <string name="about_baseband">radio software</string>
+    <string name="about_bootloader">bootloader</string>
+    <string name="about_processor">processor</string>
+    <string name="about_processor_value">%1$s · %2$d cores</string>
+    <string name="about_memory">memory (RAM)</string>
+    <string name="about_storage">storage</string>
+    <string name="about_storage_value">%1$s · %2$s free</string>
+    <string name="about_screen">screen</string>
+    <string name="about_screen_value">%1$d × %2$d · %3$d dpi</string>
+    <string name="about_more">more info</string>
+    <string name="about_more_sub">Android\'s own page about this device</string>
+    <string name="about_copy_hint">press and hold a line to copy it</string>
 </resources>

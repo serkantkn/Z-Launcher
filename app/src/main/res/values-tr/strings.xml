@@ -1851,4 +1851,24 @@
     <string name="onboarding_pivot_two">sonra</string>
     <string name="onboarding_pivot_try">sonraki sayfaya geç</string>
     <string name="onboarding_pivot_hub">takvim</string>
+    <string name="about_this_device">bu cihaz</string>
+    <string name="about_device_name">cihaz adı</string>
+    <string name="about_model">model</string>
+    <string name="about_android">Android sürümü</string>
+    <string name="about_android_value">%1$s (API %2$d)</string>
+    <string name="about_security_patch">güvenlik güncellemesi</string>
+    <string name="about_build">derleme numarası</string>
+    <string name="about_kernel">çekirdek</string>
+    <string name="about_baseband">radyo yazılımı</string>
+    <string name="about_bootloader">önyükleyici</string>
+    <string name="about_processor">işlemci</string>
+    <string name="about_processor_value">%1$s · %2$d çekirdek</string>
+    <string name="about_memory">bellek (RAM)</string>
+    <string name="about_storage">depolama</string>
+    <string name="about_storage_value">%1$s · %2$s boş</string>
+    <string name="about_screen">ekran</string>
+    <string name="about_screen_value">%1$d × %2$d · %3$d dpi</string>
+    <string name="about_more">daha fazla bilgi</string>
+    <string name="about_more_sub">Android ayarlarındaki cihaz hakkında sayfası</string>
+    <string name="about_copy_hint">kopyalamak için bir satıra basılı tut</string>
 </resources>
