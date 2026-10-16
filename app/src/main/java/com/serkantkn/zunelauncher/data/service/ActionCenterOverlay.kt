@@ -38,9 +38,9 @@ import com.serkantkn.zunelauncher.util.localized
  * The Windows Phone action center's window: a full-screen sheet that comes down from the top.
  *
  * It is drawn as an accessibility overlay when the launcher's accessibility service is running,
- * which puts it over the status bar and over every app; failing that, as an ordinary overlay
- * (the launcher already asks for "draw over other apps" for its notification cards), which is
- * enough from inside the launcher itself.
+ * which puts it over the status bar and over every app; failing that, as a panel of the
+ * launcher's own window, which is where it is pulled from then - an ordinary "over other apps"
+ * overlay is the last resort, since Android announces one with a notification each time.
  *
  * How far down it is lives in [progress] — 0 put away, 1 fully open. A pull on the status-bar
  * strip drives it directly ([beginDrag], [dragTo], [endDrag]); the launcher's own pull, a tap
@@ -186,16 +186,22 @@ object ActionCenterOverlay {
         if (root != null && !showing && panelLocale != locale) release()
         if (root != null) return true
         val service = ZuneKeyAccessibilityService.current
-        val host: Context = service ?: context.applicationContext
+        // Without the accessibility service the panel can only be pulled from inside the
+        // launcher, so it is laid over the launcher's own window as a panel of it. Drawing it
+        // "over other apps" instead had Android post its "Z Launcher is displaying over other
+        // apps" notice every time the action center came down.
+        val activity = if (service == null) attachedActivityOf(context) else null
+        val host: Context = service ?: activity ?: context.applicationContext
         val type = when {
             service != null -> WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+            activity != null -> WindowManager.LayoutParams.TYPE_APPLICATION_PANEL
             Settings.canDrawOverlays(host) -> WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             else -> {
                 ZuneLog.w(TAG, "nothing may draw the action center")
                 return false
             }
         }
-        val wm = host.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val wm = (activity?.windowManager ?: host.getSystemService(Context.WINDOW_SERVICE)) as WindowManager
         heightPx = screenHeight(wm, host).toFloat().coerceAtLeast(1f)
 
         val lp = WindowManager.LayoutParams(
@@ -219,6 +225,8 @@ object ActionCenterOverlay {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
             title = "ZuneActionCenter"
+            // A panel belongs to the window it is laid over.
+            if (activity != null) token = activity.window.decorView.windowToken
         }
 
         val lifecycle = OverlayLifecycleOwner().also { it.onCreate() }
@@ -275,7 +283,7 @@ object ActionCenterOverlay {
             keptByService = service != null
             panelLocale = locale
             lifecycle.onResume()
-            ZuneLog.d(TAG, "built (${if (service != null) "accessibility" else "app"} overlay)")
+            ZuneLog.d(TAG, "built (${when { service != null -> "accessibility overlay"; activity != null -> "launcher panel"; else -> "app overlay" }})")
             true
         } catch (e: Exception) {
             ZuneLog.e(TAG, "the action center window could not be added", e)
@@ -344,6 +352,21 @@ object ActionCenterOverlay {
     }
 
     private fun appContextLocalized(context: Context): Context = context.applicationContext.localized()
+
+    /** The launcher's activity behind [context], when it is on screen with a window to lay a panel over. */
+    private fun attachedActivityOf(context: Context): android.app.Activity? {
+        var current: Context? = context
+        while (current is android.content.ContextWrapper) {
+            if (current is android.app.Activity) {
+                val activity = current
+                val attached = !activity.isFinishing && !activity.isDestroyed &&
+                    activity.window?.decorView?.windowToken != null
+                return activity.takeIf { attached }
+            }
+            current = current.baseContext
+        }
+        return null
+    }
 
     private fun screenHeight(wm: WindowManager, context: Context): Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
