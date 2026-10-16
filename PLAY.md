@@ -78,6 +78,8 @@ varsayılan telefon uygulaması yapma → çağrı ekranı → çağrı kaydı.
 | `PACKAGE_USAGE_STATS` | Uygulama listesinde "en çok kullanılanlar" sıralaması. Kullanıcı açmazsa istenmez. |
 | `SYSTEM_ALERT_WINDOW` | WP ses çubuğu ve bildirim şeridi, diğer uygulamaların üstünde gösterilir. |
 | Bildirim dinleyicisi | Canlı kutucuklardaki bildirim sayıları ve önizlemeleri. Hiçbir bildirim diske yazılmaz. |
+| `ACCESS_FINE_LOCATION` | Yalnızca ayarlar → bağlantılar'da bağlı Wi-Fi ağının adı (Android SSID'yi bu izin olmadan vermez). İsteğe bağlı, kullanıcı bağlantılar sayfasından ister; arka planda konum yok. Hava durumu konumu ~1 km'ye yuvarlar. |
+| `BLUETOOTH_CONNECT` | Yalnızca ayarlar → bağlantılar'da şu an bağlı Bluetooth cihazlarının adları. Tarama, eşleştirme, bağlanma yok. İsteğe bağlı. |
 | `SCHEDULE_EXACT_ALARM` | Saat hub'ındaki alarmlar ve zamanlayıcı — dakikası dakikasına çalması gerekir. |
 | `REQUEST_INSTALL_PACKAGES` | Dosyalar hub'ı bir dosya yöneticisidir ve .apk dosyalarını sistem yükleyicisine verir; İnternet hub'ı da kendi indirdiği .apk'yı açar. Bu izin olmadan yükleyici hiç açılmaz. Kullanıcı yine de ayarlardan "bilinmeyen uygulama" izni verir ve her yüklemeyi kendisi onaylar; uygulama kendi başına hiçbir şey yüklemez. Play bu izni "dosya yöneticisi / tarayıcı" gerekçesiyle kabul eder, beyanda bu gerekçe seçilmeli. |
 
@@ -92,7 +94,7 @@ gider, geliştiriciye değil:
 
 | Nereye | Ne | Ne zaman |
 |---|---|---|
-| open-meteo.com | Yaklaşık konum (enlem/boylam) veya şehir adı | Hava durumu hub'ı / kutucuğu kullanıldığında |
+| open-meteo.com | Yaklaşık konum (enlem/boylam, ~1 km'ye yuvarlanmış) veya şehir adı | Hava durumu hub'ı / kutucuğu kullanıldığında |
 | lrclib.net, musicbrainz.org, coverartarchive.org, itunes.apple.com | Çalan parçanın adı, sanatçı, albüm | Ayarlardan "internetten sözler ve kapaklar" açıksa |
 | Seçilen arama motoru | Tarayıcıya yazılan metin | Arama önerileri açıkken yazarken |
 | Kullanıcının kendi IMAP/SMTP sunucusu | E-posta içeriği ve kimlik bilgileri | E-posta hesabı eklenmişse |

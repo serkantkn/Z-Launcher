@@ -1,6 +1,6 @@
 # Z Launcher — Privacy Policy
 
-Last updated: 13 October 2026 · Version 1.1
+Last updated: 16 October 2026 · Version 1.2
 
 ## In short
 
@@ -29,6 +29,8 @@ that needs it is used; refuse one and that part stops working, the rest carries 
 | Notifications | Counts and previews on live tiles |
 | Installed apps and usage stats | The app list, and which apps you use most |
 | What you type on the keyboard | Word prediction and correction |
+| Precise location *(optional)* | Only to show the name of the Wi-Fi network you are on, in settings → connections: Android gives a network's name only to apps holding this. Your position is not read with it; the weather uses a rounded, approximate one. A website you allow location in the browser may get it precisely, as in any browser. |
+| Nearby devices *(optional)* | Only to show the names of the Bluetooth devices connected now, in settings → connections. Nothing is scanned for, paired or connected. |
 
 About the keyboard in particular: **nothing is learned from password fields**, the "do not
 learn from this" flag apps set (private browsing, one-time codes) is honoured, and a clip a
@@ -40,7 +42,7 @@ Each of these is optional and happens only when you use that feature. Nothing ca
 identity, your device id or an advertising id.
 
 **Weather — open-meteo.com**
-Your approximate location (latitude/longitude), or the name of a city you searched for. No
+Your approximate location (latitude/longitude, rounded to about a kilometre), or the name of a city you searched for. No
 account, nothing identifying.
 
 **Lyrics and album art — lrclib.net, musicbrainz.org, coverartarchive.org, itunes.apple.com**

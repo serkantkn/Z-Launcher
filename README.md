@@ -45,7 +45,10 @@ telefonlarında çalışıyor — ve hiçbir şeyi hiçbir yere göndermiyor.
 
 - **Canlı karolar.** Saat, takvim, mesajlar, kişiler, hava durumu, haberler ve müzik karoları kendiliğinden döner;
   kaydırma ya da çevirme hareketi seçilir, karo başına da ayarlanabilir.
-- **Dört boyut.** Küçük, orta, geniş, büyük. Sürükle, sırala, üst üste bırakıp klasör yap.
+- **Dört boyut.** Küçük, orta, geniş, büyük. Her canlı karo her boyut için ayrı düzenlenmiş; bildirim sayısı
+  simgenin hemen yanında. Sürükle, sırala, üst üste bırakıp klasör yap.
+- **Buzlu karolar.** Saydam karoların arkasındaki duvar kağıdı buzlu cam gibi bulanıklaşabilir; ne kadar,
+  ayarlardan.
 - **Her şey sabitlenir.** Uygulama, kişi, konuşma, albüm, plak, not, web sayfası.
 - **Karo başına kişiselleştirme.** Renk, ad, simge (Windows Phone glifleri, ikon paketi ya da kendi resmin),
   simge boyutu, karoyu dolduran resim, animasyon, bildirim, şeffaflık ve yazı rengi — hepsi tek karo için,
@@ -71,15 +74,15 @@ Hepsi uygulamanın içinde, hepsi aynı dilde yazılmış:
 | | |
 |---|---|
 | **telefon** | arama, çağrı kaydı, hızlı arama, telesekreter |
-| **mesajlar** | SMS ve MMS, konuşma sabitleme, hızlı yanıt |
-| **kişiler** | gruplar, mükerrer kayıt birleştirme, kişi karoları |
+| **mesajlar** | SMS ve MMS (resimli mesaj gönderme ve alma), konuşmada arama, teslim raporları, konuşma sabitleme, hızlı yanıt |
+| **kişiler** | Windows Phone 7'deki gibi tek dev başlık altında bir panorama: tümü, yeni neler, son kullanılanlar; gruplar, mükerrer kayıt birleştirme, kişi karoları |
 | **fotoğraflar** | film rulosu, albümler, video, düzenleyici, favoriler |
 | **müzik + videolar** | yerel kitaplık, çalma listeleri, şarkı sözleri, albüm kapakları; telefondaki videolar ve kendi video oynatıcısı |
 | **internet** | sekmeler, yer imleri, okuma görünümü ve okuma listesi, reklam ve izleyici engelleme, gizli gezinme |
 | **haberler** | Google Haberler'in konuları ve takip ettiğin sitelerin RSS akışları; özet, sonra sitenin kendi sayfası |
 | **e-posta** | IMAP/SMTP, birden çok hesap, Google ile oturum açma |
 | **notlar** | kontrol listeleri, resim ve ses, kilitli notlar |
-| **dosyalar** | kopyala · taşı · yapıştır · yeniden adlandır · sil · ayrıntılar; metin, resim, ses, video ve PDF'i kendi açar; bulut sürücüler |
+| **dosyalar** | klasörler karo olarak; kopyala · taşı · yapıştır · yeniden adlandır · sil · ayrıntılar, sürükleyerek üst klasöre taşı; metin, resim, ses, video ve PDF'i kendi açar; bulut sürücüler |
 | **sosyal** | seçtiğin uygulamaların mesajları tek akışta *(Pro)* |
 | **saat · takvim · hava durumu · hesap makinesi · kamera** | her biri kendi canlı karosuyla |
 
@@ -107,7 +110,8 @@ beyaz bir çizgi menüye açılır.
   sitelerin RSS akışlarından, hazır Türkçe ve İngilizce kaynaklarla ya da kendi eklediğin adreslerle. Habere
   dokununca resmi ve özeti, devamı sitenin kendi sayfasında.
 - **Video oynatıcı.** Metro kontrolleri, iki kez dokunup 10 saniye atla, kaldığı yerden devam, ana ekrana dönünce
-  küçük pencerede oynamaya devam. Buluttaki videolar indirilmeden akış olarak oynar.
+  küçük pencerede oynamaya devam. Altyazı (videonun yanındaki dosyalar da), ses parçası, hız, ekranı doldurma,
+  klasördeki sonraki bölüm ve yanlışlıkla dokunmaya karşı kilit. Buluttaki videolar indirilmeden akış olarak oynar.
 
 ## Varsayılan uygulama
 
@@ -160,6 +164,19 @@ Hub'lar da Windows 8 düzenindedir: başlıklar solda, açılan şey yanındaki 
   <img src="docs/img/tablet-tarih.jpg" width="320" alt="Yüklenme tarihine göre">
 </p>
 
+## Ayarlar
+
+Windows Phone'un ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli anahtarlar.
+
+- **ekran+ses** — telefonun kendi ayarları: otomatik parlaklık, ekran kapanma süresi, otomatik döndürme; zil,
+  titreşim, sessiz; medya, zil, bildirim ve alarm sesleri; zil, bildirim ve alarm tonu; dokunma sesleri ve
+  titreşimi.
+- **bağlantılar** — uçak modu, Wi-Fi, Bluetooth, mobil veri, veri dolaşımı, veri kullanımı, internet paylaşımı,
+  konum, NFC, VPN, ekran yansıtma; her biri o anki durumuyla, dokununca Android'in kendi anahtarı açılır
+  (Android bunları hiçbir uygulamanın kendisi açıp kapatmasına izin vermiyor).
+- **hakkında** — sürüm notları ve bu cihazın bilgileri: model, Android sürümü, güvenlik güncellemesi, işlemci,
+  bellek, depolama, ekran.
+
 ## Ayrıca
 
 - Windows Phone klavyesi ve tahmin çubuğu *(Pro)*
@@ -172,6 +189,9 @@ Hub'lar da Windows 8 düzenindedir: başlıklar solda, açılan şey yanındaki 
 Sunucu yok. Reklam, analiz, kullanıcı hesabı yok. Kişilerin, mesajların ve fotoğrafların telefonda kalır.
 Telefondan yalnızca hava durumu, haberler, şarkı sözü ve arama önerisi istekleri çıkar (tarayıcıda reklam
 engelleme açıksa haftada bir engelleme listesi de indirilir) — o da o özelliği kullandığında ve kimliğin eklenmeden. E-posta şifreleri ve kilitli notlar cihazda şifrelenir.
+İki izin isteğe bağlıdır ve tek bir iş içindir: hassas konum yalnızca bağlı Wi-Fi ağının adını göstermek için
+(hava durumu yuvarlanmış, yaklaşık konumu kullanır), yakındaki cihazlar yalnızca bağlı Bluetooth cihazlarının
+adları için.
 Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md) · [web](https://serkantkn.github.io/Z-Launcher/gizlilik.html).
 
 ## Derlemek
@@ -220,7 +240,8 @@ Karo glifleri Microsoft'un [Fluent UI System Icons](https://github.com/microsoft
 turnstile animations and Zune's thin type, running on today's Android — and sending nothing anywhere.
 
 - **Start screen.** Small, medium, wide and large tiles; live tiles that turn by themselves; folders; pin apps,
-  people, conversations, albums, records, notes and web pages. Every tile can be given its own colour, name,
+  people, conversations, albums, records, notes and web pages. Every live tile is laid out for every size, its
+  count right beside its icon, and the wallpaper behind see-through tiles can be frosted. Every tile can be given its own colour, name,
   icon, picture, animation, transparency and ink, and reset with one tap. Any hub's tile can open another
   app instead. Three layouts: the Windows Phone board, a Zune-style list, the Windows 8 board on tablets.
 - **Tablet.** Windows 8's Start, full screen and grouped; a swipe up slides it off while the app list rises from
@@ -230,9 +251,11 @@ turnstile animations and Zune's thin type, running on today's Android — and se
   Android's shade: quick actions, a thin brightness slider, the music playing, and notifications grouped by
   app — the launcher's own by hub — to open, swipe away or answer in place. On a tablet it is a column from
   the right edge. It runs on an accessibility service, and the lock screen keeps Android's own shade.
-- **Hubs, all in-app.** Phone, Messaging, People, Pictures, Music + Videos (with the launcher's own video
-  player: small window, resume where you left off), Internet, News, Email, Notes, Files (copy, cut,
-  paste, rename, delete, details; opens text, pictures, sound, video and PDF itself; cloud drives), Social,
+- **Hubs, all in-app.** Phone, Messaging (picture messages, search in a conversation, delivery reports),
+  People (a Windows Phone 7 panorama: all, what's new, recent), Pictures, Music + Videos (with the launcher's
+  own video player: small window, resume where you left off, subtitles, sound tracks, speed, the next
+  episode, a touch lock), Internet, News, Email, Notes, Files (folders as tiles; copy, cut, paste, rename,
+  delete, details, drag up a folder; opens text, pictures, sound, video and PDF itself; cloud drives), Social,
   Clock, Calendar, Weather, Calculator, Camera. Hubs left with Home keep running and come back from the
   running-hubs strip, a double press of Home, or a two-finger swipe that splits the screen. On a tablet a hub
   has its headings down the left, what is open in a pane beside them, and the Windows 8 bar.
@@ -244,10 +267,16 @@ turnstile animations and Zune's thin type, running on today's Android — and se
 - **Default apps.** Besides Home, phone, SMS and browser, the launcher can be the phone's gallery, music
   player, video player and notes app, and answers when Android asks for the gallery, music, contacts,
   calendar, messaging, email, calculator, files, weather or browser app.
-- **Looks.** Fourteen accent colours and a custom one, dark and light themes, tile transparency, corner
-  style and spacing. The Windows Phone keyboard *(Pro)*.
+- **Settings.** Windows Phone's sliders and switches. Display+sound holds the phone's own brightness, screen
+  timeout, rotation, ringer, volumes, tones and touch sounds; connections shows airplane mode, Wi-Fi,
+  Bluetooth, mobile data, roaming, data usage, hotspot, location, NFC, VPN and casting as they are and opens
+  Android's own switch for each; about lists this device.
+- **Looks.** Fourteen accent colours and a custom one, dark and light themes, tile transparency and frost,
+  corner style and spacing. The Windows Phone keyboard *(Pro)*.
 - **Privacy.** No server, no ads, no analytics, no account. Only weather, news, lyrics and search suggestions
-  (and, with blocking on, a weekly blocklist download) ever leave the phone, and only when you use them. See [PRIVACY.en.md](PRIVACY.en.md).
+  (and, with blocking on, a weekly blocklist download) ever leave the phone, and only when you use them. Two
+  optional permissions do one thing each: precise location only shows the Wi-Fi network's name (the weather
+  keeps to a rounded, approximate position), nearby devices only names the Bluetooth devices connected. See [PRIVACY.en.md](PRIVACY.en.md).
 
 Build with `./gradlew assembleFreeDebug` (flavours `free` and `premium`; minSdk 28). Written in Kotlin,
 all of the UI in Jetpack Compose. **Source-viewing licence:** read, study and build it for yourself;

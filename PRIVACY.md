@@ -1,6 +1,6 @@
 # Z Launcher — Gizlilik Politikası
 
-Son güncelleme: 13 Ekim 2026 · Sürüm 1.1
+Son güncelleme: 16 Ekim 2026 · Sürüm 1.2
 
 ## Kısaca
 
@@ -30,6 +30,8 @@ eder.
 | Bildirimler | Canlı kutucuklardaki bildirim sayıları ve önizlemeler |
 | Yüklü uygulamalar ve kullanım istatistikleri | Uygulama listesi, en çok kullanılanlar |
 | Klavye ile yazdıklarınız | Kelime tahmini ve düzeltme |
+| Hassas konum *(isteğe bağlı)* | Yalnızca ayarlar → bağlantılar'da bağlı olduğunuz Wi-Fi ağının adını göstermek için: Android ağ adını yalnızca bu izni olan uygulamalara verir. Konumunuz bu izinle okunmaz; hava durumu yuvarlanmış, yaklaşık konumu kullanır. Tarayıcıda konum izni verdiğiniz siteler, her tarayıcıda olduğu gibi, konumu hassas olarak alabilir. |
+| Yakındaki cihazlar *(isteğe bağlı)* | Yalnızca ayarlar → bağlantılar'da şu an bağlı Bluetooth cihazlarının adlarını göstermek için. Cihaz aranmaz, eşleştirilmez, bağlanılmaz. |
 
 Klavye hakkında ayrıca: **şifre alanlarında hiçbir şey öğrenilmez**, uygulamanın "bunu
 öğrenme" bayrağı (gizli sekmeler, tek kullanımlık kodlar) dinlenir ve şifre yöneticisinin
@@ -41,7 +43,7 @@ Her biri isteğe bağlıdır ve yalnızca o özelliği kullandığınızda gerç
 kimliğiniz, cihaz numaranız veya reklam kimliğiniz eklenmez.
 
 **Hava durumu — open-meteo.com**
-Yaklaşık konumunuz (enlem/boylam) veya aradığınız şehir adı gönderilir. Hesap gerektirmez,
+Yaklaşık konumunuz (enlem/boylam, yaklaşık bir kilometreye yuvarlanmış) veya aradığınız şehir adı gönderilir. Hesap gerektirmez,
 kimlik taşımaz.
 
 **Şarkı sözleri ve albüm kapakları — lrclib.net, musicbrainz.org, coverartarchive.org,

@@ -1826,6 +1826,16 @@
     <string name="whats_new_v1_line4">Windows 10 Mobile eylem merkezi, tabletlerde Windows 8 başlangıcı</string>
     <string name="whats_new_v1_line5">varsayılan telefon, SMS, tarayıcı, galeri, müzik ve video uygulaması olabiliyor</string>
     <string name="whats_new_v1_line6">sunucu, reklam ve hesap yok; verilerin telefonunda kalıyor</string>
+    <string name="whats_new_v2_title">kişiler, buzlu karolar ve dolu ayarlar</string>
+    <string name="whats_new_v2_line1">kişiler hub\'ı Windows Phone 7\'deki gibi: tek dev başlık altında bir panorama, "yeni neler", "son kullanılanlar" ve harf karoları; uzaktan kayarak gelir</string>
+    <string name="whats_new_v2_line2">saydam karoların arkasındaki duvar kağıdı buzlu cam gibi bulanıklaşabilir; ne kadar, ayarlardan</string>
+    <string name="whats_new_v2_line3">canlı karolar her boyut için yeniden düzenlendi; bildirim sayısı simgenin hemen yanında</string>
+    <string name="whats_new_v2_line4">video oynatıcıda altyazı, ses parçası, hız, ekranı doldurma, sonraki bölüm ve dokunma kilidi; videolar kaldığı yerden sürer</string>
+    <string name="whats_new_v2_line5">mesajlar: resimli mesaj gönderme ve alma, konuşmada arama, teslim raporu seçenekleri; dosyalar: klasörler karo olarak, sürükleyerek taşıma</string>
+    <string name="whats_new_v2_line6">ayarlar: Windows Phone kaydırıcıları; ekran+ses ve bağlantılar telefonun kendi ayarlarıyla dolu; hakkında\'da bu cihazın bilgileri</string>
+    <string name="whats_new_v2_line7">isteğe bağlı iki izin: hassas konum yalnızca Wi-Fi ağının adı için, yakındaki cihazlar yalnızca bağlı Bluetooth cihazları için; neye yaradıkları ayarlarda yazılı, hava durumu yaklaşık konumda kalır</string>
+    <string name="whats_new_v2_line8">eylem merkezi her açılışta "diğer uygulamaların üzerinde gösteriliyor" uyarısını artık getirmiyor</string>
+    <string name="whats_new_v2_line9">düzeltmeler: hub kapanırken karolar her zaman dönerek geliyor, hub\'ın üstündeki sayfalarda duvar kağıdı kaybolmuyor, tarayıcıdaki beyaz şerit gitti</string>
     <string name="onboarding_perm_notifications">bildirimler</string>
     <string name="onboarding_perm_notifications_why">alarmlar, sayaçlar ve hatırlatmalar sana ulaşsın diye</string>
     <string name="onboarding_perm_location">konum</string>
