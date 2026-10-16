@@ -34,8 +34,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.data.model.AccentColor
 import com.serkantkn.zunelauncher.data.model.ThemeMode
+import com.serkantkn.zunelauncher.ui.components.WpSlider
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.toColor
 
@@ -314,14 +313,11 @@ internal fun CustomColorPickerDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                Slider(
+                WpSlider(
                     value = hue,
                     onValueChange = { hue = it },
                     valueRange = 0f..360f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = selectedColor,
-                        activeTrackColor = selectedColor
-                    )
+                    accent = selectedColor
                 )
 
                 Text(
@@ -329,14 +325,11 @@ internal fun CustomColorPickerDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                Slider(
+                WpSlider(
                     value = saturation,
                     onValueChange = { saturation = it },
                     valueRange = 0f..1f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = selectedColor,
-                        activeTrackColor = selectedColor
-                    )
+                    accent = selectedColor
                 )
 
                 Text(
@@ -344,14 +337,11 @@ internal fun CustomColorPickerDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                Slider(
+                WpSlider(
                     value = value,
                     onValueChange = { value = it },
                     valueRange = 0f..1f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = selectedColor,
-                        activeTrackColor = selectedColor
-                    )
+                    accent = selectedColor
                 )
             }
         }

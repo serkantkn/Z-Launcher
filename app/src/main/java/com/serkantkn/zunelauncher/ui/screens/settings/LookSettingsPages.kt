@@ -33,6 +33,7 @@ import com.serkantkn.zunelauncher.data.model.TileInk
 import com.serkantkn.zunelauncher.data.model.TileCornerStyle
 import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import com.serkantkn.zunelauncher.ui.components.WpSlider
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 
@@ -671,16 +672,11 @@ private fun SettingSlider(
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Slider(
+        WpSlider(
             value = sliderValue,
             onValueChange = onValueChange,
             valueRange = valueRange,
-            steps = steps,
-            colors = SliderDefaults.colors(
-                thumbColor = zuneColors.accentColor,
-                activeTrackColor = zuneColors.accentColor,
-                inactiveTrackColor = (if (zuneColors.isDark) Color.White else Color.Black).copy(alpha = 0.2f)
-            )
+            steps = steps
         )
     }
 }

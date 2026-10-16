@@ -52,6 +52,7 @@ import com.serkantkn.zunelauncher.data.datastore.KeyboardDataStore
 import com.serkantkn.zunelauncher.data.model.*
 import com.serkantkn.zunelauncher.data.model.SearchEngine
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
+import com.serkantkn.zunelauncher.ui.components.WpSlider
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.data.model.TileIconStyle
 import androidx.compose.runtime.remember
@@ -679,15 +680,11 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                             color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
-                        Slider(
+                        WpSlider(
                             value = brightness,
                             onValueChange = viewModel::setBrightness,
                             valueRange = 0f..1f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = LocalZuneColors.current.accentColor,
-                                activeTrackColor = LocalZuneColors.current.accentColor,
-                                inactiveTrackColor = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
-                            )
+                            track = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
                         )
                     }
                 }
@@ -757,15 +754,11 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                             color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
-                        Slider(
+                        WpSlider(
                             value = mediaVolume,
                             onValueChange = viewModel::setMediaVolume,
                             valueRange = 0f..1f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = LocalZuneColors.current.accentColor,
-                                activeTrackColor = LocalZuneColors.current.accentColor,
-                                inactiveTrackColor = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
-                            )
+                            track = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -778,15 +771,11 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                             color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
-                        Slider(
+                        WpSlider(
                             value = ringVolume,
                             onValueChange = viewModel::setRingVolume,
                             valueRange = 0f..1f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = LocalZuneColors.current.accentColor,
-                                activeTrackColor = LocalZuneColors.current.accentColor,
-                                inactiveTrackColor = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
-                            )
+                            track = LocalZuneColors.current.textDim.copy(alpha = 0.28f)
                         )
                     }
                 }

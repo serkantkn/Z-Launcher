@@ -723,16 +723,16 @@ private fun BrightnessRow(tick: Int, ink: Color, onAskPermission: () -> Unit) {
     ) {
         Icon(painterResource(R.drawable.ic_wp_sun), contentDescription = null, tint = ink.copy(alpha = 0.8f), modifier = Modifier.size(20.dp))
         if (canWrite) {
-            WpThinSlider(
+            WpSlider(
                 value = value,
                 accent = zuneColors.accentColor,
                 track = ink.copy(alpha = 0.2f),
-                onChange = {
+                onValueChange = {
                     dragging = true
                     value = it
                     QuickActions.setBrightness(context, it)
                 },
-                onFinished = { dragging = false },
+                onValueChangeFinished = { dragging = false },
                 modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
             )
             Text(
@@ -756,50 +756,6 @@ private fun BrightnessRow(tick: Int, ink: Color, onAskPermission: () -> Unit) {
                     .padding(start = 10.dp, top = 12.dp, bottom = 12.dp)
                     .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onAskPermission() }
             )
-        }
-    }
-}
-
-/**
- * Windows Phone's slider: a thin line, filled in the accent up to the value, with a narrow
- * upright block for a thumb. A tap jumps there; a drag follows the finger.
- */
-@Composable
-private fun WpThinSlider(
-    value: Float,
-    accent: Color,
-    track: Color,
-    onChange: (Float) -> Unit,
-    onFinished: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var width by remember { mutableIntStateOf(1) }
-    Box(
-        modifier = modifier
-            .height(32.dp)
-            .onSizeChanged { width = it.width.coerceAtLeast(1) }
-            .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    onChange((offset.x / width).coerceIn(0f, 1f))
-                    onFinished()
-                }
-            }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragEnd = onFinished,
-                    onDragCancel = onFinished
-                ) { change, _ ->
-                    change.consume()
-                    onChange((change.position.x / width).coerceIn(0f, 1f))
-                }
-            },
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(track))
-        Box(modifier = Modifier.fillMaxWidth(value.coerceIn(0f, 1f)).height(4.dp).background(accent))
-        androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val thumbX = (maxWidth - 10.dp) * value.coerceIn(0f, 1f)
-            Box(modifier = Modifier.offset(x = thumbX).size(width = 10.dp, height = 24.dp).background(accent))
         }
     }
 }

@@ -27,8 +27,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,6 +59,7 @@ import com.serkantkn.zunelauncher.ui.screens.settings.SettingGroup
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingPill
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingRowContent
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingSwitchRow
+import com.serkantkn.zunelauncher.ui.components.WpSlider
 import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.ui.theme.ZuneDimens
 import com.serkantkn.zunelauncher.ui.theme.toColor
@@ -542,18 +541,11 @@ private fun LookSlider(
             Text(text = label, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
             Text(text = value, style = MaterialTheme.typography.titleMedium, color = zuneColors.accentColor)
         }
-        Slider(
+        WpSlider(
             value = sliderValue,
             onValueChange = onValueChange,
             valueRange = valueRange,
-            steps = steps,
-            colors = SliderDefaults.colors(
-                thumbColor = zuneColors.accentColor,
-                activeTrackColor = zuneColors.accentColor,
-                inactiveTrackColor = (if (zuneColors.isDark) Color.White else Color.Black).copy(alpha = 0.2f),
-                activeTickColor = Color.White.copy(alpha = 0.5f),
-                inactiveTickColor = zuneColors.textMuted.copy(alpha = 0.5f)
-            )
+            steps = steps
         )
     }
 }
