@@ -40,6 +40,9 @@
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Only for the name of the Wi-Fi network on the connections page: Android gives it to no
+         app without precise location. The weather keeps to a rounded, approximate position. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
@@ -70,6 +73,9 @@
     <!-- The action center: Wi-Fi and Bluetooth state for its squares, brightness and rotation lock. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <!-- Only for the names of the Bluetooth devices connected now, on the connections page; the
+         launcher never scans, pairs or connects. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
 
     <!-- Camera hub, and the keyboard's dictation -->

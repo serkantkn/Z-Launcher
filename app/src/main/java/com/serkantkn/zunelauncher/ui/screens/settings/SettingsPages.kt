@@ -1189,6 +1189,16 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
     val hasLocation = remember(permissionTrigger) {
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }
+    val hasWifiName = remember(permissionTrigger) { com.serkantkn.zunelauncher.util.Connections.mayReadWifiName(context) }
+    val hasBluetoothDevices = remember(permissionTrigger) {
+        com.serkantkn.zunelauncher.util.Connections.mayReadBluetoothDevices(context)
+    }
+    val askWifiName = rememberPermissionAsk(
+        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+    ) { permissionTrigger++ }
+    val askBluetoothDevices = rememberPermissionAsk(
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) arrayOf(Manifest.permission.BLUETOOTH_CONNECT) else emptyArray()
+    ) { permissionTrigger++ }
     val hasNotifications = remember(permissionTrigger) {
         NotificationManagerCompat.from(context).areNotificationsEnabled() &&
             (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
@@ -1382,6 +1392,22 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
                             }
                         }
                     )
+
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_perm_wifi_name),
+                        subtitle = stringResource(R.string.settings_perm_wifi_name_short),
+                        checked = hasWifiName,
+                        onCheckedChange = { if (hasWifiName) openAppSettings(context) else askWifiName() }
+                    )
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        SettingSwitchRow(
+                            title = stringResource(R.string.settings_perm_bt_devices),
+                            subtitle = stringResource(R.string.settings_perm_bt_devices_short),
+                            checked = hasBluetoothDevices,
+                            onCheckedChange = { if (hasBluetoothDevices) openAppSettings(context) else askBluetoothDevices() }
+                        )
+                    }
 
                     SettingSwitchRow(
                         title = stringResource(R.string.settings_perm_notifications),

@@ -1,6 +1,9 @@
 package com.serkantkn.zunelauncher.util
 
+import android.Manifest
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -8,11 +11,16 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.nfc.NfcAdapter
 import android.os.Build
 import android.provider.Settings
 import android.telephony.TelephonyManager
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 
 /**
  * What the phone's connections are doing, for the "connections" page: Wi-Fi, Bluetooth, the
@@ -26,7 +34,11 @@ object Connections {
     data class State(
         val wifiOn: Boolean = false,
         val wifiConnected: Boolean = false,
+        /** The network's name; null without precise location, or with location off. */
+        val wifiName: String? = null,
         val bluetoothOn: Boolean = false,
+        /** The devices connected now; null without the nearby devices permission. */
+        val bluetoothDevices: List<String>? = null,
         val hasTelephony: Boolean = false,
         val simPresent: Boolean = false,
         val mobileDataOn: Boolean = false,
@@ -55,6 +67,7 @@ object Connections {
         return State(
             wifiOn = runCatching { app.getSystemService(WifiManager::class.java)?.isWifiEnabled == true }.getOrDefault(false),
             wifiConnected = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true,
+            wifiName = if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) wifiName(app) else null,
             bluetoothOn = runCatching { app.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled == true }.getOrDefault(false),
             hasTelephony = telephony,
             simPresent = telephony && runCatching {
@@ -78,6 +91,82 @@ object Connections {
             hasPrivateDnsPage = runCatching { Intent(PRIVATE_DNS_SETTINGS).resolveActivity(pm) != null }.getOrDefault(false)
         )
     }
+
+    /** Whether Android will tell the launcher the Wi-Fi network's name. */
+    fun mayReadWifiName(context: Context): Boolean = granted(context, Manifest.permission.ACCESS_FINE_LOCATION)
+
+    /** Whether Android will tell the launcher which Bluetooth devices are connected. */
+    fun mayReadBluetoothDevices(context: Context): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || granted(context, Manifest.permission.BLUETOOTH_CONNECT)
+
+    private fun granted(context: Context, permission: String) =
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+    /** The network's name without its quotes; null when Android keeps it back. */
+    @Suppress("DEPRECATION")
+    private fun wifiName(context: Context): String? {
+        if (!mayReadWifiName(context)) return null
+        val info = runCatching { context.getSystemService(WifiManager::class.java)?.connectionInfo }.getOrNull()
+        return cleanSsid(info?.ssid)
+    }
+
+    /** "\"Home\"" is Home; Android's placeholder for a name it keeps back is no name. */
+    fun cleanSsid(raw: String?): String? {
+        val name = raw?.trim()?.removeSurrounding("\"") ?: return null
+        return name.takeIf { it.isNotEmpty() && it != WifiManager.UNKNOWN_SSID && it != "<unknown ssid>" && it != "0x" }
+    }
+
+    /** The name in a Wi-Fi network's details, which carry it from Android 10 on when asked for. */
+    fun ssidOf(caps: NetworkCapabilities): String? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) cleanSsid((caps.transportInfo as? WifiInfo)?.ssid) else null
+
+    /**
+     * The Bluetooth devices connected now - headphones, a car, a watch - by name, read from each
+     * kind of connection Android keeps. Null without the nearby devices permission or with
+     * Bluetooth off.
+     */
+    suspend fun bluetoothDevices(context: Context): List<String>? {
+        if (!mayReadBluetoothDevices(context)) return null
+        val app = context.applicationContext
+        val manager = app.getSystemService(BluetoothManager::class.java) ?: return null
+        val adapter = manager.adapter?.takeIf { runCatching { it.isEnabled }.getOrDefault(false) } ?: return null
+        val devices = mutableMapOf<String, BluetoothDevice>()
+        runCatching { manager.getConnectedDevices(BluetoothProfile.GATT) }.getOrNull()?.forEach { devices[it.address] = it }
+        for (profile in AUDIO_PROFILES) {
+            val connected = withTimeoutOrNull(PROFILE_WAIT_MS) {
+                suspendCancellableCoroutine<List<BluetoothDevice>> { done ->
+                    val asked = runCatching {
+                        adapter.getProfileProxy(app, object : BluetoothProfile.ServiceListener {
+                            override fun onServiceConnected(kind: Int, proxy: BluetoothProfile) {
+                                val list = runCatching { proxy.connectedDevices }.getOrDefault(emptyList())
+                                runCatching { adapter.closeProfileProxy(kind, proxy) }
+                                if (done.isActive) done.resume(list)
+                            }
+                            override fun onServiceDisconnected(kind: Int) {
+                                if (done.isActive) done.resume(emptyList())
+                            }
+                        }, profile)
+                    }.getOrDefault(false)
+                    if (!asked && done.isActive) done.resume(emptyList())
+                }
+            }
+            connected?.forEach { devices[it.address] = it }
+        }
+        return devices.values
+            .mapNotNull { device -> runCatching { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) device.alias ?: device.name else device.name }.getOrNull()?.takeIf { it.isNotBlank() } }
+            .distinct()
+            .sorted()
+    }
+
+    /** Headsets and speakers, hands-free (a car), hearing aids and LE audio. */
+    private val AUDIO_PROFILES = buildList {
+        add(BluetoothProfile.A2DP)
+        add(BluetoothProfile.HEADSET)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) add(BluetoothProfile.HEARING_AID)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(BluetoothProfile.LE_AUDIO)
+    }
+
+    private const val PROFILE_WAIT_MS = 1_500L
 
     /** The places the page opens, each with somewhere to fall back to. */
     enum class Page { WIFI, BLUETOOTH, MOBILE, ROAMING, DATA_USAGE, HOTSPOT, AIRPLANE, LOCATION, NFC, VPN, CAST, PRIVATE_DNS, MORE }

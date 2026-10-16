@@ -165,10 +165,14 @@ class WeatherRepository(
      *
      * Only the last position each provider remembers is read — a launcher has no business turning
      * on the GPS — so this returns null on a phone that has not had a fix in a while.
+     *
+     * The position is rounded to about a kilometre first. The weather needs no more, and the
+     * precise location the connections page may hold (for the Wi-Fi network's name) is not to
+     * make the weather any more exact than the approximate location it was given for.
      */
     suspend fun herePlace(): WeatherPlace? = withContext(Dispatchers.IO) {
         if (!hasLocationPermission()) throw WeatherException(R.string.weather_error_no_location_permission)
-        val newest = lastKnownLocation() ?: return@withContext null
+        val newest = lastKnownLocation()?.let(::approximate) ?: return@withContext null
 
         WeatherPlace(
             id = WeatherPlace.HERE_ID,
@@ -194,6 +198,12 @@ class WeatherRepository(
         }
     }
 
+    /** [location] to two decimal places: within a kilometre or so, as approximate location is. */
+    private fun approximate(location: Location): Location = Location(location).apply {
+        latitude = roundToApproximate(location.latitude)
+        longitude = roundToApproximate(location.longitude)
+    }
+
     @Suppress("DEPRECATION")
     private fun nameOf(location: Location): String? = try {
         Geocoder(context, Locale.getDefault())
@@ -214,3 +224,6 @@ class WeatherRepository(
         const val JUST_FETCHED_MS = 15_000L
     }
 }
+
+/** A coordinate to two decimal places, about a kilometre: what approximate location gives. */
+internal fun roundToApproximate(degrees: Double): Double = kotlin.math.round(degrees * 100.0) / 100.0
