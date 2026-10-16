@@ -28,7 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -183,7 +183,9 @@ fun ZuneHub(
             // Shown once Start is nearly away and the hub has its pages (not a spinner, not a
             // question about permissions). The pages have been laid out unseen meanwhile.
             snapshotFlow { arrival() >= GLIDE_REVEAL_AT && showingPages }.first { it }
-            reveal.animateTo(1f, tween(GLIDE_FADE_MILLIS, easing = LinearEasing))
+            // Slow to start, so the first frames shown are still turned well away, then flattening
+            // fast - as the phone's tiles were deep in their first frame and flat by the third.
+            reveal.animateTo(1f, tween(GLIDE_FADE_MILLIS, easing = FastOutSlowInEasing))
             if (wide) {
                 // A tablet shows one heading's page at a time: no panorama to glide round, and
                 // gliding there would pass through every page between - a search page opens its
@@ -580,8 +582,8 @@ internal const val GLIDE_MILLIS = 800
 private const val WIDE_GLIDE_HOLD_MILLIS = 700L
 /** How far in the hub has come when its pages are shown: Start has been gone a little while. */
 private const val GLIDE_REVEAL_AT = 0.93f
-/** The pages' fade, about three frames of the phone's thirty. */
-private const val GLIDE_FADE_MILLIS = 90
+/** The pages' arrival - turning flat as they show - in about five frames of the phone's thirty. */
+private const val GLIDE_FADE_MILLIS = 160
 /** How long the pages stand before they glide: a frame or two of the phone's. */
 private const val GLIDE_HOLD_MILLIS = 50L
 internal val GlideEasing = androidx.compose.animation.core.CubicBezierEasing(0.33f, 1f, 0.68f, 1f)

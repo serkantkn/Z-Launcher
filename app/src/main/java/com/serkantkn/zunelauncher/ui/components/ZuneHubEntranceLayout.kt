@@ -144,7 +144,7 @@ fun ZuneHubEntranceLayout(
                 // Hinged on the screen-left edge, same axis as the Start turnstile
                 transformOrigin = TransformOrigin(0f, 0.5f)
                 cameraDistance = 32f * density.density
-                alpha = (p * 3f).coerceIn(0f, 1f) * (if (swingIn) 1f else fadeIn())
+                alpha = (p * 3f).coerceIn(0f, 1f) * (if (swingIn) 1f else (fadeIn() * 8f).coerceAtMost(1f))
 
                 // Force GPU RenderNode Offscreen compositing during active entrance for 120Hz liquid smoothness
                 if (offscreenCompositing) {
@@ -156,6 +156,38 @@ fun ZuneHubEntranceLayout(
             translationY = state.bottomBarSlideAnim.value * bottomBarOffsetPx
             alpha = 1f - state.bottomBarSlideAnim.value
         }
-        content(bottomBarModifier)
+        if (swingIn) {
+            content(bottomBarModifier)
+        } else {
+            // A hub that does not swing in still turns in: hinged on the left edge, its right
+            // side far away and coming round flat as it shows - the depth Windows Phone 7 gave
+            // the people hub's tiles as they arrived. Its own layer, with the camera close: the
+            // swing's camera is far enough off that a turn under it reads as a squeeze, not depth.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        rotationY = ARRIVAL_TURN_DEGREES * (1f - fadeIn())
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = ARRIVAL_CAMERA_DISTANCE
+                    }
+            ) {
+                content(bottomBarModifier)
+            }
+        }
     }
 }
+
+/**
+ * How far round a hub that does not swing in starts, its right side away: read off a Windows
+ * Phone 7 people hub, whose right-hand tiles were two thirds the width of its left-hand ones a
+ * frame after they appeared.
+ */
+internal const val ARRIVAL_TURN_DEGREES = 60f
+
+/**
+ * The camera for that turn, in Compose's own unit (it is multiplied by the screen's dpi): close
+ * enough that the far side shrinks into the distance - in the first frame shown the third column
+ * of tiles two thirds the width of the first, as on the phone - without the near side ballooning.
+ */
+private const val ARRIVAL_CAMERA_DISTANCE = 26f
