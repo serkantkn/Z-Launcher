@@ -189,7 +189,7 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
         }.getOrDefault(emptyList()).forEach { conversation ->
             touches += ContactTouch(conversation.address, conversation.timestamp)
         }
-        recentContacts(contacts, numbersByContact, touches)
+        recentContacts(contacts, numbersByContact, touches, viewed = viewedContacts.all())
     } catch (e: Exception) {
         ZuneLog.w("PeopleHubViewModel", "could not work out who was in touch", e)
         emptyList()
@@ -258,7 +258,14 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _selectedContactDetail.value = contactRepository.getDetail(contact)
         }
+        // Looking somebody up is being in touch with them, as far as "recent" goes.
+        viewedContacts.remember(contact.id)
+        viewModelScope.launch {
+            _recentContacts.value = loadRecent(_allContacts.value)
+        }
     }
+
+    private val viewedContacts = ViewedContacts(application)
 
     fun createContact(
         firstName: String,
@@ -458,3 +465,23 @@ internal fun newsFromPeople(messages: List<SocialMessageModel>, contacts: List<C
 
 internal fun personKey(name: String): String =
     name.trim().replace(Regex("\\s+"), " ").lowercase(Locale.ROOT)
+
+/** The people opened in the hub lately, kept for "recent": the last [KEEP], by when. */
+internal class ViewedContacts(context: android.content.Context) {
+    private val prefs = context.getSharedPreferences("people_viewed", android.content.Context.MODE_PRIVATE)
+
+    fun all(): Map<String, Long> = prefs.all.mapNotNull { (id, at) -> (at as? Long)?.let { id to it } }.toMap()
+
+    fun remember(contactId: String, at: Long = System.currentTimeMillis()) {
+        val editor = prefs.edit().putLong(contactId, at)
+        val kept = all() + (contactId to at)
+        if (kept.size > KEEP) {
+            kept.entries.sortedBy { it.value }.take(kept.size - KEEP).forEach { editor.remove(it.key) }
+        }
+        editor.apply()
+    }
+
+    private companion object {
+        const val KEEP = 30
+    }
+}

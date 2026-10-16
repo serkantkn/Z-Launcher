@@ -4,6 +4,8 @@ import com.serkantkn.zunelauncher.data.model.ContactModel
 import com.serkantkn.zunelauncher.data.model.SocialMessageModel
 import com.serkantkn.zunelauncher.ui.components.forwardStepsToFirst
 import com.serkantkn.zunelauncher.ui.screens.people.newsFromPeople
+import com.serkantkn.zunelauncher.util.ContactTouch
+import com.serkantkn.zunelauncher.util.recentContacts
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -38,5 +40,24 @@ class PeoplePanoramaTest {
         val news = newsFromPeople(messages, contacts)
         assertEquals(listOf("c", "a"), news.map { it.message.id })
         assertEquals(listOf("Annem", "Ayşe Demir"), news.map { it.contact.name })
+    }
+
+    @Test
+    fun someoneLookedAtIsRecentToo() {
+        val contacts = listOf(person("1", "Annem"), person("2", "Babam"), person("3", "Can"))
+        val numbers = mapOf("1" to listOf("05321112233"))
+        val recent = recentContacts(
+            contacts, numbers,
+            touches = listOf(ContactTouch("+90 532 111 22 33", at = 100)),
+            viewed = mapOf("3" to 300L, "1" to 50L)
+        )
+        // Can was looked at last; Annem's call is later than her being looked at.
+        assertEquals(listOf("Can", "Annem"), recent.map { it.name })
+    }
+
+    @Test
+    fun withNobodyCalledTheOnesLookedAtStillShow() {
+        val contacts = listOf(person("1", "Annem"), person("2", "Babam"))
+        assertEquals(listOf("Babam"), recentContacts(contacts, emptyMap(), emptyList(), viewed = mapOf("2" to 5L)).map { it.name })
     }
 }

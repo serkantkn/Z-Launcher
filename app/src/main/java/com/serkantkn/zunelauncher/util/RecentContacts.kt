@@ -17,9 +17,11 @@ internal fun recentContacts(
     contacts: List<ContactModel>,
     numbersByContact: Map<String, List<String>>,
     touches: List<ContactTouch>,
-    limit: Int = 20
+    limit: Int = 20,
+    /** Whoever was looked at in the hub, and when: Windows Phone's "recent" counted them too. */
+    viewed: Map<String, Long> = emptyMap()
 ): List<ContactModel> {
-    if (contacts.isEmpty() || touches.isEmpty()) return emptyList()
+    if (contacts.isEmpty() || (touches.isEmpty() && viewed.isEmpty())) return emptyList()
 
     // One lookup from "a number as anyone might write it" to the person who owns it.
     val ownerOfNumber = HashMap<String, String>()
@@ -30,7 +32,7 @@ internal fun recentContacts(
         }
     }
 
-    val lastTouch = HashMap<String, Long>()
+    val lastTouch = HashMap<String, Long>(viewed)
     touches.forEach { touch ->
         val contactId = ownerOfNumber[PhoneNumbers.matchKey(touch.number)] ?: return@forEach
         val known = lastTouch[contactId]

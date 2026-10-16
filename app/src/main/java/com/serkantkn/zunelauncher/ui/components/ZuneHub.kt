@@ -36,11 +36,13 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -169,7 +171,9 @@ fun ZuneHub(
 ) {
     val animationsOn = LocalAnimationsEnabled.current
     val gliding = glideFrom != null && animationsOn
-    val arrival = LocalHubArrival.current
+    // Read afresh while waiting: a hub kept running is first composed out of sight, where it
+    // counts as in, and only then moved to where it is opened.
+    val arrival by rememberUpdatedState(LocalHubArrival.current)
     val wide = LocalIsWideScreen.current
     val showingPages by rememberUpdatedState(takeover == null)
     // How much of a gliding hub's pages show: none while Start turns away - its ground alone, as
@@ -185,8 +189,9 @@ fun ZuneHub(
             snapshotFlow { arrival() >= GLIDE_REVEAL_AT && showingPages }.first { it }
             // Slow to start, so the first frames shown are still turned well away, then flattening
             // fast - as the phone's tiles were deep in their first frame and flat by the third.
-            reveal.animateTo(1f, tween(GLIDE_FADE_MILLIS, easing = FastOutSlowInEasing))
+            val arriving = launch { reveal.animateTo(1f, tween(GLIDE_FADE_MILLIS, easing = FastOutSlowInEasing)) }
             if (wide) {
+                arriving.join()
                 // A tablet shows one heading's page at a time: no panorama to glide round, and
                 // gliding there would pass through every page between - a search page opens its
                 // keyboard on the way. It holds on the page a moment and then turns to the first,
@@ -195,9 +200,10 @@ fun ZuneHub(
                 pager.scrollToPage(0)
                 return@LaunchedEffect
             }
-            // Seen standing for a frame or two, then carried on to the first: forward, the short
-            // way round, as one swipe would.
-            delay(GLIDE_HOLD_MILLIS)
+            // Carried on to the first - forward, the short way round, as one swipe would - as
+            // soon as the pages have nearly come flat: on the phone they stood still for no more
+            // than a frame or two.
+            snapshotFlow { reveal.value >= GLIDE_FROM_ARRIVAL }.first { it }
             val target = pager.pagerState.currentPage + forwardStepsToFirst(glideFrom, pager.pageCount, pager.isLooping)
             pager.pagerState.animateScrollToPage(
                 page = target,
@@ -496,6 +502,9 @@ private fun PanoramaTitle(title: String, pager: ZuneLoopingPagerState) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            // The name's next copy waits beyond the right edge for going round; kept out of sight
+            // there even when the hub is turned in and the edge comes into view.
+            .clipToBounds()
             .padding(top = 28.dp, start = ZuneDimens.ScreenPaddingHorizontal)
             // Lifted into the top and cut by it, as a panorama's name was - and the room it rises
             // out of given back, so the sections' headings sit right under it.
@@ -580,10 +589,17 @@ private val PANORAMA_TITLE_LIFT = (-24).dp
 internal const val GLIDE_MILLIS = 800
 /** How long a tablet shows the page it opens on before it turns to the first. */
 private const val WIDE_GLIDE_HOLD_MILLIS = 700L
-/** How far in the hub has come when its pages are shown: Start has been gone a little while. */
-private const val GLIDE_REVEAL_AT = 0.93f
-/** The pages' arrival - turning flat as they show - in about five frames of the phone's thirty. */
-private const val GLIDE_FADE_MILLIS = 160
-/** How long the pages stand before they glide: a frame or two of the phone's. */
-private const val GLIDE_HOLD_MILLIS = 50L
+/**
+ * How far in the hub has come when its pages are shown: Start gone and the hub's ground left bare
+ * for about a quarter of a second, as the phone's screen was, and the ground itself already at
+ * full strength, so the pages turn in solid.
+ */
+private const val GLIDE_REVEAL_AT = 0.96f
+/**
+ * The pages' arrival, turning flat as they show. Longer than the two or three frames the phone
+ * filmed at thirty a second, so that at sixty or a hundred and twenty the turn is seen.
+ */
+private const val GLIDE_FADE_MILLIS = 200
+/** How far the pages have turned flat when the glide sets off. */
+private const val GLIDE_FROM_ARRIVAL = 0.75f
 internal val GlideEasing = androidx.compose.animation.core.CubicBezierEasing(0.33f, 1f, 0.68f, 1f)

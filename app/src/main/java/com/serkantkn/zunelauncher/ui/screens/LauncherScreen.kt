@@ -945,7 +945,7 @@ fun LauncherScreen(
                                     // shows itself flat once Start has turned away, and then glides
                                     // round its sections on its own.
                                     if (isHubHingeOpening && visibleHub == HubType.PEOPLE) {
-                                        alpha = ((progress - PEOPLE_SHOW_FROM) / (1f - PEOPLE_SHOW_FROM)).coerceIn(0f, 1f)
+                                        alpha = ((progress - PEOPLE_SHOW_FROM) / PEOPLE_SHOW_OVER).coerceIn(0f, 1f)
                                         return@graphicsLayer
                                     }
                                     // Opening: -90° (outside, in front) -> 0°. Closing: 0° -> +90° (into the depth).
@@ -1237,5 +1237,7 @@ private fun StartShade(pagerState: androidx.compose.foundation.pager.PagerState,
     )
 }
 
-/** How far Start has turned away before the people hub shows itself, as a share of the hinge. */
+/** How far Start has turned away before the people hub's ground shows, as a share of the hinge. */
 private const val PEOPLE_SHOW_FROM = 0.55f
+/** Over how much more of the hinge the ground comes up to full: done before its pages turn in. */
+private const val PEOPLE_SHOW_OVER = 0.3f
