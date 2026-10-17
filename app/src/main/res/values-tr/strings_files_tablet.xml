@@ -2,7 +2,6 @@
 <resources>
     <string name="files_pane_device">bu cihaz</string>
     <string name="files_pane_libraries">kitaplıklar</string>
-    <string name="files_pane_add_account">hesap ekle</string>
     <string name="files_free_of">%1$s boş · %2$s</string>
     <string name="files_col_name">ad</string>
     <string name="files_col_modified">değiştirme tarihi</string>
@@ -18,13 +17,11 @@
     <string name="files_path_menu">üst klasörler</string>
     <string name="files_view_thumbnails">küçük resimler görünümü</string>
     <string name="files_view_list">liste görünümü</string>
-    <string name="files_bar_upload_cloud">buluta yükle</string>
     <string name="files_bar_select_all">tümünü seç</string>
     <string name="files_bar_clear_selection">seçimi kaldır</string>
     <string name="files_bar_view">görünüm</string>
     <string name="files_bar_hidden">gizli öğeler</string>
     <string name="files_bar_volumes">depolama</string>
-    <string name="files_bar_close_drive">sürücüden çık</string>
     <string name="files_bar_upload">yükle</string>
     <string name="files_bar_clear_clipboard">panoyu boşalt</string>
     <string name="files_view_thumbs_short">küçük resimler</string>
@@ -57,11 +54,4 @@
         <item quantity="other">tümü için uygula (%d daha)</item>
     </plurals>
     <string name="cloud_error_web_only">bu Google dosyası yalnızca webde açılabilir</string>
-    <string name="files_cloud_delete_title">sürücüden sil</string>
-    <string name="files_cloud_delete_confirm">"%1$s" Drive\'ın çöp kutusuna taşınacak; orada 30 gün bekler.</string>
-    <string name="files_cloud_open_web">webde aç</string>
-    <string name="files_cloud_save_short">cihaza kaydet</string>
-    <string name="files_cloud_kind_folder">klasör</string>
-    <string name="files_cloud_kind_google">Google dosyası</string>
-    <string name="files_cloud_none">henüz bir hesap yok. Soldaki "hesap ekle" ile Google Drive\'ı bağla.</string>
 </resources>

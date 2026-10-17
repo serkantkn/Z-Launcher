@@ -1,6 +1,6 @@
 # Z Launcher — Gizlilik Politikası
 
-Son güncelleme: 16 Ekim 2026 · Sürüm 1.2
+Son güncelleme: 17 Ekim 2026 · Sürüm 1.3
 
 ## Kısaca
 
@@ -59,9 +59,11 @@ kapatılabilir; kapalıyken hiçbir şey gitmez.
 Girdiğiniz IMAP/SMTP sunucusuna doğrudan bağlanılır. Aradan geçen kimse yok; bizim
 sunucumuz da yok.
 
-**Google Drive — googleapis.com**
-Yalnızca Dosyalar hub'ında bir Drive hesabı bağlarsanız. Yetkilendirme Google'ın kendi
-ekranıyla yapılır; jeton telefonda şifreli olarak saklanır.
+**Bulut dosyaları — uygulama kendisi bağlanmaz**
+Dosyalar hub'ında buluttan bir dosya açtığınızda ya da buluta kaydettiğinizde Android'in kendi
+dosya seçicisi kullanılır; dosyayı telefonunuzdaki bulut uygulaması (Google Drive, OneDrive,
+Dropbox…) getirir ya da götürür. Uygulama hiçbir bulut hesabına bağlanmaz, oturum açmaz ve
+hesap bilgisi tutmaz.
 
 **Haberler — news.google.com ve takip ettiğiniz siteler**
 Yalnızca haberler hub'ı açıldığında ya da haber karosu başlangıç ekranındayken. Google Haberler'den telefonun dili ve ülkesine göre seçtiğiniz konuların akışı, takip ettiğiniz sitelerin RSS akışları ise doğrudan o sitelerden alınır. Bir haberi açtığınızda resmi ve özeti haberin kendi sayfasından istenebilir. Konum ya da kimlik gönderilmez.

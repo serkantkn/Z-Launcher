@@ -10,7 +10,6 @@ datastorePreferences = "1.2.1"
 coil = "2.7.0"
 richeditor = "1.1.0"
 androidMail = "1.6.7"
-playServicesAuth = "21.3.0"
 billing = "8.3.0"
 palette = "1.0.0"
 media3 = "1.10.1"
@@ -73,7 +72,6 @@ android-mail = { group = "com.sun.mail", name = "android-mail", version.ref = "a
 android-activation = { group = "com.sun.mail", name = "android-activation", version.ref = "androidMail" }
 
 # Google sign-in / OAuth authorization for Gmail (XOAUTH2)
-play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
 
 # Testing

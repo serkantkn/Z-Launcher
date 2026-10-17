@@ -7,7 +7,6 @@ import com.serkantkn.zunelauncher.data.datastore.BrowsingDataStore
 import com.serkantkn.zunelauncher.data.datastore.CalculatorDataStore
 import com.serkantkn.zunelauncher.data.datastore.CalendarDataStore
 import com.serkantkn.zunelauncher.data.datastore.ClockDataStore
-import com.serkantkn.zunelauncher.data.datastore.CloudDataStore
 import com.serkantkn.zunelauncher.data.datastore.EmailDataStore
 import com.serkantkn.zunelauncher.data.datastore.FavoritePhotosDataStore
 import com.serkantkn.zunelauncher.data.datastore.KeyboardDataStore
@@ -20,8 +19,6 @@ import com.serkantkn.zunelauncher.data.repository.AppRepository
 import com.serkantkn.zunelauncher.data.repository.IconPackRepository
 import com.serkantkn.zunelauncher.data.repository.CalendarRepository
 import com.serkantkn.zunelauncher.data.repository.CallLogRepository
-import com.serkantkn.zunelauncher.data.repository.CloudAuthRepository
-import com.serkantkn.zunelauncher.data.repository.CloudStorageRepository
 import com.serkantkn.zunelauncher.data.repository.ContactRepository
 import com.serkantkn.zunelauncher.data.repository.EmailCache
 import com.serkantkn.zunelauncher.data.repository.EmailRepository
@@ -56,7 +53,6 @@ class AppContainer(private val appContext: Context) {
     val notesDataStore: NotesDataStore by lazy { NotesDataStore(appContext) }
     val emailDataStore: EmailDataStore by lazy { EmailDataStore(appContext) }
     val calculatorDataStore: CalculatorDataStore by lazy { CalculatorDataStore(appContext) }
-    val cloudDataStore: CloudDataStore by lazy { CloudDataStore(appContext) }
     val keyboardDataStore: KeyboardDataStore by lazy { KeyboardDataStore(appContext) }
     val weatherDataStore: WeatherDataStore by lazy { WeatherDataStore(appContext) }
     val cameraDataStore: CameraDataStore by lazy { CameraDataStore(appContext) }
@@ -75,10 +71,6 @@ class AppContainer(private val appContext: Context) {
     }
     val mediaRepository: MediaRepository by lazy { MediaRepository(appContext) }
     val contactRepository: ContactRepository by lazy { ContactRepository(appContext) }
-    val cloudAuthRepository: CloudAuthRepository by lazy { CloudAuthRepository(appContext, secretStore) }
-    val cloudStorageRepository: CloudStorageRepository by lazy {
-        CloudStorageRepository(appContext, cloudDataStore, cloudAuthRepository)
-    }
     val callLogRepository: CallLogRepository by lazy { CallLogRepository(appContext) }
     val calendarRepository: CalendarRepository by lazy { CalendarRepository(appContext) }
     val weatherRepository: WeatherRepository by lazy { WeatherRepository(appContext, weatherDataStore) }

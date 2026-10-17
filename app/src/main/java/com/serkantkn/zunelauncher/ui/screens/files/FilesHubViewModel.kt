@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.SystemClock
@@ -13,16 +14,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.data.model.CloudAccount
-import com.serkantkn.zunelauncher.data.model.CloudCrumb
-import com.serkantkn.zunelauncher.data.model.CloudException
-import com.serkantkn.zunelauncher.data.model.CloudItem
-import com.serkantkn.zunelauncher.data.model.CloudQuota
-import com.serkantkn.zunelauncher.data.model.CloudTransfer
 import com.serkantkn.zunelauncher.data.model.FileItemModel
+import com.serkantkn.zunelauncher.data.model.FileTransfer
 import com.serkantkn.zunelauncher.data.model.StorageVolumeInfo
+import com.serkantkn.zunelauncher.data.repository.CloudDocument
+import com.serkantkn.zunelauncher.data.repository.CloudDocuments
 import com.serkantkn.zunelauncher.data.repository.RecycleBin
 import com.serkantkn.zunelauncher.data.repository.RecycleBinEntry
 import com.serkantkn.zunelauncher.di.appContainer
@@ -36,9 +33,7 @@ import com.serkantkn.zunelauncher.util.isAlreadyThere
 import com.serkantkn.zunelauncher.util.isInsideItself
 import com.serkantkn.zunelauncher.util.localizedString
 import com.serkantkn.zunelauncher.util.matchesFileQuery
-import com.serkantkn.zunelauncher.util.sanitizeFileName
 import com.serkantkn.zunelauncher.util.sortFiles
-import com.serkantkn.zunelauncher.util.toUserMessage
 import com.serkantkn.zunelauncher.util.uniqueFileName
 import com.serkantkn.zunelauncher.util.ConflictChoice
 import com.serkantkn.zunelauncher.util.ConflictPlan
@@ -74,7 +69,6 @@ import java.io.File
 class FilesHubViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settings = application.appContainer.settingsDataStore
-    private val cloudRepository = application.appContainer.cloudStorageRepository
 
     // ── Where the files are ─────────────────────────────────────────────────
 
@@ -1132,419 +1126,238 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
         paste(destination)
     }
 
-    // ── Cloud storage ───────────────────────────────────────────────────────
+    // ── The cloud, through the phone's own picker ───────────────────────────
 
-    val cloudAccounts: StateFlow<List<CloudAccount>> = cloudRepository.accounts
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // The hub no longer signs in to anything. Android's document picker shows whatever cloud apps
+    // the phone has, and the hub keeps a short list of what was opened through it (CloudDocuments).
+    // Saving the other way is the picker too: it makes an empty document wherever the user says,
+    // and the hub writes the file into it.
 
-    private val _activeCloudAccount = MutableStateFlow<CloudAccount?>(null)
-    val activeCloudAccount: StateFlow<CloudAccount?> = _activeCloudAccount.asStateFlow()
+    private val cloudStore = CloudDocuments(application)
 
-    private val _cloudPath = MutableStateFlow<List<CloudCrumb>>(emptyList())
-    val cloudPath: StateFlow<List<CloudCrumb>> = _cloudPath.asStateFlow()
+    /** The documents opened from the cloud, the most recent first. */
+    val cloudDocuments: StateFlow<List<CloudDocument>> = cloudStore.documents
 
-    private val _cloudItems = MutableStateFlow<List<CloudItem>>(emptyList())
-    val cloudItems: StateFlow<List<CloudItem>> = _cloudItems.asStateFlow()
-
-    private val _cloudBusy = MutableStateFlow(false)
-    val cloudBusy: StateFlow<Boolean> = _cloudBusy.asStateFlow()
+    private val _cloudApps = MutableStateFlow<List<String>>(emptyList())
+    /** The names of the apps on the phone that offer their documents to the picker. */
+    val cloudApps: StateFlow<List<String>> = _cloudApps.asStateFlow()
 
     private val _cloudMessage = MutableStateFlow<String?>(null)
     val cloudMessage: StateFlow<String?> = _cloudMessage.asStateFlow()
 
-    private val _cloudQuota = MutableStateFlow<CloudQuota?>(null)
-    val cloudQuota: StateFlow<CloudQuota?> = _cloudQuota.asStateFlow()
-
-    private val _transfer = MutableStateFlow<CloudTransfer?>(null)
-    /** The download or upload happening right now, or null. */
-    val transfer: StateFlow<CloudTransfer?> = _transfer.asStateFlow()
+    private val _transfer = MutableStateFlow<FileTransfer?>(null)
+    /** The file being written into the cloud right now, or null. */
+    val transfer: StateFlow<FileTransfer?> = _transfer.asStateFlow()
 
     private var transferJob: Job? = null
 
-    private val _cloudSearchResults = MutableStateFlow<List<CloudItem>?>(null)
-    val cloudSearchResults: StateFlow<List<CloudItem>?> = _cloudSearchResults.asStateFlow()
+    /** A file waiting for the picker to say where in the cloud it should go. */
+    data class CloudSaveRequest(val file: File, val mimeType: String)
 
-    /**
-     * Folders already read, so stepping back out of one is instant.
-     *
-     * Every listing used to be a fresh network call, which meant going up a level sat on a
-     * spinner for as long as the first visit did. The cache is dropped whenever the folder is
-     * changed by us, and can always be thrown away by hand.
-     */
-    private val folderCache = mutableMapOf<String, List<CloudItem>>()
+    private val _cloudSaveRequest = MutableStateFlow<CloudSaveRequest?>(null)
+    /** Set when the screen should open the picker's "save" side; taken with [takeCloudSaveRequest]. */
+    val cloudSaveRequest: StateFlow<CloudSaveRequest?> = _cloudSaveRequest.asStateFlow()
 
-    fun googleAuthorizeTask() = cloudRepository.googleAuthorizeTask()
+    // Held between the picker opening and its answer. The request itself is cleared the moment the
+    // screen takes it, so a screen built again meanwhile (the phone turned) does not open a second
+    // picker over the first.
+    private var pendingCloudSave: File? = null
 
-    fun googleResultFromIntent(data: Intent) = cloudRepository.googleResultFromIntent(data)
+    init {
+        refreshCloudApps()
+    }
 
-    fun reportCloudError(throwable: Throwable) {
-        _cloudBusy.value = false
-        _cloudMessage.value = cloudMessageOf(throwable)
+    /** Looks again for cloud apps; one may have been installed while the hub was away. */
+    fun refreshCloudApps() {
+        viewModelScope.launch {
+            _cloudApps.value = withContext(Dispatchers.IO) { cloudStore.cloudApps() }
+        }
     }
 
     fun clearCloudMessage() {
         _cloudMessage.value = null
     }
 
-    fun completeGoogleSignIn(result: AuthorizationResult) {
-        viewModelScope.launch {
-            _cloudBusy.value = true
-            try {
-                openCloudAccount(cloudRepository.completeGoogleSignIn(result))
-                _cloudMessage.value = null
-            } catch (e: Exception) {
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _cloudBusy.value = false
-            }
-        }
+    /** The picker could not be opened at all, which a phone without one does. */
+    fun reportNoPicker() {
+        _cloudMessage.value = application().localizedString(R.string.files_cloud_no_picker)
     }
 
-    fun signOutCloudAccount(account: CloudAccount) {
-        viewModelScope.launch {
-            if (_activeCloudAccount.value?.id == account.id) closeCloudAccount()
-            cloudRepository.signOut(account)
-        }
-    }
-
-    fun openCloudAccount(account: CloudAccount) {
-        _activeCloudAccount.value = account
-        folderCache.clear()
-        _cloudPath.value = listOf(CloudCrumb(cloudRepository.rootFolderId(account), account.displayName))
-        loadCloudFolder()
-        viewModelScope.launch { _cloudQuota.value = cloudRepository.quota(account) }
-    }
-
-    fun openCloudFolder(item: CloudItem) {
-        if (!item.isFolder) return
-        _cloudPath.value = _cloudPath.value + CloudCrumb(item.contentId, item.name)
-        loadCloudFolder()
-    }
-
-    fun cloudNavigateUp(): Boolean {
-        if (_cloudSearchResults.value != null) {
-            _cloudSearchResults.value = null
-            return true
-        }
-        val path = _cloudPath.value
-        if (path.size <= 1) return false
-        _cloudPath.value = path.dropLast(1)
-        loadCloudFolder()
-        return true
-    }
-
-    fun closeCloudAccount() {
-        _activeCloudAccount.value = null
-        _cloudPath.value = emptyList()
-        _cloudItems.value = emptyList()
+    /** What the picker handed back: each goes on the list, and a single one opens at once. */
+    fun onCloudPicked(uris: List<Uri>) {
+        if (uris.isEmpty()) return
         _cloudMessage.value = null
-        _cloudQuota.value = null
-        _cloudSearchResults.value = null
-        folderCache.clear()
-    }
-
-    fun reloadCloudFolder() = loadCloudFolder(force = true)
-
-    private var cloudSearchJob: Job? = null
-
-    /**
-     * Asks the service to look through the whole drive, not only the open folder. It waits for
-     * the typing to pause first: every keystroke used to be a request of its own, and the
-     * answers came back in whatever order the network felt like.
-     */
-    fun searchCloud(query: String) {
-        val account = _activeCloudAccount.value ?: return
-        cloudSearchJob?.cancel()
-        if (query.isBlank()) {
-            _cloudSearchResults.value = null
-            _cloudBusy.value = false
-            return
-        }
-        cloudSearchJob = viewModelScope.launch {
-            kotlinx.coroutines.delay(CLOUD_SEARCH_DEBOUNCE_MS)
-            _cloudBusy.value = true
-            try {
-                _cloudSearchResults.value = cloudRepository.search(account, query)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _cloudBusy.value = false
-            }
-        }
-    }
-
-    fun clearCloudSearch() {
-        _cloudSearchResults.value = null
-    }
-
-    fun createCloudFolder(name: String) = runCloudAction { account, parent ->
-        cloudRepository.createFolder(account, parent, name.trim())
-    }
-
-    fun renameCloudItem(item: CloudItem, newName: String) = runCloudAction { account, _ ->
-        cloudRepository.rename(account, item, newName.trim())
-    }
-
-    fun deleteCloudItem(item: CloudItem) = runCloudAction { account, _ ->
-        cloudRepository.delete(account, item)
-    }
-
-    /**
-     * Opens a file on the drive. Downloading it takes a while on a slow connection, and a tap
-     * with nothing to show for it looked like a file that would not open, so the download runs
-     * under the same bar as a save, and can be stopped.
-     */
-    fun openCloudItem(item: CloudItem) {
-        if (item.isFolder) {
-            openCloudFolder(item)
-            return
-        }
-        // A film plays straight off the drive in the launcher's own player, as it arrives,
-        // instead of waiting for the whole of it to come down first.
-        val account = _activeCloudAccount.value
-        if (account != null && !item.isGoogleDocument && !item.isWebOnly && isVideo(item)) {
-            com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.openCloud(application(), account, item)
-            return
-        }
-        cloudTransfer(item) { account, progress -> cloudRepository.open(account, item, progress) }
-    }
-
-    private fun isVideo(item: CloudItem): Boolean =
-        com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.handles(item.mimeType) ||
-            com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.handles(
-                MimeTypeMap.getSingleton().getMimeTypeFromExtension(item.name.substringAfterLast('.', "").lowercase())
-            )
-
-    fun shareCloudItem(item: CloudItem) =
-        cloudTransfer(item) { account, progress -> cloudRepository.share(account, item, progress) }
-
-    /** Opens the item's page on the drive's website, whatever kind of file it is. */
-    fun openCloudItemOnWeb(item: CloudItem) =
-        withCloudAccount { account -> cloudRepository.openWeb(account, item) }
-
-    private fun cloudTransfer(item: CloudItem, block: suspend (CloudAccount, (Long, Long) -> Unit) -> Unit) {
-        val account = _activeCloudAccount.value ?: return
-        transferJob?.cancel()
-        transferJob = viewModelScope.launch {
-            // A Google document opens on the web at once; only a download shows a bar.
-            if (!item.isGoogleDocument && !item.isWebOnly) {
-                _transfer.value = CloudTransfer(item.name, isUpload = false, transferredBytes = 0L, totalBytes = item.size)
-            }
-            try {
-                block(account) { moved, total -> _transfer.value = CloudTransfer(item.name, false, moved, total) }
-                _cloudMessage.value = null
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                ZuneLog.w(TAG, "could not open ${item.name} (${item.mimeType})", e)
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _transfer.value = null
-            }
-        }
-    }
-
-    /** Downloads into the device's Downloads folder, with a bar and a way to stop it. */
-    fun saveCloudItemToDevice(item: CloudItem) {
-        val account = _activeCloudAccount.value ?: return
-        transferJob?.cancel()
-        transferJob = viewModelScope.launch {
-            _transfer.value = CloudTransfer(item.name, isUpload = false, transferredBytes = 0L, totalBytes = item.size)
-            try {
-                val name = cloudRepository.saveToDevice(account, item) { moved, total ->
-                    _transfer.value = CloudTransfer(item.name, false, moved, total)
-                }
-                _cloudMessage.value = application().localizedString(R.string.files_cloud_saved, name)
-            } catch (e: Exception) {
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _transfer.value = null
-            }
-        }
-    }
-
-    /** Sends a file from the phone up into the open cloud folder. */
-    /**
-     * Sends the chosen files up to a drive: the open one's current folder, or, with none open,
-     * the top of the first account. Folders are skipped — a drive takes files one at a time.
-     */
-    fun uploadSelectionToCloud() {
-        val files = selectedItems().filter { !it.isDirectory }.map { it.file }
-        clearSelection()
-        uploadFilesToCloud(files)
-    }
-
-    fun uploadFilesToCloud(files: List<File>) {
-        if (files.isEmpty()) return
-        if (_activeCloudAccount.value == null) {
-            val first = cloudAccounts.value.firstOrNull() ?: return
-            openCloudAccount(first)
-        }
-        val account = _activeCloudAccount.value ?: return
-        val parent = _cloudPath.value.lastOrNull()?.id ?: return
-        transferJob?.cancel()
-        transferJob = viewModelScope.launch {
-            for (file in files) {
-                _transfer.value = CloudTransfer(file.name, isUpload = true, transferredBytes = 0L, totalBytes = file.length())
-                try {
-                    cloudRepository.upload(account, parent, file) { moved, total ->
-                        _transfer.value = CloudTransfer(file.name, true, moved, total)
-                    }
-                    _cloudMessage.value = application().localizedString(R.string.files_cloud_uploaded, file.name)
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    _cloudMessage.value = cloudMessageOf(e)
-                }
-            }
-            _transfer.value = null
-            folderCache.remove(parent)
-            loadCloudFolder(force = true)
-        }
-    }
-
-    fun uploadToCloud(file: File) {
-        val account = _activeCloudAccount.value ?: return
-        val parent = _cloudPath.value.lastOrNull()?.id ?: return
-        transferJob?.cancel()
-        transferJob = viewModelScope.launch {
-            _transfer.value = CloudTransfer(file.name, isUpload = true, transferredBytes = 0L, totalBytes = file.length())
-            try {
-                cloudRepository.upload(account, parent, file) { moved, total ->
-                    _transfer.value = CloudTransfer(file.name, true, moved, total)
-                }
-                _cloudMessage.value = application().localizedString(R.string.files_cloud_uploaded, file.name)
-                folderCache.remove(parent)
-                loadCloudFolder(force = true)
-            } catch (e: Exception) {
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _transfer.value = null
+        viewModelScope.launch {
+            val remembered = withContext(Dispatchers.IO) { uris.mapNotNull { cloudStore.remember(it) } }
+            when {
+                remembered.isEmpty() -> _cloudMessage.value = application().localizedString(R.string.files_upload_failed)
+                uris.size == 1 -> openCloudDocument(application(), remembered.single())
             }
         }
     }
 
     /**
-     * Sends whatever the document picker handed back.
-     *
-     * A picked document is a content URI, not a file, so it is copied into the cache first — the
-     * upload needs a length and a stream it can re-read, and a provider gives neither reliably.
+     * Opens a document from the list. A film plays in the launcher's own player, as a film from
+     * the phone does; anything else goes to whichever app takes its kind. A document that can no
+     * longer be read, or that nothing on the phone can open, comes off the list, since a tap on it
+     * would only ever fail again.
      */
-    fun uploadPickedUri(uri: android.net.Uri) {
-        val account = _activeCloudAccount.value ?: return
-        val parent = _cloudPath.value.lastOrNull()?.id ?: return
-        transferJob?.cancel()
-        transferJob = viewModelScope.launch {
-            val context: Context = getApplication()
-            val staged = withContext(Dispatchers.IO) {
-                runCatching {
-                    val name = sanitizeFileName(queryDisplayName(context, uri), fallback = "upload")
-                    val target = File(context.cacheDir, "upload").apply { mkdirs() }.let { File(it, name) }
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        target.outputStream().use { output -> input.copyTo(output) }
-                    } ?: return@runCatching null
-                    target
-                }.getOrNull()
-            }
-            if (staged == null) {
-                _cloudMessage.value = application().localizedString(R.string.files_upload_failed)
+    fun openCloudDocument(context: Context, document: CloudDocument) {
+        viewModelScope.launch {
+            val readable = withContext(Dispatchers.IO) { cloudStore.isReadable(document) }
+            if (!readable) {
+                cloudStore.forget(document)
+                _cloudMessage.value = application().localizedString(R.string.files_cloud_gone, document.name)
                 return@launch
             }
-            _transfer.value = CloudTransfer(staged.name, isUpload = true, transferredBytes = 0L, totalBytes = staged.length())
-            try {
-                cloudRepository.upload(account, parent, staged) { moved, total ->
-                    _transfer.value = CloudTransfer(staged.name, true, moved, total)
+            val mimeType = document.mimeType ?: mimeTypeOfName(document.name)
+            val opened = runCatching {
+                if (com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.handles(mimeType)) {
+                    com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, document.uri, document.name, mimeType)
+                } else {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(document.uri, mimeType ?: "*/*")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
                 }
-                _cloudMessage.value = application().localizedString(R.string.files_cloud_uploaded, staged.name)
-                folderCache.remove(parent)
-                loadCloudFolder(force = true)
-            } catch (e: Exception) {
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _transfer.value = null
-                runCatching { staged.delete() }
+            }.onFailure { ZuneLog.w(TAG, "nothing opened ${document.name} ($mimeType)", it) }.isSuccess
+            if (opened) {
+                _cloudMessage.value = null
+                cloudStore.markOpened(document)
+            } else {
+                cloudStore.forget(document)
+                _cloudMessage.value = application().localizedString(R.string.cloud_error_no_app)
             }
         }
     }
 
-    private fun queryDisplayName(context: Context, uri: android.net.Uri): String? = runCatching {
-        context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
-            ?.use { if (it.moveToFirst()) it.getString(0) else null }
-    }.getOrNull()
+    /** Takes a document off the list; the document itself stays where it is. */
+    fun forgetCloudDocument(document: CloudDocument) {
+        cloudStore.forget(document)
+    }
 
-    /** Stops whatever is being moved, leaving what arrived behind. */
+    /**
+     * Sends the chosen files to the cloud. One file goes through the picker's "save" side, which
+     * asks where; several go to the share sheet, where Drive, OneDrive and the rest each offer
+     * their own "upload", since the picker saves only one document at a time. Folders are left
+     * out: neither takes a folder.
+     */
+    fun saveSelectionToCloud(context: Context) {
+        val files = selectedItems().filter { !it.isDirectory }.map { it.file }
+        clearSelection()
+        saveFilesToCloud(context, files)
+    }
+
+    fun saveFilesToCloud(context: Context, files: List<File>) {
+        when {
+            files.isEmpty() -> return
+            files.size == 1 -> {
+                val file = files.single()
+                _cloudSaveRequest.value = CloudSaveRequest(file, mimeTypeOf(file) ?: "application/octet-stream")
+            }
+            else -> shareToCloud(context, files)
+        }
+    }
+
+    /** Hands the waiting save to the screen, which opens the picker with it. */
+    fun takeCloudSaveRequest(): CloudSaveRequest? {
+        val request = _cloudSaveRequest.value ?: return null
+        _cloudSaveRequest.value = null
+        pendingCloudSave = request.file
+        return request
+    }
+
+    /** The picker's answer: where the waiting file goes, or null when the user turned back. */
+    fun onCloudSaveTarget(target: Uri?) {
+        val file = pendingCloudSave
+        pendingCloudSave = null
+        if (target != null && file != null) saveFileToCloud(target, file)
+    }
+
+    /**
+     * Writes [file] into the document the picker made for it. It goes a piece at a time under the
+     * same bar as before, so it can be stopped; a document stopped or failed halfway is deleted
+     * again rather than left in the cloud looking whole.
+     */
+    fun saveFileToCloud(target: Uri, file: File) {
+        transferJob?.cancel()
+        transferJob = viewModelScope.launch {
+            val resolver = application().contentResolver
+            val total = file.length()
+            _transfer.value = FileTransfer(file.name, isUpload = true, transferredBytes = 0L, totalBytes = total)
+            var written = false
+            try {
+                withContext(Dispatchers.IO) {
+                    val output = resolver.openOutputStream(target) ?: throw java.io.IOException("no stream for $target")
+                    output.use { out ->
+                        file.inputStream().use { input ->
+                            val buffer = ByteArray(COPY_CHUNK)
+                            var moved = 0L
+                            while (true) {
+                                ensureActive()
+                                val read = input.read(buffer)
+                                if (read < 0) break
+                                out.write(buffer, 0, read)
+                                moved += read
+                                _transfer.value = FileTransfer(file.name, true, moved, total)
+                            }
+                        }
+                    }
+                }
+                written = true
+                _cloudMessage.value = application().localizedString(R.string.files_cloud_saved_to, file.name)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ZuneLog.w(TAG, "could not save ${file.name} to the cloud", e)
+                _cloudMessage.value = application().localizedString(R.string.files_cloud_save_failed, file.name)
+            } finally {
+                _transfer.value = null
+                if (!written) {
+                    withContext(kotlinx.coroutines.NonCancellable + Dispatchers.IO) {
+                        runCatching { android.provider.DocumentsContract.deleteDocument(resolver, target) }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Stops whatever is being written, and takes the half-written document away again. */
     fun cancelTransfer() {
         transferJob?.cancel()
         transferJob = null
         _transfer.value = null
     }
 
-    private fun loadCloudFolder(force: Boolean = false) {
-        val account = _activeCloudAccount.value ?: return
-        val current = _cloudPath.value.lastOrNull() ?: return
-        _cloudSearchResults.value = null
-
-        val cached = folderCache[current.id]
-        if (cached != null && !force) {
-            // Show what we already have at once, then quietly check whether it is still right.
-            _cloudItems.value = cached
-        }
-        viewModelScope.launch {
-            if (cached == null || force) _cloudBusy.value = true
-            _cloudMessage.value = null
-            try {
-                val items = cloudRepository.list(account, current.id)
-                folderCache[current.id] = items
-                _cloudItems.value = items
-            } catch (e: Exception) {
-                ZuneLog.w(TAG, "cloud folder could not be read", e)
-                if (cached == null) _cloudItems.value = emptyList()
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _cloudBusy.value = false
+    private fun shareToCloud(context: Context, files: List<File>) {
+        runCatching {
+            val authority = "${context.packageName}.fileprovider"
+            val uris = ArrayList(files.map { FileProvider.getUriForFile(context, authority, it) })
+            // One kind for all of them when they share it, so the share sheet offers the apps
+            // that take that kind; otherwise anything.
+            val kinds = files.map { mimeTypeOf(it) ?: "*/*" }.distinct()
+            val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                type = kinds.singleOrNull() ?: "*/*"
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                clipData = android.content.ClipData.newRawUri(null, uris.first()).also { clip ->
+                    uris.drop(1).forEach { clip.addItem(android.content.ClipData.Item(it)) }
+                }
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
+            context.startActivity(
+                Intent.createChooser(intent, context.getString(R.string.files_cloud_save_chooser))
+                    .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            )
+        }.onFailure {
+            ZuneLog.e(TAG, "the files could not be shared to the cloud", it)
+            _cloudMessage.value = application().localizedString(R.string.cloud_error_no_app)
         }
     }
 
-    private fun runCloudAction(block: suspend (CloudAccount, String) -> Unit) {
-        val account = _activeCloudAccount.value ?: return
-        val parent = _cloudPath.value.lastOrNull()?.id ?: return
-        viewModelScope.launch {
-            _cloudBusy.value = true
-            try {
-                block(account, parent)
-                _cloudMessage.value = null
-                folderCache.remove(parent)
-                loadCloudFolder(force = true)
-            } catch (e: Exception) {
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _cloudBusy.value = false
-            }
-        }
-    }
-
-    private fun withCloudAccount(block: suspend (CloudAccount) -> Unit) {
-        val account = _activeCloudAccount.value ?: return
-        viewModelScope.launch {
-            _cloudBusy.value = true
-            try {
-                block(account)
-            } catch (e: Exception) {
-                _cloudMessage.value = cloudMessageOf(e)
-            } finally {
-                _cloudBusy.value = false
-            }
-        }
-    }
-
-    private fun cloudMessageOf(throwable: Throwable): String {
-        val app = application()
-        return if (throwable is CloudException) app.localizedString(throwable.messageRes)
-        else throwable.toUserMessage(app)
-    }
+    private fun mimeTypeOfName(name: String): String? =
+        MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase())
 
     private companion object {
         private const val MAX_BACK_STOPS = 64
@@ -1559,8 +1372,5 @@ class FilesHubViewModel(application: Application) : AndroidViewModel(application
 
         /** How much of a file is copied between looks at the cancel flag. */
         const val COPY_CHUNK = 256 * 1024
-
-        /** How long the typing has to pause before the cloud is asked. */
-        const val CLOUD_SEARCH_DEBOUNCE_MS = 300L
     }
 }

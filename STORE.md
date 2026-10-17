@@ -40,7 +40,7 @@ HUB'LAR
 • Fotoğraflar: albümler, video, düzenleyici, favoriler
 • Müzik: yerel kitaplığın, çalma listeleri, şarkı sözleri, albüm kapakları
 • İnternet: sekmeler, yer imleri, indirmeler, gizli gezinme
-• E-posta: IMAP/SMTP, birden çok hesap, Google ile oturum açma
+• E-posta: IMAP/SMTP, birden çok hesap; Gmail, Outlook ve Yandex için hazır ayarlar
 • Notlar: kontrol listeleri, resim ve ses ekleme, kilitli notlar
 • Saat, Takvim, Hava Durumu, Hesap Makinesi, Dosyalar, Kamera
 
@@ -99,7 +99,7 @@ HUBS
 • Pictures: albums, video, an editor, favourites
 • Music: your own library, playlists, lyrics, album art
 • Internet: tabs, bookmarks, downloads, private browsing
-• Email: IMAP/SMTP, several accounts, sign in with Google
+• Email: IMAP/SMTP, several accounts; ready settings for Gmail, Outlook and Yandex
 • Notes: checklists, pictures and recordings, locked notes
 • Clock, Calendar, Weather, Calculator, Files, Camera
 

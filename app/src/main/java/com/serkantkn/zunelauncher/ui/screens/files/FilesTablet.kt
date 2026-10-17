@@ -82,7 +82,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.data.model.CloudAccount
 import com.serkantkn.zunelauncher.data.model.FileItemModel
 import com.serkantkn.zunelauncher.data.model.StorageVolumeInfo
 import com.serkantkn.zunelauncher.ui.components.MetroEmpty
@@ -114,7 +113,7 @@ private enum class FilesLibrary(val folder: String, val labelRes: Int, val categ
  * pivot stretched across a wide screen.
  *
  * Down the left, as in the other tablet hubs, the places: this device's storage with how full
- * each one is, the libraries, and the cloud drives. On the right the place itself — a round
+ * each one is, the libraries, and the cloud. On the right the place itself — a round
  * back arrow and its name in large light type (a tap on the name lists the folders above it),
  * the search box, and the folder's contents in columns that sort by a tap on their heading.
  * Moving into a folder brings it in from the right; going back brings the last one in from the
@@ -136,7 +135,6 @@ internal fun FilesTabletLayout(
     cloudPage: @Composable (PaddingValues) -> Unit,
     onOpenFile: (FileItemModel) -> Unit,
     onItemLongClick: (FileItemModel) -> Unit,
-    onAddCloudAccount: () -> Unit,
     bottomPadding: Dp,
     modifier: Modifier = Modifier
 ) {
@@ -150,9 +148,6 @@ internal fun FilesTabletLayout(
     val fileItems by viewModel.fileItems.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val deepResults by viewModel.deepResults.collectAsState()
-    val cloudAccounts by viewModel.cloudAccounts.collectAsState()
-    val activeCloudAccount by viewModel.activeCloudAccount.collectAsState()
-    val cloudPath by viewModel.cloudPath.collectAsState()
     val inRecycleBin by viewModel.inRecycleBin.collectAsState()
     val recycleBin by viewModel.recycleBin.collectAsState()
 
@@ -169,13 +164,8 @@ internal fun FilesTabletLayout(
         viewModel.visitVolume(volume)
     }
 
-    fun goToCloud(account: CloudAccount) {
-        onInCloudChange(true)
-        if (activeCloudAccount?.id != account.id) viewModel.openCloudAccount(account)
-    }
-
     // ── Where the page is, for the entrance: deeper comes in from the right, back from the left ──
-    val placeKey = if (inCloud) "cloud:" + cloudPath.joinToString("/") { it.id } else currentDirectory.absolutePath
+    val placeKey = if (inCloud) "cloud:" else currentDirectory.absolutePath
     val entrance = remember { Animatable(1f) }
     var lastKey by remember { mutableStateOf(placeKey) }
     var fromRight by remember { mutableStateOf(true) }
@@ -235,24 +225,14 @@ internal fun FilesTabletLayout(
                     }
                 }
 
+                // One place for the cloud: the phone's own picker reaches every cloud app at once.
                 PaneSection(stringResource(R.string.files_tab_cloud))
-                cloudAccounts.forEach { account ->
-                    PaneEntry(
-                        label = account.displayName.ifBlank { account.email },
-                        chosen = inCloud && activeCloudAccount?.id == account.id,
-                        ink = ink,
-                        icon = Icons.Default.Cloud
-                    ) { goToCloud(account) }
-                }
                 PaneEntry(
-                    label = stringResource(R.string.files_pane_add_account),
-                    chosen = false,
-                    ink = ink.copy(alpha = 0.6f),
-                    small = true
-                ) {
-                    onInCloudChange(true)
-                    onAddCloudAccount()
-                }
+                    label = stringResource(R.string.files_cloud_place),
+                    chosen = inCloud,
+                    ink = ink,
+                    icon = Icons.Default.Cloud
+                ) { onInCloudChange(true) }
 
                 RecycleBinPaneEntry(count = recycleBin.size, chosen = inRecycleBin, ink = ink) {
                     onInCloudChange(false)
@@ -459,8 +439,7 @@ private fun PlaceHeader(
     val busyMessage by viewModel.busyMessage.collectAsState()
     val pasteProgress by viewModel.pasteProgress.collectAsState()
     val transfer by viewModel.transfer.collectAsState()
-    val cloudPath by viewModel.cloudPath.collectAsState()
-    val cloudItems by viewModel.cloudItems.collectAsState()
+    val cloudDocuments by viewModel.cloudDocuments.collectAsState()
 
     val volumeRoot = currentVolume?.root
     val atRoot = volumeRoot?.absolutePath == currentDirectory.absolutePath
@@ -469,7 +448,7 @@ private fun PlaceHeader(
         File(primaryRoot, it.folder).absolutePath == currentDirectory.absolutePath
     }
     val title = when {
-        inCloud -> cloudPath.lastOrNull()?.title ?: stringResource(R.string.files_tab_cloud)
+        inCloud -> stringResource(R.string.files_tab_cloud)
         deepResults != null -> stringResource(R.string.files_search_results)
         library != null -> stringResource(library.labelRes).lowercase(Locale.getDefault())
         atRoot -> currentVolume?.label?.lowercase(Locale.getDefault()) ?: stringResource(R.string.files_internal_storage)
@@ -487,7 +466,7 @@ private fun PlaceHeader(
         }
     }
     var menuOpen by remember { mutableStateOf(false) }
-    val count = if (inCloud) cloudItems.size else deepResults?.size ?: fileItems.size
+    val count = if (inCloud) cloudDocuments.size else deepResults?.size ?: fileItems.size
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp)) {
@@ -583,20 +562,11 @@ private fun PlaceHeader(
                 color = zuneColors.textMuted,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
+            // The cloud's documents are a short list of what was opened; the picker searches the rest.
             if (!inCloud) {
                 SearchBox(
                     query = searchQuery,
                     onQueryChange = viewModel::updateSearchQuery,
-                    ink = ink,
-                    modifier = Modifier.filesTypingField(search = true)
-                )
-            } else {
-                SearchBox(
-                    query = searchQuery,
-                    onQueryChange = {
-                        viewModel.updateSearchQuery(it)
-                        viewModel.searchCloud(it)
-                    },
                     ink = ink,
                     modifier = Modifier.filesTypingField(search = true)
                 )

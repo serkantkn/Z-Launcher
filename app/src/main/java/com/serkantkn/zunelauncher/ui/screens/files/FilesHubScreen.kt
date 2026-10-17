@@ -7,7 +7,6 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -26,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -48,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
@@ -55,8 +56,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -64,8 +63,6 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Edit
@@ -96,8 +93,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.data.model.CloudItem
 import com.serkantkn.zunelauncher.data.model.FileItemModel
+import com.serkantkn.zunelauncher.data.repository.CloudDocument
 import com.serkantkn.zunelauncher.ui.animation.HingeAnimation
 import com.serkantkn.zunelauncher.ui.animation.ZuneTitleZoomOverlay
 import com.serkantkn.zunelauncher.ui.animation.rememberZuneTitleZoomState
@@ -178,14 +175,10 @@ fun FilesHubScreen(
     val sortAscending by viewModel.sortAscending.collectAsState()
     val showHidden by viewModel.showHidden.collectAsState()
 
-    val cloudAccounts by viewModel.cloudAccounts.collectAsState()
-    val activeCloudAccount by viewModel.activeCloudAccount.collectAsState()
-    val cloudPath by viewModel.cloudPath.collectAsState()
-    val cloudItems by viewModel.cloudItems.collectAsState()
-    val cloudBusy by viewModel.cloudBusy.collectAsState()
+    val cloudDocuments by viewModel.cloudDocuments.collectAsState()
+    val cloudApps by viewModel.cloudApps.collectAsState()
     val cloudMessage by viewModel.cloudMessage.collectAsState()
-    val cloudQuota by viewModel.cloudQuota.collectAsState()
-    val cloudSearchResults by viewModel.cloudSearchResults.collectAsState()
+    val cloudSaveRequest by viewModel.cloudSaveRequest.collectAsState()
     val transfer by viewModel.transfer.collectAsState()
     val inRecycleBin by viewModel.inRecycleBin.collectAsState()
     val recycleBinEntries by viewModel.recycleBin.collectAsState()
@@ -217,10 +210,6 @@ fun FilesHubScreen(
     val contentAlpha = remember { Animatable(1f) }
     var transitioning by remember { mutableStateOf(false) }
 
-    val cloudZoom = rememberZuneTitleZoomState()
-    val cloudTitleAnchor = rememberZuneZoomAnchor()
-    cloudZoom.bindTitle(cloudTitleAnchor, CLOUD_TITLE_SIZE)
-
     // The list settles in behind the word as it lands.
     val listEntry = remember { Animatable(1f) }
     LaunchedEffect(currentDirectory) {
@@ -233,7 +222,11 @@ fun FilesHubScreen(
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) viewModel.refreshPermissionState()
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshPermissionState()
+                // A cloud app installed while the hub was away belongs in the cloud page's line.
+                viewModel.refreshCloudApps()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -244,46 +237,44 @@ fun FilesHubScreen(
         onResult = { viewModel.refreshPermissionState() }
     )
 
-    val uploadPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri -> if (uri != null) viewModel.uploadPickedUri(uri) }
+    // The cloud is the phone's own document picker: it lists Drive, OneDrive, Dropbox or whatever
+    // else is installed, so there is nothing to sign in to here.
+    val cloudPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> viewModel.onCloudPicked(uris) }
 
-    val googleSignIn = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        val data = result.data
-        if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
-            runCatching { viewModel.googleResultFromIntent(data) }
-                .onSuccess { viewModel.completeGoogleSignIn(it) }
-                .onFailure { viewModel.reportCloudError(it) }
-        } else {
-            viewModel.reportCloudError(
-                com.serkantkn.zunelauncher.data.model.CloudException(R.string.cloud_error_cancelled)
-            )
-        }
+    fun pickFromCloud() {
+        runCatching { cloudPicker.launch(arrayOf("*/*")) }.onFailure { viewModel.reportNoPicker() }
     }
 
-    fun startGoogleSignIn() {
-        viewModel.googleAuthorizeTask()
-            .addOnSuccessListener { result ->
-                val pending = result.pendingIntent
-                if (result.hasResolution() && pending != null) {
-                    googleSignIn.launch(IntentSenderRequest.Builder(pending.intentSender).build())
-                } else {
-                    viewModel.completeGoogleSignIn(result)
-                }
-            }
-            .addOnFailureListener { viewModel.reportCloudError(it) }
+    // Saving goes the other way through the same picker: it asks where, makes an empty document
+    // there, and the view model writes the file into it.
+    val cloudSaver = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.onCloudSaveTarget(result.data?.data?.takeIf { result.resultCode == android.app.Activity.RESULT_OK })
+    }
+    LaunchedEffect(cloudSaveRequest) {
+        if (cloudSaveRequest == null) return@LaunchedEffect
+        val request = viewModel.takeCloudSaveRequest() ?: return@LaunchedEffect
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = request.mimeType
+            putExtra(Intent.EXTRA_TITLE, request.file.name)
+        }
+        runCatching { cloudSaver.launch(intent) }.onFailure {
+            viewModel.onCloudSaveTarget(null)
+            viewModel.reportNoPicker()
+        }
     }
 
     // ── Screen state ───────────────────────────────────────────────────────
     var isSearchOpen by remember { mutableStateOf(false) }
     var sheetTarget by remember { mutableStateOf<FileItemModel?>(null) }
-    var cloudSheetTarget by remember { mutableStateOf<CloudItem?>(null) }
-    // The tablet chooses a file on the drive with a hold, as it does on the device.
-    var cloudSelected by remember { mutableStateOf<CloudItem?>(null) }
-    var cloudDeleteTarget by remember { mutableStateOf<CloudItem?>(null) }
-    LaunchedEffect(cloudPath, activeCloudAccount) { cloudSelected = null }
+    // A document from the cloud held down: the phone's sheet, or on the tablet the one chosen,
+    // whose commands the bar then shows, as for a file on the device.
+    var cloudSheetTarget by remember { mutableStateOf<CloudDocument?>(null) }
+    var cloudSelected by remember { mutableStateOf<CloudDocument?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
     var showVolumeSheet by remember { mutableStateOf(false) }
     var textPrompt by remember { mutableStateOf<TextPrompt?>(null) }
@@ -330,7 +321,8 @@ fun FilesHubScreen(
     /** The tablet's step back; false when there is nowhere left to go but out of the hub. */
     fun tabletBack(): Boolean {
         if (tabletInCloud) {
-            if (!viewModel.cloudNavigateUp()) tabletInCloud = false
+            tabletInCloud = false
+            cloudSelected = null
             return true
         }
         return viewModel.goBack()
@@ -444,11 +436,9 @@ fun FilesHubScreen(
     }
 
     BackHandler {
-        val browsingCloud = !isWideScreen && activeCloudAccount != null && pager.currentPage == CLOUD_TAB
         when {
             deleteTarget != null -> deleteTarget = null
             deleteSelectionPending -> deleteSelectionPending = false
-            cloudDeleteTarget != null -> cloudDeleteTarget = null
             cloudSelected != null -> cloudSelected = null
             viewerTarget != null -> closeSubScreen { viewerTarget = null }
             detailsTarget != null -> if (isWideScreen) detailsTarget = null else closeSubScreen { detailsTarget = null }
@@ -462,8 +452,6 @@ fun FilesHubScreen(
             isSearchOpen -> { isSearchOpen = false; viewModel.updateSearchQuery("") }
             isWideScreen && searchQuery.isNotBlank() -> viewModel.updateSearchQuery("")
             isWideScreen -> if (!tabletBack()) onClose()
-            browsingCloud && viewModel.cloudNavigateUp() -> Unit
-            browsingCloud -> viewModel.closeCloudAccount()
             !leaveFolder() -> onClose()
         }
     }
@@ -669,32 +657,13 @@ fun FilesHubScreen(
                 onOpenRecycleBin = { viewModel.openRecycleBin() }
             )
             else -> CloudPage(
-                accounts = cloudAccounts,
-                activeAccount = activeCloudAccount,
-                path = cloudPath,
-                items = cloudSearchResults ?: cloudItems,
-                isSearchResult = cloudSearchResults != null,
-                quota = cloudQuota,
-                isBusy = cloudBusy,
+                documents = cloudDocuments,
+                cloudApps = cloudApps,
                 message = cloudMessage,
-                titleAnchor = cloudTitleAnchor,
-                titleAlpha = cloudZoom.titleAlpha,
                 contentPadding = pagePadding,
-                onSignInGoogle = { startGoogleSignIn() },
-                onOpenAccount = { viewModel.openCloudAccount(it) },
-                onSignOut = { viewModel.signOutCloudAccount(it) },
-                onOpenItem = { item, bounds ->
-                    if (item.isFolder) {
-                        viewModel.openCloudFolder(item)
-                        if (bounds != null) {
-                            scope.launch { cloudZoom.flyToTitle(item.name, bounds, FileRowNameSize) }
-                        }
-                    } else {
-                        viewModel.openCloudItem(item)
-                    }
-                },
-                onItemLongClick = { cloudSheetTarget = it },
-                onCrumbClick = { viewModel.cloudNavigateUp() }
+                onPick = { pickFromCloud() },
+                onOpen = { viewModel.openCloudDocument(context, it) },
+                onLongClick = { cloudSheetTarget = it }
             )
         }
     }
@@ -707,6 +676,17 @@ fun FilesHubScreen(
 
     // ── The bar ────────────────────────────────────────────────────────────
     val inCloud = if (isWideScreen) tabletInCloud else pager.currentPage == CLOUD_TAB
+
+    // A save to the cloud is mostly started from a folder, where the cloud page and its message
+    // line are not showing; there the word comes as a toast instead. Only a message that arrives
+    // while the page is away does: one already read on the page stays there.
+    val cloudPageShowing by rememberUpdatedState(inCloud && (isWideScreen || (!inFolder && !inRecycleBin)))
+    LaunchedEffect(cloudMessage) {
+        val message = cloudMessage ?: return@LaunchedEffect
+        if (cloudPageShowing) return@LaunchedEffect
+        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+        viewModel.clearCloudMessage()
+    }
     val barActions = when {
         selection.isNotEmpty() -> listOf(
             WpBarAction(Icons.Default.ContentCopy, stringResource(R.string.files_copy)) { viewModel.copySelection() },
@@ -714,20 +694,10 @@ fun FilesHubScreen(
             WpBarAction(Icons.Default.Delete, stringResource(R.string.common_delete)) { deleteSelectionPending = true }
         )
 
-        inCloud && activeCloudAccount != null -> listOf(
-            WpBarAction(Icons.Default.CreateNewFolder, stringResource(R.string.files_new_folder)) {
-                textPrompt = TextPrompt.NewCloudFolder
-                openSubScreen()
-            },
-            WpBarAction(Icons.Default.Search, stringResource(R.string.common_search)) {
-                isSearchOpen = !isSearchOpen
-            },
-            WpBarAction(Icons.Default.Refresh, stringResource(R.string.common_refresh)) {
-                viewModel.reloadCloudFolder()
-            }
-        ).filter { !isWideScreen || it.icon != Icons.Default.Search }
-
-        inCloud -> emptyList()
+        // The page's own large action, again where a thumb finds it.
+        inCloud -> listOf(
+            WpBarAction(Icons.Default.FolderOpen, stringResource(R.string.files_open)) { pickFromCloud() }
+        )
 
         else -> listOf(
             WpBarAction(Icons.Default.CreateNewFolder, stringResource(R.string.files_new_folder)) {
@@ -749,16 +719,11 @@ fun FilesHubScreen(
     val barMenu = buildList {
         if (selection.isNotEmpty()) {
             add(WpBarMenuItem(stringResource(R.string.files_select_all)) { viewModel.selectAll() })
-            if (selectionHasFiles && cloudAccounts.isNotEmpty()) {
-                add(WpBarMenuItem(stringResource(R.string.files_bar_upload_cloud)) { viewModel.uploadSelectionToCloud() })
+            if (selectionHasFiles) {
+                add(WpBarMenuItem(stringResource(R.string.files_cloud_save_to)) { viewModel.saveSelectionToCloud(context) })
             }
             add(WpBarMenuItem(stringResource(R.string.common_cancel)) { viewModel.clearSelection() })
-        } else if (inCloud) {
-            if (activeCloudAccount != null) {
-                add(WpBarMenuItem(stringResource(R.string.files_upload)) { uploadPicker.launch("*/*") })
-                add(WpBarMenuItem(stringResource(R.string.files_cloud_close)) { viewModel.closeCloudAccount() })
-            }
-        } else {
+        } else if (!inCloud) {
             add(
                 WpBarMenuItem(
                     stringResource(
@@ -789,17 +754,12 @@ fun FilesHubScreen(
     val tabletLeft: List<Win8Command> = if (isWideScreen && inCloud && cloudChosen != null) buildList {
         add(Win8Command(Icons.Default.FolderOpen, stringResource(R.string.files_open).lowercase(locale)) {
             cloudSelected = null
-            viewModel.openCloudItem(cloudChosen)
+            viewModel.openCloudDocument(context, cloudChosen)
         })
-        if (!cloudChosen.isFolder) {
-            add(Win8Command(Icons.Default.Language, stringResource(R.string.files_cloud_open_web)) { viewModel.openCloudItemOnWeb(cloudChosen) })
-            if (!cloudChosen.isWebOnly) {
-                add(Win8Command(Icons.Default.Download, stringResource(R.string.files_cloud_save_short)) { viewModel.saveCloudItemToDevice(cloudChosen) })
-                add(Win8Command(Icons.Default.Share, stringResource(R.string.files_share).lowercase(locale)) { viewModel.shareCloudItem(cloudChosen) })
-            }
-        }
-        add(Win8Command(Icons.Default.Edit, stringResource(R.string.files_rename).lowercase(locale)) { textPrompt = TextPrompt.RenameCloud(cloudChosen) })
-        add(Win8Command(Icons.Default.Delete, stringResource(R.string.common_delete).lowercase(locale)) { cloudDeleteTarget = cloudChosen })
+        add(Win8Command(Icons.Default.Clear, stringResource(R.string.files_cloud_forget)) {
+            cloudSelected = null
+            viewModel.forgetCloudDocument(cloudChosen)
+        })
     } else if (!isWideScreen || inCloud || selection.isEmpty()) emptyList() else buildList {
         singleSelected?.let { item ->
             add(Win8Command(Icons.Default.FolderOpen, stringResource(R.string.files_open).lowercase(locale)) {
@@ -830,8 +790,8 @@ fun FilesHubScreen(
         add(Win8Command(Icons.Default.ContentCopy, stringResource(R.string.files_copy)) { viewModel.copySelection() })
         add(Win8Command(Icons.Default.ContentCut, stringResource(R.string.files_cut)) { viewModel.cutSelection() })
         add(Win8Command(Icons.Default.Delete, stringResource(R.string.common_delete).lowercase(locale)) { deleteSelectionPending = true })
-        if (selectionHasFiles && cloudAccounts.isNotEmpty()) {
-            add(Win8Command(Icons.Default.CloudUpload, stringResource(R.string.files_bar_upload_cloud)) { viewModel.uploadSelectionToCloud() })
+        if (selectionHasFiles) {
+            add(Win8Command(Icons.Default.CloudUpload, stringResource(R.string.files_cloud_save_to)) { viewModel.saveSelectionToCloud(context) })
         }
     }
     val tabletRight: List<Win8Command> = when {
@@ -839,20 +799,9 @@ fun FilesHubScreen(
         inCloud && cloudChosen != null -> listOf(
             Win8Command(Icons.Default.Deselect, stringResource(R.string.files_bar_clear_selection)) { cloudSelected = null }
         )
-        inCloud && activeCloudAccount != null -> listOf(
-            Win8Command(Icons.Default.CreateNewFolder, stringResource(R.string.files_new_folder)) { textPrompt = TextPrompt.NewCloudFolder },
-            Win8Command(Icons.Default.Upload, stringResource(R.string.files_bar_upload)) { uploadPicker.launch("*/*") },
-            Win8Command(Icons.Default.Refresh, stringResource(R.string.common_refresh).lowercase(locale)) { viewModel.reloadCloudFolder() },
-            Win8Command(
-                if (filesView == FilesView.THUMBNAILS) Icons.Default.GridView else Icons.AutoMirrored.Filled.ViewList,
-                stringResource(R.string.files_bar_view)
-            ) { viewModel.setView(if (filesView == FilesView.THUMBNAILS) FilesView.LIST else FilesView.THUMBNAILS) },
-            Win8Command(Icons.AutoMirrored.Filled.Logout, stringResource(R.string.files_bar_close_drive)) {
-                viewModel.closeCloudAccount()
-                tabletInCloud = false
-            }
+        inCloud -> listOf(
+            Win8Command(Icons.Default.FolderOpen, stringResource(R.string.files_open).lowercase(locale)) { pickFromCloud() }
         )
-        inCloud -> emptyList()
         selection.isNotEmpty() -> listOf(
             Win8Command(Icons.Default.SelectAll, stringResource(R.string.files_bar_select_all)) { viewModel.selectAll() },
             Win8Command(Icons.Default.Deselect, stringResource(R.string.files_bar_clear_selection)) { viewModel.clearSelection() }
@@ -929,7 +878,6 @@ fun FilesHubScreen(
         when {
             deleteTarget != null -> deleteTarget = null
             deleteSelectionPending -> deleteSelectionPending = false
-            cloudDeleteTarget != null -> cloudDeleteTarget = null
             cloudSelected != null -> cloudSelected = null
             viewerTarget != null -> closeSubScreen { viewerTarget = null }
             detailsTarget != null -> if (isWideScreen) detailsTarget = null else closeSubScreen { detailsTarget = null }
@@ -960,12 +908,13 @@ fun FilesHubScreen(
         when (command) {
             FilesKeyCommand.Back -> return when {
                 isWideScreen -> { tabletBack(); true }
-                inCloud -> { viewModel.cloudNavigateUp(); true }
+                // The cloud page has no folders to climb out of.
+                inCloud -> false
                 browsingFiles -> { leaveFolder(); true }
                 else -> false
             }
             FilesKeyCommand.Refresh -> {
-                if (inCloud) viewModel.reloadCloudFolder() else viewModel.reload()
+                if (inCloud) viewModel.refreshCloudApps() else viewModel.reload()
                 return true
             }
             FilesKeyCommand.Search -> {
@@ -1070,29 +1019,35 @@ fun FilesHubScreen(
                             inCloud = tabletInCloud,
                             onInCloudChange = {
                                 tabletInCloud = it
+                                if (!it) cloudSelected = null
                                 if (it) viewModel.closeRecycleBin()
                             },
                             onBack = { tabletBack() },
                             canGoBack = tabletInCloud || canGoBack || viewModel.parentOfCurrent() != null,
                             permissionGate = { StoragePermissionGate(context, permissionLauncher) },
+                            // The phone's cloud page, set beside the places under the header.
                             cloudPage = { padding ->
-                                TabletCloudPage(
-                                    viewModel = viewModel,
-                                    filesView = filesView,
-                                    selected = cloudSelected,
-                                    bottomPadding = padding.calculateBottomPadding(),
-                                    onOpen = { item ->
+                                CloudPage(
+                                    documents = cloudDocuments,
+                                    cloudApps = cloudApps,
+                                    message = cloudMessage,
+                                    contentPadding = padding,
+                                    onPick = { pickFromCloud() },
+                                    onOpen = { document ->
                                         cloudSelected = null
-                                        viewModel.openCloudItem(item)
+                                        viewModel.openCloudDocument(context, document)
                                     },
-                                    onLongClick = { item -> cloudSelected = if (cloudSelected?.id == item.id) null else item },
-                                    onOpenAccount = { viewModel.openCloudAccount(it) }
+                                    // Windows 8: a hold chooses, and the bar says what can be done.
+                                    onLongClick = { document ->
+                                        cloudSelected = if (cloudSelected?.uri == document.uri) null else document
+                                    },
+                                    selected = cloudSelected,
+                                    modifier = Modifier.padding(start = 60.dp).widthIn(max = TABLET_CLOUD_WIDTH)
                                 )
                             },
                             onOpenFile = { openItem(it) },
                             // Windows 8: holding a thing chooses it, and the bar shows what can be done.
                             onItemLongClick = { viewModel.toggleSelection(it) },
-                            onAddCloudAccount = { startGoogleSignIn() },
                             bottomPadding = listBottomPadding,
                             modifier = Modifier.graphicsLayer { alpha = contentAlpha.value }
                         )
@@ -1110,10 +1065,7 @@ fun FilesHubScreen(
                             AnimatedVisibility(visible = isSearchOpen) {
                                 ZuneSearchBar(
                                     query = searchQuery,
-                                    onQueryChange = {
-                                        viewModel.updateSearchQuery(it)
-                                        if (inCloud) viewModel.searchCloud(it)
-                                    },
+                                    onQueryChange = { viewModel.updateSearchQuery(it) },
                                     placeholder = stringResource(R.string.files_search_hint),
                                     modifier = Modifier.padding(
                                         horizontal = ZuneDimens.ScreenPaddingHorizontal,
@@ -1141,6 +1093,17 @@ fun FilesHubScreen(
                                         .graphicsLayer { alpha = contentAlpha.value }
                                 ) {
                                     SearchField()
+                                    // A file sent to the cloud from inside a folder shows its bar here.
+                                    transfer?.let { active ->
+                                        TransferBar(
+                                            transfer = active,
+                                            onCancel = { viewModel.cancelTransfer() },
+                                            modifier = Modifier.padding(
+                                                horizontal = ZuneDimens.ScreenPaddingHorizontal,
+                                                vertical = 6.dp
+                                            )
+                                        )
+                                    }
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
@@ -1247,7 +1210,6 @@ fun FilesHubScreen(
 
         // The words in flight, above everything.
         ZuneTitleZoomOverlay(state = localZoom, letterSpacing = (-3).sp)
-        ZuneTitleZoomOverlay(state = cloudZoom, letterSpacing = (-1).sp)
 
         // ── Sub-screens on the hinge ──
         // On the tablet a name is asked for in Windows 8's band instead (below).
@@ -1287,9 +1249,7 @@ fun FilesHubScreen(
                         onConfirm = { text ->
                             when (prompt) {
                                 TextPrompt.NewFolder -> viewModel.createDirectory(text)
-                                TextPrompt.NewCloudFolder -> viewModel.createCloudFolder(text)
                                 is TextPrompt.Rename -> viewModel.renameItem(prompt.item, text)
-                                is TextPrompt.RenameCloud -> viewModel.renameCloudItem(prompt.item, text)
                             }
                             closeSubScreen { textPrompt = null }
                         },
@@ -1335,11 +1295,9 @@ fun FilesHubScreen(
                         viewModel.shareFile(context, item.file)
                         sheetTarget = null
                     }
-                    if (cloudAccounts.isNotEmpty()) {
-                        SheetAction(label = stringResource(R.string.files_bar_upload_cloud)) {
-                            viewModel.uploadFilesToCloud(listOf(item.file))
-                            sheetTarget = null
-                        }
+                    SheetAction(label = stringResource(R.string.files_cloud_save_to)) {
+                        viewModel.saveFilesToCloud(context, listOf(item.file))
+                        sheetTarget = null
                     }
                 }
                 SheetAction(label = stringResource(R.string.files_rename)) {
@@ -1377,49 +1335,18 @@ fun FilesHubScreen(
             )
         }
 
-        // ── Deleting from a drive asks first; it goes to the drive's own bin ──
-        cloudDeleteTarget?.let { item ->
-            val message = stringResource(R.string.files_cloud_delete_confirm, item.name)
-            if (isWideScreen) {
-                Win8MessageDialog(
-                    title = stringResource(R.string.files_cloud_delete_title),
-                    confirmLabel = stringResource(R.string.common_delete),
-                    dismissLabel = stringResource(R.string.common_cancel),
-                    destructive = true,
-                    onConfirm = {
-                        viewModel.deleteCloudItem(item)
-                        cloudDeleteTarget = null
-                        cloudSelected = null
-                    },
-                    onDismiss = { cloudDeleteTarget = null }
-                ) {
-                    Text(message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
-                }
-            } else {
-                DeleteConfirmDialog(
-                    message = message,
-                    onConfirm = {
-                        viewModel.deleteCloudItem(item)
-                        cloudDeleteTarget = null
-                    },
-                    onDismiss = { cloudDeleteTarget = null }
-                )
-            }
-        }
-
         // ── The tablet asks for a name in Windows 8's band ──
         if (isWideScreen) {
             textPrompt?.let { asking ->
                 Win8TextDialog(
                     title = stringResource(
                         when (asking) {
-                            TextPrompt.NewFolder, TextPrompt.NewCloudFolder -> R.string.files_new_folder
+                            TextPrompt.NewFolder -> R.string.files_new_folder
                             else -> R.string.files_rename
                         }
                     ).lowercase(locale),
                     initial = when (asking) {
                         is TextPrompt.Rename -> asking.item.name
-                        is TextPrompt.RenameCloud -> asking.item.name
                         else -> ""
                     },
                     confirmLabel = stringResource(R.string.common_ok),
@@ -1427,9 +1354,7 @@ fun FilesHubScreen(
                     onConfirm = { text ->
                         when (asking) {
                             TextPrompt.NewFolder -> viewModel.createDirectory(text)
-                            TextPrompt.NewCloudFolder -> viewModel.createCloudFolder(text)
                             is TextPrompt.Rename -> viewModel.renameItem(asking.item, text)
-                            is TextPrompt.RenameCloud -> viewModel.renameCloudItem(asking.item, text)
                         }
                         textPrompt = null
                     },
@@ -1496,36 +1421,16 @@ fun FilesHubScreen(
         // ── The recycle bin's sheet, its questions, and Back while it is open ──
         RecycleBinOverlays(viewModel = viewModel, ui = binUi, isWideScreen = isWideScreen)
 
-        cloudSheetTarget?.let { item ->
-            MessagingSheet(title = item.name, onDismiss = { cloudSheetTarget = null }) {
-                if (!item.isFolder) {
-                    SheetAction(label = stringResource(R.string.files_cloud_save)) {
-                        viewModel.saveCloudItemToDevice(item)
-                        cloudSheetTarget = null
-                    }
-                    SheetAction(label = stringResource(R.string.files_share)) {
-                        viewModel.shareCloudItem(item)
-                        cloudSheetTarget = null
-                    }
-                }
-                SheetAction(label = stringResource(R.string.files_rename)) {
-                    textPrompt = TextPrompt.RenameCloud(item)
+        cloudSheetTarget?.let { document ->
+            MessagingSheet(title = document.name, onDismiss = { cloudSheetTarget = null }) {
+                SheetAction(label = stringResource(R.string.files_open)) {
                     cloudSheetTarget = null
-                    openSubScreen()
+                    viewModel.openCloudDocument(context, document)
                 }
-                if (!item.isFolder) {
-                    SheetAction(label = stringResource(R.string.files_cloud_open_web)) {
-                        viewModel.openCloudItemOnWeb(item)
-                        cloudSheetTarget = null
-                    }
-                }
-                SheetAction(
-                    label = stringResource(R.string.common_delete),
-                    color = MaterialTheme.colorScheme.error
-                ) {
-                    // Asked first, on both layouts: a drive's delete used to happen at the tap.
-                    cloudDeleteTarget = item
+                // Off the list only; the document stays in the cloud, and the picker finds it again.
+                SheetAction(label = stringResource(R.string.files_cloud_forget)) {
                     cloudSheetTarget = null
+                    viewModel.forgetCloudDocument(document)
                 }
             }
         }
@@ -1657,9 +1562,7 @@ private fun DeleteConfirmDialog(message: String, onConfirm: () -> Unit, onDismis
 /** What a text-entry sub-screen is being opened for. */
 internal sealed interface TextPrompt {
     data object NewFolder : TextPrompt
-    data object NewCloudFolder : TextPrompt
     data class Rename(val item: FileItemModel) : TextPrompt
-    data class RenameCloud(val item: CloudItem) : TextPrompt
 }
 
 @Composable
@@ -1671,7 +1574,6 @@ private fun TextPromptScreen(
     val zuneColors = LocalZuneColors.current
     val initial = when (prompt) {
         is TextPrompt.Rename -> prompt.item.name
-        is TextPrompt.RenameCloud -> prompt.item.name
         else -> ""
     }
     var text by remember(prompt) { mutableStateOf(initial) }
@@ -1680,7 +1582,7 @@ private fun TextPromptScreen(
         breadcrumb = stringResource(R.string.hub_files),
         title = stringResource(
             when (prompt) {
-                TextPrompt.NewFolder, TextPrompt.NewCloudFolder -> R.string.files_new_folder
+                TextPrompt.NewFolder -> R.string.files_new_folder
                 else -> R.string.files_rename
             }
         ),
@@ -1810,8 +1712,8 @@ private const val FADE_MILLIS = 160
 /** How long after the page changes the new list starts in, while the word is still landing. */
 private const val LIST_LEAD_MILLIS = 120L
 
-/** The cloud page's heading, which is where a drive folder's name lands. */
-internal val CLOUD_TITLE_SIZE = 34.sp
+/** How wide the cloud page runs on a tablet; its lines read badly across the whole screen. */
+private val TABLET_CLOUD_WIDTH = 720.dp
 
 /** The narrowest a picture may be in the phone's thumbnails grid; three fit across a phone. */
 private val PHONE_TILE_MIN = 100.dp

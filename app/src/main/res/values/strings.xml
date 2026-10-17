@@ -757,7 +757,7 @@
     <string name="email_security_ssl">SSL/TLS</string>
     <string name="email_security_starttls">STARTTLS</string>
     <string name="email_security_none">none</string>
-    <string name="email_hint_app_password_gmail">Your normal Gmail password will not work: turn on 2-step verification in your Google account, create an \"app password\" and enter that.</string>
+    <string name="email_hint_app_password_gmail">Your normal Gmail password will not work: turn on 2-step verification in your Google account, make an \"app password\" there and enter it here.</string>
     <string name="email_hint_app_password_outlook">For Outlook/Hotmail you may need to create an \"app password\" in your Microsoft account.</string>
     <string name="email_hint_app_password_generic">If 2-step verification is enabled on the account, an app password is required.</string>
     <string name="email_folder_inbox">inbox</string>
@@ -893,17 +893,9 @@
     <string name="email_signature_cap">Signature</string>
     <string name="email_signature_hint">Sent from Z Launcher</string>
     <string name="common_remove_cap">Remove</string>
-    <string name="email_google_sign_in">sign in with google</string>
-    <string name="email_google_sign_in_sub">gmail · no password, google shows a consent screen</string>
-    <string name="email_google_account">google account</string>
-    <string name="email_google_reauth">re-authorize with google</string>
-    <string name="email_google_signing_in">signing in with google…</string>
-    <string name="email_google_authorized">google access granted: %1$s</string>
-    <string name="email_google_no_email">your google account was selected; enter the e-mail address below</string>
-    <string name="email_error_google_reauth">google access is no longer valid, re-authorize the account</string>
-    <string name="email_error_google_config">google sign-in is not configured: an android oauth client for this package name and signing key is required in google cloud console</string>
-    <string name="email_error_google_cancelled">google sign-in was cancelled</string>
-    <string name="email_error_google_failed">google sign-in failed</string>
+    <string name="email_error_google_reauth">this account was signed in with Google, which is no longer offered; edit it and enter an app password</string>
+    <string name="email_gmail_make_app_password">make an app password in your Google account</string>
+    <string name="email_google_moved_to_password">Signing in with Google is no longer offered. Enter an app password for this account and it carries on as before.</string>
     <string name="tile_next_alarm">next alarm</string>
     <string name="tile_no_events">no upcoming events</string>
     <string name="tile_upcoming">upcoming</string>
@@ -1091,19 +1083,8 @@
     <string name="files_tab_cloud">cloud</string>
     <string name="files_cloud_loading">loading…</string>
     <!-- Files hub: cloud services over their own web APIs -->
-    <string name="cloud_service_google">Google Drive</string>
-    <string name="files_cloud_accounts">accounts</string>
-    <string name="files_cloud_sign_out">sign out</string>
     <string name="files_cloud_saved">saved to Downloads: %1$s</string>
-    <string name="cloud_error_network">no connection to the service</string>
-    <string name="cloud_error_service">the service refused that</string>
-    <string name="cloud_error_signin_again">the session expired, sign in again</string>
-    <string name="cloud_error_cancelled">sign-in was cancelled</string>
-    <string name="cloud_error_google_config">the Google sign-in is not set up for this build (OAuth client / Drive API)</string>
-    <string name="cloud_error_save_failed">the file could not be saved</string>
     <string name="cloud_error_no_app">no app can open this file</string>
-    <string name="cloud_error_google_identity">the Google account could not be read; make sure the Drive API is enabled for this OAuth project</string>
-    <string name="cloud_error_google_api_off">the Drive API is not enabled for this project yet</string>
 
     <!-- ══════════ WEATHER HUB ══════════ -->
     <string name="hub_weather">weather</string>
@@ -1639,7 +1620,6 @@
     <string name="files_sd_card">SD card</string>
     <string name="files_volumes">Storage</string>
     <string name="files_storage_used">%1$s of %2$s</string>
-    <string name="files_cloud_used_only">%1$s used</string>
     <string name="files_copy">copy</string>
     <string name="files_cut">move</string>
     <string name="files_paste">paste</string>
@@ -1683,13 +1663,23 @@
     <string name="files_uploading">Sending %1$s</string>
     <string name="files_downloading">Getting %1$s</string>
     <string name="files_upload_failed">That file could not be read.</string>
-    <string name="files_cloud_uploaded">%1$s was sent.</string>
     <string name="files_cloud_document">Document</string>
-    <string name="files_cloud_intro">Sign in once and the drive opens here, whether or not the service\'s own app is installed.</string>
-    <string name="files_cloud_no_accounts">No account connected yet.</string>
-    <string name="files_cloud_google_sign_in">Sign in with Google</string>
-    <string name="files_cloud_close">Leave the drive</string>
     <string name="files_cloud_save">Save to this phone</string>
+    <!-- Files hub: the cloud through the phone's own document picker -->
+    <string name="files_cloud_picker_intro">Files on Google Drive, OneDrive, Dropbox and the like open through the phone\'s own picker, so there is nothing to sign in to here.</string>
+    <string name="files_cloud_open_from">open a file from the cloud</string>
+    <string name="files_cloud_apps">cloud apps on this phone: %1$s</string>
+    <string name="files_cloud_no_apps">No cloud app on this phone yet. Install Google Drive, OneDrive or Dropbox and it shows up here.</string>
+    <string name="files_cloud_recent">recently opened</string>
+    <string name="files_cloud_recent_empty">Nothing opened from the cloud yet.</string>
+    <string name="files_cloud_forget">remove from list</string>
+    <string name="files_cloud_save_to">save to cloud</string>
+    <string name="files_cloud_save_chooser">Save to the cloud</string>
+    <string name="files_cloud_saved_to">%1$s was saved to the cloud.</string>
+    <string name="files_cloud_save_failed">%1$s could not be saved to the cloud.</string>
+    <string name="files_cloud_gone">%1$s can no longer be opened, so it came off the list.</string>
+    <string name="files_cloud_no_picker">This phone has no document picker.</string>
+    <string name="files_cloud_place">cloud files</string>
     <string name="files_cat_camera">Camera</string>
     <string name="files_cat_videos">Videos</string>
     <string name="settings_look_text_motion">Text and motion</string>

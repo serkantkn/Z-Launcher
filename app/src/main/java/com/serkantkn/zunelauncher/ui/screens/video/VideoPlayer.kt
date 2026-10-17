@@ -5,8 +5,6 @@ import com.serkantkn.zunelauncher.util.Pro
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
-import com.serkantkn.zunelauncher.data.model.CloudAccount
-import com.serkantkn.zunelauncher.data.model.CloudItem
 import java.io.File
 
 /**
@@ -20,8 +18,6 @@ import java.io.File
 object VideoPlayer {
 
     internal const val EXTRA_TITLE = "video_title"
-    internal const val EXTRA_CLOUD_ACCOUNT = "video_cloud_account"
-    internal const val EXTRA_CLOUD_ID = "video_cloud_id"
     internal const val EXTRA_PATH = "video_path"
     internal const val EXTRA_QUEUE_FOLDER = "video_queue_folder"
 
@@ -56,16 +52,6 @@ object VideoPlayer {
         context.startActivity(intent)
     }
 
-    /** Plays a video straight off a drive, as it arrives, without downloading it first. */
-    fun openCloud(context: Context, account: CloudAccount, item: CloudItem) {
-        val intent = Intent(context, VideoPlayerActivity::class.java)
-            .putExtra(EXTRA_TITLE, item.name)
-            .putExtra(EXTRA_CLOUD_ACCOUNT, account.toJson().toString())
-            .putExtra(EXTRA_CLOUD_ID, item.contentId)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        VideoPlayerActivity.closeSmallWindow()
-        context.startActivity(intent)
-    }
 }
 
 /** How the videos page lays the videos out. */

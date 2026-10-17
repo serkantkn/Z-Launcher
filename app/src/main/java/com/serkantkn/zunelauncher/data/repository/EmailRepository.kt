@@ -14,7 +14,6 @@ import com.serkantkn.zunelauncher.data.model.EmailFolder
 import com.serkantkn.zunelauncher.data.model.EmailFolderType
 import com.serkantkn.zunelauncher.data.model.EmailMessage
 import com.serkantkn.zunelauncher.data.model.EmailSecurity
-import com.serkantkn.zunelauncher.data.service.GoogleMailAuth
 import com.serkantkn.zunelauncher.util.SecretStore
 import com.serkantkn.zunelauncher.util.ZuneLog
 import com.sun.mail.imap.IMAPFolder
@@ -73,10 +72,10 @@ class EmailRepository(
 
     // ── Connection ────────────────────────────────────────────────────────
 
-    /** Logs in to IMAP and SMTP without saving anything. [password] is ignored for Google accounts. */
+    /** Logs in to IMAP and SMTP without saving anything. */
     suspend fun testConnection(account: EmailAccount, password: String?) = withContext(Dispatchers.IO) {
         wrap {
-            val secret = if (account.isGoogleOAuth) credential(account) else password ?: throw EmailException(R.string.email_error_no_password)
+            val secret = password ?: throw EmailException(R.string.email_error_no_password)
             val session = Session.getInstance(imapProps(account))
             val store = session.getStore("imap")
             store.connect(account.imapHost, account.imapPort, account.username, secret)
@@ -88,9 +87,13 @@ class EmailRepository(
         }
     }
 
-    /** The "password" for a connection: the stored password, or a fresh Google access token. */
+    /**
+     * The password for a connection. An account once signed in with Google - an option no longer
+     * offered, as Google charges for the mail access it needs - has none, and is asked to be
+     * connected again with an app password.
+     */
     private fun credential(account: EmailAccount): String =
-        if (account.isGoogleOAuth) GoogleMailAuth.accessToken(context, account.email)
+        if (account.isGoogleOAuth) throw EmailException(R.string.email_error_google_reauth)
         else secretStore.get(account.id) ?: throw EmailException(R.string.email_error_no_password)
 
     /** False when the vault would not take it; the account must not be saved as if it had. */
@@ -123,7 +126,6 @@ class EmailRepository(
         put("mail.imap.partialfetch", "false")
         put("mail.mime.decodefilename", "true")
         put("mail.mime.decodetext.strict", "false")
-        if (account.isGoogleOAuth) put("mail.imap.auth.mechanisms", "XOAUTH2")
         // Said out loud rather than left to the library's default: without it a certificate is
         // checked for being valid but not for belonging to the server being talked to, and
         // anybody able to present some other valid certificate can read the password.
@@ -142,7 +144,6 @@ class EmailRepository(
         put("mail.smtp.connectiontimeout", "20000")
         put("mail.smtp.timeout", "40000")
         put("mail.smtp.writetimeout", "60000")
-        if (account.isGoogleOAuth) put("mail.smtp.auth.mechanisms", "XOAUTH2")
         // See imapProps: the certificate has to belong to this server, not just be a valid one.
         put("mail.smtp.ssl.checkserveridentity", "true")
         when (account.smtpSecurity) {

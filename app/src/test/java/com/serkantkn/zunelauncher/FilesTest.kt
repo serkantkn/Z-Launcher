@@ -1,8 +1,6 @@
 package com.serkantkn.zunelauncher
 
-import com.serkantkn.zunelauncher.data.model.CloudPage
-import com.serkantkn.zunelauncher.data.model.CloudQuota
-import com.serkantkn.zunelauncher.data.model.CloudTransfer
+import com.serkantkn.zunelauncher.data.model.FileTransfer
 import com.serkantkn.zunelauncher.data.model.FileItemModel
 import com.serkantkn.zunelauncher.util.FileCategory
 import com.serkantkn.zunelauncher.util.FileSort
@@ -189,24 +187,11 @@ class FilesTest {
     // ── Drives ──────────────────────────────────────────────────────────────
 
     @Test
-    fun `a page knows whether the service is holding more back`() {
-        assertFalse(CloudPage(emptyList()).hasMore)
-        assertFalse(CloudPage(emptyList(), "").hasMore)
-        assertTrue(CloudPage(emptyList(), "token").hasMore)
-    }
-
-    @Test
-    fun `a quota with no limit reports no fraction rather than a full bar`() {
-        assertEquals(0.5f, CloudQuota(usedBytes = 50L, totalBytes = 100L).fraction)
-        assertEquals(null, CloudQuota(usedBytes = 50L, totalBytes = 0L).fraction)
-    }
-
-    @Test
     fun `a transfer whose size is unknown counts up instead of filling a bar`() {
-        assertEquals(0.25f, CloudTransfer("a", false, 25L, 100L).fraction)
-        assertEquals(null, CloudTransfer("a", true, 25L, 0L).fraction)
+        assertEquals(0.25f, FileTransfer("a", false, 25L, 100L).fraction)
+        assertEquals(null, FileTransfer("a", true, 25L, 0L).fraction)
         // More arrived than was promised: the bar stops at full rather than overflowing.
-        assertEquals(1f, CloudTransfer("a", false, 150L, 100L).fraction)
+        assertEquals(1f, FileTransfer("a", false, 150L, 100L).fraction)
     }
 
     // ── Fixtures ────────────────────────────────────────────────────────────

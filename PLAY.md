@@ -98,7 +98,6 @@ gider, geliştiriciye değil:
 | lrclib.net, musicbrainz.org, coverartarchive.org, itunes.apple.com | Çalan parçanın adı, sanatçı, albüm | Ayarlardan "internetten sözler ve kapaklar" açıksa |
 | Seçilen arama motoru | Tarayıcıya yazılan metin | Arama önerileri açıkken yazarken |
 | Kullanıcının kendi IMAP/SMTP sunucusu | E-posta içeriği ve kimlik bilgileri | E-posta hesabı eklenmişse |
-| googleapis.com (Drive) | Dosya listesi ve aktarılan dosyalar | Drive hesabı bağlanmışsa |
 
 **Şifreleme:** Aktarımda TLS. Cihazda: hesap şifreleri ve bulut jetonları AES-GCM (anahtar
 Android Keystore'da), kilitli notların gövdesi aynı şekilde.

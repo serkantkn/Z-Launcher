@@ -1,6 +1,6 @@
 # Z Launcher — Privacy Policy
 
-Last updated: 16 October 2026 · Version 1.2
+Last updated: 17 October 2026 · Version 1.3
 
 ## In short
 
@@ -57,9 +57,10 @@ off in settings, and then nothing is sent.
 The app connects straight to your IMAP/SMTP server. Nothing sits in between, and there is no
 server of ours.
 
-**Google Drive — googleapis.com**
-Only if you connect a Drive account in the Files hub. Authorisation happens in Google's own
-screen; the token is kept encrypted on your phone.
+**Cloud files — the app connects to none itself**
+When you open a file from the cloud in the Files hub, or save one there, Android's own file
+picker is used: the cloud app on your phone (Google Drive, OneDrive, Dropbox…) brings it or takes
+it. The app signs in to no cloud account and keeps no account details.
 
 **News — news.google.com and the sites you follow**
 Only when the news hub is opened, or while its tile is on Start. The feeds of the topics you chose come from Google News, in the edition of your phone's language and country; the RSS feeds of the sites you follow come straight from those sites. When you open a story, its picture and summary may be asked of the story's own page. No location, nothing identifying.

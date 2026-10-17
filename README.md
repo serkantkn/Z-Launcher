@@ -80,9 +80,9 @@ Hepsi uygulamanın içinde, hepsi aynı dilde yazılmış:
 | **müzik + videolar** | yerel kitaplık, çalma listeleri, şarkı sözleri, albüm kapakları; telefondaki videolar ve kendi video oynatıcısı |
 | **internet** | sekmeler, yer imleri, okuma görünümü ve okuma listesi, reklam ve izleyici engelleme, gizli gezinme |
 | **haberler** | Google Haberler'in konuları ve takip ettiğin sitelerin RSS akışları; özet, sonra sitenin kendi sayfası |
-| **e-posta** | IMAP/SMTP, birden çok hesap, Google ile oturum açma |
+| **e-posta** | IMAP/SMTP, birden çok hesap; Gmail, Outlook ve Yandex için hazır ayarlar (Gmail uygulama şifresiyle) |
 | **notlar** | kontrol listeleri, resim ve ses, kilitli notlar *(Pro)* |
-| **dosyalar** | klasörler karo olarak; kopyala · taşı · yapıştır · yeniden adlandır · sil · ayrıntılar, sürükleyerek üst klasöre taşı; metin, resim, ses, video ve PDF'i kendi açar; bulut sürücüler |
+| **dosyalar** | klasörler karo olarak; kopyala · taşı · yapıştır · yeniden adlandır · sil · ayrıntılar, sürükleyerek üst klasöre taşı; metin, resim, ses, video ve PDF'i kendi açar; buluttaki dosyalar telefonun kendi seçicisiyle (Google Drive, OneDrive, Dropbox…) |
 | **sosyal** | seçtiğin uygulamaların mesajları tek akışta *(Pro)* |
 | **saat · takvim · hava durumu · hesap makinesi · kamera** | her biri kendi canlı karosuyla |
 
@@ -276,7 +276,7 @@ turnstile animations and Zune's thin type, running on today's Android — and se
   People (a Windows Phone 7 panorama: all, what's new, recent), Pictures, Music + Videos (with the launcher's
   own video player: small window, resume where you left off, subtitles, sound tracks, speed, the next
   episode, a touch lock), Internet, News, Email, Notes, Files (folders as tiles; copy, cut, paste, rename,
-  delete, details, drag up a folder; opens text, pictures, sound, video and PDF itself; cloud drives), Social,
+  delete, details, drag up a folder; opens text, pictures, sound, video and PDF itself; cloud files through the phone's own picker), Social,
   Clock, Calendar, Weather, Calculator, Camera. Hubs left with Home keep running and come back from the
   running-hubs strip, a double press of Home, or a two-finger swipe that splits the screen. On a tablet a hub
   has its headings down the left, what is open in a pane beside them, and the Windows 8 bar.

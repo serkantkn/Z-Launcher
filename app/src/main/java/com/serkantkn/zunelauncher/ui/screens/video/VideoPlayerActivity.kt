@@ -51,16 +51,11 @@ import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.HttpDataSource
-import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.data.model.CloudAccount
-import com.serkantkn.zunelauncher.data.model.CloudException
 import com.serkantkn.zunelauncher.data.model.ThemeMode
-import com.serkantkn.zunelauncher.data.repository.CloudStream
 import com.serkantkn.zunelauncher.di.appContainer
 import com.serkantkn.zunelauncher.ui.theme.ZuneLauncherTheme
 import com.serkantkn.zunelauncher.util.AppLocale
@@ -70,7 +65,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import java.io.File
 import java.util.Locale
 
@@ -126,12 +120,6 @@ class VideoPlayerActivity : ComponentActivity() {
     private var videoAspect by mutableFloatStateOf(0f)
 
     // ── What is playing ──
-    private var cloudAccount: CloudAccount? = null
-    private var cloudId: String? = null
-    /** The drive's host and token, sent with requests to that host only. */
-    @Volatile
-    private var cloudAuth: Pair<String, String>? = null
-    private var tokenRetried = false
     /** Set once the person has turned the screen themselves; the video's shape no longer decides. */
     private var orientationChosen = false
     /** A subtitle just picked by hand, chosen as soon as the player has read it. */
@@ -169,16 +157,7 @@ class VideoPlayerActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.decorView.setBackgroundColor(android.graphics.Color.BLACK)
 
-        // The drive's token goes with requests to the drive, and to no other address a video
-        // handed over later might come from.
-        val dataSource = ResolvingDataSource.Factory(DefaultDataSource.Factory(this, httpFactory)) { spec ->
-            val auth = cloudAuth
-            if (auth != null && spec.uri.host == auth.first) {
-                spec.withAdditionalHeaders(mapOf("Authorization" to "Bearer ${auth.second}"))
-            } else {
-                spec
-            }
-        }
+        val dataSource = DefaultDataSource.Factory(this, httpFactory)
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSource))
             .setAudioAttributes(
@@ -278,19 +257,16 @@ class VideoPlayerActivity : ComponentActivity() {
         load(intent)
     }
 
-    /** Takes in what to play - a uri, or a file on a drive - and starts it. */
+    /** Takes in what to play and starts it. */
     private fun load(intent: Intent) {
-        val accountJson = intent.getStringExtra(VideoPlayer.EXTRA_CLOUD_ACCOUNT)
-        val id = intent.getStringExtra(VideoPlayer.EXTRA_CLOUD_ID)
         val uri = intent.data
-        if ((accountJson == null || id == null) && uri == null) {
+        if (uri == null) {
             // Nothing to play: an empty start is closed, and one reaching a player already
             // showing a film leaves it as it is.
             if (player.mediaItemCount == 0) finish()
             return
         }
         errorText = null
-        tokenRetried = false
         orientationChosen = false
         resumedFromMs = 0L
         pendingSubtitleLabel = null
@@ -302,18 +278,8 @@ class VideoPlayerActivity : ComponentActivity() {
             .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
             .clearOverridesOfType(C.TRACK_TYPE_TEXT)
             .build()
-        if (accountJson != null && id != null) {
-            cloudAccount = runCatching { CloudAccount.fromJson(JSONObject(accountJson)) }.getOrNull()
-            cloudId = id
-            title = withoutExtension(intent.getStringExtra(VideoPlayer.EXTRA_TITLE).orEmpty())
-            startCloud()
-            return
-        }
-        cloudAccount = null
-        cloudId = null
-        cloudAuth = null
         val opened = QueuedVideo(
-            uri = uri!!,
+            uri = uri,
             title = intent.getStringExtra(VideoPlayer.EXTRA_TITLE) ?: nameOf(uri),
             mimeType = intent.type,
             path = intent.getStringExtra(VideoPlayer.EXTRA_PATH)
@@ -382,35 +348,6 @@ class VideoPlayerActivity : ComponentActivity() {
             .setSubtitleConfigurations(subtitles)
             .setMediaMetadata(MediaMetadata.Builder().setTitle(withoutExtension(video.title)).build())
             .build()
-
-    private fun startCloud(atMs: Long? = null) {
-        val account = cloudAccount
-        val id = cloudId
-        if (account == null || id == null) {
-            errorText = localizedString(R.string.video_cant_play)
-            return
-        }
-        isBuffering = true
-        lifecycleScope.launch {
-            try {
-                val stream: CloudStream = appContainer.cloudStorageRepository.streamOf(account, id)
-                val streamUri = Uri.parse(stream.url)
-                cloudAuth = streamUri.host?.let { it to stream.token }
-                val item = MediaItem.Builder()
-                    .setUri(streamUri)
-                    .setMediaId("cloud:$id")
-                    .setMediaMetadata(MediaMetadata.Builder().setTitle(title).build())
-                    .build()
-                play(listOf(item), 0, atMs)
-            } catch (e: CloudException) {
-                ZuneLog.w(TAG, "no stream for the video", e)
-                errorText = localizedString(e.messageRes)
-            } catch (e: Exception) {
-                ZuneLog.w(TAG, "no stream for the video", e)
-                errorText = localizedString(R.string.video_cant_play)
-            }
-        }
-    }
 
     private fun play(items: List<MediaItem>, index: Int, atMs: Long? = null) {
         val key = items.getOrNull(index)?.mediaId
@@ -496,13 +433,6 @@ class VideoPlayerActivity : ComponentActivity() {
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            // A drive's token lasts an hour; a longer film asks for a fresh one once and goes on.
-            val http = error.cause as? HttpDataSource.InvalidResponseCodeException
-            if (cloudId != null && http?.responseCode == 401 && !tokenRetried) {
-                tokenRetried = true
-                startCloud(atMs = player.currentPosition)
-                return
-            }
             ZuneLog.w(TAG, "the video would not play", error)
             isBuffering = false
             errorText = localizedString(R.string.video_cant_play)
@@ -735,9 +665,8 @@ class VideoPlayerActivity : ComponentActivity() {
         else controller.hide(WindowInsetsCompat.Type.systemBars())
     }
 
-    /** The video playing, if it is one on the device another app could be handed. */
-    private fun currentUri(): Uri? =
-        if (cloudId != null) null else player.currentMediaItem?.localConfiguration?.uri
+    /** The video playing, for handing to another app. */
+    private fun currentUri(): Uri? = player.currentMediaItem?.localConfiguration?.uri
 
     /** For a video that will not play here: the same video, offered to the other apps. */
     private fun openElsewhere() {

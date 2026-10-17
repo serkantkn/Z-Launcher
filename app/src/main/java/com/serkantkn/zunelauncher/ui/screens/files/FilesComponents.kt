@@ -30,11 +30,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.data.model.CloudItem
-import com.serkantkn.zunelauncher.data.model.CloudQuota
-import com.serkantkn.zunelauncher.data.model.CloudTransfer
 import com.serkantkn.zunelauncher.data.model.FileItemModel
+import com.serkantkn.zunelauncher.data.model.FileTransfer
 import com.serkantkn.zunelauncher.data.model.StorageVolumeInfo
+import com.serkantkn.zunelauncher.data.repository.CloudDocument
 import com.serkantkn.zunelauncher.ui.animation.ZuneZoomAnchor
 import com.serkantkn.zunelauncher.ui.animation.zuneZoomAnchor
 import com.serkantkn.zunelauncher.ui.components.MetroProgressLine
@@ -152,37 +151,38 @@ internal fun FileRow(
     }
 }
 
-// ── One file on a drive ─────────────────────────────────────────────────────
+// ── One document in the cloud ───────────────────────────────────────────────
 
+/**
+ * A document opened from the cloud, drawn as a file on the phone is: its kind's colour down the
+ * left, its name, and under it what kind of thing it is, how big, and when it was last opened.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun CloudRow(
-    item: CloudItem,
+internal fun CloudDocumentRow(
+    document: CloudDocument,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    nameAnchor: ZuneZoomAnchor? = null
+    isSelected: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
     val interactionSource = remember { MutableInteractionSource() }
-    val category = remember(item) {
-        if (item.isFolder) FileCategory.FOLDER else categoryOf(item.name.substringAfterLast('.', ""))
+    val extension = remember(document.name) {
+        document.name.substringAfterLast('.', "").takeIf { '.' in document.name }.orEmpty()
     }
-    val accent = categoryColor(category, zuneColors.accentColor)
-    val formattedDate = remember(item.lastModified) {
-        if (item.lastModified <= 0L) "" else
-            SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(item.lastModified))
+    val accent = categoryColor(categoryOf(extension.lowercase(Locale.ROOT)), zuneColors.accentColor)
+    val kind = extension.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
+        ?: stringResource(R.string.files_cloud_document)
+    val opened = remember(document.openedAt) {
+        SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(document.openedAt))
     }
-    val folderLabel = stringResource(R.string.files_folder)
-    val size = when {
-        item.isFolder -> folderLabel
-        item.size > 0L -> formatFileSize(item.size)
-        else -> stringResource(R.string.files_cloud_document)
-    }
+    val size = if (document.size >= 0L) formatFileSize(document.size) else ""
 
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .background(if (isSelected) zuneColors.accentColor.copy(alpha = 0.18f) else Color.Transparent)
             .wpTilt(interactionSource)
             .combinedClickable(
                 interactionSource = interactionSource,
@@ -202,29 +202,21 @@ internal fun CloudRow(
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = item.name,
+                text = document.name,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Normal,
                     fontSize = FileRowNameSize
                 ),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = if (nameAnchor != null) Modifier.zuneZoomAnchor(nameAnchor) else Modifier
+                overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = listOf(size, formattedDate).filter { it.isNotBlank() }.joinToString(" • "),
+                text = listOf(kind, size, opened).filter { it.isNotBlank() }.joinToString(" • "),
                 style = MaterialTheme.typography.labelMedium,
                 color = zuneColors.textMuted,
-                maxLines = 1
-            )
-        }
-        if (item.isFolder) {
-            Text(
-                text = "›",
-                style = MaterialTheme.typography.titleMedium,
-                color = zuneColors.textDim,
-                modifier = Modifier.padding(start = 8.dp)
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -348,32 +340,10 @@ internal fun StorageBar(
     }
 }
 
-/** The same line for a drive rather than a disc. */
-@Composable
-internal fun CloudQuotaBar(quota: CloudQuota, modifier: Modifier = Modifier) {
-    val zuneColors = LocalZuneColors.current
-    val used = remember(quota) { formatFileSize(quota.usedBytes) }
-    Column(modifier = modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Text(
-            text = if (quota.totalBytes > 0L) {
-                stringResource(R.string.files_storage_used, used, formatFileSize(quota.totalBytes))
-            } else {
-                stringResource(R.string.files_cloud_used_only, used)
-            },
-            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-            color = zuneColors.textMuted
-        )
-        if (quota.fraction != null) {
-            Spacer(modifier = Modifier.height(6.dp))
-            MetroProgressLine(progress = quota.fraction!!, thickness = 3.dp)
-        }
-    }
-}
-
 /** What is being moved right now, and the word that stops it. */
 @Composable
 internal fun TransferBar(
-    transfer: CloudTransfer,
+    transfer: FileTransfer,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -401,7 +371,11 @@ internal fun TransferBar(
                 text = stringResource(R.string.common_cancel).lowercase(Locale.getDefault()),
                 style = MaterialTheme.typography.labelLarge,
                 color = zuneColors.accentColor,
-                modifier = Modifier.clickable(onClick = onCancel)
+                modifier = Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onCancel
+                )
             )
         }
         Spacer(modifier = Modifier.height(8.dp))

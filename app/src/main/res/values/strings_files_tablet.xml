@@ -2,7 +2,6 @@
 <resources>
     <string name="files_pane_device">this device</string>
     <string name="files_pane_libraries">libraries</string>
-    <string name="files_pane_add_account">add account</string>
     <string name="files_free_of">%1$s free of %2$s</string>
     <string name="files_col_name">name</string>
     <string name="files_col_modified">date modified</string>
@@ -18,13 +17,11 @@
     <string name="files_path_menu">folders above</string>
     <string name="files_view_thumbnails">thumbnails view</string>
     <string name="files_view_list">list view</string>
-    <string name="files_bar_upload_cloud">to cloud</string>
     <string name="files_bar_select_all">select all</string>
     <string name="files_bar_clear_selection">clear selection</string>
     <string name="files_bar_view">view</string>
     <string name="files_bar_hidden">hidden items</string>
     <string name="files_bar_volumes">storage</string>
-    <string name="files_bar_close_drive">close drive</string>
     <string name="files_bar_upload">upload</string>
     <string name="files_bar_clear_clipboard">clear clipboard</string>
     <string name="files_view_thumbs_short">thumbnails</string>
@@ -57,11 +54,4 @@
         <item quantity="other">apply to all (%d more)</item>
     </plurals>
     <string name="cloud_error_web_only">this Google file only opens on the web</string>
-    <string name="files_cloud_delete_title">delete from drive</string>
-    <string name="files_cloud_delete_confirm">"%1$s" will go to Drive\'s bin, where it waits 30 days.</string>
-    <string name="files_cloud_open_web">open on web</string>
-    <string name="files_cloud_save_short">save to device</string>
-    <string name="files_cloud_kind_folder">folder</string>
-    <string name="files_cloud_kind_google">Google file</string>
-    <string name="files_cloud_none">no accounts yet. Connect Google Drive with "add account" on the left.</string>
 </resources>

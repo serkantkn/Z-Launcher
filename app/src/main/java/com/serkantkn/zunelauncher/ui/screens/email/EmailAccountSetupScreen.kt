@@ -48,7 +48,6 @@ import com.serkantkn.zunelauncher.data.model.EmailAuthType
 import com.serkantkn.zunelauncher.data.model.EmailProviderPreset
 import com.serkantkn.zunelauncher.data.model.EmailProviders
 import com.serkantkn.zunelauncher.data.model.EmailSecurity
-import com.serkantkn.zunelauncher.data.service.GoogleMailAuth
 import com.serkantkn.zunelauncher.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zunelauncher.ui.components.WpBarAction
 import com.serkantkn.zunelauncher.ui.screens.settings.SettingPill
@@ -86,8 +85,8 @@ internal fun EmailAccountSetupScreen(
     var showAdvanced by rememberSaveable { mutableStateOf(existing != null && EmailProviders.forAddress(existing.email) == EmailProviders.CUSTOM) }
     var isBusy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var useGoogle by rememberSaveable { mutableStateOf(existing?.isGoogleOAuth == true) }
-    var googleGranted by remember { mutableStateOf(false) }
+    // Signed in with Google once, an option no longer offered: it asks for an app password now.
+    val wasGoogle = existing?.isGoogleOAuth == true
     val context = LocalContext.current
 
     fun applyPreset(preset: EmailProviderPreset) {
@@ -102,12 +101,10 @@ internal fun EmailAccountSetupScreen(
 
     val requiredMissing = stringResource(R.string.email_setup_fill_required)
     val badAddress = stringResource(R.string.email_setup_bad_address)
-    val googleNoEmail = stringResource(R.string.email_google_no_email)
-    val googleCancelled = stringResource(R.string.email_error_google_cancelled)
 
     fun submit() {
         val address = email.trim()
-        if (address.isBlank() || (!useGoogle && password.isBlank() && existing == null)) { error = requiredMissing; return }
+        if (address.isBlank() || (password.isBlank() && (existing == null || wasGoogle))) { error = requiredMissing; return }
         if (!EmailAddress.isValid(address)) { error = badAddress; return }
         val guessed = if (imapHost.isBlank() || smtpHost.isBlank()) EmailProviders.forAddress(address) else null
         val account = EmailAccount(
@@ -120,8 +117,8 @@ internal fun EmailAccountSetupScreen(
             smtpHost = smtpHost.trim().ifBlank { guessed?.smtpHost ?: "" },
             smtpPort = smtpPort.trim().toIntOrNull() ?: 587,
             smtpSecurity = smtpSecurity,
-            username = if (useGoogle) address else username.trim().ifBlank { address },
-            authType = if (useGoogle) EmailAuthType.GOOGLE_OAUTH else EmailAuthType.PASSWORD,
+            username = username.trim().ifBlank { address },
+            authType = EmailAuthType.PASSWORD,
             signature = existing?.signature ?: "",
             syncMinutes = existing?.syncMinutes ?: 15,
             notificationsEnabled = existing?.notificationsEnabled ?: true,
@@ -133,43 +130,6 @@ internal fun EmailAccountSetupScreen(
             isBusy = false
             if (result == null) onClose() else error = result
         }
-    }
-
-    // ── Google sign-in (OAuth 2.0 via Play services, XOAUTH2 on the wire) ──
-    fun finishGoogle(result: com.google.android.gms.auth.api.identity.AuthorizationResult) {
-        isBusy = false
-        useGoogle = true
-        googleGranted = true
-        applyPreset(EmailProviders.GMAIL)
-        showAdvanced = false
-        GoogleMailAuth.emailOf(result)?.let { if (it.isNotBlank()) email = it }
-        GoogleMailAuth.displayNameOf(result)?.let { if (displayName.isBlank() && it.isNotBlank()) displayName = it }
-        if (email.isBlank()) error = googleNoEmail else submit()
-    }
-
-    val googleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        val data = result.data
-        if (result.resultCode == Activity.RESULT_OK && data != null) {
-            runCatching { GoogleMailAuth.resultFromIntent(context, data) }
-                .onSuccess { finishGoogle(it) }
-                .onFailure { isBusy = false; error = context.getString(GoogleMailAuth.mapError(it).messageRes) }
-        } else {
-            isBusy = false; error = googleCancelled
-        }
-    }
-
-    fun startGoogle() {
-        isBusy = true; error = null
-        GoogleMailAuth.authorizeTask(context, existing?.email)
-            .addOnSuccessListener { result ->
-                val pending = result.pendingIntent
-                if (result.hasResolution() && pending != null) {
-                    googleLauncher.launch(IntentSenderRequest.Builder(pending.intentSender).build())
-                } else {
-                    finishGoogle(result)
-                }
-            }
-            .addOnFailureListener { isBusy = false; error = context.getString(GoogleMailAuth.mapError(it).messageRes) }
     }
 
     Box(modifier = modifier.fillMaxSize().imePadding()) {
@@ -192,26 +152,6 @@ internal fun EmailAccountSetupScreen(
                         color = zuneColors.textMuted,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !isBusy) { startGoogle() }
-                            .padding(vertical = 10.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.email_google_sign_in),
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light, fontSize = 30.sp),
-                            color = zuneColors.accentColor
-                        )
-                        Text(
-                            text = stringResource(if (isBusy) R.string.email_google_signing_in else R.string.email_google_sign_in_sub),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = zuneColors.textMuted
-                        )
-                    }
-                    error?.let {
-                        Text(text = it, style = MaterialTheme.typography.bodyMedium, color = zuneColors.accentColor, modifier = Modifier.padding(vertical = 6.dp))
-                    }
                     EmailProviders.all.forEach { preset ->
                         Text(
                             text = if (preset == EmailProviders.CUSTOM) stringResource(R.string.email_setup_other_account) else preset.name.lowercase(),
@@ -226,7 +166,7 @@ internal fun EmailAccountSetupScreen(
                 } else {
                     // ── Step 2: credentials ──────────────────────────
                     Text(
-                        text = if (useGoogle) stringResource(R.string.email_google_account) else (provider?.name ?: "").lowercase(),
+                        text = (provider?.name ?: "").lowercase(),
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light, fontSize = 30.sp),
                         color = textColor,
                         modifier = Modifier.padding(bottom = 12.dp)
@@ -240,15 +180,15 @@ internal fun EmailAccountSetupScreen(
                         enabled = existing == null
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    if (useGoogle) {
-                        Text(text = stringResource(R.string.email_google_account), style = MaterialTheme.typography.labelMedium, color = zuneColors.textMuted)
+                    if (wasGoogle) {
                         Text(
-                            text = if (googleGranted) stringResource(R.string.email_google_authorized, email) else stringResource(R.string.email_google_reauth),
-                            style = MaterialTheme.typography.bodyLarge,
+                            text = stringResource(R.string.email_google_moved_to_password),
+                            style = MaterialTheme.typography.bodyMedium,
                             color = zuneColors.accentColor,
-                            modifier = Modifier.clickable(enabled = !isBusy) { startGoogle() }.padding(vertical = 6.dp)
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
-                    } else {
+                    }
+                    run {
                         EmailTextField(
                             label = stringResource(if (existing == null) R.string.email_setup_password else R.string.email_setup_new_password),
                             value = password,
@@ -266,6 +206,26 @@ internal fun EmailAccountSetupScreen(
                                 modifier = Modifier.padding(top = 6.dp)
                             )
                         }
+                        // Gmail asks for an app password; this is the page that makes one.
+                        if (provider == EmailProviders.GMAIL) {
+                            Text(
+                                text = stringResource(R.string.email_gmail_make_app_password),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = zuneColors.accentLink,
+                                modifier = Modifier
+                                    .clickable {
+                                        runCatching {
+                                            context.startActivity(
+                                                android.content.Intent(
+                                                    android.content.Intent.ACTION_VIEW,
+                                                    android.net.Uri.parse(GMAIL_APP_PASSWORDS)
+                                                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            )
+                                        }
+                                    }
+                                    .padding(vertical = 8.dp)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     EmailTextField(
@@ -276,13 +236,13 @@ internal fun EmailAccountSetupScreen(
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    if (!useGoogle) Text(
+                    Text(
                         text = stringResource(if (showAdvanced) R.string.email_setup_hide_advanced else R.string.email_setup_show_advanced),
                         style = MaterialTheme.typography.labelLarge,
                         color = zuneColors.accentColor,
                         modifier = Modifier.clickable { showAdvanced = !showAdvanced }
                     )
-                    if (showAdvanced && !useGoogle) {
+                    if (showAdvanced) {
                         Spacer(modifier = Modifier.height(12.dp))
                         EmailTextField(label = stringResource(R.string.email_setup_username), value = username, onValueChange = { username = it }, placeholder = email)
                         Spacer(modifier = Modifier.height(14.dp))
@@ -316,7 +276,7 @@ internal fun EmailAccountSetupScreen(
             modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
             actions = buildList {
                 if (provider != null) add(WpBarAction(Icons.Default.Check, stringResource(R.string.email_setup_sign_in)) { if (!isBusy) submit() })
-                add(WpBarAction(Icons.Default.Close, stringResource(R.string.common_cancel)) { if (provider != null && existing == null) { provider = null; useGoogle = false; googleGranted = false; error = null } else onClose() })
+                add(WpBarAction(Icons.Default.Close, stringResource(R.string.common_cancel)) { if (provider != null && existing == null) { provider = null; error = null } else onClose() })
             }
         )
     }
@@ -339,3 +299,6 @@ private fun ServerFields(
         }
     }
 }
+
+/** Google's own page for making an app password. */
+private const val GMAIL_APP_PASSWORDS = "https://myaccount.google.com/apppasswords"
