@@ -135,6 +135,7 @@ fun MusicHubScreen(
     val playlists by viewModel.playlists.collectAsState()
     val selectedPlaylistId by viewModel.selectedPlaylistId.collectAsState()
     val pinnedAlbums by viewModel.pinnedAlbums.collectAsState()
+    val selectedGenre by viewModel.selectedGenre.collectAsState()
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -219,6 +220,11 @@ fun MusicHubScreen(
             val artistsLabel = stringResource(R.string.music_tab_artists)
             val playlistsLabel = stringResource(R.string.music_tab_playlists)
             val openPlaylist = playlists.firstOrNull { it.id == selectedPlaylistId }
+            // The Zune layout has genres too, as the Zune HD did; and on a phone, instead of a pivot,
+            // its menu of words, each opening its list under its own name (ZuneMusicMenu).
+            val zuneLayout = com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current
+            val zuneMenu = zuneLayout && !isWideScreen
+            val genresLabel = stringResource(R.string.music_tab_genres)
             val pages = listOf(
                 stringResource(R.string.music_tab_now_playing),
                 selectedAlbum?.title?.lowercase(Locale.getDefault()) ?: albumsLabel,
@@ -226,19 +232,49 @@ fun MusicHubScreen(
                 stringResource(R.string.music_tab_songs),
                 openPlaylist?.name?.lowercase(Locale.getDefault()) ?: playlistsLabel,
                 stringResource(R.string.music_tab_videos)
-            )
+            ) + if (zuneLayout) listOf(selectedGenre?.lowercase(Locale.getDefault()) ?: genresLabel) else emptyList()
             val pager = rememberLoopingPagerState(pageCount = pages.size)
+
+            // The Zune menu: which list is open (null: the menu itself), and how far its page has
+            // come in.
+            var zuneSection by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<Int?>(null) }
+            val sectionIn = remember { androidx.compose.animation.core.Animatable(1f) }
+            val animationsOn = com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled.current
+            val sectionSlidePx = with(LocalDensity.current) { 96.dp.toPx() }
+            fun openSection(index: Int, animate: Boolean = true) {
+                zuneSection = index
+                scope.launch {
+                    pager.scrollToPage(index)
+                    if (animate && animationsOn) {
+                        sectionIn.snapTo(0f)
+                        sectionIn.animateTo(1f, tween(SECTION_IN_MILLIS, easing = androidx.compose.animation.core.LinearEasing))
+                    } else {
+                        sectionIn.snapTo(1f)
+                    }
+                }
+            }
+
             // "videos" in the Zune list opens the hub here.
             val showVideos by com.serkantkn.zunelauncher.data.repository.MusicBridge.showVideos.collectAsState()
             LaunchedEffect(showVideos) {
                 if (!showVideos) return@LaunchedEffect
                 com.serkantkn.zunelauncher.data.repository.MusicBridge.consumeVideos()
-                pager.scrollToPage(VIDEOS_TAB)
+                if (zuneMenu) openSection(VIDEOS_TAB, animate = false) else pager.scrollToPage(VIDEOS_TAB)
+            }
+            // A record played from quickplay or a pinned tile opens on that record.
+            val pendingAlbum by com.serkantkn.zunelauncher.data.repository.MusicBridge.pendingAlbum.collectAsState()
+            LaunchedEffect(pendingAlbum) {
+                if (zuneMenu && pendingAlbum != null) openSection(ALBUMS_TAB, animate = false)
             }
 
             /** Opens an album, sending its name up into the pivot. */
             fun openAlbum(album: AlbumModel, from: Rect?) {
                 viewModel.selectAlbum(album)
+                if (zuneMenu) {
+                    // The album's name is the title now, and comes in as the title does.
+                    openSection(ALBUMS_TAB)
+                    return
+                }
                 scope.launch {
                     pager.scrollToPage(ALBUMS_TAB)
                     // A tablet has no pivot for the name to fly into; its heading changes instead.
@@ -252,9 +288,13 @@ fun MusicHubScreen(
                 }
             }
 
+            // In the Zune menu, Back from a list goes back to the menu; anything open inside the
+            // list closes first (the handler after this one).
+            BackHandler(enabled = zuneMenu && zuneSection != null) { zuneSection = null }
+
             // Back steps out of an album or an artist before it leaves the hub.
             BackHandler(
-                enabled = selectedAlbum != null || selectedArtist != null || isSearchOpen ||
+                enabled = selectedAlbum != null || selectedArtist != null || selectedGenre != null || isSearchOpen ||
                     showQueue || showSortSheet || trackSheetTarget != null ||
                     selectedPlaylistId != null || showNewPlaylist || addToPlaylistTarget != null
             ) {
@@ -270,6 +310,7 @@ fun MusicHubScreen(
                     }
                     selectedAlbum != null -> viewModel.selectAlbum(null)
                     selectedArtist != null -> viewModel.selectArtist(null)
+                    selectedGenre != null -> viewModel.selectGenre(null)
                     else -> viewModel.selectPlaylist(null)
                 }
             }
@@ -341,7 +382,14 @@ fun MusicHubScreen(
                 bar = ZuneHubBar(barActions, barMenu),
                 // The music hub's own header on a phone: its name giant and sliding with the
                 // pivot, and the album heading an album's name flies into.
-                phoneHeader = {
+                phoneHeader = if (zuneMenu) {
+                    {
+                        ZuneMusicTitle(
+                            title = zuneSection?.let { pages.getOrNull(it) } ?: stringResource(R.string.zune_row_music),
+                            arrived = { sectionIn.value }
+                        )
+                    }
+                } else { {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -418,20 +466,49 @@ fun MusicHubScreen(
                         },
                         modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
                     )
-                },
+                } },
                 phonePagePadding = PaddingValues(0.dp),
+                showTabs = !zuneMenu,
+                swipeEnabled = !zuneMenu,
+                // One list at a time in the Zune menu: nothing of the next one to peek in.
+                phonePeek = !zuneMenu,
+                takeover = if (zuneMenu && zuneSection == null) {
+                    {
+                        val entries = buildList {
+                            if (playback.hasSomething) add(ZuneMusicEntry(0, stringResource(R.string.music_tab_now_playing)))
+                            add(ZuneMusicEntry(ARTISTS_TAB, artistsLabel))
+                            add(ZuneMusicEntry(ALBUMS_TAB, albumsLabel))
+                            add(ZuneMusicEntry(SONGS_TAB, stringResource(R.string.music_tab_songs)))
+                            add(ZuneMusicEntry(GENRES_TAB, genresLabel))
+                            add(ZuneMusicEntry(PLAYLISTS_TAB, playlistsLabel))
+                            add(ZuneMusicEntry(VIDEOS_TAB, stringResource(R.string.music_tab_videos)))
+                        }
+                        ZuneMusicMenu(entries = entries, onPick = { page ->
+                            // A list opens at its top, not inside whatever was open in it before.
+                            viewModel.selectAlbum(null)
+                            viewModel.selectArtist(null)
+                            viewModel.selectGenre(null)
+                            viewModel.selectPlaylist(null)
+                            openSection(page)
+                        })
+                    }
+                } else null,
                 wideOnSelected = { index ->
                     if (index != ALBUMS_TAB) viewModel.selectAlbum(null)
                     if (index != ARTISTS_TAB) viewModel.selectArtist(null)
                     if (index != PLAYLISTS_TAB) viewModel.selectPlaylist(null)
+                    if (index != GENRES_TAB) viewModel.selectGenre(null)
                 },
                 overlay = {
                     // What is playing, on every page but the one that already shows it.
-                    if (playback.hasSomething && currentPage != 0) {
+                    val onNowPlaying = if (zuneMenu) zuneSection == 0 else currentPage == 0
+                    if (playback.hasSomething && !onNowPlaying) {
                         MusicMiniPlayer(
                             playback = playback,
                             accent = LocalZuneColors.current.accentColor,
-                            onOpen = { scope.launch { pager.animateScrollToPage(0) } },
+                            onOpen = {
+                                if (zuneMenu) openSection(0) else scope.launch { pager.animateScrollToPage(0) }
+                            },
                             onPlayPause = viewModel::playPause,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
@@ -571,6 +648,9 @@ fun MusicHubScreen(
                     }
                 }
             ) { index ->
+                androidx.compose.foundation.layout.Box(
+                    modifier = if (zuneMenu) Modifier.zuneMusicSection({ sectionIn.value }, sectionSlidePx) else Modifier
+                ) {
                 when {
                     index == VIDEOS_TAB -> VideosPage(viewModel)
                     !hasPermission -> ZunePermissionRequest(
@@ -587,7 +667,7 @@ fun MusicHubScreen(
                         onOpenAlbum = ::openAlbum,
                         onOpenArtist = { artist ->
                             viewModel.selectArtist(artist)
-                            scope.launch { pager.scrollToPage(ARTISTS_TAB) }
+                            if (zuneMenu) openSection(ARTISTS_TAB) else scope.launch { pager.scrollToPage(ARTISTS_TAB) }
                         },
                         onTrackLongPress = { trackSheetTarget = it },
                         openPlaylist = openPlaylist,
@@ -595,8 +675,14 @@ fun MusicHubScreen(
                             viewModel.selectPlaylist(playlist.id)
                             scope.launch { pager.scrollToPage(PLAYLISTS_TAB) }
                         },
-                        onNewPlaylist = { showNewPlaylist = true }
+                        onNewPlaylist = { showNewPlaylist = true },
+                        selectedGenre = selectedGenre,
+                        onOpenGenre = { genre ->
+                            viewModel.selectGenre(genre)
+                            if (zuneMenu) openSection(GENRES_TAB)
+                        }
                     )
+                }
                 }
             }
         }
@@ -612,6 +698,11 @@ private const val ARTISTS_TAB = 2
 private const val SONGS_TAB = 3
 private const val PLAYLISTS_TAB = 4
 private const val VIDEOS_TAB = 5
+/** Only in the Zune layout, after the rest so they keep their places. */
+private const val GENRES_TAB = 6
+
+/** How long a list takes to come in under its word in the Zune menu. */
+private const val SECTION_IN_MILLIS = 560
 
 /** The pivot's type size, so a word flying into it lands at the right scale. */
 private val MUSIC_PIVOT_FONT_SIZE = 36.sp
@@ -640,7 +731,9 @@ private fun MusicPage(
     onTrackLongPress: (SongModel) -> Unit,
     openPlaylist: com.serkantkn.zunelauncher.data.model.Playlist?,
     onOpenPlaylist: (com.serkantkn.zunelauncher.data.model.Playlist) -> Unit,
-    onNewPlaylist: () -> Unit
+    onNewPlaylist: () -> Unit,
+    selectedGenre: String?,
+    onOpenGenre: (String) -> Unit
 ) {
     when (page) {
         0 -> if (com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen.current) {
@@ -662,6 +755,7 @@ private fun MusicPage(
             ArtistsPage(viewModel, onOpenArtist)
         }
         SONGS_TAB -> SongsPage(viewModel, onTrackLongPress)
+        GENRES_TAB -> GenresPage(viewModel, selectedGenre, onOpenGenre, onTrackLongPress)
         else -> if (openPlaylist != null) {
             PlaylistDetailPage(viewModel, openPlaylist, onTrackLongPress)
         } else {

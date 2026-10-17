@@ -103,6 +103,7 @@ class SettingsDataStore(private val context: Context) {
         val HUB_TARGET_APPS = stringPreferencesKey("hub_target_apps")
         val RECENT_APPS = stringPreferencesKey("recent_apps")
         val RECENT_ALBUMS = stringPreferencesKey("recent_albums")
+        val QUICKPLAY_PINS = stringPreferencesKey("quickplay_pins")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val SOCIAL_SOURCES = stringPreferencesKey("social_sources")
         val SOCIAL_HUB_LAYOUT = stringPreferencesKey("social_hub_layout")
@@ -232,6 +233,22 @@ class SettingsDataStore(private val context: Context) {
     }
 
     /** Records the music hub started, newest first. */
+    /** What has been pinned to quickplay, the latest first. */
+    val quickplayPins: Flow<List<com.serkantkn.zunelauncher.data.model.QuickplayPin>> =
+        context.settingsDataStore.data.map { prefs ->
+            com.serkantkn.zunelauncher.data.model.QuickplayPin.listFromJson(prefs[QUICKPLAY_PINS])
+        }
+
+    /** Pins [pin] to quickplay, or takes it off if it is there. */
+    suspend fun toggleQuickplayPin(pin: com.serkantkn.zunelauncher.data.model.QuickplayPin) {
+        context.settingsDataStore.edit { prefs ->
+            val current = com.serkantkn.zunelauncher.data.model.QuickplayPin.listFromJson(prefs[QUICKPLAY_PINS])
+            prefs[QUICKPLAY_PINS] = com.serkantkn.zunelauncher.data.model.QuickplayPin.listToJson(
+                com.serkantkn.zunelauncher.data.model.togglePin(current, pin)
+            )
+        }
+    }
+
     val recentAlbums: Flow<List<RecentAlbum>> = context.settingsDataStore.data.map { prefs ->
         RecentAlbum.listFromJson(prefs[RECENT_ALBUMS])
     }

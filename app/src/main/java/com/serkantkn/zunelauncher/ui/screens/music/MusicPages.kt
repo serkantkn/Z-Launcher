@@ -482,6 +482,88 @@ fun SongsPage(viewModel: MusicHubViewModel, onLongPress: (SongModel) -> Unit) {
     }
 }
 
+/**
+ * The genres the tracks are tagged with - the Zune HD's "genres" - each a word with how many
+ * tracks it holds; one opened is its tracks, played from wherever touched. Offered by the Zune
+ * layout.
+ */
+@Composable
+fun GenresPage(
+    viewModel: MusicHubViewModel,
+    selectedGenre: String?,
+    onOpenGenre: (String) -> Unit,
+    onTrackLongPress: (SongModel) -> Unit
+) {
+    val genres by viewModel.genres.collectAsState()
+    val playback by viewModel.playback.collectAsState()
+    val zuneColors = LocalZuneColors.current
+
+    val open = selectedGenre?.let { name -> genres.firstOrNull { it.first == name } }
+    if (open != null) {
+        val tracks = open.second
+        LazyColumn(
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = ZuneDimens.ScreenPaddingHorizontal,
+                end = ZuneDimens.ScreenPaddingHorizontal,
+                bottom = 120.dp
+            ),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(tracks, key = { it.id }) { song ->
+                TrackRow(
+                    song = song,
+                    leading = null,
+                    isPlaying = playback.isOurs && playback.title == song.title && playback.isPlaying,
+                    onClick = { viewModel.playSongs(tracks, tracks.indexOf(song).coerceAtLeast(0)) },
+                    onLongClick = { onTrackLongPress(song) }
+                )
+            }
+        }
+        return
+    }
+
+    if (genres.isEmpty()) {
+        MusicEmpty(
+            message = stringResource(R.string.music_no_genres),
+            hint = stringResource(R.string.music_no_genres_hint)
+        )
+        return
+    }
+
+    LazyColumn(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = ZuneDimens.ScreenPaddingHorizontal,
+            end = ZuneDimens.ScreenPaddingHorizontal,
+            bottom = 120.dp
+        ),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(genres, key = { it.first }) { (name, tracks) ->
+            val interactionSource = remember { MutableInteractionSource() }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wpTilt(interactionSource)
+                    .clickable(interactionSource = interactionSource, indication = null) { onOpenGenre(name) }
+                    .padding(vertical = 8.dp)
+            ) {
+                Text(
+                    text = name.lowercase(java.util.Locale.getDefault()),
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 30.sp),
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = androidx.compose.ui.res.pluralStringResource(R.plurals.music_genre_tracks, tracks.size, tracks.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = zuneColors.textDim
+                )
+            }
+        }
+    }
+}
+
 // ── Shared pieces ───────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalFoundationApi::class)

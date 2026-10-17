@@ -67,6 +67,8 @@ import com.serkantkn.zunelauncher.data.repository.MusicBridge
 import com.serkantkn.zunelauncher.data.repository.NotesBridge
 import com.serkantkn.zunelauncher.data.repository.PicturesBridge
 import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
+import com.serkantkn.zunelauncher.data.model.QuickplayPin
+import androidx.compose.material.icons.filled.PlayArrow
 import com.serkantkn.zunelauncher.ui.components.TileIconImage
 import com.serkantkn.zunelauncher.ui.components.wpTilt
 import com.serkantkn.zunelauncher.ui.screens.notes.noteColor
@@ -169,11 +171,45 @@ fun QuickplayScreen(
         }
     }
 
+    // Quickplay's "new" reads the music afresh each time the page comes into view.
+    LaunchedEffect(isCurrentPage) { if (isCurrentPage) viewModel.refreshNewMusic() }
+
+    // Held, anything here can be pinned - or, pinned, taken off again.
+    var pinTarget by remember { mutableStateOf<QuickplayPin?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    fun albumPin(album: RecentAlbum) = QuickplayPin(QuickplayPin.Kind.ALBUM, album.id.toString(), album.title, album.artist, album.artUri)
+    fun photoPin(photo: com.serkantkn.zunelauncher.data.model.MediaImage) = QuickplayPin(
+        if (photo.isVideo) QuickplayPin.Kind.VIDEO else QuickplayPin.Kind.PHOTO,
+        photo.uri.toString(), photo.displayName, art = photo.uri.toString()
+    )
+    fun notePin(note: Note) = QuickplayPin(QuickplayPin.Kind.NOTE, note.id, note.title, note.colorHex.orEmpty())
+    fun appPin(app: AppInfo) = QuickplayPin(QuickplayPin.Kind.APP, app.packageName, app.label)
+    fun openPin(pin: QuickplayPin) = leaveFor {
+        when (pin.kind) {
+            QuickplayPin.Kind.ALBUM -> pin.key.toLongOrNull()?.let {
+                playAlbum(RecentAlbum(it, pin.title, pin.subtitle, pin.art), onHubSelected)
+            }
+            QuickplayPin.Kind.PHOTO -> {
+                PicturesBridge.openPhoto(android.net.Uri.parse(pin.key))
+                onHubSelected(HubType.PICTURES)
+            }
+            QuickplayPin.Kind.VIDEO -> com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(
+                context, android.net.Uri.parse(pin.key), pin.title
+            )
+            QuickplayPin.Kind.NOTE -> {
+                NotesBridge.open(pin.key)
+                onHubSelected(HubType.NOTES)
+            }
+            QuickplayPin.Kind.APP -> viewModel.launchApp(pin.key)
+        }
+    }
+
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
+    Box(modifier = modifier.fillMaxSize()) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(start = ZuneDimens.ScreenPaddingHorizontal, end = ZuneDimens.ScreenPaddingHorizontal)
@@ -205,6 +241,33 @@ fun QuickplayScreen(
 
         var slot = 1
 
+        // ── Pins: what was chosen to stay, ahead of everything that merely happened ──
+        if (state.pins.isNotEmpty()) {
+            SectionWord(stringResource(R.string.quickplay_pins), Modifier.w10mStaggeredAnimation({ entrance.value }, slot++))
+            state.pins.chunked(3).forEach { row ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Gap),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = Gap)
+                        .w10mStaggeredAnimation({ entrance.value }, slot++)
+                ) {
+                    row.forEach { pin ->
+                        PinSquare(
+                            pin = pin,
+                            shape = shape,
+                            face = viewModel.appFor(pin.key)?.takeIf { pin.kind == QuickplayPin.Kind.APP }?.let(face),
+                            modifier = Modifier.weight(1f),
+                            onLongClick = { pinTarget = pin },
+                            onClick = { openPin(pin) }
+                        )
+                    }
+                    repeat(3 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                }
+            }
+            Spacer(modifier = Modifier.height(SectionGap - Gap))
+        }
+
         // ── Records ──
         if (state.recentAlbums.isNotEmpty()) {
             SectionWord(stringResource(R.string.zune_last_played), Modifier.w10mStaggeredAnimation({ entrance.value }, slot++))
@@ -215,7 +278,7 @@ fun QuickplayScreen(
                     .w10mStaggeredAnimation({ entrance.value }, slot++),
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                AlbumSquare(first, shape, size = BigSquare) { leaveFor { playAlbum(first, onHubSelected) } }
+                AlbumSquare(first, shape, size = BigSquare, onLongClick = { pinTarget = albumPin(first) }) { leaveFor { playAlbum(first, onHubSelected) } }
                 Column(modifier = Modifier.weight(1f).padding(top = 4.dp)) {
                     Text(
                         text = first.title,
@@ -244,7 +307,11 @@ fun QuickplayScreen(
                         .padding(top = Gap)
                         .w10mStaggeredAnimation({ entrance.value }, slot++)
                 ) {
-                    rest.forEach { album -> AlbumSquare(album, shape, size = SmallSquare) { leaveFor { playAlbum(album, onHubSelected) } } }
+                    rest.forEach { album ->
+                        AlbumSquare(album, shape, size = SmallSquare, onLongClick = { pinTarget = albumPin(album) }) {
+                            leaveFor { playAlbum(album, onHubSelected) }
+                        }
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(SectionGap))
@@ -265,6 +332,7 @@ fun QuickplayScreen(
                         Square(
                             modifier = Modifier.weight(1f).aspectRatio(1f),
                             shape = shape,
+                            onLongClick = { pinTarget = photoPin(photo) },
                             onClick = {
                                 leaveFor {
                                     PicturesBridge.openPhoto(photo.uri)
@@ -295,7 +363,8 @@ fun QuickplayScreen(
                     shape = shape,
                     modifier = Modifier
                         .padding(bottom = Gap)
-                        .w10mStaggeredAnimation({ entrance.value }, slot++)
+                        .w10mStaggeredAnimation({ entrance.value }, slot++),
+                    onLongClick = { pinTarget = notePin(note) }
                 ) {
                     leaveFor {
                         NotesBridge.open(note.id)
@@ -322,6 +391,7 @@ fun QuickplayScreen(
                             Square(
                                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                                 shape = shape,
+                                onLongClick = { pinTarget = appPin(app) },
                                 onClick = { leaveFor { viewModel.launchApp(app.packageName) } }
                             ) {
                                 TileIconImage(
@@ -347,6 +417,56 @@ fun QuickplayScreen(
             }
         }
 
+        // ── New: what came onto the phone lately ──
+        if (state.newAlbums.isNotEmpty() || state.newVideos.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(SectionGap))
+            SectionWord(stringResource(R.string.quickplay_new), Modifier.w10mStaggeredAnimation({ entrance.value }, slot++))
+            if (state.newAlbums.isNotEmpty()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Gap),
+                    modifier = Modifier
+                        .padding(bottom = Gap)
+                        .w10mStaggeredAnimation({ entrance.value }, slot++)
+                ) {
+                    state.newAlbums.forEach { album ->
+                        AlbumSquare(album, shape, size = SmallSquare, onLongClick = { pinTarget = albumPin(album) }) {
+                            leaveFor { playAlbum(album, onHubSelected) }
+                        }
+                    }
+                }
+            }
+            if (state.newVideos.isNotEmpty()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Gap),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .w10mStaggeredAnimation({ entrance.value }, slot++)
+                ) {
+                    state.newVideos.forEach { video ->
+                        Square(
+                            modifier = Modifier.weight(1f).aspectRatio(1f),
+                            shape = shape,
+                            onLongClick = { pinTarget = photoPin(video) },
+                            onClick = {
+                                leaveFor {
+                                    com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, video.uri, video.displayName)
+                                }
+                            }
+                        ) {
+                            AsyncImage(
+                                model = video.uri,
+                                contentDescription = video.displayName,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            PlayMark(Modifier.align(Alignment.Center))
+                        }
+                    }
+                    repeat(3 - state.newVideos.size) { Spacer(modifier = Modifier.weight(1f)) }
+                }
+            }
+        }
+
         Text(
             text = stringResource(R.string.quickplay_hint),
             style = MaterialTheme.typography.labelMedium,
@@ -354,6 +474,25 @@ fun QuickplayScreen(
             modifier = Modifier.padding(top = 20.dp)
         )
         Spacer(modifier = Modifier.height(bottomInset + 32.dp))
+    }
+
+    // Back closes the sheet rather than the launcher passing it over.
+    androidx.activity.compose.BackHandler(enabled = pinTarget != null) { pinTarget = null }
+    pinTarget?.let { target ->
+        val pinned = state.pins.any { it.sameAs(target) }
+        com.serkantkn.zunelauncher.ui.screens.messaging.MessagingSheet(
+            title = target.title.ifBlank { stringResource(R.string.zune_quickplay) },
+            onDismiss = { pinTarget = null }
+        ) {
+            com.serkantkn.zunelauncher.ui.screens.messaging.SheetAction(
+                label = stringResource(if (pinned) R.string.quickplay_unpin else R.string.quickplay_pin),
+                color = LocalZuneColors.current.accentColor
+            ) {
+                viewModel.toggleQuickplayPin(target)
+                pinTarget = null
+            }
+        }
+    }
     }
 }
 
@@ -394,6 +533,8 @@ private fun Square(
     modifier: Modifier,
     shape: RoundedCornerShape,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    background: Color = LocalZuneColors.current.accentColor,
     content: @Composable BoxScope.() -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -401,15 +542,36 @@ private fun Square(
         modifier = modifier
             .wpTilt(interactionSource)
             .clip(shape)
-            .background(LocalZuneColors.current.accentColor)
-            .combinedClickable(interactionSource = interactionSource, indication = null, onClick = onClick),
+            .background(background)
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onLongClick = onLongClick,
+                onClick = onClick
+            ),
         content = content
     )
 }
 
 @Composable
-private fun AlbumSquare(album: RecentAlbum, shape: RoundedCornerShape, size: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
-    Square(modifier = Modifier.size(size), shape = shape, onClick = onClick) {
+private fun AlbumSquare(
+    album: RecentAlbum,
+    shape: RoundedCornerShape,
+    size: androidx.compose.ui.unit.Dp,
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit
+) {
+    Square(modifier = Modifier.size(size), shape = shape, onClick = onClick, onLongClick = onLongClick) {
+        // The name underneath, the cover over it: a record whose cover the store only says it has
+        // (most ripped ones) is never a blank square.
+        Text(
+            text = album.title,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light, fontSize = if (size < BigSquare) 12.sp else 15.sp),
+            color = Color.White,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.BottomStart).padding(6.dp)
+        )
         if (album.artUri != null) {
             AsyncImage(
                 model = album.artUri,
@@ -417,22 +579,19 @@ private fun AlbumSquare(album: RecentAlbum, shape: RoundedCornerShape, size: and
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-        } else {
-            Text(
-                text = album.title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
-                color = Color.White,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
-            )
         }
     }
 }
 
 /** A note as the notes hub colours it: its title, its first words, and when it was last touched. */
 @Composable
-private fun NoteCard(note: Note, shape: RoundedCornerShape, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun NoteCard(
+    note: Note,
+    shape: RoundedCornerShape,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit
+) {
     val zuneColors = LocalZuneColors.current
     val colour = noteColor(note.colorHex, zuneColors.accentColor)
     val interactionSource = remember { MutableInteractionSource() }
@@ -445,7 +604,7 @@ private fun NoteCard(note: Note, shape: RoundedCornerShape, modifier: Modifier =
             .wpTilt(interactionSource)
             .clip(shape)
             .background(colour)
-            .combinedClickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .combinedClickable(interactionSource = interactionSource, indication = null, onLongClick = onLongClick, onClick = onClick)
             .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)
     ) {
         Text(
@@ -473,6 +632,88 @@ private fun NoteCard(note: Note, shape: RoundedCornerShape, modifier: Modifier =
             modifier = Modifier.padding(top = 6.dp)
         )
     }
+}
+
+/** A pin: its picture, or its note colour or app icon, with its name underneath. */
+@Composable
+private fun PinSquare(
+    pin: QuickplayPin,
+    shape: RoundedCornerShape,
+    face: TileIconFace?,
+    modifier: Modifier,
+    onLongClick: () -> Unit,
+    onClick: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    Column(modifier = modifier) {
+        Square(
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+            shape = shape,
+            onLongClick = onLongClick,
+            onClick = onClick,
+            background = if (pin.kind == QuickplayPin.Kind.NOTE) noteColor(pin.subtitle.ifBlank { null }, zuneColors.accentColor)
+                else zuneColors.accentColor
+        ) {
+            when {
+                pin.art != null -> {
+                    if (pin.kind == QuickplayPin.Kind.ALBUM) {
+                        Text(
+                            text = pin.title,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
+                            color = Color.White,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
+                        )
+                    }
+                    AsyncImage(
+                        model = pin.art,
+                        contentDescription = pin.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    if (pin.kind == QuickplayPin.Kind.VIDEO) PlayMark(Modifier.align(Alignment.Center))
+                }
+                face != null -> TileIconImage(
+                    face = face,
+                    size = 34.dp,
+                    ink = Color.White,
+                    contentDescription = pin.title,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                else -> Text(
+                    text = pin.title,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
+                    color = Color.White,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
+                )
+            }
+        }
+        Text(
+            text = pin.title,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+            color = zuneColors.textMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
+/** The triangle a video wears over its first frame. */
+@Composable
+private fun PlayMark(modifier: Modifier = Modifier) {
+    androidx.compose.material3.Icon(
+        imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
+        contentDescription = null,
+        tint = Color.White,
+        modifier = modifier
+            .size(36.dp)
+            .background(Color.Black.copy(alpha = 0.35f), androidx.compose.foundation.shape.CircleShape)
+            .padding(4.dp)
+    )
 }
 
 private val BigSquare = 150.dp

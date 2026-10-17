@@ -342,6 +342,21 @@ class MusicHubViewModel(application: Application) : AndroidViewModel(application
     private val _selectedArtist = MutableStateFlow<ArtistModel?>(null)
     val selectedArtist: StateFlow<ArtistModel?> = _selectedArtist.asStateFlow()
 
+    /**
+     * The genres the tracks are tagged with, each with its tracks, in the reader's alphabetical
+     * order; a track tagged with none is left out rather than gathered under "unknown".
+     */
+    val genres: StateFlow<List<Pair<String, List<SongModel>>>> = _localSongs
+        .map { songs -> genresOf(songs, java.util.Locale.getDefault()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _selectedGenre = MutableStateFlow<String?>(null)
+    val selectedGenre: StateFlow<String?> = _selectedGenre.asStateFlow()
+
+    fun selectGenre(genre: String?) {
+        _selectedGenre.value = genre
+    }
+
     fun selectAlbum(album: AlbumModel?) {
         _selectedAlbum.value = album
     }
@@ -922,4 +937,25 @@ data class HubPlayback(
     val hasSomething: Boolean get() = source != PlaybackSource.NONE
     /** Only our own player can be scrubbed, shuffled or have its queue shown. */
     val isOurs: Boolean get() = source == PlaybackSource.LOCAL
+}
+
+/** The tracks by genre, alphabetical in [locale]; untagged tracks are left out. */
+internal fun genresOf(songs: List<SongModel>, locale: java.util.Locale): List<Pair<String, List<SongModel>>> =
+    groupByGenre(songs, locale, { it.genre }, { it.title })
+
+/**
+ * Gathers [items] by their genre, however its case is written, under the genre as first met;
+ * the genres and each one's items alphabetical in [locale], the untagged left out. Pure, for tests.
+ */
+internal fun <T> groupByGenre(
+    items: List<T>,
+    locale: java.util.Locale,
+    genreOf: (T) -> String,
+    titleOf: (T) -> String
+): List<Pair<String, List<T>>> {
+    val collator = java.text.Collator.getInstance(locale)
+    return items.filter { genreOf(it).isNotBlank() }
+        .groupBy { genreOf(it).trim().lowercase(locale) }
+        .map { (_, members) -> genreOf(members.first()).trim() to members.sortedWith { a, b -> collator.compare(titleOf(a), titleOf(b)) } }
+        .sortedWith { a, b -> collator.compare(a.first, b.first) }
 }

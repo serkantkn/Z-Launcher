@@ -42,6 +42,8 @@ class MusicRepository(private val context: Context) {
             add(MediaStore.Audio.Media.SIZE)
             @Suppress("DEPRECATION")
             add(MediaStore.Audio.Media.DATA)
+            // The genre sits on the track itself from Android 11; before that it is a table apart.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) add(MediaStore.Audio.Media.GENRE)
         }.toTypedArray()
 
         val where = buildList {
@@ -78,6 +80,11 @@ class MusicRepository(private val context: Context) {
                 val sizeColumn = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
                 @Suppress("DEPRECATION")
                 val pathColumn = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+                val genreColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    cursor.getColumnIndex(MediaStore.Audio.Media.GENRE)
+                } else {
+                    -1
+                }
 
                 buildList {
                     while (cursor.moveToNext()) {
@@ -108,7 +115,8 @@ class MusicRepository(private val context: Context) {
                                 dateAdded = if (addedColumn != -1) cursor.getLong(addedColumn) else 0L,
                                 mimeType = if (mimeColumn != -1) cursor.getString(mimeColumn).orEmpty() else "",
                                 sizeBytes = if (sizeColumn != -1) cursor.getLong(sizeColumn) else 0L,
-                                filePath = if (pathColumn != -1) cursor.getString(pathColumn).orEmpty() else ""
+                                filePath = if (pathColumn != -1) cursor.getString(pathColumn).orEmpty() else "",
+                                genre = if (genreColumn != -1) cursor.getString(genreColumn)?.trim().orEmpty() else ""
                             )
                         )
                     }

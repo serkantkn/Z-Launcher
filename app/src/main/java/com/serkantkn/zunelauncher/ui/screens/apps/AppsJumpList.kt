@@ -69,6 +69,18 @@ internal fun AppsJumpList(
 
     val letters = remember(availableLetters, locale) { jumpAlphabet(availableLetters, locale) }
 
+    // The Zune layout has the Zune HD's own alphabet: the letters alone, large, on the dark.
+    if (com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current) {
+        com.serkantkn.zunelauncher.ui.components.ZuneAlphabetJump(
+            letters = letters.map { it.toString() },
+            available = availableLetters.map { it.toString() }.toSet(),
+            onPick = { onLetterSelected(it.first()) },
+            onDismiss = onDismiss,
+            modifier = modifier
+        )
+        return
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()

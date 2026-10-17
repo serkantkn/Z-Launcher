@@ -33,7 +33,9 @@ data class SongModel(
      * — it is only used to look for a `.lrc` file sitting beside the track, which is a thing
      * people who collect lyrics do.
      */
-    val filePath: String = ""
+    val filePath: String = "",
+    /** The genre the file is tagged with; empty when it says none (or before Android 11). */
+    val genre: String = ""
 )
 
 /** An album: the tracks on it, and what to show on its tile. */

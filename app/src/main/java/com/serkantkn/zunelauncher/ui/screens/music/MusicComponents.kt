@@ -363,6 +363,16 @@ fun LetterJumpOverlay(
             "N", "O", "Ö", "P", "Q", "R", "S", "Ş", "T", "U", "Ü", "V", "W", "X", "Y", "Z", "#"
         )
     }
+    // The Zune layout has the Zune HD's own alphabet: the letters alone, large, on the dark.
+    if (com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current) {
+        com.serkantkn.zunelauncher.ui.components.ZuneAlphabetJump(
+            letters = letters,
+            available = available,
+            onPick = onPick,
+            onDismiss = onDismiss
+        )
+        return
+    }
 
     Box(
         modifier = Modifier

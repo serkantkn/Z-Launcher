@@ -716,6 +716,10 @@
     <string name="music_tab_now_playing">oynatılıyor</string>
     <string name="music_tab_artists">sanatçılar</string>
     <string name="music_tab_songs">şarkılar</string>
+    <string name="music_tab_genres">türler</string>
+    <string name="music_no_genres">tür yok</string>
+    <string name="music_no_genres_hint">şarkıların dosyalarında tür bilgisi olunca burada toplanır</string>
+    <plurals name="music_genre_tracks"><item quantity="one">%d şarkı</item><item quantity="other">%d şarkı</item></plurals>
     <string name="music_load_failed">müzik yüklenemedi: %1$s</string>
     <string name="social_pro_only">Social Hub sadece Z Launcher Pro\'da geçerlidir.</string>
     <string name="social_notification_settings">bildirim ayarları</string>
@@ -1255,10 +1259,19 @@
     <string name="zune_line_missed">cevapsız arama</string>
     <string name="quickplay_photos">son fotoğraflar</string>
     <string name="quickplay_notes">son notlar</string>
+    <string name="quickplay_pins">sabitlenenler</string>
+    <string name="quickplay_new">yeni</string>
+    <string name="quickplay_pin">quickplay\'e sabitle</string>
+    <string name="quickplay_unpin">quickplay\'den kaldır</string>
     <string name="quickplay_empty">henüz bir şey yok. çaldığın, çektiğin, yazdığın ve açtığın burada birikir.</string>
-    <string name="quickplay_hint">uygulama listesi için kaydırmaya devam et</string>
+    <string name="quickplay_hint">sabitlemek için birine basılı tut · uygulama listesi için kaydırmaya devam et</string>
     <string name="zune_line_pinned_notes">%1$d sabitli</string>
     <plurals name="zune_line_new_photos"><item quantity="one">bugün %d yeni</item><item quantity="other">bugün %d yeni</item></plurals>
+    <plurals name="zune_line_people"><item quantity="one">%d kişi</item><item quantity="other">%d kişi</item></plurals>
+    <plurals name="zune_line_videos"><item quantity="one">%d video</item><item quantity="other">%d video</item></plurals>
+    <string name="zune_line_free_space">%1$s boş</string>
+    <string name="zune_line_last_shot">son çekim %1$s</string>
+    <string name="zune_line_battery">pil %%%1$d</string>
     <string name="settings_tile_icons">uygulama ikonları</string>
     <string name="settings_tile_icon_wp">windows phone</string>
     <string name="settings_tile_icon_wp_sub">karonun üstünde tek beyaz şekil, arkasında hiçbir şey</string>

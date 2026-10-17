@@ -201,6 +201,8 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     private val notesDataStore = application.appContainer.notesDataStore
     private val alarmDataStore = application.appContainer.alarmDataStore
     private val calendarDataStore = application.appContainer.calendarDataStore
+    private val browsingDataStore = application.appContainer.browsingDataStore
+    private val calculatorDataStore = application.appContainer.calculatorDataStore
     private val calendarRepository = application.appContainer.calendarRepository
     private val contactRepository = application.appContainer.contactRepository
     private val weatherRepository = application.appContainer.weatherRepository
@@ -220,6 +222,9 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
 
     /** The records on the phone, read only when one of them is pinned to Start. */
     private val _musicAlbums = MutableStateFlow<List<com.serkantkn.zunelauncher.data.model.AlbumModel>>(emptyList())
+    /** Records added to the phone lately, for quickplay's "new". */
+    private val _newAlbums = MutableStateFlow<List<com.serkantkn.zunelauncher.data.model.RecentAlbum>>(emptyList())
+
 
     val hubOrder: StateFlow<List<HubType>> = settingsDataStore.hubOrder
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -905,10 +910,32 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Reads the music again for quickplay's "new", when the music may be read at all: quickplay
+     * asks as it comes into view. Without the permission there is simply nothing new to show.
+     */
+    fun refreshNewMusic() {
+        val permission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            android.Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (androidx.core.content.ContextCompat.checkSelfPermission(getApplication(), permission) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return
+        viewModelScope.launch { loadMusicAlbums() }
+    }
+
     private suspend fun loadMusicAlbums() {
         try {
             val songs = musicRepository.getLocalSongs()
             _musicAlbums.value = musicRepository.albumsOf(songs)
+            _newAlbums.value = com.serkantkn.zunelauncher.data.model.newestAlbums(
+                songs,
+                nowSeconds = System.currentTimeMillis() / 1000L,
+                withinSeconds = com.serkantkn.zunelauncher.data.model.QUICKPLAY_NEW_SECONDS,
+                limit = com.serkantkn.zunelauncher.data.model.QUICKPLAY_NEW_ALBUMS
+            )
         } catch (e: Exception) {
             ZuneLog.w("HomeHubViewModel", "the pinned record could not be looked up", e)
         }
@@ -950,28 +977,72 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         override = overrides[app.packageName] ?: TileIcon.Default
     )
 
+    // ── What the Zune list says under the names that had nothing to say ──────────────────────
+
+    /** The last page the browser opened (a private tab leaves none), for the internet line. */
+    val lastSite: StateFlow<com.serkantkn.zunelauncher.data.model.BrowserHistory?> = browsingDataStore.history
+        .map { json ->
+            com.serkantkn.zunelauncher.data.model.parseJsonObjectList(
+                json, "HomeHubViewModel", com.serkantkn.zunelauncher.data.model.BrowserHistory::fromJson
+            ).maxByOrNull { it.timestamp }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** The calculator's last sum, for its line. */
+    val lastCalculation: StateFlow<com.serkantkn.zunelauncher.data.model.CalcHistoryEntry?> =
+        calculatorDataStore.historyFlow.map { it.firstOrNull() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** How many people the phone knows, for the people line. */
+    val contactCount: StateFlow<Int> = _allContacts.map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     // ── Quickplay: the Zune list's "lately" ────────────────────────────────────────────────────
 
     /** Everything in the gallery, newest first, so the list can say how many came in today. */
     val allImages: StateFlow<List<MediaImage>> = _allImages.asStateFlow()
 
     val quickplay: StateFlow<Quickplay> = combine(
-        settingsDataStore.recentAlbums,
-        _allImages,
-        notesDataStore.notesFlow,
-        settingsDataStore.recentApps,
+        combine(
+            settingsDataStore.recentAlbums,
+            _allImages,
+            notesDataStore.notesFlow,
+            settingsDataStore.recentApps,
+            _allApps
+        ) { albums, images, notes, recentPackages, apps ->
+            val byPackage = apps.associateBy { it.packageName }
+            val nowSeconds = System.currentTimeMillis() / 1000L
+            Quickplay(
+                recentAlbums = albums.take(QUICKPLAY_ALBUMS),
+                recentPhotos = images.filter { !it.isVideo }.take(QUICKPLAY_PHOTOS),
+                // A locked note keeps its title to itself, and a deleted or archived one is not "lately".
+                recentNotes = notes.filter { it.deletedAt == null && !it.isArchived && !it.isLocked }
+                    .sortedByDescending { it.updatedAt }.take(QUICKPLAY_NOTES),
+                recentApps = recentPackages.mapNotNull { byPackage[it] }.take(QUICKPLAY_APPS),
+                newVideos = images.filter {
+                    it.isVideo && nowSeconds - it.dateAdded <= com.serkantkn.zunelauncher.data.model.QUICKPLAY_NEW_SECONDS
+                }.sortedByDescending { it.dateAdded }.take(com.serkantkn.zunelauncher.data.model.QUICKPLAY_NEW_VIDEOS)
+            )
+        },
+        settingsDataStore.quickplayPins,
+        _newAlbums,
         _allApps
-    ) { albums, images, notes, recentPackages, apps ->
-        val byPackage = apps.associateBy { it.packageName }
-        Quickplay(
-            recentAlbums = albums.take(QUICKPLAY_ALBUMS),
-            recentPhotos = images.filter { !it.isVideo }.take(QUICKPLAY_PHOTOS),
-            // A locked note keeps its title to itself, and a deleted or archived one is not "lately".
-            recentNotes = notes.filter { it.deletedAt == null && !it.isArchived && !it.isLocked }
-                .sortedByDescending { it.updatedAt }.take(QUICKPLAY_NOTES),
-            recentApps = recentPackages.mapNotNull { byPackage[it] }.take(QUICKPLAY_APPS)
+    ) { base, pins, newAlbums, apps ->
+        // An app pinned and since removed has nothing to open.
+        val installed = apps.mapTo(HashSet()) { it.packageName }
+        base.copy(
+            pins = pins.filter { it.kind != com.serkantkn.zunelauncher.data.model.QuickplayPin.Kind.APP || apps.isEmpty() || it.key in installed },
+            newAlbums = newAlbums
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Quickplay())
+
+    /** Pins something to quickplay, or takes it off. */
+    fun toggleQuickplayPin(pin: com.serkantkn.zunelauncher.data.model.QuickplayPin) {
+        viewModelScope.launch { settingsDataStore.toggleQuickplayPin(pin) }
+    }
+
+    /** Every app by package, for drawing a pinned app's icon. */
+    fun appFor(packageName: String): AppInfo? = _allApps.value.firstOrNull { it.packageName == packageName }
 
     // ── What a hub's tile or title opens ─────────────────────────────────────────────────────
 

@@ -563,6 +563,10 @@ private fun HomeHubScreenContent(
     // A hub whose tap has been pointed at another app opens that app; the rest open themselves.
     val hubTargetApps by viewModel.hubTargetApps.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
+    val lastSite by viewModel.lastSite.collectAsState()
+    val lastCalculation by viewModel.lastCalculation.collectAsState()
+    val contactCount by viewModel.contactCount.collectAsState()
+    val lineContext = LocalContext.current
     // The clock line and the pictures line both read the time of day; once a minute is often
     // enough for either, and reading the clock in composition never updated them at all.
     val minuteNow = com.serkantkn.zunelauncher.ui.components.rememberMinuteTicker()
@@ -660,8 +664,76 @@ private fun HomeHubScreenContent(
                 val today = allImages.count { it.dateAdded * 1000L >= dayStart }
                 HubLiveLine(text = if (today > 0) pluralStringResource(R.plurals.zune_line_new_photos, today, today) else null)
             }
+            HubType.PEOPLE -> HubLiveLine(
+                text = if (contactCount > 0) pluralStringResource(R.plurals.zune_line_people, contactCount, contactCount) else null
+            )
+            HubType.INTERNET -> HubLiveLine(
+                text = lastSite?.let { site ->
+                    site.title.ifBlank { android.net.Uri.parse(site.url).host?.removePrefix("www.") ?: site.url }
+                }
+            )
+            HubType.FILES -> {
+                // Room left on the phone: worth a glance, and asks the system for nothing.
+                val free = remember(minuteNow) {
+                    runCatching { android.os.StatFs(android.os.Environment.getDataDirectory().path).availableBytes }.getOrNull()
+                }
+                HubLiveLine(
+                    text = free?.let {
+                        stringResource(R.string.zune_line_free_space, android.text.format.Formatter.formatShortFileSize(lineContext, it))
+                    }
+                )
+            }
+            HubType.CAMERA -> {
+                // The camera's own pictures, not every screenshot and download.
+                val last = remember(allImages) {
+                    allImages.filter { !it.isVideo && it.relativePath.contains("DCIM/Camera", ignoreCase = true) }
+                        .maxByOrNull { it.dateAdded }
+                }
+                HubLiveLine(
+                    text = last?.let {
+                        val millis = it.dateAdded * 1000L
+                        val pattern = if (millis >= dayStart) {
+                            if (timeFormat.contains("H")) "HH:mm" else "h:mm a"
+                        } else {
+                            "d MMMM"
+                        }
+                        stringResource(
+                            R.string.zune_line_last_shot,
+                            java.text.SimpleDateFormat(pattern, java.util.Locale.getDefault()).format(java.util.Date(millis))
+                        )
+                    }
+                )
+            }
+            HubType.CALCULATOR -> HubLiveLine(
+                text = lastCalculation?.let { "${it.expression} = ${it.result}" }
+            )
+            HubType.SETTINGS -> {
+                val battery = remember(minuteNow) {
+                    lineContext.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+                        ?.let { intent ->
+                            val level = intent.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1)
+                            val scale = intent.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100)
+                            if (level >= 0 && scale > 0) level * 100 / scale else null
+                        }
+                }
+                HubLiveLine(text = battery?.let { stringResource(R.string.zune_line_battery, it) })
+            }
             else -> HubLiveLine.NONE
         }
+    }
+
+    /** The videos row's line: how many there are, or how many came in today. */
+    @Composable
+    fun videosLine(): HubLiveLine {
+        val videos = allImages.filter { it.isVideo }
+        val today = videos.count { it.dateAdded * 1000L >= dayStart }
+        return HubLiveLine(
+            text = when {
+                today > 0 -> pluralStringResource(R.plurals.zune_line_new_photos, today, today)
+                videos.isNotEmpty() -> pluralStringResource(R.plurals.zune_line_videos, videos.size, videos.size)
+                else -> null
+            }
+        )
     }
     var hubTargetPickFor by remember { mutableStateOf<HubType?>(null) }
     val openHub: (HubType) -> Unit = { hub -> if (!viewModel.openHubTarget(hub)) onHubSelected(hub) }
@@ -1711,7 +1783,7 @@ private fun HomeHubScreenContent(
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                             }
-                            val line = if (row.videos) HubLiveLine.NONE else liveLineFor(hubType)
+                            val line = if (row.videos) videosLine() else liveLineFor(hubType)
                             val ink = if (zuneColors.isDark) Color.White else Color.Black
                             Column(
                                 modifier = Modifier.zuneListMotion(
