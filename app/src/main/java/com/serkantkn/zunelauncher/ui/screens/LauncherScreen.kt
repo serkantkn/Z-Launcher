@@ -234,6 +234,7 @@ fun LauncherScreen(
     val effectiveHubMode = hubBackdrop.mode
 
     val density = LocalDensity.current.density
+    val zuneHubSlidePx = with(LocalDensity.current) { com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_SLIDE.toPx() }
 
     // ── Hinge animation state ──
     val hingeSpec = rememberHingeSpec()
@@ -241,6 +242,13 @@ fun LauncherScreen(
     // much motion, so they stop with the setting too.
     val animationsOn by rememberUpdatedState(LocalAnimationsEnabled.current)
     fun quickSpec(millis: Int) = tween<Float>(if (animationsOn) millis else 0, easing = FastOutSlowInEasing)
+    // The Zune layout has no hinge: its hubs slide in flat over the list, as the Zune HD's menus did.
+    val zuneStart = homeScreenLayout == HomeScreenLayout.ZUNE
+    fun hubInSpec() = when {
+        tabletStart -> quickSpec(WIN8_HUB_FADE_IN_MILLIS)
+        zuneStart -> quickSpec(com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_MILLIS)
+        else -> hingeSpec
+    }
     // A hub already open when this is first drawn stands open; it does not swing in again.
     val hingeProgress = remember { Animatable(if (navState.currentHub != null) 1f else 0f) }
     var activeHub by remember { mutableStateOf(navState.currentHub) }
@@ -261,7 +269,7 @@ fun LauncherScreen(
             // open, refusing every touch until Back.
             if (targetHub != null && hingeProgress.value < 1f) {
                 isHubHingeOpening = true
-                hingeProgress.animateTo(1f, animationSpec = if (tabletStart) quickSpec(WIN8_HUB_FADE_IN_MILLIS) else hingeSpec)
+                hingeProgress.animateTo(1f, animationSpec = hubInSpec())
             }
             return@LaunchedEffect
         }
@@ -278,10 +286,14 @@ fun LauncherScreen(
                 isHubHingeOpening = true
                 // On the tablet the splash has already covered the screen; the hub only has to
                 // come up over it.
-                hingeProgress.animateTo(1f, animationSpec = if (tabletStart) quickSpec(WIN8_HUB_FADE_IN_MILLIS) else hingeSpec)
+                hingeProgress.animateTo(1f, animationSpec = hubInSpec())
             } else {
                 isHubHingeOpening = false
-                hingeProgress.animateTo(0f, animationSpec = if (tabletStart) quickSpec(WIN8_HUB_FADE_OUT_MILLIS) else hingeSpec)
+                hingeProgress.animateTo(0f, animationSpec = when {
+                    tabletStart -> quickSpec(WIN8_HUB_FADE_OUT_MILLIS)
+                    zuneStart -> quickSpec(com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_MILLIS)
+                    else -> hingeSpec
+                })
                 activeHub = null
             }
         }
@@ -909,6 +921,12 @@ fun LauncherScreen(
                                     alpha = if (layoutReady) 1f else 0f
                                     return@graphicsLayer
                                 }
+                                if (zuneStart) {
+                                    // The Zune list has already slid and zoomed away; what is left
+                                    // of it fades as the hub slides in.
+                                    alpha = if (layoutReady) (1f - progress * 1.5f).coerceIn(0f, 1f) else 0f
+                                    return@graphicsLayer
+                                }
                                 rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * progress
                                 transformOrigin = TransformOrigin(0f, 0.5f)
                                 cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
@@ -976,6 +994,13 @@ fun LauncherScreen(
                                     // round its sections on its own.
                                     if (isHubHingeOpening && visibleHub == HubType.PEOPLE) {
                                         alpha = ((progress - PEOPLE_SHOW_FROM) / PEOPLE_SHOW_OVER).coerceIn(0f, 1f)
+                                        return@graphicsLayer
+                                    }
+                                    if (zuneStart) {
+                                        // The Zune's way: the hub slides in a little from the right
+                                        // as it appears, and back the same way as it goes.
+                                        translationX = zuneHubSlidePx * (1f - progress)
+                                        alpha = progress
                                         return@graphicsLayer
                                     }
                                     // Opening: -90° (outside, in front) -> 0°. Closing: 0° -> +90° (into the depth).

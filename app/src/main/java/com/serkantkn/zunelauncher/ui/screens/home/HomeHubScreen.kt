@@ -101,6 +101,7 @@ import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.ui.animation.w10mEditWiggle
 import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
+import com.serkantkn.zunelauncher.ui.animation.zuneListMotion
 import com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen
 import com.serkantkn.zunelauncher.ui.components.W10MAppTile
 import com.serkantkn.zunelauncher.ui.components.LocalTileStyle
@@ -327,6 +328,12 @@ private fun HomeHubScreenContent(
     // The tablet board moves the Windows 8 way (see Win8Motion): the tiles slide in from the
     // right, and a launch flips the chosen tile into a splash that fills the screen.
     val win8Mode = homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE && isWideScreen
+    // The Zune layout moves the Zune HD's way (see ZuneMotion): slides and a zoom, faster than
+    // the turnstile; the Windows Phone and Windows 8 boards keep their own motion untouched.
+    val zuneMode = homeScreenLayout == HomeScreenLayout.ZUNE
+    val zuneModeNow by rememberUpdatedState(zuneMode)
+    /** The time Start takes to come in, by the layout's own motion. */
+    fun enterMillis() = if (zuneModeNow) com.serkantkn.zunelauncher.ui.animation.ZUNE_ENTER_MILLIS else 1200
     val win8Bounds = remember { com.serkantkn.zunelauncher.ui.animation.Win8Motion.Bounds() }
     /** What each tile would show on its splash: its glyph or its face, and its colour. */
     val win8Faces = remember { HashMap<String, com.serkantkn.zunelauncher.ui.animation.Win8Splash>() }
@@ -342,7 +349,7 @@ private fun HomeHubScreenContent(
         if (!hasRunInitialAnimation) {
             hasRunInitialAnimation = true
             animationProgress.snapTo(0f)
-            animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
+            animationProgress.animateTo(1f, tween(enterMillis(), easing = LinearEasing))
         }
     }
 
@@ -356,7 +363,7 @@ private fun HomeHubScreenContent(
                 win8Splash = null
                 coroutineScope.launch {
                     animationProgress.snapTo(0f)
-                    animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
+                    animationProgress.animateTo(1f, tween(enterMillis(), easing = LinearEasing))
                 }
             }
             if (event == Lifecycle.Event.ON_PAUSE) isEditMode = false
@@ -398,7 +405,7 @@ private fun HomeHubScreenContent(
             clickedItemKey = null
             launching = false
             animationProgress.snapTo(0f)
-            animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
+            animationProgress.animateTo(1f, tween(enterMillis(), easing = LinearEasing))
         }
         // The hub comes up over the splash; once it has, the splash has done its work.
         if (isHubOpen && win8Splash != null) {
@@ -441,12 +448,27 @@ private fun HomeHubScreenContent(
                     win8Splash = null
                     clickedItemKey = null
                     animationProgress.snapTo(0f)
-                    animationProgress.animateTo(1f, tween(1200, easing = LinearEasing))
+                    animationProgress.animateTo(1f, tween(enterMillis(), easing = LinearEasing))
                 }
             }
             return
         }
         coroutineScope.launch {
+            if (zuneMode) {
+                // The Zune's zoom through: the hub is opened while the word is still growing, so
+                // it appears behind it as the word dissolves.
+                launch {
+                    animationProgress.animateTo(
+                        2f,
+                        tween(com.serkantkn.zunelauncher.ui.animation.ZUNE_EXIT_MILLIS, easing = LinearEasing)
+                    )
+                }
+                delay(com.serkantkn.zunelauncher.ui.animation.ZUNE_OPEN_AT_MILLIS)
+                openFolderId = null
+                action()
+                launching = false
+                return@launch
+            }
             // Turnstile feather out (1f -> 2f). The launch itself fires slightly before the
             // chosen tile has fully turned away so the hub's hinge-in overlaps it, WP style.
             launch { animationProgress.animateTo(2f, tween(1000, easing = LinearEasing)) }
@@ -857,6 +879,12 @@ private fun HomeHubScreenContent(
                 isClicked = clickedItemKey == launchKey,
                 key = launchKey,
                 bounds = win8Bounds
+            )
+        } else if (zuneMode) {
+            tileModifier.zuneListMotion(
+                progress = { animationProgress.value },
+                index = index,
+                isClicked = clickedItemKey == launchKey
             )
         } else {
             tileModifier.w10mStaggeredAnimation(
@@ -1571,7 +1599,7 @@ private fun HomeHubScreenContent(
                                 handleLaunch("hub_CLOCK") { openHub(HubType.CLOCK) }
                             }
                         },
-                        modifier = Modifier.w10mStaggeredAnimation(
+                        modifier = Modifier.zuneListMotion(
                             progress = { animationProgress.value },
                             index = 1,
                             isClicked = clickedItemKey == "hub_CLOCK"
@@ -1586,7 +1614,7 @@ private fun HomeHubScreenContent(
                                 handleLaunch("hub_CALENDAR") { openHub(HubType.CALENDAR) }
                             }
                         },
-                        modifier = Modifier.w10mStaggeredAnimation(
+                        modifier = Modifier.zuneListMotion(
                             progress = { animationProgress.value },
                             index = 2,
                             isClicked = clickedItemKey == "hub_CALENDAR"
@@ -1599,7 +1627,7 @@ private fun HomeHubScreenContent(
                         onClick = { handleLaunch("hub_WEATHER") { openHub(HubType.WEATHER) } },
                         modifier = Modifier
                             .padding(top = ZuneDimens.SpacingSm)
-                            .w10mStaggeredAnimation({ animationProgress.value }, 3)
+                            .zuneListMotion({ animationProgress.value }, 3)
                     )
 
                     Spacer(modifier = Modifier
@@ -1686,7 +1714,7 @@ private fun HomeHubScreenContent(
                             val line = if (row.videos) HubLiveLine.NONE else liveLineFor(hubType)
                             val ink = if (zuneColors.isDark) Color.White else Color.Black
                             Column(
-                                modifier = Modifier.w10mStaggeredAnimation(
+                                modifier = Modifier.zuneListMotion(
                                     progress = { animationProgress.value },
                                     index = 4 + rowIndex,
                                     isClicked = clickedItemKey == key
@@ -1750,7 +1778,7 @@ private fun HomeHubScreenContent(
                             text = stringResource(R.string.start_pinned_section),
                             modifier = Modifier
                                 .padding(top = 20.dp, bottom = 10.dp)
-                                .w10mStaggeredAnimation({ animationProgress.value }, 4 + rows.size)
+                                .zuneListMotion({ animationProgress.value }, 4 + rows.size)
                         )
                         ZunePinnedBoard(
                             tiles = pinnedTiles,
@@ -1848,7 +1876,7 @@ private fun HomeHubScreenContent(
                                     },
                                     onLongClick = { isFavoritesExpanded = true },
                                     modifier = Modifier
-                                        .w10mStaggeredAnimation(
+                                        .zuneListMotion(
                                             { animationProgress.value },
                                             2 + index,
                                             clickedItemKey == key
@@ -1899,7 +1927,7 @@ private fun HomeHubScreenContent(
                                         maxLines = 1,
                                         softWrap = false,
                                         modifier = Modifier
-                                            .w10mStaggeredAnimation({ animationProgress.value }, 8)
+                                            .zuneListMotion({ animationProgress.value }, 8)
                                             .graphicsLayer {
                                                 translationY = with(localDensity) { (-24).dp.toPx() }
                                             }
@@ -1912,7 +1940,7 @@ private fun HomeHubScreenContent(
                                     FavoritesEmptyState(
                                         onOpenAppList = onNavigateToAppsHub,
                                         modifier = Modifier
-                                            .w10mStaggeredAnimation({ animationProgress.value }, 9)
+                                            .zuneListMotion({ animationProgress.value }, 9)
                                     )
                                 }
                             } else {
@@ -2014,7 +2042,7 @@ private fun HomeHubScreenContent(
                                                     isDragging = isDragging,
                                                     index = absoluteIndex
                                                 )
-                                                .w10mStaggeredAnimation(
+                                                .zuneListMotion(
                                                     { animationProgress.value },
                                                     9 + favIndex,
                                                     clickedItemKey == key
