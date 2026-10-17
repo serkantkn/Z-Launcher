@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.video
 
+import com.serkantkn.zunelauncher.util.Pro
 import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
@@ -115,6 +116,7 @@ internal fun VideoPlayerScreen(
     onOpenElsewhere: () -> Unit
 ) {
     val accent = LocalZuneColors.current.accentColor
+    val context = androidx.compose.ui.platform.LocalContext.current
     var controlsVisible by remember { mutableStateOf(true) }
     var optionsOpen by remember { mutableStateOf(false) }
     /** Touches do nothing but show the lock, for a film watched by a child or in a pocket. */
@@ -260,7 +262,8 @@ internal fun VideoPlayerScreen(
                 }
                 .pointerInput(locked) {
                     if (locked) return@pointerInput
-                    detectPinch { spread -> optionsHandler.onFill(spread) }
+                    // Filling the screen is Pro's, by pinch as by the options.
+                    detectPinch { spread -> if (Pro.unlocked) optionsHandler.onFill(spread) }
                 }
         )
 
@@ -303,7 +306,8 @@ internal fun VideoPlayerScreen(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         RingButton(Icons.Default.MoreHoriz, stringResource(R.string.video_more), enabled = true) {
-                            optionsOpen = true
+                            // Sound tracks, subtitles, speed, fill and what comes next are Pro's.
+                            Pro.orTell(context) { optionsOpen = true }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         RingButton(Icons.Default.Close, stringResource(R.string.common_close_cap), enabled = true, onClick = onClose)

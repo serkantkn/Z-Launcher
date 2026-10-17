@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.video
 
 import android.content.Context
+import com.serkantkn.zunelauncher.util.Pro
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -73,18 +74,24 @@ internal enum class VideoOrder { DATE, NAME, FOLDER }
 /** What happens when a video comes to its end. */
 internal enum class VideoEndAction { STOP, NEXT, REPEAT }
 
-/** How the player was last set up, kept for the next film. */
+/**
+ * How the player was last set up, kept for the next film.
+ *
+ * Filling the screen, what happens at the end and subtitles are Pro's: the free build reads them
+ * as they stand by default and leaves whatever was stored for Pro.
+ */
 internal class VideoPrefs(context: Context) {
     private val prefs = context.getSharedPreferences("video_prefs", Context.MODE_PRIVATE)
 
     /** The picture filling the screen, cut at its edges, rather than fitted inside it. */
     var fill: Boolean
-        get() = prefs.getBoolean("fill", false)
-        set(value) = prefs.edit().putBoolean("fill", value).apply()
+        get() = Pro.unlocked && prefs.getBoolean("fill", false)
+        set(value) { if (Pro.unlocked) prefs.edit().putBoolean("fill", value).apply() }
 
     var endAction: VideoEndAction
-        get() = runCatching { VideoEndAction.valueOf(prefs.getString("end", null).orEmpty()) }.getOrDefault(VideoEndAction.NEXT)
-        set(value) = prefs.edit().putString("end", value.name).apply()
+        get() = if (!Pro.unlocked) VideoEndAction.STOP
+            else runCatching { VideoEndAction.valueOf(prefs.getString("end", null).orEmpty()) }.getOrDefault(VideoEndAction.NEXT)
+        set(value) { if (Pro.unlocked) prefs.edit().putString("end", value.name).apply() }
 
     var videosOrder: VideoOrder
         get() = runCatching { VideoOrder.valueOf(prefs.getString("order", null).orEmpty()) }.getOrDefault(VideoOrder.DATE)
@@ -92,8 +99,8 @@ internal class VideoPrefs(context: Context) {
 
     /** Subtitles shown when a film has some; turned off, they stay off for the next one too. */
     var subtitles: Boolean
-        get() = prefs.getBoolean("subtitles", true)
-        set(value) = prefs.edit().putBoolean("subtitles", value).apply()
+        get() = Pro.unlocked && prefs.getBoolean("subtitles", true)
+        set(value) { if (Pro.unlocked) prefs.edit().putBoolean("subtitles", value).apply() }
 }
 
 /**

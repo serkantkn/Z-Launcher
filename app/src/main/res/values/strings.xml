@@ -324,6 +324,7 @@
     <string name="settings_perm_notification_listener_sub">for the social hub and live notifications on the lock screen</string>
     <string name="settings_perm_overlay_sub">for windows phone style pop-up cards and the notification panel</string>
     <string name="pro_only_feature">This feature is only available in Z Launcher Pro.</string>
+    <string name="pro_in_pro">Z Launcher Pro</string>
     <string name="settings_color_picker">color picker</string>
     <string name="common_cancel_cap">Cancel</string>
     <string name="settings_hue">hue: %1$d°</string>

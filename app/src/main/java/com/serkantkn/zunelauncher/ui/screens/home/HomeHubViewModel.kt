@@ -1021,12 +1021,24 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** Forgets a removed tile's look, and the pictures copied for it, in either build. */
+    private fun dropTileLook(tileId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val dropped = settingsDataStore.dropTileLook(tileId) ?: return@launch
+            dropped.picture?.let { deleteOwnFile(it) }
+            (dropped.icon as? TileIcon.Picture)?.path?.let { deleteOwnFile(it) }
+            tileIconFactory.invalidate()
+        }
+    }
+
     /** An icon a tile was given, ready to draw; the factory keeps it once drawn. */
     fun customIconFace(icon: TileIcon, style: TileIconStyle): TileIconFace? =
         tileIconFactory.faceOf(icon, style)
 
     /** Copies a picture the user chose into the launcher's own files and makes it the tile's icon. */
     fun setTileLookIconPicture(tileId: String, uri: android.net.Uri) {
+        // A tile's own pictures are Pro's; the free build copies none it could not show.
+        if (!com.serkantkn.zunelauncher.util.Pro.unlocked) return
         viewModelScope.launch(Dispatchers.IO) {
             val file = ownFileFor("tile_icon", tileId, "png")
             try {
@@ -1048,6 +1060,8 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
      * ever need, and lays it across the tile.
      */
     fun setTileLookPicture(tileId: String, uri: android.net.Uri) {
+        // A tile's own pictures are Pro's; the free build copies none it could not show.
+        if (!com.serkantkn.zunelauncher.util.Pro.unlocked) return
         viewModelScope.launch(Dispatchers.IO) {
             val context = getApplication<Application>()
             val file = ownFileFor("tile_picture", tileId, "jpg")
@@ -1164,7 +1178,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             // be remembered as taken off or it comes straight back on the next read.
             StartTileItem(id).hubType?.let { settingsDataStore.setHubRemoved(it, true) }
             // A tile that has gone takes its own look with it: pinned again, it starts plain.
-            if (settingsDataStore.tileLooks.first().containsKey(id)) resetTileLook(id)
+            dropTileLook(id)
         }
     }
 

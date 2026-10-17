@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.repository
 
+import com.serkantkn.zunelauncher.util.Pro
 import android.content.Context
 import androidx.annotation.StringRes
 import com.serkantkn.zunelauncher.R
@@ -99,8 +100,12 @@ class NewsRepository(
     val topics: Flow<List<NewsTopic>> = dataStore.topics
 
     /** The feeds followed: the ready-made ones that are on, then the user's own. */
+    /**
+     * The feeds followed. They are Pro's: the free build follows none and fetches none, and keeps
+     * the ones chosen for Pro.
+     */
     val sources: Flow<List<NewsSource>> = combine(dataStore.enabledPresetIds, dataStore.customSources) { ids, custom ->
-        NewsPresets.all.filter { it.id in ids } + custom
+        if (Pro.unlocked) NewsPresets.all.filter { it.id in ids } + custom else emptyList()
     }
 
     val enabledPresetIds: Flow<Set<String>> = dataStore.enabledPresetIds

@@ -285,6 +285,8 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
 
         item(key = "volume_bar_style") {
             SettingGroup(title = stringResource(R.string.settings_volume_style)) {
+                // Windows Phone's volume bar is Pro's; the free build keeps Android's.
+                com.serkantkn.zunelauncher.ui.components.ProLocked {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
                         title = stringResource(R.string.volume_bar_wp),
@@ -325,11 +327,13 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                         )
                     }
                 }
+                }
             }
         }
 
         item(key = "music_online") {
             SettingGroup(title = stringResource(R.string.settings_music_online)) {
+                com.serkantkn.zunelauncher.ui.components.ProLocked {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingSwitchRow(
                         title = stringResource(R.string.music_online_extras),
@@ -352,6 +356,7 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                         color = LocalZuneColors.current.textDim,
                         modifier = Modifier.padding(top = 4.dp)
                     )
+                }
                 }
             }
         }

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.news
 
+import com.serkantkn.zunelauncher.util.Pro
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -121,7 +122,10 @@ fun NewsHubScreen(
     val readingLinks by viewModel.readingLinks.collectAsState()
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
 
-    val keys = remember(topics) { topics.map { it.sectionKey } + NewsSection.SOURCES_KEY }
+    // "My sources" - the sites' own feeds - is Pro's.
+    val keys = remember(topics) {
+        topics.map { it.sectionKey } + listOfNotNull(NewsSection.SOURCES_KEY.takeIf { Pro.unlocked })
+    }
     val tabs = keys.map { stringResource(NewsHubViewModel.titleOf(it)) }
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
     val currentKey = keys.getOrElse(pager.currentPage) { keys.first() }

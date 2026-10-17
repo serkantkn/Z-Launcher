@@ -324,6 +324,7 @@
     <string name="settings_perm_notification_listener_sub">social hub ve kilit ekranında canlı bildirimler için</string>
     <string name="settings_perm_overlay_sub">windows phone tarzı pop-up kartlar ve bildirim paneli için</string>
     <string name="pro_only_feature">Bu özellik sadece Z Launcher Pro\'da geçerlidir.</string>
+    <string name="pro_in_pro">Z Launcher Pro\'da</string>
     <string name="settings_color_picker">renk seçici</string>
     <string name="common_cancel_cap">İptal</string>
     <string name="settings_hue">renk özü (hue): %1$d°</string>

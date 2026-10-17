@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.news
 
+import com.serkantkn.zunelauncher.util.Pro
 import android.app.Application
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
@@ -131,6 +132,9 @@ class NewsHubViewModel(application: Application) : AndroidViewModel(application)
     fun toggleReadingList(story: NewsItem) {
         if (readingList.contains(story.readUrl)) {
             readingList.remove(story.readUrl)
+        } else if (!Pro.unlocked) {
+            // Saving for later is Pro's; taking a story off the list is not.
+            _status.value = R.string.pro_only_feature
         } else {
             readingList.add(
                 com.serkantkn.zunelauncher.data.model.ReadingItem(

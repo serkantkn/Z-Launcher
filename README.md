@@ -47,10 +47,10 @@ telefonlarında çalışıyor — ve hiçbir şeyi hiçbir yere göndermiyor.
   kaydırma ya da çevirme hareketi seçilir, karo başına da ayarlanabilir.
 - **Dört boyut.** Küçük, orta, geniş, büyük. Her canlı karo her boyut için ayrı düzenlenmiş; bildirim sayısı
   simgenin hemen yanında. Sürükle, sırala, üst üste bırakıp klasör yap.
-- **Buzlu karolar.** Saydam karoların arkasındaki duvar kağıdı buzlu cam gibi bulanıklaşabilir; ne kadar,
+- **Buzlu karolar** *(Pro)*. Saydam karoların arkasındaki duvar kağıdı buzlu cam gibi bulanıklaşabilir; ne kadar,
   ayarlardan.
 - **Her şey sabitlenir.** Uygulama, kişi, konuşma, albüm, plak, not, web sayfası.
-- **Karo başına kişiselleştirme.** Renk, ad, simge (Windows Phone glifleri, ikon paketi ya da kendi resmin),
+- **Karo başına kişiselleştirme** *(Pro)*. Renk, ad, simge (Windows Phone glifleri, ikon paketi ya da kendi resmin),
   simge boyutu, karoyu dolduran resim, animasyon, bildirim, şeffaflık ve yazı rengi — hepsi tek karo için,
   tek dokunuşla sıfırlanabilir.
 - **Hub yerine uygulama.** İstersen "internet" karosu Chrome'u açsın; her hub istediğin uygulamaya yönlendirilebilir.
@@ -81,7 +81,7 @@ Hepsi uygulamanın içinde, hepsi aynı dilde yazılmış:
 | **internet** | sekmeler, yer imleri, okuma görünümü ve okuma listesi, reklam ve izleyici engelleme, gizli gezinme |
 | **haberler** | Google Haberler'in konuları ve takip ettiğin sitelerin RSS akışları; özet, sonra sitenin kendi sayfası |
 | **e-posta** | IMAP/SMTP, birden çok hesap, Google ile oturum açma |
-| **notlar** | kontrol listeleri, resim ve ses, kilitli notlar |
+| **notlar** | kontrol listeleri, resim ve ses, kilitli notlar *(Pro)* |
 | **dosyalar** | klasörler karo olarak; kopyala · taşı · yapıştır · yeniden adlandır · sil · ayrıntılar, sürükleyerek üst klasöre taşı; metin, resim, ses, video ve PDF'i kendi açar; bulut sürücüler |
 | **sosyal** | seçtiğin uygulamaların mesajları tek akışta *(Pro)* |
 | **saat · takvim · hava durumu · hesap makinesi · kamera** | her biri kendi canlı karosuyla |
@@ -97,16 +97,16 @@ beyaz bir çizgi menüye açılır.
 
 - **Okuma görünümü.** Yazı olan sayfada adres çubuğunun yanında belirir; bir balon haber verir, dokununca sayfa
   sade bir düzene geçer.
-- **Okuma listesi.** Sayfayı ya da bir haberi sonra okumak için kaydet; yazısı telefonda tutulur, bağlantı yokken
+- **Okuma listesi** *(Pro)*. Sayfayı ya da bir haberi sonra okumak için kaydet; yazısı telefonda tutulur, bağlantı yokken
   de okunur.
 - **Reklam ve izleyici engelleme.** Açık bir engelleme listesiyle; adresin yanındaki kalkan sayfada kaç isteğin
   durduğunu sayar, bozulan bir sitede tek dokunuşla kapanır.
 - **Güvenlik.** Adresin başında kilit; sertifikası bozuk bir sayfada boş ekran yerine ne olduğunu anlatan bir uyarı.
 - **Basılı tut.** Bağlantıyı yeni ya da gizli sekmede aç, kopyala, paylaş; resmi kaydet ya da kendisini paylaş.
-- **Ve dahası.** Site başına yazı boyutu, sayfayı çevir, PDF olarak kaydet, çekerek yenile. Başlangıç sayfası bir
+- **Ve dahası.** Site başına yazı boyutu, sayfayı çevir ve PDF olarak kaydet *(Pro)*, çekerek yenile. Başlangıç sayfası bir
   hub: sık ziyaret edilenler, sık kullanılanlar, okuma listesi, geçmiş. Telefonda okurken adres çubuğu ince bir
   şeride iner.
-- **Haberler.** Manşetler, gündem, dünya, ekonomi, teknoloji, spor Google Haberler'den; "kaynaklarım" takip ettiğin
+- **Haberler.** Manşetler, gündem, dünya, ekonomi, teknoloji, spor Google Haberler'den; "kaynaklarım" *(Pro)* takip ettiğin
   sitelerin RSS akışlarından, hazır Türkçe ve İngilizce kaynaklarla ya da kendi eklediğin adreslerle. Habere
   dokununca resmi ve özeti, devamı sitenin kendi sayfasında.
 - **Video oynatıcı.** Metro kontrolleri, iki kez dokunup 10 saniye atla, kaldığı yerden devam, ana ekrana dönünce
@@ -180,9 +180,26 @@ Windows Phone'un ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli
 ## Ayrıca
 
 - Windows Phone klavyesi ve tahmin çubuğu *(Pro)*
-- Ses çubuğundan bildirim şeridine kadar WP arayüzü
+- Ses çubuğundan bildirim şeridine kadar WP arayüzü *(Pro)*
 - Türkçe ve İngilizce
 - Bölünmüş ekran: tablette dört, telefonda iki parmakla
+
+## Ücretsiz ve Pro
+
+Başlangıç ekranı, bütün hub'lar, eylem merkezi, tablet düzeni ve varsayılan uygulama rolleri ücretsiz
+sürümde tamdır. Pro şunları ekler:
+
+- **Görünüm:** vurgu renklerinin tamamı, özel duvar kağıdı, buzlu karolar, karo başına renk, ad, simge,
+  resim, animasyon, saydamlık ve yazı rengi, hub arka planı ayarları
+- **Medya:** video oynatıcıda altyazı, ses parçası, hız, ekranı doldurma, sonraki bölüm ve küçük pencere;
+  internetten şarkı sözü ve albüm kapağı
+- **Hub'lar:** sosyal hub, kilitli notlar, haberlerde kendi RSS kaynakların, tarayıcıda okuma listesine
+  ekleme, PDF olarak kaydetme, çeviri ve sık kullanılanlar; başlangıca 10'dan fazla uygulama, birden çok
+  hava durumu şehri
+- **Sistem:** Windows Phone klavyesi, ses çubuğu ve bildirim şeridi
+
+Ücretsiz sürüm hiçbir verini Pro'ya kilitlemez: kilitli bir not yine açılır, okuma listesindekiler yine
+okunur, Pro ayarları silinmez, Pro'ya geçince olduğu gibi geri gelir.
 
 ## Gizlilik
 
@@ -200,8 +217,8 @@ Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md) · [web](http
 ./gradlew assembleFreeDebug
 ```
 
-İki ürün çeşidi var: `free` ve `premium` (Pro). Pro, vurgu renklerinin tamamını, özel duvar kağıdını,
-sosyal hub'ı ve klavyeyi açar; kod aynıdır, `BuildConfig.IS_PREMIUM` ile ayrılır.
+İki ürün çeşidi var: `free` ve `premium` (Pro). Neyin Pro olduğu yukarıda; kod aynıdır,
+`BuildConfig.IS_PREMIUM` ile ayrılır ve hepsi `util/Pro.kt` üzerinden geçer.
 Android Studio'nun güncel sürümü, JDK 17+ ve minSdk 28 (Android 9) yeter.
 
 Birim testleri:
@@ -273,6 +290,13 @@ turnstile animations and Zune's thin type, running on today's Android — and se
   Android's own switch for each; about lists this device.
 - **Looks.** Fourteen accent colours and a custom one, dark and light themes, tile transparency and frost,
   corner style and spacing. The Windows Phone keyboard *(Pro)*.
+- **Free and Pro.** Start, every hub, the action center, the tablet layout and the default-app roles are whole
+  in the free edition. Pro adds all accent colours, custom wallpaper, frosted tiles, each tile's own look,
+  the hubs' background settings, the video player's subtitles, sound tracks, speed, fill, next episode and
+  small window, online lyrics and covers, the social hub, locked notes, the news hub's own RSS sources, the
+  browser's reading list, PDF, translation and favourites, the Windows Phone keyboard, volume bar and banners.
+  Nothing of yours is locked away: a locked note still opens, saved pages still read, and Pro's settings
+  wait, untouched, for Pro.
 - **Privacy.** No server, no ads, no analytics, no account. Only weather, news, lyrics and search suggestions
   (and, with blocking on, a weekly blocklist download) ever leave the phone, and only when you use them. Two
   optional permissions do one thing each: precise location only shows the Wi-Fi network's name (the weather

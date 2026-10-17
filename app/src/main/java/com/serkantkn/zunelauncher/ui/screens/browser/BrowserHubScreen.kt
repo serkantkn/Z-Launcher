@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.util.Pro
 import com.serkantkn.zunelauncher.ui.components.HubGround
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
@@ -405,10 +406,14 @@ fun BrowserHubScreen(
     // What the menu offers beyond the bars' own entries, the same on a phone and a tablet.
     val onAPage = !activeTab.showStartScreen && activeTab.url.isNotBlank()
     val menuEntries = listOf(
+        // Translating, saving for later and printing to PDF are Pro's; reading what was saved
+        // already, and taking it off the list, are not.
         BrowserMenuEntry(stringResource(R.string.browser_translate), onAPage) {
-            val translated = translationOf(activeTab.url, java.util.Locale.getDefault().language)
-            val finalUrl = viewModel.loadUrl(activeTab.id, translated)
-            if (finalUrl.isNotEmpty()) webViewCache[activeTab.id]?.loadUrl(finalUrl)
+            Pro.orTell(context) {
+                val translated = translationOf(activeTab.url, java.util.Locale.getDefault().language)
+                val finalUrl = viewModel.loadUrl(activeTab.id, translated)
+                if (finalUrl.isNotEmpty()) webViewCache[activeTab.id]?.loadUrl(finalUrl)
+            }
         },
         BrowserMenuEntry(stringResource(R.string.browser_text_size), onAPage) { textSizeOpen = true },
         BrowserMenuEntry(
@@ -418,6 +423,8 @@ fun BrowserHubScreen(
             val url = activeTab.url
             if (readingRepo.contains(url)) {
                 readingRepo.remove(url)
+            } else if (!Pro.unlocked) {
+                Pro.tell(context)
             } else {
                 readingRepo.add(
                     com.serkantkn.zunelauncher.data.model.ReadingItem(
@@ -435,7 +442,9 @@ fun BrowserHubScreen(
             true
         ) { viewModel.setAdBlockEnabled(!state.adBlockEnabled) },
         BrowserMenuEntry(stringResource(R.string.browser_print), onAPage) {
-            webViewCache[activeTab.id]?.let { web -> printPage(context, web, activeTab.title.ifBlank { activeTab.url }) }
+            Pro.orTell(context) {
+                webViewCache[activeTab.id]?.let { web -> printPage(context, web, activeTab.title.ifBlank { activeTab.url }) }
+            }
         }
     )
     val security = if (activeTab.showStartScreen) PageSecurity.NONE
@@ -776,6 +785,10 @@ fun BrowserHubScreen(
                                     }
                                     if (!readingList.any { it.url == link }) {
                                         add(PageMenuAction(stringResource(R.string.browser_add_reading)) {
+                                            if (!Pro.unlocked) {
+                                                Pro.tell(context)
+                                                return@PageMenuAction
+                                            }
                                             readingRepo.add(
                                                 com.serkantkn.zunelauncher.data.model.ReadingItem(
                                                     url = link,

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.news
 
+import com.serkantkn.zunelauncher.util.Pro
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Box
@@ -143,6 +144,9 @@ private fun NewsSettingsBody(
 
         SettingsHeading(stringResource(R.string.news_settings_sources))
         SettingsHint(stringResource(R.string.news_settings_sources_hint))
+        // The sites' own feeds are Pro's; Google News's topics above are not.
+        com.serkantkn.zunelauncher.ui.components.ProLocked {
+        Column {
         presets.forEach { preset ->
             MetroSwitchRow(
                 title = preset.name,
@@ -219,6 +223,8 @@ private fun NewsSettingsBody(
                 color = zuneColors.accentColor,
                 modifier = Modifier.padding(top = 10.dp)
             )
+        }
+        }
         }
 
         Text(

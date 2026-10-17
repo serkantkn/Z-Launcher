@@ -281,6 +281,8 @@ private fun HubBackgroundGroups(viewModel: SettingsViewModel) {
     }
 
     SettingGroup(title = stringResource(R.string.settings_hub_background)) {
+        // How the hubs stand is Pro's; the free build's stand on Start's own background.
+        com.serkantkn.zunelauncher.ui.components.ProLocked {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SettingChoiceRow(
                 title = stringResource(R.string.settings_hub_background_same),
@@ -341,6 +343,7 @@ private fun HubBackgroundGroups(viewModel: SettingsViewModel) {
                     onValueChange = viewModel::setHubBackgroundOpacity
                 )
             }
+        }
         }
     }
 
@@ -445,6 +448,7 @@ private fun TileGroups(viewModel: SettingsViewModel) {
             )
 
             // Frosts what the transparency lets through; with solid tiles there is nothing to see.
+            com.serkantkn.zunelauncher.ui.components.ProLocked {
             SettingSlider(
                 label = stringResource(R.string.settings_tile_blur),
                 sublabel = stringResource(
@@ -456,6 +460,7 @@ private fun TileGroups(viewModel: SettingsViewModel) {
                 steps = 9,
                 onValueChange = { viewModel.setTileBlur(it.toInt()) }
             )
+            }
             if (tileBlur > 0) UnreadableWallpaperNote(viewModel)
 
             Spacer(modifier = Modifier.height(4.dp))

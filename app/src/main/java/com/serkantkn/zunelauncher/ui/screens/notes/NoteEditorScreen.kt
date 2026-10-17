@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.notes
 
+import com.serkantkn.zunelauncher.util.Pro
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
@@ -582,7 +583,10 @@ internal fun NoteEditorScreen(
                 add(WpBarMenuItem(stringResource(R.string.notes_color)) { showColorDialog = true })
                 add(WpBarMenuItem(stringResource(R.string.notes_tags)) { showTagsDialog = true })
                 add(WpBarMenuItem(if (note.isLocked) stringResource(R.string.notes_unlock) else stringResource(R.string.notes_lock)) {
-                    if (!note.isLocked && !canUseDeviceLock(context)) {
+                    if (!note.isLocked && !Pro.unlocked) {
+                        // Locking a note is Pro's; a note locked already still opens and unlocks.
+                        onStatus(context.getString(R.string.pro_only_feature))
+                    } else if (!note.isLocked && !canUseDeviceLock(context)) {
                         onStatus(context.getString(R.string.notes_lock_needs_device_lock))
                     } else {
                         change(note.copy(isLocked = !note.isLocked), coalesce = false)

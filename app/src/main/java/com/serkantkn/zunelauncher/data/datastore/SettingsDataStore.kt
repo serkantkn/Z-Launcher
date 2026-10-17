@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.datastore
 
+import com.serkantkn.zunelauncher.util.Pro
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -133,21 +134,45 @@ class SettingsDataStore(private val context: Context) {
         prefs[ICON_PACK_PACKAGE]?.takeIf { it.isNotBlank() }
     }
 
-    /** Icons the user picked by hand, by package name. */
+    /** Icons the user picked by hand, by package name. A tile's own icon is Pro's. */
     val tileIconOverrides: Flow<Map<String, TileIcon>> = context.settingsDataStore.data.map { prefs ->
-        TileIcon.mapFromJson(prefs[TILE_ICON_OVERRIDES])
+        if (Pro.unlocked) TileIcon.mapFromJson(prefs[TILE_ICON_OVERRIDES]) else emptyMap()
     }
 
-    /** What single tiles have been told to look like, by tile id. Tiles left alone are absent. */
+    /**
+     * What single tiles have been told to look like, by tile id. Tiles left alone are absent.
+     *
+     * A tile's own look is Pro's, all but whether it shows notifications: the free build reads
+     * only that, and the rest of what was stored waits, untouched, for Pro.
+     */
     val tileLooks: Flow<Map<String, TileLook>> = context.settingsDataStore.data.map { prefs ->
-        TileLook.mapFromJson(prefs[TILE_LOOKS])
+        TileLook.mapFromJson(prefs[TILE_LOOKS]).let { looks ->
+            if (Pro.unlocked) looks else freeLooks(looks)
+        }
+    }
+
+    /**
+     * Forgets a tile's look altogether, whatever build reads it - a tile that has gone takes its
+     * look with it - and hands back what it was, so its pictures can go too.
+     */
+    suspend fun dropTileLook(tileId: String): TileLook? {
+        var dropped: TileLook? = null
+        context.settingsDataStore.edit { prefs ->
+            val current = TileLook.mapFromJson(prefs[TILE_LOOKS]).toMutableMap()
+            dropped = current.remove(tileId)
+            if (dropped != null) prefs[TILE_LOOKS] = TileLook.mapToJson(current)
+        }
+        return dropped
     }
 
     /** Stores one tile's look; a default look drops the entry, which is what a reset is. */
     suspend fun setTileLook(tileId: String, look: TileLook) {
         context.settingsDataStore.edit { prefs ->
             val current = TileLook.mapFromJson(prefs[TILE_LOOKS]).toMutableMap()
-            if (look.isDefault) current.remove(tileId) else current[tileId] = look
+            // The free build changes only what it may - the notifications - and keeps the rest of
+            // what was stored, which it never saw, as it was.
+            val stored = if (Pro.unlocked) look else freeChange(current[tileId], look)
+            if (stored.isDefault) current.remove(tileId) else current[tileId] = stored
             prefs[TILE_LOOKS] = TileLook.mapToJson(current)
         }
     }
@@ -446,7 +471,9 @@ class SettingsDataStore(private val context: Context) {
         prefs[CUSTOM_HUB_WALLPAPER_PATH]
     }
 
+    /** Pro's: the free build's hubs stand on Start's own background. */
     val hubBackgroundMode: Flow<HubBackgroundMode> = context.settingsDataStore.data.map { prefs ->
+        if (!Pro.unlocked) return@map HubBackgroundMode.MATCH_LAUNCHER
         try {
             HubBackgroundMode.valueOf(prefs[HUB_BACKGROUND_MODE] ?: HubBackgroundMode.MATCH_LAUNCHER.name)
         } catch (e: Exception) {
@@ -455,7 +482,7 @@ class SettingsDataStore(private val context: Context) {
     }
 
     val hubBackgroundOpacity: Flow<Float> = context.settingsDataStore.data.map { prefs ->
-        prefs[HUB_BACKGROUND_OPACITY] ?: 0.85f
+        if (Pro.unlocked) prefs[HUB_BACKGROUND_OPACITY] ?: DEFAULT_HUB_OPACITY else DEFAULT_HUB_OPACITY
     }
 
     val tileCornerStyle: Flow<TileCornerStyle> = context.settingsDataStore.data.map { prefs ->
@@ -482,8 +509,9 @@ class SettingsDataStore(private val context: Context) {
      * How frosted the wallpaper behind see-through tiles is, 0-100. Off by default: the tiles
      * show the wallpaper sharp, as they always have.
      */
+    /** Pro's: the free build's tiles are never frosted. */
     val tileBlur: Flow<Int> = context.settingsDataStore.data.map { prefs ->
-        (prefs[TILE_BLUR] ?: 0).coerceIn(0, 100)
+        if (Pro.unlocked) (prefs[TILE_BLUR] ?: 0).coerceIn(0, 100) else 0
     }
 
     /** Whether the tiles write in black, in white, or in whatever suits the theme. */
@@ -544,7 +572,9 @@ class SettingsDataStore(private val context: Context) {
         prefs[BROWSER_DOWNLOADS]
     }
 
+    /** Windows Phone's banners are Pro's; the free build leaves notifications to Android. */
     val notificationStyle: Flow<NotificationStyle> = context.settingsDataStore.data.map { prefs ->
+        if (!Pro.unlocked) return@map NotificationStyle.SYSTEM
         try {
             NotificationStyle.valueOf(prefs[NOTIFICATION_STYLE] ?: NotificationStyle.WINDOWS_PHONE.name)
         } catch (e: Exception) {
@@ -552,7 +582,9 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
+    /** Windows Phone's volume bar is Pro's; the free build leaves the keys to Android. */
     val volumeBarStyle: Flow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = context.settingsDataStore.data.map { prefs ->
+        if (!Pro.unlocked) return@map com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM
         try {
             com.serkantkn.zunelauncher.data.model.VolumeBarStyle.valueOf(prefs[VOLUME_BAR_STYLE] ?: com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE.name)
         } catch (e: Exception) {
@@ -577,8 +609,9 @@ class SettingsDataStore(private val context: Context) {
      * Off by default. It sends what is playing to a service outside the phone, which is somebody's
      * decision to make rather than something to switch on for them.
      */
+    /** Lyrics and covers from the internet are Pro's. */
     val musicOnlineExtras: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[MUSIC_ONLINE_EXTRAS] ?: false
+        Pro.unlocked && (prefs[MUSIC_ONLINE_EXTRAS] ?: false)
     }
 
     suspend fun setMusicOnlineExtras(enabled: Boolean) {
@@ -1024,3 +1057,15 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 }
+
+/** Where a hub's shade over the wallpaper stands unless told otherwise. */
+private const val DEFAULT_HUB_OPACITY = 0.85f
+
+/** What the free build makes of a tile's stored look: only whether it shows notifications. */
+internal fun freeLooks(looks: Map<String, TileLook>): Map<String, TileLook> =
+    looks.mapValues { (_, look) -> TileLook(notifications = look.notifications) }
+        .filterValues { !it.isDefault }
+
+/** A change the free build makes to a tile's look: the notifications, and nothing else. */
+internal fun freeChange(stored: TileLook?, changed: TileLook): TileLook =
+    (stored ?: TileLook.DEFAULT).copy(notifications = changed.notifications)

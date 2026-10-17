@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.video
 
+import com.serkantkn.zunelauncher.util.Pro
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
@@ -329,8 +330,12 @@ class VideoPlayerActivity : ComponentActivity() {
         }
     }
 
-    /** The video opened and the ones beside it, as the player's own list. */
+    /**
+     * The video opened and the ones beside it, as the player's own list. The ones beside it, and
+     * the subtitles found next to them, are Pro's: the free build plays the one opened.
+     */
     private fun queueAround(opened: QueuedVideo, withFolder: Boolean): List<MediaItem> {
+        if (!Pro.unlocked) return listOf(mediaItemOf(opened))
         val path = opened.path
         val around = when {
             withFolder && path != null -> VideoQueue.ofFolder(this, File(path))
@@ -761,7 +766,9 @@ class VideoPlayerActivity : ComponentActivity() {
 
     // ── Picture in picture ──
 
-    private fun canPip(): Boolean = packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+    /** The small window is Pro's. */
+    private fun canPip(): Boolean =
+        Pro.unlocked && packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
 
     private fun pipParams(): PictureInPictureParams {
         val size = player.videoSize

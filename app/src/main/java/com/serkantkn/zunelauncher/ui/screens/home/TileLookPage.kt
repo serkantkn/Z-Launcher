@@ -168,6 +168,10 @@ fun TileLookPage(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
+                // A tile's own colour, name, icon, picture and turning are Pro's; what it opens
+                // and whether it shows notifications are not.
+                com.serkantkn.zunelauncher.ui.components.ProLocked {
+                Column {
                 // ── Colour ──
                 SettingGroup(title = stringResource(R.string.tile_look_color)) {
                     ColorSwatches(
@@ -267,6 +271,8 @@ fun TileLookPage(
                         onClick = { onChange(look.copy(animation = TileAnimation.NONE)) }
                     )
                 }
+                }
+                }
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ── Notifications ──
@@ -281,6 +287,8 @@ fun TileLookPage(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ── Transparency ──
+                com.serkantkn.zunelauncher.ui.components.ProLocked {
+                Column {
                 SettingGroup(title = stringResource(R.string.settings_tile_transparency)) {
                     val opacity = look.opacity ?: boardOpacity
                     LookSlider(
@@ -318,6 +326,8 @@ fun TileLookPage(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                }
+                }
                 }
                 Spacer(modifier = Modifier.height(32.dp))
             }

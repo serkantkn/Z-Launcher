@@ -28,6 +28,17 @@ two hubs that stay off the standard by choice: weather, which keeps its panorama
 sky behind every section side by side), and files, which is a Windows 8 explorer. Nothing new is
 added to that list.
 
+## Free and Pro
+
+The two flavours share one codebase; what is Pro's goes through `util/Pro.kt` (`Pro.unlocked`,
+`Pro.tell`, `Pro.orTell`) and, in settings, `ui/components/ProLock.kt` (`ProLocked { }`).
+
+- A Pro setting is gated where it is read (the DataStore flow returns the free default), never
+  deleted: the stored value waits for Pro.
+- Nothing of the user's is locked away: the free build may not make a new locked note or add to
+  the reading list, but what exists still opens, reads and can be removed.
+- The README's "Ücretsiz ve Pro" section and the site list what is Pro's; keep them in step.
+
 ## Build and test
 
 - Build: `./gradlew :app:assemblePremiumDebug`

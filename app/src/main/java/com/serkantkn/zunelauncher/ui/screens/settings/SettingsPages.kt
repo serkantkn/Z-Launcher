@@ -508,6 +508,8 @@ internal fun NotificationsSettingsPage(
 
         item(key = "notification_style") {
             SettingGroup(title = stringResource(R.string.settings_notification_style)) {
+                // Windows Phone's banners are Pro's; the free build leaves notifications to Android.
+                com.serkantkn.zunelauncher.ui.components.ProLocked {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
                         title = stringResource(R.string.notification_style_wp),
@@ -566,6 +568,7 @@ internal fun NotificationsSettingsPage(
                             color = currentAccentColor
                         )
                     }
+                }
                 }
             }
         }
