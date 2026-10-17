@@ -241,7 +241,8 @@ fun LauncherScreen(
     // much motion, so they stop with the setting too.
     val animationsOn by rememberUpdatedState(LocalAnimationsEnabled.current)
     fun quickSpec(millis: Int) = tween<Float>(if (animationsOn) millis else 0, easing = FastOutSlowInEasing)
-    val hingeProgress = remember { Animatable(0f) }
+    // A hub already open when this is first drawn stands open; it does not swing in again.
+    val hingeProgress = remember { Animatable(if (navState.currentHub != null) 1f else 0f) }
     var activeHub by remember { mutableStateOf(navState.currentHub) }
     // Hinge direction, Windows Phone style: hubs ENTER from outside the screen (in front, -90° -> 0°,
     // like the Start turnstile-in) and LEAVE into the depth of the screen (0° -> +90°).
@@ -252,6 +253,18 @@ fun LauncherScreen(
     // Drive 2-stage hinge animation when switching hubs or returning to home screen
     LaunchedEffect(navState.currentHub) {
         val targetHub = navState.currentHub
+        if (targetHub == activeHub) {
+            // The hub is the one already set, but its hinge may have been cut short: on a cold
+            // start a hub asked for by a notification begins to swing in while the screen is still
+            // being put together, and the effect running it is dropped and started again. Without
+            // this the hinge stayed where it stopped - the hub unseen, and Start, told a hub was
+            // open, refusing every touch until Back.
+            if (targetHub != null && hingeProgress.value < 1f) {
+                isHubHingeOpening = true
+                hingeProgress.animateTo(1f, animationSpec = if (tabletStart) quickSpec(WIN8_HUB_FADE_IN_MILLIS) else hingeSpec)
+            }
+            return@LaunchedEffect
+        }
         if (targetHub != activeHub) {
             if (activeHub != null && targetHub != null) {
                 // Current hub turns away into the depth, the next one swings in from outside

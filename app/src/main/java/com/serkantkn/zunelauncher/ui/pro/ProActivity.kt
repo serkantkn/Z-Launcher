@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -97,6 +98,8 @@ private fun ProPage(@StringRes reason: Int?, onBuy: () -> Unit, onRestore: () ->
     ) {
         Column(
             modifier = Modifier
+                // A tablet's whole width makes lines no eye can follow; the page keeps to a column.
+                .widthIn(max = PAGE_MAX_WIDTH)
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
@@ -220,3 +223,5 @@ private fun BuyButton(label: String, onClick: () -> Unit) {
         Spacer(modifier = Modifier.width(8.dp).size(0.dp))
     }
 }
+
+private val PAGE_MAX_WIDTH = 640.dp
