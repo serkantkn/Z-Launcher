@@ -128,6 +128,13 @@
     <string name="settings_start_layout">start screen layout</string>
     <string name="settings_layout_zune">zune</string>
     <string name="settings_layout_zune_sub">scrolling hub list and side favorites</string>
+    <string name="settings_zune_glow">zune glow</string>
+    <string name="settings_zune_glow_off">wallpaper</string>
+    <string name="settings_zune_glow_off_sub">your wallpaper stays behind the list</string>
+    <string name="settings_zune_glow_zune">zune colours</string>
+    <string name="settings_zune_glow_zune_sub">a warm light running from magenta to orange, as on the Zune HD</string>
+    <string name="settings_zune_glow_accent">accent colour</string>
+    <string name="settings_zune_glow_accent_sub">the same light in your accent colour</string>
     <string name="settings_layout_wp">windows phone</string>
     <string name="settings_layout_wp_sub">live hub and app tiles</string>
     <string name="settings_favorite_tiles">favorite tiles</string>

@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.clock
 
+import com.serkantkn.zunelauncher.ui.animation.pageHingeAway
+import com.serkantkn.zunelauncher.ui.animation.pageHingeIn
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -297,13 +299,7 @@ fun ClockHubScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    val p = subScreenHinge
-                    rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * p
-                    transformOrigin = TransformOrigin(0f, 0.5f)
-                    cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                    alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
-                }
+                .pageHingeAway { subScreenHinge }
         ) {
             ZuneHub(
                 title = stringResource(R.string.hub_clock),
@@ -418,12 +414,7 @@ private fun HingeSubScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .graphicsLayer {
-                rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - progress)
-                transformOrigin = TransformOrigin(0f, 0.5f)
-                cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                alpha = (progress * 1.5f - 0.2f).coerceIn(0f, 1f)
-            }
+            .pageHingeIn { progress }
     ) {
         content()
     }

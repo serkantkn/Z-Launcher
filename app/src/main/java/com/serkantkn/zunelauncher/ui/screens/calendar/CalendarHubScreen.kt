@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.calendar
 
+import com.serkantkn.zunelauncher.ui.animation.pageHingeAway
+import com.serkantkn.zunelauncher.ui.animation.pageHingeIn
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -309,13 +311,7 @@ fun CalendarHubScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    val p = editorHinge.value
-                    rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * p
-                    transformOrigin = TransformOrigin(0f, 0.5f)
-                    cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                    alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
-                }
+                .pageHingeAway { editorHinge.value }
         ) {
             ZuneHub(
                 title = stringResource(R.string.hub_calendar),
@@ -332,13 +328,7 @@ fun CalendarHubScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer {
-                            val p = editorHinge.value
-                            rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                            cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                            alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                        }
+                        .pageHingeIn { editorHinge.value }
                 ) {
                     EventEditScreen(
                         event = editing,

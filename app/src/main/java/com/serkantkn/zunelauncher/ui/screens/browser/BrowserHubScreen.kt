@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.ui.animation.pageHingeAway
+import com.serkantkn.zunelauncher.ui.animation.pageHingeIn
 import com.serkantkn.zunelauncher.util.Pro
 import com.serkantkn.zunelauncher.ui.components.HubGround
 import com.serkantkn.zunelauncher.R
@@ -474,13 +476,7 @@ fun BrowserHubScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    val p = downloadsHingeAnim.value
-                    rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * p
-                    transformOrigin = TransformOrigin(0f, 0.5f)
-                    cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                    alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
-                }
+                .pageHingeAway { downloadsHingeAnim.value }
         ) {
             ZuneHubEntranceLayout(modifier = Modifier.fillMaxSize()) { bottomBarModifier ->
                 Column(
@@ -967,13 +963,7 @@ fun BrowserHubScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = downloadsHingeAnim.value
-                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn { downloadsHingeAnim.value }
             ) {
                 BrowserDownloadsScreen(
                     downloads = state.downloads,

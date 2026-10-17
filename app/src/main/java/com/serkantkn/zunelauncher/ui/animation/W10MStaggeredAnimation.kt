@@ -92,6 +92,9 @@ fun Modifier.w10mStaggeredAnimation(
 ): Modifier = composed {
     // Motion switched off: the tiles are simply in place, neither turning in nor out.
     if (!LocalAnimationsEnabled.current) return@composed this
+    // The Zune layout has no turnstile: its lists slide in and out flat, and what was touched
+    // zooms through.
+    if (LocalZuneMotion.current) return@composed Modifier.zuneListMotion(progress, index, isClicked)
     val density = LocalDensity.current.density
     val configuration = LocalConfiguration.current
     val screenWidthPx = (configuration.screenWidthDp * density).coerceAtLeast(1f)

@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.email
 
+import com.serkantkn.zunelauncher.ui.animation.pageHingeAway
+import com.serkantkn.zunelauncher.ui.animation.pageHingeIn
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.togetherWith
@@ -589,13 +591,7 @@ fun EmailHubScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    val p = subScreenHingeProgress
-                    rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * p
-                    transformOrigin = TransformOrigin(0f, 0.5f)
-                    cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                    alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
-                }
+                .pageHingeAway { subScreenHingeProgress }
         ) {
             ZuneHub(
                 title = hubTitle,
@@ -652,13 +648,7 @@ fun EmailHubScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = hingeAnim.value
-                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn { hingeAnim.value }
             ) {
                 SubScreenContent(Modifier)
             }

@@ -143,6 +143,11 @@ fun LauncherScreen(
     val dateFormat by settingsViewModel.dateFormat.collectAsState()
     val hubBackgroundMode by settingsViewModel.hubBackgroundMode.collectAsState()
     val hubBackgroundOpacity by settingsViewModel.hubBackgroundOpacity.collectAsState()
+    // The Zune layout's glow of colour, when chosen, stands in for the wallpaper: behind Start and
+    // behind every hub told to match it.
+    val zuneGlow by settingsViewModel.zuneGlow.collectAsState()
+    val glowing = homeScreenLayout == HomeScreenLayout.ZUNE &&
+        zuneGlow != com.serkantkn.zunelauncher.data.model.ZuneGlow.OFF && !solidBackgroundEnabled
     val customHubWallpaperPath by settingsViewModel.customHubWallpaperPath.collectAsState()
     val customWallpaperPath by settingsViewModel.customWallpaperPath.collectAsState()
 
@@ -215,7 +220,7 @@ fun LauncherScreen(
     val coroutineScope = rememberCoroutineScope()
     val isWideScreen = LocalIsWideScreen.current
 
-    val hubBackdrop = remember(hubBackgroundMode, solidBackgroundEnabled, customHubWallpaperPath, customWallpaperPath) {
+    val hubBackdrop = remember(hubBackgroundMode, solidBackgroundEnabled, customHubWallpaperPath, customWallpaperPath, glowing) {
         when (hubBackgroundMode) {
             HubBackgroundMode.SOLID -> HubBackdrop(BackgroundMode.SOLID, null, systemWallpaper = false)
             HubBackgroundMode.SYSTEM -> HubBackdrop(BackgroundMode.WALLPAPER, null, systemWallpaper = true)
@@ -225,7 +230,11 @@ fun LauncherScreen(
                 systemWallpaper = false
             )
             HubBackgroundMode.MATCH_LAUNCHER -> HubBackdrop(
-                if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER,
+                when {
+                    solidBackgroundEnabled -> BackgroundMode.SOLID
+                    glowing -> BackgroundMode.GLOW
+                    else -> BackgroundMode.WALLPAPER
+                },
                 customWallpaperPath,
                 systemWallpaper = false
             )
@@ -533,13 +542,19 @@ fun LauncherScreen(
             .nestedScroll(globalNestedScrollConnection)
     ) {
         ZuneBackground(
-            mode = if (solidBackgroundEnabled) BackgroundMode.SOLID else BackgroundMode.WALLPAPER,
+            mode = when {
+                solidBackgroundEnabled -> BackgroundMode.SOLID
+                glowing -> BackgroundMode.GLOW
+                else -> BackgroundMode.WALLPAPER
+            },
             accentColor = accentColor,
             followsStart = true,
-            tileBlur = tileBlur
+            tileBlur = tileBlur,
+            glow = zuneGlow
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                if (!solidBackgroundEnabled) {
+                // The glow is made dark enough to read on; only a wallpaper is shaded.
+                if (!solidBackgroundEnabled && !glowing) {
                     StartShade(pagerState = pagerState, frosted = tileBlur > 0)
                 }
 
@@ -577,10 +592,11 @@ fun LauncherScreen(
                  */
                 val groundAccent = zuneColors.accentColor
                 val hubGround: com.serkantkn.zunelauncher.ui.components.HubGroundPainter = remember(
-                    effectiveHubMode, hubBackdrop, groundAccent, hubBackgroundOpacity
+                    effectiveHubMode, hubBackdrop, groundAccent, hubBackgroundOpacity, zuneGlow
                 ) { { groundModifier, content ->
                     ZuneBackground(
                         mode = effectiveHubMode,
+                        glow = zuneGlow,
                         accentColor = groundAccent,
                         customWallpaperPathOverride = hubBackdrop.customPath,
                         systemWallpaper = hubBackdrop.systemWallpaper,

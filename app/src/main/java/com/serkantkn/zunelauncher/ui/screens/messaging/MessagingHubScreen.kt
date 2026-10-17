@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
+import com.serkantkn.zunelauncher.ui.animation.pageHingeIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.togetherWith
@@ -115,6 +116,8 @@ fun MessagingHubScreen(
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
     val density = LocalDensity.current
+    val zuneMotion = com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current
+    val zunePageSlidePx = with(density) { com.serkantkn.zunelauncher.ui.animation.ZUNE_PAGE_SLIDE.toPx() }
     val coroutineScope = rememberCoroutineScope()
 
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -796,10 +799,16 @@ fun MessagingHubScreen(
                 .fillMaxSize()
                 .graphicsLayer {
                     val p = hubHingeAnim.value
-                    rotationY = -90f * (1f - p)
-                    transformOrigin = TransformOrigin(0f, 0.5f)
-                    cameraDistance = 12f * density.density
-                    alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                    if (zuneMotion) {
+                        // The Zune layout: the board slides off to the left as a page comes in.
+                        translationX = -zunePageSlidePx * 1.5f * (1f - p)
+                        alpha = p.coerceIn(0f, 1f)
+                    } else {
+                        rotationY = -90f * (1f - p)
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        cameraDistance = 12f * density.density
+                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
+                    }
                 }
         ) {
             ZuneHub(
@@ -847,13 +856,7 @@ fun MessagingHubScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = pickerHingeAnim.value
-                        rotationY = 90f * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = 12f * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn(sequential = true) { pickerHingeAnim.value }
             ) {
                 NewMessageScreen(
                     contacts = contacts,
@@ -869,13 +872,7 @@ fun MessagingHubScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = detailHingeAnim.value
-                        rotationY = 90f * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = 12f * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn(sequential = true) { detailHingeAnim.value }
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

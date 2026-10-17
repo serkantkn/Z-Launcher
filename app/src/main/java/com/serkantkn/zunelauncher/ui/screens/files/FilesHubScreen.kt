@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.files
 
+import com.serkantkn.zunelauncher.ui.animation.pageHingeAway
+import com.serkantkn.zunelauncher.ui.animation.pageHingeIn
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -1001,13 +1003,7 @@ fun FilesHubScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    val p = subScreenHinge.value
-                    rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * p
-                    transformOrigin = TransformOrigin(0f, 0.5f)
-                    cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                    alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
-                }
+                .pageHingeAway { subScreenHinge.value }
         ) {
             ZuneHubEntranceLayout { bottomBarModifier ->
                 // A Box in which tiles, rows and places can be dragged onto folders, ghost on top.
@@ -1219,13 +1215,7 @@ fun FilesHubScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = subScreenHinge.value
-                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn { subScreenHinge.value }
             ) {
                 val details = phoneDetails
                 val viewing = viewerTarget

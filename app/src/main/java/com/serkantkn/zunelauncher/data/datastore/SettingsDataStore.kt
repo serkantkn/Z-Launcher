@@ -95,6 +95,7 @@ class SettingsDataStore(private val context: Context) {
         val TILE_INK = stringPreferencesKey("tile_ink")
         val TILE_SPACING = intPreferencesKey("tile_spacing")
         val HOME_SCREEN_LAYOUT = stringPreferencesKey("home_screen_layout")
+        val ZUNE_GLOW = stringPreferencesKey("zune_glow")
         val TILE_ICON_STYLE = stringPreferencesKey("tile_icon_style")
         val ICON_PACK_PACKAGE = stringPreferencesKey("icon_pack_package")
         val TILE_ICON_OVERRIDES = stringPreferencesKey("tile_icon_overrides")
@@ -312,6 +313,12 @@ class SettingsDataStore(private val context: Context) {
         } catch (e: Exception) {
             HomeScreenLayout.ZUNE
         }
+    }
+
+    /** The Zune layout's ground: the wallpaper, or a glow of colour. */
+    val zuneGlow: Flow<com.serkantkn.zunelauncher.data.model.ZuneGlow> = context.settingsDataStore.data.map { prefs ->
+        runCatching { com.serkantkn.zunelauncher.data.model.ZuneGlow.valueOf(prefs[ZUNE_GLOW] ?: "OFF") }
+            .getOrDefault(com.serkantkn.zunelauncher.data.model.ZuneGlow.OFF)
     }
 
     val accentColor: Flow<AccentColor> = context.settingsDataStore.data.map { prefs ->
@@ -954,6 +961,10 @@ class SettingsDataStore(private val context: Context) {
         context.settingsDataStore.edit { prefs ->
             prefs[TILE_ANIMATION] = animation.name
         }
+    }
+
+    suspend fun setZuneGlow(glow: com.serkantkn.zunelauncher.data.model.ZuneGlow) {
+        context.settingsDataStore.edit { prefs -> prefs[ZUNE_GLOW] = glow.name }
     }
 
     suspend fun setHomeScreenLayout(layout: HomeScreenLayout) {

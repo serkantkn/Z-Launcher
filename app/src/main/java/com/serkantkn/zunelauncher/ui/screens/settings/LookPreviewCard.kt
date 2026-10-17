@@ -64,6 +64,7 @@ fun LookPreviewCard(
     hubBackgroundOpacity: Float,
     hubBackgroundMode: HubBackgroundMode,
     homeScreenLayout: HomeScreenLayout = HomeScreenLayout.ZUNE,
+    zuneGlow: com.serkantkn.zunelauncher.data.model.ZuneGlow = com.serkantkn.zunelauncher.data.model.ZuneGlow.OFF,
     modifier: Modifier = Modifier
 ) {
     val isDark = themeMode == ThemeMode.DARK
@@ -110,9 +111,10 @@ fun LookPreviewCard(
     val tileStrokeColor = if (isDark) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.55f)
     val tileFillAlpha = (tileOpacity / 100f).coerceIn(0f, 1f)
 
+    val glowing = homeScreenLayout == HomeScreenLayout.ZUNE && zuneGlow != com.serkantkn.zunelauncher.data.model.ZuneGlow.OFF
     val effectiveBgMode = when {
         solidBackgroundEnabled -> BackgroundMode.SOLID
-        customWallpaperPath != null -> BackgroundMode.WALLPAPER
+        glowing -> BackgroundMode.GLOW
         else -> BackgroundMode.WALLPAPER
     }
 
@@ -163,10 +165,12 @@ fun LookPreviewCard(
                 accentColor = animatedAccentColor,
                 customWallpaperPathOverride = customWallpaperPath,
                 forceModeOverride = effectiveBgMode,
-                tileBlur = tileBlur
+                tileBlur = tileBlur,
+                glow = zuneGlow
             ) {
-                // Start with frosted tiles shows its wallpaper bare, and so does its preview.
-                if (!solidBackgroundEnabled && tileBlur == 0) {
+                // Start with frosted tiles shows its wallpaper bare, and so does its preview; the
+                // glow is never shaded.
+                if (!solidBackgroundEnabled && !glowing && tileBlur == 0) {
                     ZuneWallpaperOverlay(alpha = 1f, isHubOverlay = false)
                 }
 
@@ -320,7 +324,7 @@ fun LookPreviewCard(
                             }
 
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(text = stringResource(R.string.music_hub), fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
+                                Text(text = stringResource(R.string.zune_row_music), fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
                                 Text(text = stringResource(R.string.people_hub), fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
                                 Text(text = stringResource(R.string.pictures_hub), fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)
                                 Text(text = stringResource(R.string.hub_messaging), fontSize = 16.sp, fontWeight = FontWeight.Light, color = textColor)

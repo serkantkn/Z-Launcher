@@ -357,6 +357,7 @@ class MainActivity : FragmentActivity() {
             val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
             val fontScale by settingsViewModel.fontScale.collectAsState()
             val animationsEnabled by settingsViewModel.animationsEnabled.collectAsState()
+            val homeScreenLayout by settingsViewModel.homeScreenLayout.collectAsState()
 
             ZuneLauncherTheme(
                 themeMode = themeMode,
@@ -367,7 +368,13 @@ class MainActivity : FragmentActivity() {
                 fontScale = fontScale,
                 animationsEnabled = animationsEnabled
             ) {
-                LauncherScreen()
+                // The Zune layout moves the Zune HD's way everywhere, not only on its list.
+                androidx.compose.runtime.CompositionLocalProvider(
+                    com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion provides
+                        (homeScreenLayout == com.serkantkn.zunelauncher.data.model.HomeScreenLayout.ZUNE)
+                ) {
+                    LauncherScreen()
+                }
             }
         }
     }

@@ -27,6 +27,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.AccentColor
 import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
+import com.serkantkn.zunelauncher.data.model.ZuneGlow
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.ThemeMode
 import com.serkantkn.zunelauncher.data.model.TileAnimation
@@ -380,6 +381,28 @@ private fun StartScreenGroups(viewModel: SettingsViewModel) {
                 selected = homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE,
                 onClick = { viewModel.setHomeScreenLayout(HomeScreenLayout.WINDOWS_PHONE) }
             )
+        }
+    }
+
+    // The Zune layout's own ground; the other layouts stand on the wallpaper.
+    if (homeScreenLayout == HomeScreenLayout.ZUNE) {
+        val glow by viewModel.zuneGlow.collectAsState()
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingGroup(title = stringResource(R.string.settings_zune_glow)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    Triple(ZuneGlow.OFF, R.string.settings_zune_glow_off, R.string.settings_zune_glow_off_sub),
+                    Triple(ZuneGlow.ZUNE, R.string.settings_zune_glow_zune, R.string.settings_zune_glow_zune_sub),
+                    Triple(ZuneGlow.ACCENT, R.string.settings_zune_glow_accent, R.string.settings_zune_glow_accent_sub)
+                ).forEach { (choice, title, sub) ->
+                    SettingChoiceRow(
+                        title = stringResource(title),
+                        subtitle = stringResource(sub),
+                        selected = glow == choice,
+                        onClick = { viewModel.setZuneGlow(choice) }
+                    )
+                }
+            }
         }
     }
 }

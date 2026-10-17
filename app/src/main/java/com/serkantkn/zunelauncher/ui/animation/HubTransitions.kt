@@ -2,6 +2,11 @@ package com.serkantkn.zunelauncher.ui.animation
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 
 /**
  * Hinge-style animation for hub transitions.
@@ -23,11 +28,68 @@ import androidx.compose.runtime.Composable
 @Composable
 fun rememberHingeSpec(): androidx.compose.animation.core.AnimationSpec<Float> {
     val enabled = com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled.current
-    return androidx.compose.runtime.remember(enabled) {
+    // The Zune layout's pages slide rather than swing, and a slide is over sooner.
+    val zune = LocalZuneMotion.current
+    return androidx.compose.runtime.remember(enabled, zune) {
         androidx.compose.animation.core.tween(
-            durationMillis = if (enabled) HingeAnimation.DURATION_MS else 0,
+            durationMillis = when {
+                !enabled -> 0
+                zune -> ZUNE_PAGE_MILLIS
+                else -> HingeAnimation.DURATION_MS
+            },
             easing = HingeAnimation.EASING
         )
+    }
+}
+
+/**
+ * A hub turning away as a page of it opens: [progress] runs 0 (the hub in front) -> 1 (the page).
+ * On its left edge into the screen, as Windows Phone does; in the Zune layout it slides off to
+ * the left instead.
+ */
+fun Modifier.pageHingeAway(progress: () -> Float): Modifier = composed {
+    val density = LocalDensity.current
+    val zune = LocalZuneMotion.current
+    val slidePx = with(density) { ZUNE_PAGE_SLIDE.toPx() }
+    graphicsLayer {
+        val p = progress()
+        if (zune) {
+            translationX = zunePageAway(p, slidePx)
+        } else {
+            rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * p
+            transformOrigin = TransformOrigin(0f, 0.5f)
+            cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
+        }
+        alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
+    }
+}
+
+/**
+ * The page coming in over its hub: [progress] runs 0 (not yet) -> 1 (in front). Out of the
+ * screen on the same left edge, as Windows Phone does; in from the right in the Zune layout.
+ */
+fun Modifier.pageHingeIn(
+    /**
+     * True where the hub has gone before the page starts in (messaging, people) rather than both
+     * moving at once: the Zune layout's slide then fades over the whole of it, or the screen
+     * stood empty between the two.
+     */
+    sequential: Boolean = false,
+    progress: () -> Float
+): Modifier = composed {
+    val density = LocalDensity.current
+    val zune = LocalZuneMotion.current
+    val slidePx = with(density) { ZUNE_PAGE_SLIDE.toPx() }
+    graphicsLayer {
+        val p = progress()
+        if (zune) {
+            translationX = zunePageIn(p, slidePx)
+        } else {
+            rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
+            transformOrigin = TransformOrigin(0f, 0.5f)
+            cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
+        }
+        alpha = if (zune && sequential) p.coerceIn(0f, 1f) else (p * 1.5f - 0.2f).coerceIn(0f, 1f)
     }
 }
 

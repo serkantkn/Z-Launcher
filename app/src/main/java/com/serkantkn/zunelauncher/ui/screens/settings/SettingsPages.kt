@@ -86,6 +86,7 @@ internal fun LookSettingsPage(
             val tileOpacity by viewModel.tileOpacity.collectAsState()
             val tileBlur by viewModel.tileBlur.collectAsState()
             val tileInk by viewModel.tileInk.collectAsState()
+            val zuneGlow by viewModel.zuneGlow.collectAsState()
             LookPreviewCard(
                 themeMode = themeMode,
                 accentColor = accentColor,
@@ -100,7 +101,8 @@ internal fun LookSettingsPage(
                 tileInk = tileInk,
                 hubBackgroundOpacity = hubBackgroundOpacity,
                 hubBackgroundMode = hubBackgroundMode,
-                homeScreenLayout = homeScreenLayout
+                homeScreenLayout = homeScreenLayout,
+                zuneGlow = zuneGlow
             )
         }
 

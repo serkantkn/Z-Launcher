@@ -112,6 +112,10 @@ fun QuickplayScreen(
     // opened — the way Start comes back after a hub.
     val entrance = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
+    // The Zune layout's own slide is quicker than the turnstile it replaces.
+    val zuneMotion by rememberUpdatedState(com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current)
+    fun enterMillis() = if (zuneMotion) com.serkantkn.zunelauncher.ui.animation.ZUNE_ENTER_MILLIS else ENTRANCE_MILLIS
+    fun exitMillis() = if (zuneMotion) com.serkantkn.zunelauncher.ui.animation.ZUNE_EXIT_MILLIS else EXIT_MILLIS
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentlyShown by rememberUpdatedState(isCurrentPage)
     DisposableEffect(lifecycleOwner) {
@@ -119,7 +123,7 @@ fun QuickplayScreen(
             if (event == Lifecycle.Event.ON_RESUME && currentlyShown) {
                 scope.launch {
                     entrance.snapTo(0f)
-                    entrance.animateTo(1f, tween(ENTRANCE_MILLIS, easing = LinearEasing))
+                    entrance.animateTo(1f, tween(enterMillis(), easing = LinearEasing))
                 }
             }
         }
@@ -133,7 +137,7 @@ fun QuickplayScreen(
             // A hub was opened from here and has now closed over it: the page turned away to
             // open it, so it comes back the same way.
             entrance.snapTo(0f)
-            entrance.animateTo(1f, tween(ENTRANCE_MILLIS, easing = LinearEasing))
+            entrance.animateTo(1f, tween(enterMillis(), easing = LinearEasing))
         }
     }
 
@@ -151,8 +155,16 @@ fun QuickplayScreen(
         }
         leaving = true
         scope.launch {
-            entrance.animateTo(2f, tween(EXIT_MILLIS, easing = LinearEasing))
-            action()
+            if (zuneMotion) {
+                // What opens comes up while the page is still sliding away, as from the list.
+                val away = launch { entrance.animateTo(2f, tween(exitMillis(), easing = LinearEasing)) }
+                kotlinx.coroutines.delay(com.serkantkn.zunelauncher.ui.animation.ZUNE_OPEN_AT_MILLIS)
+                action()
+                away.join()
+            } else {
+                entrance.animateTo(2f, tween(exitMillis(), easing = LinearEasing))
+                action()
+            }
             leaving = false
         }
     }

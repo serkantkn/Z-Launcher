@@ -5,6 +5,7 @@ import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,9 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion
+import com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_ENTER_MILLIS
+import com.serkantkn.zunelauncher.ui.animation.ZUNE_PAGE_SLIDE
 import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 
 /** Default entrance curve: ultra slow-motion decelerating landing onto the left screen edge. */
@@ -51,12 +55,13 @@ class ZuneHubEntranceState internal constructor(
 /**
  * Remembers a [ZuneHubEntranceState] and plays the entrance once at first composition:
  * entrance tween ([entranceDurationMillis], [entranceEasing]) followed by the bottom bar tween
- * ([bottomBarDurationMillis], [bottomBarEasing]).
+ * ([bottomBarDurationMillis], [bottomBarEasing]). In the Zune layout the hub settles in its
+ * layers instead of swinging, and sooner.
  */
 @Composable
 fun rememberZuneHubEntranceState(
-    entranceDurationMillis: Int = ZuneHubEntranceDurationMillis,
-    entranceEasing: Easing = ZuneHubEntranceEasing,
+    entranceDurationMillis: Int = if (LocalZuneMotion.current) ZUNE_HUB_ENTER_MILLIS else ZuneHubEntranceDurationMillis,
+    entranceEasing: Easing = if (LocalZuneMotion.current) LinearEasing else ZuneHubEntranceEasing,
     bottomBarDurationMillis: Int = ZuneHubBottomBarDurationMillis,
     bottomBarEasing: Easing = FastOutSlowInEasing
 ): ZuneHubEntranceState {
@@ -127,11 +132,25 @@ fun ZuneHubEntranceLayout(
 
     val leftStartPx = with(density) { (-140).dp.toPx() }
     val bottomBarOffsetPx = with(density) { 90.dp.toPx() }
+    // The Zune layout: no swing. The hub's name, headings and page slide in as layers of their
+    // own (zuneHubLayer, in ZuneHub), and a hub folding away behind a card slides off flat.
+    val zune = LocalZuneMotion.current
+    val awayPx = with(density) { ZUNE_PAGE_SLIDE.toPx() } * 1.5f
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer {
+                if (zune) {
+                    val scale = progressScale()
+                    translationX = -awayPx * (1f - scale)
+                    alpha = (if (swingIn) 1f else (fadeIn() * 25f).coerceAtMost(1f)) *
+                        // Faded over the whole slide: the page that takes its place comes in
+                        // only once it has gone (the people hub), and must not find it already
+                        // gone.
+                        scale.coerceIn(0f, 1f)
+                    return@graphicsLayer
+                }
                 val entered = state.entranceAnim.value
                 val p = (if (swingIn) entered else 1f) * progressScale()
                 val inv = 1f - p
@@ -156,7 +175,7 @@ fun ZuneHubEntranceLayout(
             translationY = state.bottomBarSlideAnim.value * bottomBarOffsetPx
             alpha = 1f - state.bottomBarSlideAnim.value
         }
-        if (swingIn) {
+        if (swingIn || zune) {
             content(bottomBarModifier)
         } else {
             // A hub that does not swing in flies in: from far off to the right, turned with its

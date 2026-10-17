@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import com.serkantkn.zunelauncher.ui.animation.zuneHubLayer
 import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -224,12 +225,13 @@ fun ZuneHub(
                 WideHub(
                     title, tabs, pager, bar, showTabs, takeover, barModifier,
                     wideHiddenTabs, wideOnSelected, wideNavExtra, wideSidePaneWidth, wideSidePane,
-                    widePane, wideListWidth, page
+                    widePane, wideListWidth, { entrance.progress }, page
                 )
             } else {
                 PhoneHub(
                     title, tabs, pager, bar, showTabs, takeover, titleTrailing, onTitleClick, barModifier,
-                    phoneHeader, phoneAboveContent, phonePagePadding, phonePeek, phonePanorama, swipeEnabled, page
+                    phoneHeader, phoneAboveContent, phonePagePadding, phonePeek, phonePanorama, swipeEnabled,
+                    { entrance.progress }, page
                 )
             }
             overlay?.invoke(this, barModifier)
@@ -307,21 +309,33 @@ private fun BoxScope.PhoneHub(
     phonePeek: Boolean,
     phonePanorama: Boolean,
     swipeEnabled: Boolean,
+    entered: () -> Float,
     page: @Composable (Int) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         if (phoneHeader != null) {
-            phoneHeader()
+            Column(modifier = Modifier.zuneHubLayer(entered, 0)) { phoneHeader() }
         } else if (phonePanorama) {
-            PanoramaTitle(title = title, pager = pager)
+            Box(modifier = Modifier.zuneHubLayer(entered, 0)) { PanoramaTitle(title = title, pager = pager) }
         } else {
             Column(modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 8.dp)) {
-                ZuneHubPhoneTitle(title = title, onClick = onTitleClick, trailing = titleTrailing)
-                if (showTabs) ZunePivotTabs(tabs = tabs, state = pager, modifier = Modifier.padding(top = 4.dp))
+                ZuneHubPhoneTitle(
+                    title = title,
+                    onClick = onTitleClick,
+                    trailing = titleTrailing,
+                    modifier = Modifier.zuneHubLayer(entered, 0)
+                )
+                if (showTabs) {
+                    ZunePivotTabs(
+                        tabs = tabs,
+                        state = pager,
+                        modifier = Modifier.padding(top = 4.dp).zuneHubLayer(entered, 1)
+                    )
+                }
             }
         }
-        phoneAboveContent?.invoke(this)
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        phoneAboveContent?.let { above -> Column(modifier = Modifier.zuneHubLayer(entered, 1)) { above() } }
+        Box(modifier = Modifier.weight(1f).fillMaxWidth().zuneHubLayer(entered, 2)) {
             when {
                 takeover != null -> takeover()
                 phonePanorama -> {
@@ -397,12 +411,13 @@ private fun BoxScope.WideHub(
     sidePane: (@Composable () -> Unit)?,
     pane: ZuneHubPane?,
     listWidth: Dp,
+    entered: () -> Float,
     page: @Composable (Int) -> Unit
 ) {
     // The headings and the page, the bar's room left under them.
     @Composable
     fun NavAndPage(modifier: Modifier) {
-        Column(modifier = modifier) {
+        Column(modifier = modifier.zuneHubLayer(entered, 1)) {
             ZuneWideNavHub(
                 title = title,
                 tabs = if (showTabs) tabs else emptyList(),

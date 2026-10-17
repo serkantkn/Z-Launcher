@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.ui.animation
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.TransformOrigin
@@ -8,6 +9,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.serkantkn.zunelauncher.ui.theme.LocalAnimationsEnabled
+
+/**
+ * True while the Zune layout is chosen: the launcher then moves the Zune HD's way throughout -
+ * the list, the hubs coming in, their pages opening - and flat, in slides. Windows Phone and
+ * Windows 8 keep their own turnstiles and hinges.
+ */
+val LocalZuneMotion = staticCompositionLocalOf { false }
 
 /**
  * The Zune HD's own motion for its home list, used by the Zune layout in place of Windows Phone's
@@ -57,6 +65,49 @@ fun Modifier.zuneListMotion(
         }
     }
 }
+
+/**
+ * One layer of a hub coming in, in the Zune layout: the hub's name, its headings and its page
+ * each slide in from the right, the name furthest and the page least, so the hub settles in
+ * depth - the Zune HD's parallax - rather than turning in on a hinge. [entered] runs 0 -> 1;
+ * [layer] is 0 for the name, 1 for the headings, 2 for the page. Nothing anywhere else.
+ */
+fun Modifier.zuneHubLayer(entered: () -> Float, layer: Int): Modifier = composed {
+    if (!LocalZuneMotion.current || !LocalAnimationsEnabled.current) return@composed this
+    val slidePx = with(LocalDensity.current) { HUB_LAYER_SLIDE.toPx() }
+    graphicsLayer {
+        val value = entered()
+        if (value >= 1f) return@graphicsLayer
+        val start = layer * HUB_LAYER_STAGGER
+        val t = ((value - start) / (1f - start)).coerceIn(0f, 1f)
+        val eased = EnterEasing.transform(t)
+        translationX = slidePx * HUB_LAYER_DEPTH[layer.coerceIn(0, HUB_LAYER_DEPTH.lastIndex)] * (1f - eased)
+        alpha = (t * 2.5f).coerceIn(0f, 1f)
+    }
+}
+
+/**
+ * A page opening over a hub, in the Zune layout: the hub slides off to the left as the page
+ * slides in from the right - the Zune HD going down into a list - where Windows Phone hinges.
+ * [opened] runs 0 (the hub) -> 1 (the page).
+ */
+internal fun zunePageAway(opened: Float, slidePx: Float): Float = -slidePx * ZUNE_PAGE_DISTANCE * opened
+
+internal fun zunePageIn(opened: Float, slidePx: Float): Float = slidePx * (1f - opened)
+
+/** How far a page slides in over a hub, and the hub away, in the Zune layout. */
+val ZUNE_PAGE_SLIDE = 72.dp
+private const val ZUNE_PAGE_DISTANCE = 1.5f
+
+/** How long a page takes to open over a hub, or close, in the Zune layout. */
+const val ZUNE_PAGE_MILLIS = 380
+
+/** How long a hub's name, headings and page take to settle, in the Zune layout. */
+const val ZUNE_HUB_ENTER_MILLIS = 620
+
+private val HUB_LAYER_SLIDE = 120.dp
+private val HUB_LAYER_DEPTH = floatArrayOf(1f, 0.7f, 0.4f)
+private const val HUB_LAYER_STAGGER = 0.06f
 
 /** How long the list takes to come in, and to leave, in the Zune layout. */
 const val ZUNE_ENTER_MILLIS = 640

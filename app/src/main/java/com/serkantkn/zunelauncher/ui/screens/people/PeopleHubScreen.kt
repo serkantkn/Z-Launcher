@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.people
 
+import com.serkantkn.zunelauncher.ui.animation.pageHingeIn
 import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -590,13 +591,7 @@ fun PeopleHubScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = detailHingeAnim.value
-                        rotationY = 90f * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = 12f * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn(sequential = true) { detailHingeAnim.value }
             ) {
                 ContactDetailScreen(
                     detail = selectedContactDetail,
@@ -626,13 +621,7 @@ fun PeopleHubScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = editContactHingeAnim.value
-                        rotationY = 90f * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = 12f * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn(sequential = true) { editContactHingeAnim.value }
             ) {
                 EditContactScreen(
                     detail = selectedContactDetail!!,
@@ -675,13 +664,7 @@ fun PeopleHubScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = newContactHingeAnim.value
-                        rotationY = 90f * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = 12f * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn(sequential = true) { newContactHingeAnim.value }
             ) {
                 NewContactScreen(
                     onClose = { closeNewContactScreen() },

@@ -23,6 +23,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -35,7 +37,9 @@ enum class BackgroundMode {
     GRADIENT,
     WALLPAPER,
     BLURRED_WALLPAPER,
-    SOLID
+    SOLID,
+    /** The Zune layout's glow of colour ([ZuneBackground]'s `glow`). */
+    GLOW
 }
 
 private const val TAG = "ZuneBackground"
@@ -69,6 +73,8 @@ fun ZuneBackground(
      * background with tiles over it asks.
      */
     tileBlur: Int = 0,
+    /** Which colours a [BackgroundMode.GLOW] ground glows in. */
+    glow: com.serkantkn.zunelauncher.data.model.ZuneGlow = com.serkantkn.zunelauncher.data.model.ZuneGlow.ZUNE,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -166,6 +172,7 @@ fun ZuneBackground(
                     fallbackAccentColor = accentColor
                 )
                 BackgroundMode.SOLID -> SolidBackground()
+                BackgroundMode.GLOW -> ZuneGlowBackground(glow = glow)
             }
         }
         // Offered only over a wallpaper: a plain background has nothing to frost, and Start keeps
@@ -250,6 +257,77 @@ private fun SystemWallpaperFallback(accentColor: Color) {
             )
     )
 }
+
+/**
+ * The Zune's warm light: a blur of magenta running into orange from the top right, fading into
+ * the dark, and a little of it again low on the left - the ground of the Zune HD and of the Zune
+ * software. Still, so Start costs nothing to keep on screen; it drifts only as the list scrolls.
+ * In the accent's colours it is the same light, the accent and a warmer neighbour of it.
+ */
+@Composable
+private fun ZuneGlowBackground(glow: com.serkantkn.zunelauncher.data.model.ZuneGlow) {
+    val isDark = LocalZuneColors.current.isDark
+    // The theme's own accent - the one the running marks and the tiles wear - not the
+    // magenta-to-orange that Start's background is otherwise handed.
+    val accentColor = LocalZuneColors.current.accentColor
+    val (first, second) = remember(glow, accentColor) { zuneGlowColours(glow, accentColor) }
+    val base = if (isDark) Color(0xFF0A0507) else Color(0xFFF8F3F5)
+    // On white the same light would drown the black type; it is kept to a tint there.
+    val strength = if (isDark) 1f else 0.5f
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .drawWithCache {
+                val w = size.width
+                val h = size.height
+                val reach = maxOf(w, h)
+                val main = Brush.radialGradient(
+                    0f to first.copy(alpha = 0.9f * strength),
+                    0.35f to first.copy(alpha = 0.42f * strength),
+                    0.7f to first.copy(alpha = 0.1f * strength),
+                    1f to Color.Transparent,
+                    center = Offset(w * 1.05f, -h * 0.02f),
+                    radius = reach * 0.62f
+                )
+                val warm = Brush.radialGradient(
+                    0f to second.copy(alpha = 0.7f * strength),
+                    0.45f to second.copy(alpha = 0.22f * strength),
+                    1f to Color.Transparent,
+                    center = Offset(w * 0.86f, h * 0.17f),
+                    radius = reach * 0.34f
+                )
+                val low = Brush.radialGradient(
+                    0f to first.copy(alpha = 0.26f * strength),
+                    1f to Color.Transparent,
+                    center = Offset(-w * 0.15f, h * 1.05f),
+                    radius = reach * 0.45f
+                )
+                onDrawBehind {
+                    drawRect(base)
+                    drawRect(main)
+                    drawRect(warm)
+                    drawRect(low)
+                }
+            }
+    )
+}
+
+/** The two colours of a glow: its main light and the warmer one inside it. */
+internal fun zuneGlowColours(glow: com.serkantkn.zunelauncher.data.model.ZuneGlow, accent: Color): Pair<Color, Color> =
+    when (glow) {
+        com.serkantkn.zunelauncher.data.model.ZuneGlow.ACCENT -> {
+            val hsv = FloatArray(3)
+            android.graphics.Color.colorToHSV(accent.toArgb(), hsv)
+            // A neighbour towards yellow, lighter: the way the Zune's orange sits beside its magenta.
+            val warmer = floatArrayOf((hsv[0] + 35f) % 360f, hsv[1] * 0.9f, minOf(1f, hsv[2] * 1.15f + 0.05f))
+            accent to Color(android.graphics.Color.HSVToColor(warmer))
+        }
+        else -> ZUNE_MAGENTA to ZUNE_ORANGE
+    }
+
+/** The Zune's own two colours, from its mark. */
+private val ZUNE_MAGENTA = Color(0xFFEC008C)
+private val ZUNE_ORANGE = Color(0xFFF7941D)
 
 @Composable
 private fun SolidBackground() {

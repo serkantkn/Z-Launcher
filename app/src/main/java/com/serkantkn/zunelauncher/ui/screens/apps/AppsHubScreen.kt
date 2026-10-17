@@ -40,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -116,6 +117,10 @@ fun AppsHubScreen(
 
     // ── The turnstile the whole list arrives on ──
     val animationProgress = remember { Animatable(0f) }
+    // The Zune layout slides its list in and out, quicker than the turnstile it replaces.
+    val zuneMotion by rememberUpdatedState(com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current)
+    fun enterMillis() = if (zuneMotion) com.serkantkn.zunelauncher.ui.animation.ZUNE_ENTER_MILLIS else ENTRANCE_MILLIS
+    fun exitMillis() = if (zuneMotion) com.serkantkn.zunelauncher.ui.animation.ZUNE_EXIT_MILLIS else EXIT_MILLIS
     val lifecycleOwner = LocalLifecycleOwner.current
     var clickedItemKey by remember { mutableStateOf<String?>(null) }
 
@@ -125,7 +130,7 @@ fun AppsHubScreen(
                 viewModel.refreshUsage()
                 coroutineScope.launch {
                     animationProgress.snapTo(0f)
-                    animationProgress.animateTo(1f, tween(ENTRANCE_MILLIS, easing = LinearEasing))
+                    animationProgress.animateTo(1f, tween(enterMillis(), easing = LinearEasing))
                 }
             }
         }
@@ -140,15 +145,23 @@ fun AppsHubScreen(
         } else if (animationProgress.value > 1f) {
             clickedItemKey = null
             animationProgress.snapTo(0f)
-            animationProgress.animateTo(1f, tween(ENTRANCE_MILLIS, easing = LinearEasing))
+            animationProgress.animateTo(1f, tween(enterMillis(), easing = LinearEasing))
         }
     }
 
     fun handleLaunch(key: String, action: () -> Unit) {
         clickedItemKey = key
         coroutineScope.launch {
-            animationProgress.animateTo(2f, tween(EXIT_MILLIS, easing = LinearEasing))
-            action()
+            if (zuneMotion) {
+                // The app opens while the touched name is still zooming through.
+                val away = launch { animationProgress.animateTo(2f, tween(exitMillis(), easing = LinearEasing)) }
+                kotlinx.coroutines.delay(com.serkantkn.zunelauncher.ui.animation.ZUNE_OPEN_AT_MILLIS)
+                action()
+                away.join()
+            } else {
+                animationProgress.animateTo(2f, tween(exitMillis(), easing = LinearEasing))
+                action()
+            }
         }
     }
 

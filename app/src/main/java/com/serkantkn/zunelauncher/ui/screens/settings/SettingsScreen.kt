@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.settings
 
+import com.serkantkn.zunelauncher.ui.animation.pageHingeAway
+import com.serkantkn.zunelauncher.ui.animation.pageHingeIn
 import androidx.annotation.StringRes
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
@@ -203,13 +205,7 @@ fun SettingsScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    val p = subScreenHingeProgress
-                    rotationY = -HingeAnimation.MAX_ROTATION_DEGREES * p
-                    transformOrigin = TransformOrigin(0f, 0.5f)
-                    cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                    alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
-                }
+                .pageHingeAway { subScreenHingeProgress }
         ) {
             ZuneHub(
                 title = stringResource(R.string.common_settings),
@@ -255,13 +251,7 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = lookHingeAnim.value
-                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn { lookHingeAnim.value }
             ) {
                 LookSubSettingsScreen(
                     page = page,
@@ -278,13 +268,7 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = sourcesHingeAnim.value
-                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn { sourcesHingeAnim.value }
             ) {
                 SocialSourcesSettingsScreen(
                     sources = socialSourceList,
@@ -304,13 +288,7 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = calendarsHingeAnim.value
-                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn { calendarsHingeAnim.value }
             ) {
                 CalendarsSettingsScreen(
                     calendars = calendars,
@@ -328,13 +306,7 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = dateTimeHingeAnim.value
-                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn { dateTimeHingeAnim.value }
             ) {
                 DateTimeSettingsScreen(
                     viewModel = viewModel,
@@ -348,13 +320,7 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val p = versionHingeAnim.value
-                        rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density.density
-                        alpha = (p * 1.5f - 0.2f).coerceIn(0f, 1f)
-                    }
+                    .pageHingeIn { versionHingeAnim.value }
             ) {
                 AboutVersionScreen(onClose = { closeVersion() })
             }

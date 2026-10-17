@@ -724,6 +724,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    val zuneGlow: StateFlow<com.serkantkn.zunelauncher.data.model.ZuneGlow> =
+        settingsDataStore.zuneGlow.asState(com.serkantkn.zunelauncher.data.model.ZuneGlow.OFF)
+
+    fun setZuneGlow(glow: com.serkantkn.zunelauncher.data.model.ZuneGlow) {
+        viewModelScope.launch { settingsDataStore.setZuneGlow(glow) }
+    }
+
     fun setHomeScreenLayout(layout: HomeScreenLayout) {
         viewModelScope.launch {
             settingsDataStore.setHomeScreenLayout(layout)
