@@ -43,4 +43,19 @@ object MusicBridge {
     fun consumeTrack() {
         _pendingTrack.value = null
     }
+
+    /**
+     * The Zune list keeps "videos" as a word of its own under "music", as the Zune HD did; it
+     * opens the same hub, at its videos page.
+     */
+    private val _showVideos = MutableStateFlow(false)
+    val showVideos: StateFlow<Boolean> = _showVideos.asStateFlow()
+
+    fun openVideos() {
+        _showVideos.value = true
+    }
+
+    fun consumeVideos() {
+        _showVideos.value = false
+    }
 }

@@ -1243,6 +1243,7 @@
     <string name="zune_last_note">son not</string>
     <string name="zune_recent_apps">son açılanlar</string>
     <string name="zune_line_playing">çalıyor</string>
+    <string name="zune_row_music">müzik</string>
     <string name="zune_line_alarm">alarm %1$s</string>
     <string name="zune_line_missed">cevapsız arama</string>
     <string name="quickplay_photos">son fotoğraflar</string>

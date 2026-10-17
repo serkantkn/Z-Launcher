@@ -1243,6 +1243,7 @@
     <string name="zune_last_note">last note</string>
     <string name="zune_recent_apps">lately opened</string>
     <string name="zune_line_playing">playing</string>
+    <string name="zune_row_music">music</string>
     <string name="zune_line_alarm">alarm %1$s</string>
     <string name="zune_line_missed">missed call</string>
     <string name="quickplay_photos">recent pictures</string>

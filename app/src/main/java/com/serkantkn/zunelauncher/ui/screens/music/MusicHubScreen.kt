@@ -228,6 +228,13 @@ fun MusicHubScreen(
                 stringResource(R.string.music_tab_videos)
             )
             val pager = rememberLoopingPagerState(pageCount = pages.size)
+            // "videos" in the Zune list opens the hub here.
+            val showVideos by com.serkantkn.zunelauncher.data.repository.MusicBridge.showVideos.collectAsState()
+            LaunchedEffect(showVideos) {
+                if (!showVideos) return@LaunchedEffect
+                com.serkantkn.zunelauncher.data.repository.MusicBridge.consumeVideos()
+                pager.scrollToPage(VIDEOS_TAB)
+            }
 
             /** Opens an album, sending its name up into the pivot. */
             fun openAlbum(album: AlbumModel, from: Rect?) {

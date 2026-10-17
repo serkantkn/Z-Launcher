@@ -63,6 +63,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -1541,7 +1542,9 @@ private fun HomeHubScreenContent(
                         )
                         .verticalScroll(zuneScrollState)
                         .padding(
-                            start = 72.dp,
+                            // The room on the left is the favourites' strip; with none to show,
+                            // the list starts at the screen's own margin instead of an empty gutter.
+                            start = if (isWideScreen || favoriteApps.isNotEmpty()) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
                             end = ZuneDimens.ScreenPaddingHorizontal
                         )
                         .graphicsLayer {
@@ -1622,8 +1625,31 @@ private fun HomeHubScreenContent(
                         viewModel.setHubOrder(order)
                     }
 
-                    localHubOrder.forEachIndexed { index, hubType ->
-                        val key = "hub_$hubType"
+                    // Every name in the list is drawn at one size - the largest at which the
+                    // longest of them fits - as on the Zune HD, rather than one long word alone
+                    // in smaller type. Measured afresh when the room changes: the favourites'
+                    // strip coming or going, or the edit buttons taking their share of each row.
+                    val fittedSizes = remember(favoriteApps.isEmpty(), isEditMode) { mutableStateMapOf<String, androidx.compose.ui.unit.TextUnit>() }
+                    val listSize = fittedSizes.values.minByOrNull { it.value } ?: ZuneDimens.HubTitleFontSize
+
+                    // The rows of the list: one a hub, except music, which the Zune HD kept as two
+                    // words - "music" and "videos" - and which opens at either.
+                    data class ZuneRow(val hubType: HubType, val key: String, val title: String, val videos: Boolean)
+                    val musicWord = stringResource(R.string.zune_row_music)
+                    val videosWord = stringResource(R.string.music_tab_videos)
+                    val rows = localHubOrder.flatMap { hubType ->
+                        val title = stringResource(hubType.titleRes)
+                        if (hubType == HubType.MUSIC && !isEditMode) listOf(
+                            ZuneRow(hubType, "hub_$hubType", musicWord, videos = false),
+                            ZuneRow(hubType, "hub_${hubType}_videos", videosWord, videos = true)
+                        ) else listOf(ZuneRow(hubType, "hub_$hubType", title, videos = false))
+                    }
+                    LaunchedEffect(rows.map { it.key }) { fittedSizes.keys.retainAll(rows.map { it.key }.toSet()) }
+
+                    rows.forEachIndexed { rowIndex, row ->
+                        val hubType = row.hubType
+                        val key = row.key
+                        val index = localHubOrder.indexOf(hubType)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (isEditMode) {
                                 ZuneListEditButton(
@@ -1657,12 +1683,12 @@ private fun HomeHubScreenContent(
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                             }
-                            val line = liveLineFor(hubType)
+                            val line = if (row.videos) HubLiveLine.NONE else liveLineFor(hubType)
                             val ink = if (zuneColors.isDark) Color.White else Color.Black
                             Column(
                                 modifier = Modifier.w10mStaggeredAnimation(
                                     progress = { animationProgress.value },
-                                    index = 4 + index,
+                                    index = 4 + rowIndex,
                                     isClicked = clickedItemKey == key
                                 )
                             ) {
@@ -1674,18 +1700,25 @@ private fun HomeHubScreenContent(
                                     )
                                 ) {
                                     ZuneHubTitle(
-                                        title = stringResource(hubType.titleRes),
+                                        title = row.title,
                                         accentColor = rememberHubNameColour(line.hasNews, ink),
                                         verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
+                                        fontSize = listSize,
                                         // Re-fitted when the edit buttons take their share of the row.
                                         fitKey = isEditMode,
+                                        // Beside the edit buttons "music + videos" needs smaller type.
+                                        minFontSize = if (isEditMode) 20.sp else 28.sp,
+                                        onFitted = { size -> if (fittedSizes[key] != size) fittedSizes[key] = size },
                                         onClick = {
                                             if (isFavoritesExpanded) {
                                                 isFavoritesExpanded = false
                                             } else if (isEditMode) {
                                                 isEditMode = false
                                             } else {
-                                                handleLaunch(key) { openHub(hubType) }
+                                                handleLaunch(key) {
+                                                    if (row.videos) com.serkantkn.zunelauncher.data.repository.MusicBridge.openVideos()
+                                                    openHub(hubType)
+                                                }
                                             }
                                         },
                                         // The Zune list has no tiles to hold, so its titles are what
@@ -1717,7 +1750,7 @@ private fun HomeHubScreenContent(
                             text = stringResource(R.string.start_pinned_section),
                             modifier = Modifier
                                 .padding(top = 20.dp, bottom = 10.dp)
-                                .w10mStaggeredAnimation({ animationProgress.value }, 4 + localHubOrder.size)
+                                .w10mStaggeredAnimation({ animationProgress.value }, 4 + rows.size)
                         )
                         ZunePinnedBoard(
                             tiles = pinnedTiles,
@@ -1726,7 +1759,7 @@ private fun HomeHubScreenContent(
                         ) { model, index ->
                             StartTile(
                                 model = model,
-                                index = 5 + localHubOrder.size + index,
+                                index = 5 + rows.size + index,
                                 isDragging = false,
                                 isMergeTarget = false,
                                 tileModifier = Modifier.fillMaxWidth(),
@@ -1777,7 +1810,9 @@ private fun HomeHubScreenContent(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .graphicsLayer { alpha = collapsedAlpha },
+                                // Lined up with the hub names once they have been measured; until
+                                // then it is not shown, rather than shown at a guess.
+                                .graphicsLayer { alpha = if (hubTitlesTopPx > 0f) collapsedAlpha else 0f },
                             contentPadding = PaddingValues(
                                 start = 6.dp,
                                 end = 4.dp,

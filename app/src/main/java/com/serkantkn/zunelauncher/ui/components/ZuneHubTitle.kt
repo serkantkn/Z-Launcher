@@ -48,7 +48,9 @@ fun ZuneHubTitle(
     verticalPadding: androidx.compose.ui.unit.Dp = ZuneDimens.SpacingXs,
     /** Changes when the room for the title does — the edit buttons arriving — so it is re-fitted. */
     fitKey: Any? = null,
-    minFontSize: TextUnit = 28.sp
+    minFontSize: TextUnit = 28.sp,
+    /** Told the size the title settled at, so a list can draw every title at the same size. */
+    onFitted: ((TextUnit) -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressedState by interactionSource.collectIsPressedAsState()
@@ -93,6 +95,8 @@ fun ZuneHubTitle(
         onTextLayout = { layout ->
             if (layout.didOverflowWidth && currentSize > minFontSize) {
                 currentSize = (currentSize.value - SHRINK_STEP_SP).sp
+            } else {
+                onFitted?.invoke(currentSize)
             }
         },
         modifier = modifier
