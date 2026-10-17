@@ -130,12 +130,10 @@ fun BrowserStartScreen(
     }
 
     fun requirePremium(messageRes: Int, block: () -> Unit) {
-        if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+        if (com.serkantkn.zunelauncher.util.Pro.unlocked) {
             block()
         } else {
-            android.widget.Toast
-                .makeText(context, context.getString(messageRes), android.widget.Toast.LENGTH_SHORT)
-                .show()
+            com.serkantkn.zunelauncher.util.Pro.tell(context, messageRes)
         }
     }
 

@@ -521,10 +521,10 @@ fun BrowserHubScreen(
                             onGoForward = { webViewCache[activeTab.id]?.goForward() },
                             onGoHome = { viewModel.goHome(activeTab.id) },
                             onToggleFavorite = {
-                                if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+                                if (com.serkantkn.zunelauncher.util.Pro.unlocked) {
                                     viewModel.toggleFavorite(activeTab.title, activeTab.url)
                                 } else {
-                                    Toast.makeText(context, context.getString(R.string.browser_fav_add_pro), Toast.LENGTH_SHORT).show()
+                                    Pro.tell(context, R.string.browser_fav_add_pro)
                                 }
                             },
                             onNewTab = { viewModel.openNewTab() },
@@ -889,10 +889,10 @@ fun BrowserHubScreen(
                             onGoHome = { viewModel.goHome(activeTab.id) },
                             isFavorited = viewModel.isFavorite(activeTab.url),
                             onToggleFavorite = { 
-                                if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+                                if (com.serkantkn.zunelauncher.util.Pro.unlocked) {
                                     viewModel.toggleFavorite(activeTab.title, activeTab.url)
                                 } else {
-                                    Toast.makeText(context, context.getString(R.string.browser_fav_add_pro), Toast.LENGTH_SHORT).show()
+                                    Pro.tell(context, R.string.browser_fav_add_pro)
                                 }
                             },
                             onNewTab = { viewModel.openNewTab() },

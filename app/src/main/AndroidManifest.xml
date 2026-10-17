@@ -263,6 +263,12 @@
             android:enabled="@bool/zune_keyboard_enabled"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- What Pro adds, and Google Play's purchase sheet for it. -->
+        <activity
+            android:name=".ui.pro.ProActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ZuneLauncher" />
+
         <!-- System-wide Windows Phone keyboard (premium only: disabled via @bool in the free flavour) -->
         <service
             android:name=".data.service.ZuneKeyboardService"

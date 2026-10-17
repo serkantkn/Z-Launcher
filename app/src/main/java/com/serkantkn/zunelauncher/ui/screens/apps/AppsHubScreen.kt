@@ -459,7 +459,6 @@ fun AppsHubScreen(
             val pinned = app.packageName in favoritePackages
             val hidden = app.packageName in hiddenApps
             val chooserTitle = stringResource(R.string.apps_share_chooser)
-            val favouritesFull = stringResource(R.string.apps_favorites_limit)
 
             AppLineMenu(
                 anchor = menuAnchor,
@@ -469,13 +468,11 @@ fun AppsHubScreen(
                         AppMenuItem(
                             stringResource(if (pinned) R.string.apps_unpin else R.string.apps_pin)
                         ) {
-                            val room = BuildConfig.IS_PREMIUM || pinned || favoritePackages.size < FREE_PIN_LIMIT
+                            val room = com.serkantkn.zunelauncher.util.Pro.unlocked || pinned || favoritePackages.size < FREE_PIN_LIMIT
                             if (room) {
                                 viewModel.toggleFavorite(app.packageName)
                             } else {
-                                android.widget.Toast
-                                    .makeText(context, favouritesFull, android.widget.Toast.LENGTH_SHORT)
-                                    .show()
+                                com.serkantkn.zunelauncher.util.Pro.tell(context, R.string.apps_favorites_limit)
                             }
                             menuTarget = null
                         }

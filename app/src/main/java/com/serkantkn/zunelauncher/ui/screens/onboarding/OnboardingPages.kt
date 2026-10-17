@@ -133,7 +133,7 @@ fun ThemeStepPage(
 private fun AccentSquares(selected: AccentColor, onSelect: (AccentColor) -> Unit) {
     val offered = remember {
         val all = AccentColor.entries.filter { it != AccentColor.DYNAMIC && it != AccentColor.CUSTOM }
-        if (BuildConfig.IS_PREMIUM) {
+        if (com.serkantkn.zunelauncher.util.Pro.unlocked) {
             all
         } else {
             all.filter { it == AccentColor.RED || it == AccentColor.BLUE || it == AccentColor.GREEN }

@@ -169,7 +169,7 @@ internal fun AccentColorChoiceRow(
             ) {
                 rowItems.forEach { color ->
                     val isSelected = selectedColor == color
-                    val isAllowed = com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM ||
+                    val isAllowed = com.serkantkn.zunelauncher.util.Pro.unlocked ||
                         color in listOf(AccentColor.RED, AccentColor.BLUE, AccentColor.GREEN)
 
                     val baseModifier = Modifier

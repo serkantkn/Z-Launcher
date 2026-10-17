@@ -43,7 +43,7 @@ object WeatherPolicy {
     /** Places a free build may keep. */
     const val FREE_PLACE_LIMIT = 1
 
-    val isPremium: Boolean get() = BuildConfig.IS_PREMIUM
+    val isPremium: Boolean get() = com.serkantkn.zunelauncher.util.Pro.unlocked
 
     val dailyFetches: Int get() = if (isPremium) Int.MAX_VALUE else FREE_DAILY_FETCHES
 

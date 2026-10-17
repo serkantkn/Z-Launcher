@@ -104,8 +104,8 @@ class NewsRepository(
      * The feeds followed. They are Pro's: the free build follows none and fetches none, and keeps
      * the ones chosen for Pro.
      */
-    val sources: Flow<List<NewsSource>> = combine(dataStore.enabledPresetIds, dataStore.customSources) { ids, custom ->
-        if (Pro.unlocked) NewsPresets.all.filter { it.id in ids } + custom else emptyList()
+    val sources: Flow<List<NewsSource>> = combine(dataStore.enabledPresetIds, dataStore.customSources, Pro.flow) { ids, custom, pro ->
+        if (pro) NewsPresets.all.filter { it.id in ids } + custom else emptyList()
     }
 
     val enabledPresetIds: Flow<Set<String>> = dataStore.enabledPresetIds

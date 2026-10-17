@@ -120,6 +120,8 @@ dependencies {
     implementation(libs.android.mail)
     implementation(libs.android.activation)
     implementation(libs.play.services.auth)
+    // Pro, bought once inside the app through Google Play.
+    implementation(libs.billing.ktx)
 
     // AndroidX
     implementation(libs.androidx.core.ktx)

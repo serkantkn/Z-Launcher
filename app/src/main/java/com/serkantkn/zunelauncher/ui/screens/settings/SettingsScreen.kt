@@ -61,7 +61,7 @@ fun SettingsScreen(
     val isWideScreen = LocalIsWideScreen.current
     val tabs = remember {
         SettingsTab.entries.filter {
-            it != SettingsTab.KEYBOARD || com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM
+            it != SettingsTab.KEYBOARD || com.serkantkn.zunelauncher.util.Pro.unlocked
         }
     }
     val pager = rememberLoopingPagerState(pageCount = tabs.size)

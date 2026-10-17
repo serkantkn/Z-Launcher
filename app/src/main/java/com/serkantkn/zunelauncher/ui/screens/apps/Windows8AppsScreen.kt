@@ -382,12 +382,11 @@ fun Windows8AppsScreen(
         val pinned = marked != null && marked.packageName in favoritePackages
         val hidden = marked != null && marked.packageName in hiddenApps
         val chooserTitle = stringResource(R.string.apps_share_chooser)
-        val favouritesFull = stringResource(R.string.apps_favorites_limit)
         val actions = if (marked == null) emptyList() else buildList {
             add(Win8BarAction(Icons.Default.PushPin, stringResource(if (pinned) R.string.apps_unpin else R.string.apps_pin)) {
-                val room = BuildConfig.IS_PREMIUM || pinned || favoritePackages.size < FREE_PIN_LIMIT
+                val room = com.serkantkn.zunelauncher.util.Pro.unlocked || pinned || favoritePackages.size < FREE_PIN_LIMIT
                 if (room) viewModel.toggleFavorite(marked.packageName)
-                else Toast.makeText(context, favouritesFull, Toast.LENGTH_SHORT).show()
+                else com.serkantkn.zunelauncher.util.Pro.tell(context, R.string.apps_favorites_limit)
             })
             add(Win8BarAction(
                 if (hidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,

@@ -61,6 +61,8 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
         // Whatever started the process — an activity, the accessibility service, a receiver —
         // the dates and numbers it formats come out in the launcher's language.
         com.serkantkn.zunelauncher.util.AppLocale.applyDefault(this)
+        // Pro from what was last known, before anything is drawn; then from Google Play.
+        com.serkantkn.zunelauncher.data.billing.ProStore.start(this)
         NoteFallbackTitles.refresh(localized())
         bindTimeText()
         rearmClock()

@@ -1245,6 +1245,16 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
         item(key = "about") {
             SettingGroup(title = stringResource(R.string.settings_about_group)) {
                 Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                    // Pro: what it adds and the way to buy it, or that it is already bought.
+                    val pro = com.serkantkn.zunelauncher.util.Pro.unlocked
+                    SystemSettingRow(
+                        title = stringResource(R.string.pro_settings_row),
+                        subtitle = stringResource(if (pro) R.string.pro_settings_row_owned else R.string.pro_settings_row_free),
+                        isActive = pro,
+                        onClick = {
+                            context.startActivity(Intent(context, com.serkantkn.zunelauncher.ui.pro.ProActivity::class.java))
+                        }
+                    )
                     // The name the build was given, so a bug report says which build it came
                     // from; it opens the launcher's own page with what each version brought.
                     SystemSettingRow(

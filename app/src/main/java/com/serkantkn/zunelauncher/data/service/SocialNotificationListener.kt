@@ -66,7 +66,7 @@ class SocialNotificationListener : NotificationListenerService() {
         super.onListenerConnected()
         instance = this
         try {
-            if (BuildConfig.IS_PREMIUM) {
+            if (com.serkantkn.zunelauncher.util.Pro.unlocked) {
                 val active = activeNotifications ?: return
                 active.forEach { sbn ->
                     // What was already in the shade when we connected has been seen; no banner.
@@ -87,7 +87,7 @@ class SocialNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        if (BuildConfig.IS_PREMIUM) {
+        if (com.serkantkn.zunelauncher.util.Pro.unlocked) {
             if (isSocialSource(sbn)) {
                 processAndAddNotification(sbn, announce = true)
             } else {
@@ -100,7 +100,7 @@ class SocialNotificationListener : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         // Dismissed in the shade is dismissed in the hub: the two stay one list.
-        if (BuildConfig.IS_PREMIUM) SocialRepository.removeMessage(sbn.key)
+        if (com.serkantkn.zunelauncher.util.Pro.unlocked) SocialRepository.removeMessage(sbn.key)
         updateAllNotificationCounts()
         refreshActionCenter()
     }

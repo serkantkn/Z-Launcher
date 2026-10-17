@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.data.datastore
 
+import kotlinx.coroutines.flow.combine
 import com.serkantkn.zunelauncher.util.Pro
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
@@ -135,8 +136,8 @@ class SettingsDataStore(private val context: Context) {
     }
 
     /** Icons the user picked by hand, by package name. A tile's own icon is Pro's. */
-    val tileIconOverrides: Flow<Map<String, TileIcon>> = context.settingsDataStore.data.map { prefs ->
-        if (Pro.unlocked) TileIcon.mapFromJson(prefs[TILE_ICON_OVERRIDES]) else emptyMap()
+    val tileIconOverrides: Flow<Map<String, TileIcon>> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (pro) TileIcon.mapFromJson(prefs[TILE_ICON_OVERRIDES]) else emptyMap()
     }
 
     /**
@@ -145,9 +146,9 @@ class SettingsDataStore(private val context: Context) {
      * A tile's own look is Pro's, all but whether it shows notifications: the free build reads
      * only that, and the rest of what was stored waits, untouched, for Pro.
      */
-    val tileLooks: Flow<Map<String, TileLook>> = context.settingsDataStore.data.map { prefs ->
+    val tileLooks: Flow<Map<String, TileLook>> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
         TileLook.mapFromJson(prefs[TILE_LOOKS]).let { looks ->
-            if (Pro.unlocked) looks else freeLooks(looks)
+            if (pro) looks else freeLooks(looks)
         }
     }
 
@@ -472,8 +473,8 @@ class SettingsDataStore(private val context: Context) {
     }
 
     /** Pro's: the free build's hubs stand on Start's own background. */
-    val hubBackgroundMode: Flow<HubBackgroundMode> = context.settingsDataStore.data.map { prefs ->
-        if (!Pro.unlocked) return@map HubBackgroundMode.MATCH_LAUNCHER
+    val hubBackgroundMode: Flow<HubBackgroundMode> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (!pro) return@combine HubBackgroundMode.MATCH_LAUNCHER
         try {
             HubBackgroundMode.valueOf(prefs[HUB_BACKGROUND_MODE] ?: HubBackgroundMode.MATCH_LAUNCHER.name)
         } catch (e: Exception) {
@@ -481,8 +482,8 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    val hubBackgroundOpacity: Flow<Float> = context.settingsDataStore.data.map { prefs ->
-        if (Pro.unlocked) prefs[HUB_BACKGROUND_OPACITY] ?: DEFAULT_HUB_OPACITY else DEFAULT_HUB_OPACITY
+    val hubBackgroundOpacity: Flow<Float> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (pro) prefs[HUB_BACKGROUND_OPACITY] ?: DEFAULT_HUB_OPACITY else DEFAULT_HUB_OPACITY
     }
 
     val tileCornerStyle: Flow<TileCornerStyle> = context.settingsDataStore.data.map { prefs ->
@@ -510,8 +511,8 @@ class SettingsDataStore(private val context: Context) {
      * show the wallpaper sharp, as they always have.
      */
     /** Pro's: the free build's tiles are never frosted. */
-    val tileBlur: Flow<Int> = context.settingsDataStore.data.map { prefs ->
-        if (Pro.unlocked) (prefs[TILE_BLUR] ?: 0).coerceIn(0, 100) else 0
+    val tileBlur: Flow<Int> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (pro) (prefs[TILE_BLUR] ?: 0).coerceIn(0, 100) else 0
     }
 
     /** Whether the tiles write in black, in white, or in whatever suits the theme. */
@@ -573,8 +574,8 @@ class SettingsDataStore(private val context: Context) {
     }
 
     /** Windows Phone's banners are Pro's; the free build leaves notifications to Android. */
-    val notificationStyle: Flow<NotificationStyle> = context.settingsDataStore.data.map { prefs ->
-        if (!Pro.unlocked) return@map NotificationStyle.SYSTEM
+    val notificationStyle: Flow<NotificationStyle> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (!pro) return@combine NotificationStyle.SYSTEM
         try {
             NotificationStyle.valueOf(prefs[NOTIFICATION_STYLE] ?: NotificationStyle.WINDOWS_PHONE.name)
         } catch (e: Exception) {
@@ -583,8 +584,8 @@ class SettingsDataStore(private val context: Context) {
     }
 
     /** Windows Phone's volume bar is Pro's; the free build leaves the keys to Android. */
-    val volumeBarStyle: Flow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = context.settingsDataStore.data.map { prefs ->
-        if (!Pro.unlocked) return@map com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM
+    val volumeBarStyle: Flow<com.serkantkn.zunelauncher.data.model.VolumeBarStyle> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (!pro) return@combine com.serkantkn.zunelauncher.data.model.VolumeBarStyle.SYSTEM
         try {
             com.serkantkn.zunelauncher.data.model.VolumeBarStyle.valueOf(prefs[VOLUME_BAR_STYLE] ?: com.serkantkn.zunelauncher.data.model.VolumeBarStyle.WINDOWS_PHONE.name)
         } catch (e: Exception) {
@@ -610,8 +611,8 @@ class SettingsDataStore(private val context: Context) {
      * decision to make rather than something to switch on for them.
      */
     /** Lyrics and covers from the internet are Pro's. */
-    val musicOnlineExtras: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        Pro.unlocked && (prefs[MUSIC_ONLINE_EXTRAS] ?: false)
+    val musicOnlineExtras: Flow<Boolean> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        pro && (prefs[MUSIC_ONLINE_EXTRAS] ?: false)
     }
 
     suspend fun setMusicOnlineExtras(enabled: Boolean) {

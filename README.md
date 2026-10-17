@@ -187,7 +187,9 @@ Windows Phone'un ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli
 ## Ücretsiz ve Pro
 
 Başlangıç ekranı, bütün hub'lar, eylem merkezi, tablet düzeni ve varsayılan uygulama rolleri ücretsiz
-sürümde tamdır. Pro şunları ekler:
+sürümde tamdır. **Pro, uygulamanın içinden tek seferlik bir satın almayla açılır** (Google Play üzerinden;
+ayarlar → hakkında → Z Launcher Pro, ya da kilitli herhangi bir şeye dokunarak). Bir kez alınır, aynı Google
+hesabıyla her telefonda geçerlidir; ayarların yerinde kalır. Pro şunları ekler:
 
 - **Görünüm:** vurgu renklerinin tamamı, özel duvar kağıdı, buzlu karolar, karo başına renk, ad, simge,
   resim, animasyon, saydamlık ve yazı rengi, hub arka planı ayarları
@@ -198,6 +200,7 @@ sürümde tamdır. Pro şunları ekler:
   hava durumu şehri
 - **Sistem:** Windows Phone klavyesi, ses çubuğu ve bildirim şeridi
 
+Satın alma yalnızca Google Play'den kurulan uygulamada yapılabilir; GitHub'daki APK ücretsiz sürümdür.
 Ücretsiz sürüm hiçbir verini Pro'ya kilitlemez: kilitli bir not yine açılır, okuma listesindekiler yine
 okunur, Pro ayarları silinmez, Pro'ya geçince olduğu gibi geri gelir.
 
@@ -217,8 +220,9 @@ Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md) · [web](http
 ./gradlew assembleFreeDebug
 ```
 
-İki ürün çeşidi var: `free` ve `premium` (Pro). Neyin Pro olduğu yukarıda; kod aynıdır,
-`BuildConfig.IS_PREMIUM` ile ayrılır ve hepsi `util/Pro.kt` üzerinden geçer.
+İki ürün çeşidi var: `free` (Play'deki uygulama; Pro'yu uygulama içinden satar) ve `premium` (her zaman
+Pro, geliştirme için). Kod aynıdır; neyin Pro olduğu yukarıda, hepsi `util/Pro.kt` üzerinden geçer, satın
+alma `data/billing/ProStore.kt`'de.
 Android Studio'nun güncel sürümü, JDK 17+ ve minSdk 28 (Android 9) yeter.
 
 Birim testleri:
@@ -291,7 +295,9 @@ turnstile animations and Zune's thin type, running on today's Android — and se
 - **Looks.** Fourteen accent colours and a custom one, dark and light themes, tile transparency and frost,
   corner style and spacing. The Windows Phone keyboard *(Pro)*.
 - **Free and Pro.** Start, every hub, the action center, the tablet layout and the default-app roles are whole
-  in the free edition. Pro adds all accent colours, custom wallpaper, frosted tiles, each tile's own look,
+  in the free edition. Pro is one purchase inside the app, through Google Play (settings → about → Z Launcher
+  Pro, or touch anything locked); bought once, it holds on every phone signed in to the same Google account.
+  Pro adds all accent colours, custom wallpaper, frosted tiles, each tile's own look,
   the hubs' background settings, the video player's subtitles, sound tracks, speed, fill, next episode and
   small window, online lyrics and covers, the social hub, locked notes, the news hub's own RSS sources, the
   browser's reading list, PDF, translation and favourites, the Windows Phone keyboard, volume bar and banners.

@@ -30,8 +30,11 @@ added to that list.
 
 ## Free and Pro
 
-The two flavours share one codebase; what is Pro's goes through `util/Pro.kt` (`Pro.unlocked`,
-`Pro.tell`, `Pro.orTell`) and, in settings, `ui/components/ProLock.kt` (`ProLocked { }`).
+Pro is bought once inside the app through Google Play (`data/billing/ProStore.kt`, product id
+`z_launcher_pro`); the `premium` flavour is always Pro. Whether it is Pro can change while running,
+so never read `BuildConfig.IS_PREMIUM`: use `util/Pro.kt` - `Pro.unlocked` while drawing (it
+recomposes), `Pro.flow` to combine with flows, `Pro.tell`/`Pro.orTell` to send the user to the Pro
+page - and, in settings, `ui/components/ProLock.kt` (`ProLocked { }`).
 
 - A Pro setting is gated where it is read (the DataStore flow returns the free default), never
   deleted: the stored value waits for Pro.

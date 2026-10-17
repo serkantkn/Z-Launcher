@@ -186,16 +186,12 @@ private fun WallpaperGroups(viewModel: SettingsViewModel) {
     )
 
     fun pickWallpaper() {
-        if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+        if (com.serkantkn.zunelauncher.util.Pro.unlocked) {
             wallpaperPicker.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
         } else {
-            android.widget.Toast.makeText(
-                context,
-                context.getString(R.string.settings_wallpaper_pro_only),
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            com.serkantkn.zunelauncher.util.Pro.tell(context, R.string.settings_wallpaper_pro_only)
         }
     }
 
@@ -263,16 +259,12 @@ private fun HubBackgroundGroups(viewModel: SettingsViewModel) {
     )
 
     fun pickHubWallpaper() {
-        if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) {
+        if (com.serkantkn.zunelauncher.util.Pro.unlocked) {
             hubWallpaperPicker.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
         } else {
-            android.widget.Toast.makeText(
-                context,
-                context.getString(R.string.settings_wallpaper_pro_only),
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            com.serkantkn.zunelauncher.util.Pro.tell(context, R.string.settings_wallpaper_pro_only)
         }
     }
 
@@ -612,7 +604,7 @@ private fun ChangeOrClearRow(onChange: () -> Unit, onClear: () -> Unit) {
     ) {
         Button(
             onClick = {
-                if (com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM) onChange()
+                if (com.serkantkn.zunelauncher.util.Pro.unlocked) onChange()
             },
             colors = ButtonDefaults.buttonColors(
                 containerColor = LocalZuneColors.current.accentColor,

@@ -155,7 +155,7 @@ fun LauncherScreen(
             chosen != null -> chosen
             // The free build has no social sources of its own to offer; the premium defaults
             // used to be pushed anyway, and the listener went on collecting for a hub it lacks.
-            !com.serkantkn.zunelauncher.BuildConfig.IS_PREMIUM -> emptySet()
+            !com.serkantkn.zunelauncher.util.Pro.unlocked -> emptySet()
             else -> com.serkantkn.zunelauncher.data.model.SocialApps.defaultSources(
                 launcherContext.appContainer.appRepository
                     .getInstalledApps()

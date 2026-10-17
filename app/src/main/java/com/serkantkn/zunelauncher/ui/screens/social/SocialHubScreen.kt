@@ -137,7 +137,7 @@ fun SocialHubScreen(
             com.serkantkn.zunelauncher.ui.screens.notes.TodayNotesGroup()
 
             when {
-                !BuildConfig.IS_PREMIUM -> ProOnly()
+                !com.serkantkn.zunelauncher.util.Pro.unlocked -> ProOnly()
 
                 !hasPermission -> ZunePermissionRequest(
                     title = stringResource(R.string.notification_permission_title).lowercase(java.util.Locale.getDefault()),
@@ -192,7 +192,7 @@ fun SocialHubScreen(
 
         // ── The bar ──
         AnimatedVisibility(
-            visible = isCurrentPage && selectedMessage == null && BuildConfig.IS_PREMIUM,
+            visible = isCurrentPage && selectedMessage == null && com.serkantkn.zunelauncher.util.Pro.unlocked,
             enter = slideInVertically(
                 initialOffsetY = { it },
                 animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
@@ -276,6 +276,16 @@ private fun ProOnly() {
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
+        )
+        val context = androidx.compose.ui.platform.LocalContext.current
+        Text(
+            text = stringResource(R.string.pro_settings_row_free),
+            style = MaterialTheme.typography.titleMedium,
+            color = zuneColors.accentColor,
+            modifier = Modifier
+                .padding(top = 16.dp)
+                .clickable { com.serkantkn.zunelauncher.util.Pro.tell(context, R.string.social_pro_only) }
+                .padding(8.dp)
         )
     }
 }
