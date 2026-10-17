@@ -30,7 +30,8 @@ added to that list.
 
 ## Free and Pro
 
-Pro is bought once inside the app through Google Play (`data/billing/ProStore.kt`, product id
+The `free` flavour is the real app, `com.serkantkn.zunelauncher`, on Play and GitHub; `premium`
+is a development build, `com.serkantkn.zunelauncher.dev`, "Z Launcher Dev". Pro is bought once inside the app through Google Play (`data/billing/ProStore.kt`, product id
 `z_launcher_pro`); the `premium` flavour is always Pro. Whether it is Pro can change while running,
 so never read `BuildConfig.IS_PREMIUM`: use `util/Pro.kt` - `Pro.unlocked` while drawing (it
 recomposes), `Pro.flow` to combine with flows, `Pro.tell`/`Pro.orTell` to send the user to the Pro

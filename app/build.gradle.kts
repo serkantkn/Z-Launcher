@@ -30,15 +30,17 @@ android {
 
     flavorDimensions += "tier"
     productFlavors {
+        // The app on Google Play and GitHub: Pro is bought inside it (ProStore). Its id is the
+        // app's id for good - Play never lets it change.
         create("free") {
             dimension = "tier"
-            applicationIdSuffix = ".free"
-            versionNameSuffix = "-free"
             buildConfigField("boolean", "IS_PREMIUM", "false")
         }
+        // For development: always Pro, beside the real app rather than in its place.
         create("premium") {
             dimension = "tier"
-            versionNameSuffix = "-pro"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
             buildConfigField("boolean", "IS_PREMIUM", "true")
         }
     }

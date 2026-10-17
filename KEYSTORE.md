@@ -43,8 +43,7 @@ unsigned". Check your own the same way the first time.
 
 ## What goes to Play
 
-- **Free**: `app/build/outputs/bundle/freeRelease/app-free-release.aab` (`…zunelauncher.free`)
-- **Pro**: `app/build/outputs/bundle/premiumRelease/app-premium-release.aab` (`…zunelauncher`)
+- **Free**: `app/build/outputs/bundle/freeRelease/app-free-release.aab` (`com.serkantkn.zunelauncher`, the app on Play; Pro is bought inside it)
 
-Two application ids means two listings. Keep the same upload key for both — one key, one
-identity.
+There is one listing. The `premium` flavour (`…zunelauncher.dev`) is a development build that is
+always Pro; it never goes to Play.
