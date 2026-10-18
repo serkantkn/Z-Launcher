@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher
 
+import androidx.compose.foundation.layout.fillMaxSize
 import android.content.Context
 import android.content.Intent
 import com.serkantkn.zunelauncher.data.repository.EmailBridge
@@ -369,11 +370,18 @@ class MainActivity : FragmentActivity() {
                 animationsEnabled = animationsEnabled
             ) {
                 // The Zune layout moves the Zune HD's way everywhere, not only on its list.
+                // The Zune layout's main hubs take the touched name with them as their title; the
+                // word flies over the whole launcher, so it is drawn here, above everything.
+                val hubFlight = com.serkantkn.zunelauncher.ui.animation.rememberZuneHubFlight()
                 androidx.compose.runtime.CompositionLocalProvider(
                     com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion provides
-                        (homeScreenLayout == com.serkantkn.zunelauncher.data.model.HomeScreenLayout.ZUNE)
+                        (homeScreenLayout == com.serkantkn.zunelauncher.data.model.HomeScreenLayout.ZUNE),
+                    com.serkantkn.zunelauncher.ui.animation.LocalZuneHubFlight provides hubFlight
                 ) {
-                    LauncherScreen()
+                    androidx.compose.foundation.layout.Box(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+                        LauncherScreen()
+                        com.serkantkn.zunelauncher.ui.animation.ZuneHubFlightOverlay(hubFlight)
+                    }
                 }
             }
         }

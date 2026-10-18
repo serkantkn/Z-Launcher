@@ -516,6 +516,7 @@ fun PicturesHubScreen(
 
     ZuneHub(
         title = stringResource(R.string.pictures_hub),
+        zuneTitleKey = "PICTURES",
         tabs = if (isWideScreen) listOf(tabs[0], albumsLabel, tabs[2]) else tabs,
         pager = pager,
         modifier = modifier,

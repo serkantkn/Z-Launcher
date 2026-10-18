@@ -399,6 +399,7 @@ fun PhoneHubScreen(
 
     ZuneHub(
         title = stringResource(R.string.hub_phone),
+        zuneTitleKey = "PHONE",
         tabs = tabTitles,
         pager = pager,
         modifier = modifier,

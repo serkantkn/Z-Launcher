@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.ui.animation.zuneZoomAnchor
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -50,7 +51,9 @@ fun ZuneHubTitle(
     fitKey: Any? = null,
     minFontSize: TextUnit = 28.sp,
     /** Told the size the title settled at, so a list can draw every title at the same size. */
-    onFitted: ((TextUnit) -> Unit)? = null
+    onFitted: ((TextUnit) -> Unit)? = null,
+    /** Kept told where the word itself is, for a flight that starts from it. */
+    anchor: com.serkantkn.zunelauncher.ui.animation.ZuneZoomAnchor? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressedState by interactionSource.collectIsPressedAsState()
@@ -120,6 +123,7 @@ fun ZuneHubTitle(
                 onLongClick = onLongClick
             )
             .padding(vertical = verticalPadding)
+            .then(if (anchor != null) Modifier.zuneZoomAnchor(anchor) else Modifier)
     )
 }
 

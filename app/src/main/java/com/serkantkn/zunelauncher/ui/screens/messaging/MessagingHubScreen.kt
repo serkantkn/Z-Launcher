@@ -813,6 +813,7 @@ fun MessagingHubScreen(
         ) {
             ZuneHub(
                 title = stringResource(R.string.hub_messaging),
+                zuneTitleKey = "MESSAGING",
                 tabs = tabs,
                 pager = pager,
                 bar = if (hasPermission && detailHingeAnim.value == 0f && pickerHingeAnim.value == 0f) {

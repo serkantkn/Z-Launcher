@@ -108,26 +108,18 @@ fun ZuneMusicMenu(
 }
 
 /**
- * The music hub's name - or, in a list, the list's - large across the top, as the Zune HD wrote
- * it. A new name slides in from the right as its list does; [arrived] runs 0 -> 1.
+ * The music hub's name - or, in a list, the list's - large and heavy across the top, as the other
+ * main hubs of the Zune layout have it: where "music" or "videos" lands from the list. A new name
+ * slides in from the right as its list does; [arrived] runs 0 -> 1.
  */
 @Composable
 fun ColumnScope.ZuneMusicTitle(title: String, arrived: () -> Float) {
-    val ink = if (LocalZuneColors.current.isDark) Color.White else Color.Black
     val slidePx = with(LocalDensity.current) { TITLE_SLIDE.toPx() }
-    Text(
-        text = title,
-        style = MaterialTheme.typography.displayLarge.copy(
-            fontWeight = FontWeight.Light,
-            fontSize = TITLE_SIZE,
-            lineHeight = TITLE_SIZE,
-            letterSpacing = (-3).sp
-        ),
-        color = ink,
-        maxLines = 1,
-        softWrap = false,
+    com.serkantkn.zunelauncher.ui.animation.ZuneHubFlightTitle(
+        title = title,
+        key = MUSIC_TITLE_KEY,
         modifier = Modifier
-            .padding(top = 28.dp, bottom = 14.dp, start = ZuneDimens.ScreenPaddingHorizontal)
+            .padding(top = com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_TITLE_TOP, bottom = 14.dp, start = ZuneDimens.ScreenPaddingHorizontal)
             .graphicsLayer {
                 val eased = ArriveEasing.transform(arrived().coerceIn(0f, 1f))
                 translationX = slidePx * (1f - eased)
@@ -135,6 +127,9 @@ fun ColumnScope.ZuneMusicTitle(title: String, arrived: () -> Float) {
             }
     )
 }
+
+/** The key the music hub's title answers to, for "music" and "videos" alike. */
+const val MUSIC_TITLE_KEY = "MUSIC"
 
 /** A list's page coming in behind its word: from the right, a little behind the title. */
 fun Modifier.zuneMusicSection(arrived: () -> Float, slidePx: Float): Modifier = graphicsLayer {
@@ -147,7 +142,6 @@ fun Modifier.zuneMusicSection(arrived: () -> Float, slidePx: Float): Modifier = 
 }
 
 private val MENU_SIZE = 54.sp
-private val TITLE_SIZE = 72.sp
 private val TITLE_SLIDE = 140.dp
 private const val SECTION_LAG = 0.12f
 private val ArriveEasing = CubicBezierEasing(0.1f, 0.9f, 0.2f, 1f)

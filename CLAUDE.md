@@ -12,6 +12,10 @@ A hub supplies its title, headings, pages, bar commands and, on a tablet, what o
   comes in on "recent" and glides round to "all" (`glideFrom`). No other hub uses either.
 - **Tablet:** small title at the top left, headings down the left, the page beside them, an optional
   pane for whatever is open, and the Windows 8 bar.
+- **Zune layout, phone:** the main hubs - phone, people, messaging, pictures, and music with its
+  own menu - stand under a large, heavy title instead, the name touched in the Zune list flying up
+  to become it (`ui/animation/ZuneHubFlight.kt`). A hub opts in with `ZuneHub(zuneTitleKey = ...)`;
+  the people hub then has no panorama and opens on "all".
 
 When writing a hub:
 

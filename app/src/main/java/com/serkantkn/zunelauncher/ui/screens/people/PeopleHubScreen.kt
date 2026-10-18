@@ -148,7 +148,13 @@ fun PeopleHubScreen(
     // very first frame is already that section.
     val pager = rememberLoopingPagerState(
         pageCount = tabs.size,
-        initialPage = if (LocalAnimationsEnabled.current) PEOPLE_RECENT_PAGE else 0
+        // Windows Phone 7's people hub came in on "recent" and glided round to "all"; the Zune
+        // layout's has no panorama to glide round, and opens on "all".
+        initialPage = if (LocalAnimationsEnabled.current && !com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current) {
+            PEOPLE_RECENT_PAGE
+        } else {
+            0
+        }
     )
 
     // On a tablet what is open stands in the pane beside the list instead of hinging in over the
@@ -465,6 +471,7 @@ fun PeopleHubScreen(
         if (hubHingeAnim.value > 0f) {
             ZuneHub(
                 title = stringResource(R.string.people_hub),
+                zuneTitleKey = "PEOPLE",
                 tabs = tabs,
                 pager = pager,
                 // No ground of its own: the hub stands on the background chosen for hubs - the

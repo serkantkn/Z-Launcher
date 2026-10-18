@@ -244,6 +244,7 @@ fun LauncherScreen(
 
     val density = LocalDensity.current.density
     val zuneHubSlidePx = with(LocalDensity.current) { com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_SLIDE.toPx() }
+    val zuneHubFlight = com.serkantkn.zunelauncher.ui.animation.LocalZuneHubFlight.current
 
     // ── Hinge animation state ──
     val hingeSpec = rememberHingeSpec()
@@ -1022,7 +1023,9 @@ fun LauncherScreen(
                                     if (zuneStart) {
                                         // The Zune's way: the hub slides in a little from the right
                                         // as it appears, and back the same way as it goes.
-                                        translationX = zuneHubSlidePx * (1f - progress)
+                                        // A hub whose name is flying up to it does not slide: it fades in
+                                        // under its title, as the Zune HD's did.
+                                        translationX = if (zuneHubFlight?.isFlying == true) 0f else zuneHubSlidePx * (1f - progress)
                                         alpha = progress
                                         return@graphicsLayer
                                     }

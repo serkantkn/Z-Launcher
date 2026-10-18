@@ -447,7 +447,12 @@ private fun HomeHubScreenContent(
         }
     }
 
-    fun handleLaunch(key: String, action: () -> Unit) {
+    fun handleLaunch(
+        key: String,
+        /** When, in the Zune layout, the thing is opened: a hub whose name flies up opens at once. */
+        zuneOpenAt: Long = com.serkantkn.zunelauncher.ui.animation.ZUNE_OPEN_AT_MILLIS,
+        action: () -> Unit
+    ) {
         if (isEditMode || launching) return
         clickedItemKey = key
         if (!animationsOn) {
@@ -496,7 +501,7 @@ private fun HomeHubScreenContent(
                         tween(com.serkantkn.zunelauncher.ui.animation.ZUNE_EXIT_MILLIS, easing = LinearEasing)
                     )
                 }
-                delay(com.serkantkn.zunelauncher.ui.animation.ZUNE_OPEN_AT_MILLIS)
+                delay(zuneOpenAt)
                 openFolderId = null
                 action()
                 launching = false
@@ -1865,9 +1870,20 @@ private fun HomeHubScreenContent(
                     }
                     LaunchedEffect(rows.map { it.key }) { fittedSizes.keys.retainAll(rows.map { it.key }.toSet()) }
 
+                    val hubFlight = com.serkantkn.zunelauncher.ui.animation.LocalZuneHubFlight.current
                     rows.forEachIndexed { rowIndex, row ->
+                      androidx.compose.runtime.key(row.key) {
                         val hubType = row.hubType
                         val key = row.key
+                        // The main hubs take their name with them: it flies up and becomes their
+                        // title (ZuneHubFlight). A phone only; a tablet's hubs have no such title.
+                        val flightKey = when {
+                            isWideScreen || hubFlight == null -> null
+                            hubType == HubType.MUSIC -> com.serkantkn.zunelauncher.ui.screens.music.MUSIC_TITLE_KEY
+                            hubType in FLIGHT_HUBS -> hubType.name
+                            else -> null
+                        }
+                        val wordAnchor = com.serkantkn.zunelauncher.ui.animation.rememberZuneZoomAnchor()
                         val index = localHubOrder.indexOf(hubType)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (listEditing) {
@@ -1905,11 +1921,17 @@ private fun HomeHubScreenContent(
                             val line = if (row.videos) videosLine() else liveLineFor(hubType)
                             val ink = if (zuneColors.isDark) Color.White else Color.Black
                             Column(
-                                modifier = Modifier.zuneListMotion(
-                                    progress = { animationProgress.value },
-                                    index = 4 + rowIndex,
-                                    isClicked = clickedItemKey == key
-                                )
+                                modifier = Modifier
+                                    .zuneListMotion(
+                                        progress = { animationProgress.value },
+                                        index = 4 + rowIndex,
+                                        // A name that flies to its hub does not zoom through.
+                                        isClicked = clickedItemKey == key && flightKey == null
+                                    )
+                                    .graphicsLayer {
+                                        // The word in the air is the flight's; the list's copy keeps out of sight.
+                                        alpha = if (flightKey != null && clickedItemKey == key && hubFlight?.hides(flightKey) == true) 0f else 1f
+                                    }
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.Top,
@@ -1918,9 +1940,11 @@ private fun HomeHubScreenContent(
                                         color = zuneColors.accentColor
                                     )
                                 ) {
+                                    val nameColour = rememberHubNameColour(line.hasNews, ink)
                                     ZuneHubTitle(
                                         title = row.title,
-                                        accentColor = rememberHubNameColour(line.hasNews, ink),
+                                        accentColor = nameColour,
+                                        anchor = wordAnchor,
                                         verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
                                         fontSize = listSize,
                                         // Re-fitted when the edit buttons take their share of the row.
@@ -1934,7 +1958,18 @@ private fun HomeHubScreenContent(
                                             } else if (listEditing) {
                                                 isEditMode = false
                                             } else {
-                                                handleLaunch(key) {
+                                                val from = wordAnchor.bounds
+                                                // A hub pointed at another app opens the app; nothing flies.
+                                                val flies = flightKey != null && from != null && animationsOn &&
+                                                    !hubTargetApps.containsKey(hubType)
+                                                if (flies && !launching && !isEditMode) {
+                                                    hubFlight!!.launch(flightKey!!, row.title, from!!, listSize, nameColour.copy(alpha = 0.85f))
+                                                }
+                                                handleLaunch(
+                                                    key,
+                                                    zuneOpenAt = if (flies) com.serkantkn.zunelauncher.ui.animation.ZUNE_FLIGHT_OPEN_AT_MILLIS
+                                                        else com.serkantkn.zunelauncher.ui.animation.ZUNE_OPEN_AT_MILLIS
+                                                ) {
                                                     if (row.videos) com.serkantkn.zunelauncher.data.repository.MusicBridge.openVideos()
                                                     openHub(hubType)
                                                 }
@@ -1952,6 +1987,7 @@ private fun HomeHubScreenContent(
                                 if (!listEditing) ZuneHubLiveLine(line.text)
                             }
                         }
+                      }
                     }
 
                     if (listEditing) {
@@ -2179,6 +2215,9 @@ private fun ZuneTilesEmptyState(onOpenAppList: () -> Unit, modifier: Modifier = 
 /** One-time hints, and the one that says the favourites became the tiles page. */
 private const val HINTS_PREFS = "hints"
 private const val HINT_FAVOURITES_MOVED = "zune_favourites_moved"
+
+/** The hubs whose name flies up to become their title in the Zune layout (music has its own). */
+private val FLIGHT_HUBS = setOf(HubType.PHONE, HubType.PEOPLE, HubType.MESSAGING, HubType.PICTURES)
 
 /** How many squares the strip beside the Zune list holds. */
 private const val QUICKPLAY_STRIP_ITEMS = 8

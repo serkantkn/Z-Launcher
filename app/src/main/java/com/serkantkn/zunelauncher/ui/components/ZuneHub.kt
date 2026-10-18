@@ -159,6 +159,13 @@ fun ZuneHub(
     phonePeek: Boolean = true,
     phonePanorama: Boolean = false,
     glideFrom: Int? = null,
+    /**
+     * The Zune layout's main hubs (phone, people, messaging, pictures): on a phone their name
+     * stands large and heavy at the top - where the word touched in the list flies to - with the
+     * headings small under it, in place of the small name and pivot, and of the people hub's
+     * panorama. The key says which word lands here. Elsewhere nothing changes.
+     */
+    zuneTitleKey: String? = null,
     swipeEnabled: Boolean = true,
     wideHiddenTabs: Set<Int> = emptySet(),
     wideOnSelected: (Int) -> Unit = {},
@@ -171,7 +178,9 @@ fun ZuneHub(
     page: @Composable (index: Int) -> Unit
 ) {
     val animationsOn = LocalAnimationsEnabled.current
-    val gliding = glideFrom != null && animationsOn
+    val zuneTitled = zuneTitleKey != null && com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current
+    // A Zune-titled hub does not glide round a panorama: it has none.
+    val gliding = glideFrom != null && animationsOn && !zuneTitled
     // Read afresh while waiting: a hub kept running is first composed out of sight, where it
     // counts as in, and only then moved to where it is opened.
     val arrival by rememberUpdatedState(LocalHubArrival.current)
@@ -230,7 +239,28 @@ fun ZuneHub(
             } else {
                 PhoneHub(
                     title, tabs, pager, bar, showTabs, takeover, titleTrailing, onTitleClick, barModifier,
-                    phoneHeader, phoneAboveContent, phonePagePadding, phonePeek, phonePanorama, swipeEnabled,
+                    if (zuneTitled) {
+                        {
+                            Column(modifier = Modifier.fillMaxWidth().padding(top = com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_TITLE_TOP, bottom = 8.dp)) {
+                                com.serkantkn.zunelauncher.ui.animation.ZuneHubFlightTitle(
+                                    title = title,
+                                    key = zuneTitleKey!!,
+                                    modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal)
+                                )
+                                if (showTabs) {
+                                    ZunePivotTabs(
+                                        tabs = tabs,
+                                        state = pager,
+                                        fontSize = ZUNE_TITLED_PIVOT_SIZE,
+                                        modifier = Modifier.padding(top = 2.dp).zuneHubLayer({ entrance.progress }, 1)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        phoneHeader
+                    },
+                    phoneAboveContent, phonePagePadding, phonePeek, phonePanorama && !zuneTitled, swipeEnabled,
                     { entrance.progress }, page
                 )
             }
@@ -314,7 +344,7 @@ private fun BoxScope.PhoneHub(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         if (phoneHeader != null) {
-            Column(modifier = Modifier.zuneHubLayer(entered, 0)) { phoneHeader() }
+            phoneHeader()
         } else if (phonePanorama) {
             Box(modifier = Modifier.zuneHubLayer(entered, 0)) { PanoramaTitle(title = title, pager = pager) }
         } else {
@@ -618,3 +648,6 @@ private const val GLIDE_FADE_MILLIS = 550
 /** How far the pages have turned flat when the glide sets off. */
 private const val GLIDE_FROM_ARRIVAL = 0.6f
 internal val GlideEasing = androidx.compose.animation.core.CubicBezierEasing(0.33f, 1f, 0.68f, 1f)
+
+/** The headings' size under a Zune-titled hub's name: smaller than the pivot's own. */
+private val ZUNE_TITLED_PIVOT_SIZE = 30.sp
