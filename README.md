@@ -67,6 +67,22 @@ telefonlarında çalışıyor — ve hiçbir şeyi hiçbir yere göndermiyor.
 </p>
 <p align="center"><sub>On dört vurgu rengi, özel renk, koyu ve açık tema, saydamlık, köşe biçimi, karo aralığı.</sub></p>
 
+## Zune düzeni
+
+Başlangıç ekranının ikinci yüzü, Zune HD'nin hub listesi:
+
+- **Kelimelerle hub'lar.** Saat, tarih ve hava durumunun altında hub adları ince, büyük yazıyla; altlarında son mesaj,
+  çalan parça, sıradaki etkinlik gibi canlı satırlar.
+- **Uçan başlık.** Telefon, kişiler, mesajlar, müzik, videolar ve fotoğraflarda dokunduğun ad listeden kalkar,
+  büyüyüp kalınlaşarak hub'ın başlığı olur. Başlık ekranın üstünü kaplar, sağdan taşar ve sayfalar döndükçe kayar;
+  dokununca geri götürür. Bir konuşma, kişi, grup, albüm ya da müzik listesi de aynı şekilde açılıp kapanır.
+- **Müziğin kendi menüsü.** Sanatçılar, albümler, şarkılar, türler, çalma listeleri ve videolar alt alta büyük
+  kelimeler olarak; uzun listelerde Zune'un harf atlayıcısı.
+- **Quickplay.** Listenin içinde bir şerit: son çalınanlar, sabitlediklerin ve yeni gelenler; tablette sağda
+  hep açık.
+- **Karolar da burada.** Sabitlediğin uygulamalar ayrı bir sayfada Windows Phone karoları olarak durur; iki
+  düzen aynı anda kullanılabilir.
+
 ## Hub'lar
 
 Hepsi uygulamanın içinde, hepsi aynı dilde yazılmış:
@@ -265,6 +281,12 @@ turnstile animations and Zune's thin type, running on today's Android — and se
   count right beside its icon, and the wallpaper behind see-through tiles can be frosted. Every tile can be given its own colour, name,
   icon, picture, animation, transparency and ink, and reset with one tap. Any hub's tile can open another
   app instead. Three layouts: the Windows Phone board, a Zune-style list, the Windows 8 board on tablets.
+- **The Zune layout.** The Zune HD's list of hubs as words, each with a live line beneath it. In phone,
+  people, messaging, music, videos and pictures the name touched flies up and becomes the hub's huge, bold title,
+  which runs off the right edge, slides as the pages turn and goes back when touched; a conversation, a contact,
+  a group, an album or a music list opens and closes the same way. Music has its own menu with genres and the
+  Zune alphabet, quickplay sits in the list (always open on the right on a tablet), and pinned apps stand as
+  Windows Phone tiles on a page of their own.
 - **Tablet.** Windows 8's Start, full screen and grouped; a swipe up slides it off while the app list rises from
   below — apps under their letters in columns, scrolling sideways, ordered by name, install date or use, with
   the Windows 8 app bar on a hold. Pulling the board past its first group opens the social hub.
