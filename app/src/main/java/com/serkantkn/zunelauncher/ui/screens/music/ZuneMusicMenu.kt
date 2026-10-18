@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.music
 
+import com.serkantkn.zunelauncher.ui.animation.zuneFlightLabel
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
@@ -71,7 +72,8 @@ fun ZuneMusicMenu(
         }
         scope.launch {
             launch { progress.animateTo(2f, tween(ZUNE_EXIT_MILLIS, easing = LinearEasing)) }
-            delay(ZUNE_OPEN_AT_MILLIS)
+            // The word flies up at once; the list opens under it as the rest slide away.
+            delay(com.serkantkn.zunelauncher.ui.animation.ZUNE_FLIGHT_OPEN_AT_MILLIS)
             onPick(page)
         }
     }
@@ -95,8 +97,9 @@ fun ZuneMusicMenu(
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .zuneListMotion({ progress.value }, index, isClicked = picked == entry.page)
+                    .zuneListMotion({ progress.value }, index)
+                    // The word lifts off to become its list's title (ZuneHubFlight).
+                    .zuneFlightLabel(musicMenuItem(entry.page), MENU_SIZE, ink)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -113,19 +116,24 @@ fun ZuneMusicMenu(
  * slides in from the right as its list does; [arrived] runs 0 -> 1.
  */
 @Composable
-fun ColumnScope.ZuneMusicTitle(title: String, arrived: () -> Float) {
-    val slidePx = with(LocalDensity.current) { TITLE_SLIDE.toPx() }
+fun ColumnScope.ZuneMusicTitle(title: String, key: String) {
+    // The title does not slide in: it arrives as the word touched, flying up (ZuneHubFlight).
     com.serkantkn.zunelauncher.ui.animation.ZuneHubFlightTitle(
         title = title,
-        key = MUSIC_TITLE_KEY,
+        key = key,
         modifier = Modifier
             .padding(top = com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_TITLE_TOP, bottom = 14.dp, start = ZuneDimens.ScreenPaddingHorizontal)
-            .graphicsLayer {
-                val eased = ArriveEasing.transform(arrived().coerceIn(0f, 1f))
-                translationX = slidePx * (1f - eased)
-                alpha = eased
-            }
     )
+}
+
+/** The music hub's videos page, which the Zune list opens directly from "videolar". */
+const val MUSIC_VIDEOS_PAGE = 5
+
+/** The key the music hub's title answers to: the hub itself, one of its lists, or what is open in one. */
+fun musicTitleKey(section: Int?, detail: String? = null): String = when {
+    section == null -> MUSIC_TITLE_KEY
+    detail != null -> "$MUSIC_TITLE_KEY:$section:$detail"
+    else -> "$MUSIC_TITLE_KEY:$section"
 }
 
 /** The key the music hub's title answers to, for "music" and "videos" alike. */
@@ -142,6 +150,5 @@ fun Modifier.zuneMusicSection(arrived: () -> Float, slidePx: Float): Modifier = 
 }
 
 private val MENU_SIZE = 54.sp
-private val TITLE_SLIDE = 140.dp
 private const val SECTION_LAG = 0.12f
 private val ArriveEasing = CubicBezierEasing(0.1f, 0.9f, 0.2f, 1f)

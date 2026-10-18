@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.pictures
 
+import com.serkantkn.zunelauncher.ui.animation.zuneFlightLabel
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -245,7 +246,9 @@ fun AlbumTile(
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Normal),
                 color = Color.White,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                // In the Zune layout the name lifts off to become the album's title.
+                modifier = Modifier.zuneFlightLabel(pictureAlbumItem(album.bucketId), MaterialTheme.typography.titleSmall.fontSize, Color.White)
             )
             Text(
                 text = if (album.videoCount > 0) {
@@ -348,3 +351,7 @@ fun PicturesEmpty(
         }
     }
 }
+
+/** The title an open album stands under in the Zune layout, and the name on its tile it flies from. */
+internal fun pictureAlbumTitleKey(bucketId: Long) = "PICTURES:album:$bucketId"
+internal fun pictureAlbumItem(bucketId: Long) = "pictures:album:$bucketId"

@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.people
 
+import com.serkantkn.zunelauncher.ui.animation.zuneFlightLabel
 import com.serkantkn.zunelauncher.ui.animation.pageHingeIn
 import android.Manifest
 import androidx.activity.compose.BackHandler
@@ -220,6 +221,18 @@ fun PeopleHubScreen(
         }
     }
 
+    val zuneMotion = com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current
+    val hubFlight = com.serkantkn.zunelauncher.ui.animation.LocalZuneHubFlight.current
+    // Which title the hub stands under: its own, or an open group's. Going back up, the group's
+    // name flies back down to its row.
+    val peopleTitleKey = openGroup?.let { groupTitleKey(it.id) } ?: "PEOPLE"
+    val peopleTitleText = openGroup?.title?.lowercase(java.util.Locale.getDefault()).orEmpty()
+    var shownPeopleTitle by remember { mutableStateOf(peopleTitleKey to peopleTitleText) }
+    LaunchedEffect(peopleTitleKey) {
+        val (before, beforeText) = shownPeopleTitle
+        if (zuneMotion && before.startsWith("$peopleTitleKey:")) hubFlight?.closePage(before, beforeText)
+        shownPeopleTitle = peopleTitleKey to peopleTitleText
+    }
     val selectContactWithAnimation: (ContactModel) -> Unit = { contact ->
         coroutineScope.launch { editContactHingeAnim.snapTo(0f) }
         if (isWideScreen) {
@@ -230,8 +243,19 @@ fun PeopleHubScreen(
             if (!isTransitioning) {
                 isTransitioning = true
                 viewModel.selectContact(contact)
+                // The Zune layout: the name touched flies up to become the card's title, and the
+                // hub and the card cross under it rather than one after the other.
+                val flies = zuneMotion && hubFlight?.openPage(
+                    contactTitleKey(contact.id),
+                    contact.name.lowercase(java.util.Locale.getDefault()),
+                    contactItemId(contact.id)
+                ) == true
                 coroutineScope.launch {
-                    hubHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                    if (flies) {
+                        launch { hubHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing)) }
+                    } else {
+                        hubHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                    }
                     detailHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
                     isTransitioning = false
                 }
@@ -264,10 +288,18 @@ fun PeopleHubScreen(
         } else {
             if (!isTransitioning) {
                 isTransitioning = true
+                // The Zune layout: the title flies back down to the name it came from.
+                val contact = selectedContactDetail?.contact
+                val flies = zuneMotion && contact != null && hubFlight?.closePage(
+                    contactTitleKey(contact.id),
+                    contact.name.lowercase(java.util.Locale.getDefault())
+                ) == true
                 coroutineScope.launch {
+                    val hubBack = if (flies) launch { hubHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing)) } else null
                     detailHingeAnim.animateTo(0f, animationSpec = tween(320, easing = FastOutSlowInEasing))
                     viewModel.selectContact(null)
-                    hubHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
+                    if (hubBack != null) hubBack.join()
+                    else hubHingeAnim.animateTo(1f, animationSpec = tween(320, easing = FastOutSlowInEasing))
                     isTransitioning = false
                 }
             }
@@ -456,7 +488,16 @@ fun PeopleHubScreen(
                             groups = groups,
                             openGroup = openGroup,
                             members = groupMembers,
-                            onOpenGroup = { viewModel.openGroup(it) },
+                            onOpenGroup = { group ->
+                                if (zuneMotion && group != null) {
+                                    hubFlight?.openPage(
+                                        groupTitleKey(group.id),
+                                        group.title.lowercase(java.util.Locale.getDefault()),
+                                        groupItemId(group.id)
+                                    )
+                                }
+                                viewModel.openGroup(group)
+                            },
                             onContactClick = { selectContactWithAnimation(it) },
                             onDeleteGroup = { viewModel.deleteGroup(it) },
                             openContactId = openContactId
@@ -470,8 +511,10 @@ fun PeopleHubScreen(
         // hub hinge whenever a detail / edit screen is open on top.
         if (hubHingeAnim.value > 0f) {
             ZuneHub(
-                title = stringResource(R.string.people_hub),
-                zuneTitleKey = "PEOPLE",
+                // An open group's name is the title in the Zune layout, flown up from its row.
+                title = if (zuneMotion && openGroup != null) openGroup!!.title.lowercase(java.util.Locale.getDefault())
+                    else stringResource(R.string.people_hub),
+                zuneTitleKey = peopleTitleKey,
                 tabs = tabs,
                 pager = pager,
                 // No ground of its own: the hub stands on the background chosen for hubs - the
@@ -1002,7 +1045,9 @@ private fun ContactListItem(
             ),
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            // In the Zune layout the name lifts off to become the card's title.
+            modifier = Modifier.zuneFlightLabel(contactItemId(contact.id), 21.sp, MaterialTheme.colorScheme.onBackground, contact.name)
         )
     }
 }
@@ -1181,7 +1226,10 @@ private fun GroupsPage(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
             ) {
-                Text(
+                // The Zune layout has the group's name as the hub's title already.
+                if (com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current) {
+                    Spacer(modifier = Modifier.weight(1f))
+                } else Text(
                     text = openGroup.title,
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light),
                     color = MaterialTheme.colorScheme.onBackground,
@@ -1254,7 +1302,13 @@ private fun GroupsPage(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.zuneFlightLabel(
+                            groupItemId(group.id),
+                            MaterialTheme.typography.titleMedium.fontSize,
+                            MaterialTheme.colorScheme.onBackground,
+                            group.title
+                        )
                     )
                     Text(
                         text = androidx.compose.ui.res.pluralStringResource(
@@ -1373,3 +1427,7 @@ private val PEOPLE_WIDE_LIST_WIDTH = 440.dp
 private fun PeoplePageEntrance(slideIn: Boolean, content: @Composable () -> Unit) {
     if (slideIn) ZunePageTransition { content() } else Box(modifier = Modifier.fillMaxSize()) { content() }
 }
+
+/** The title an open group stands under in the Zune layout, and the name in the list it flies from. */
+private fun groupTitleKey(id: Long) = "PEOPLE:group:$id"
+private fun groupItemId(id: Long) = "people:group:$id"

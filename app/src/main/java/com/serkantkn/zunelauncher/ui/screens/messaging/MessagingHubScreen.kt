@@ -118,6 +118,7 @@ fun MessagingHubScreen(
     val density = LocalDensity.current
     val zuneMotion = com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current
     val zunePageSlidePx = with(density) { com.serkantkn.zunelauncher.ui.animation.ZUNE_PAGE_SLIDE.toPx() }
+    val hubFlight = com.serkantkn.zunelauncher.ui.animation.LocalZuneHubFlight.current
     val coroutineScope = rememberCoroutineScope()
 
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -262,8 +263,19 @@ fun MessagingHubScreen(
         viewModel.openConversation(context, conversation)
         if (!isWideScreen && !isTransitioning) {
             isTransitioning = true
+            // The Zune layout: the name touched flies up to become the conversation's title, and
+            // the board and the conversation cross under it rather than one after the other.
+            val flies = zuneMotion && hubFlight?.openPage(
+                conversationTitleKey(conversation.threadId),
+                conversation.title.lowercase(java.util.Locale.getDefault()),
+                conversationItemId(conversation.threadId)
+            ) == true
             coroutineScope.launch {
-                hubHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                if (flies) {
+                    launch { hubHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing)) }
+                } else {
+                    hubHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                }
                 detailHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
                 isTransitioning = false
             }
@@ -312,12 +324,21 @@ fun MessagingHubScreen(
             composeAttachments = emptyList()
         } else if (!isTransitioning) {
             isTransitioning = true
+            // The Zune layout: the title flies back down to the name it came from, and the
+            // conversation and the board cross under it.
+            val conversation = selectedConv
+            val flies = zuneMotion && conversation != null && hubFlight?.closePage(
+                conversationTitleKey(conversation.threadId),
+                conversation.title.lowercase(java.util.Locale.getDefault())
+            ) == true
             coroutineScope.launch {
+                val boardBack = if (flies) launch { hubHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing)) } else null
                 detailHingeAnim.animateTo(0f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
                 viewModel.closeConversation()
                 composeText = ""
                 composeAttachments = emptyList()
-                hubHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
+                if (boardBack != null) boardBack.join()
+                else hubHingeAnim.animateTo(1f, tween(HINGE_MILLIS, easing = FastOutSlowInEasing))
                 isTransitioning = false
             }
         }

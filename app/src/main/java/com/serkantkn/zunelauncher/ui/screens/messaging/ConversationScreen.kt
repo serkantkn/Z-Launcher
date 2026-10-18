@@ -231,13 +231,24 @@ internal fun ConversationScreen(
                 searching = searching,
                 onSearch = { if (searching) closeSearch() else searching = true }
             )
-        } else Row(
+        } else {
+        // The Zune layout: the name touched in the list flies up and stands over the conversation,
+        // huge, running off the right; its address and the commands go under it.
+        val zuneTitled = com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current
+        if (zuneTitled) {
+            com.serkantkn.zunelauncher.ui.animation.ZuneHubFlightTitle(
+                title = conversation.title.lowercase(Locale.getDefault()),
+                key = conversationTitleKey(conversation.threadId),
+                modifier = Modifier.padding(top = com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_TITLE_TOP - 16.dp)
+            )
+        }
+        Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                if (!zuneTitled) Text(
                     text = conversation.title.lowercase(Locale.getDefault()),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Light,
@@ -282,6 +293,7 @@ internal fun ConversationScreen(
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
+        }
         }
 
         if (searching) {
@@ -976,3 +988,7 @@ private fun PendingMms(message: SmsMessageModel, ink: Color, downloading: Boolea
         }
     }
 }
+
+/** The title a conversation stands under in the Zune layout, and the name in the list it flies from. */
+internal fun conversationTitleKey(threadId: Long) = "MESSAGING:conv:$threadId"
+internal fun conversationItemId(threadId: Long) = "msg:conv:$threadId"

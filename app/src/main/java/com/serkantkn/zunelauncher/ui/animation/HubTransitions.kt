@@ -79,11 +79,14 @@ fun Modifier.pageHingeIn(
 ): Modifier = composed {
     val density = LocalDensity.current
     val zune = LocalZuneMotion.current
+    val flight = LocalZuneHubFlight.current
     val slidePx = with(density) { ZUNE_PAGE_SLIDE.toPx() }
     graphicsLayer {
         val p = progress()
         if (zune) {
-            translationX = zunePageIn(p, slidePx)
+            // While a title is flying to or from the page it does not slide, only fades: the
+            // title lands where the page's title is laid out, and that is where it must stay.
+            translationX = if (flight?.isFlying == true) 0f else zunePageIn(p, slidePx)
         } else {
             rotationY = HingeAnimation.MAX_ROTATION_DEGREES * (1f - p)
             transformOrigin = TransformOrigin(0f, 0.5f)

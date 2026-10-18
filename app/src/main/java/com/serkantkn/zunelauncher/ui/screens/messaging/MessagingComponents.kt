@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.messaging
 
+import com.serkantkn.zunelauncher.ui.animation.zuneFlightLabel
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -180,7 +181,15 @@ internal fun ConversationItem(
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        // In the Zune layout the name lifts off to become the conversation's title.
+                        .zuneFlightLabel(
+                            conversationItemId(conversation.threadId),
+                            MaterialTheme.typography.titleMedium.fontSize,
+                            MaterialTheme.colorScheme.onBackground,
+                            conversation.title
+                        )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(

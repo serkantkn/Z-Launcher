@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.music
 
+import com.serkantkn.zunelauncher.ui.animation.zuneFlightLabel
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -155,7 +156,9 @@ private fun AlbumTile(album: AlbumModel, onOpen: (AlbumModel, Rect?) -> Unit) {
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Normal),
                 color = Color.White,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                // In the Zune layout the name lifts off to become the album's title.
+                modifier = Modifier.zuneFlightLabel(musicAlbumItem(album.id), MaterialTheme.typography.titleSmall.fontSize, Color.White)
             )
             Text(
                 text = album.artist,
@@ -339,7 +342,8 @@ private fun ArtistRow(artist: ArtistModel, onClick: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
                 color = Color.White,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.zuneFlightLabel(musicArtistItem(artist.name), MaterialTheme.typography.titleMedium.fontSize, Color.White, artist.name)
             )
             Text(
                 text = stringResource(R.string.music_artist_counts, artist.albumCount, artist.trackCount),
@@ -552,7 +556,8 @@ fun GenresPage(
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 30.sp),
                     color = Color.White,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.zuneFlightLabel(musicGenreItem(name), 30.sp, Color.White)
                 )
                 Text(
                     text = androidx.compose.ui.res.pluralStringResource(R.plurals.music_genre_tracks, tracks.size, tracks.size),
@@ -730,7 +735,8 @@ fun PlaylistsPage(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
                     color = Color.White,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.zuneFlightLabel(musicPlaylistItem(playlist.id), MaterialTheme.typography.titleMedium.fontSize, Color.White, playlist.name)
                 )
                 Text(
                     text = stringResource(R.string.music_track_count, playlist.songIds.size),
@@ -780,3 +786,10 @@ fun PlaylistDetailPage(
         }
     }
 }
+
+/** The ids the Zune layout's flights know a music name by, in its list and as a title. */
+internal fun musicAlbumItem(id: Long) = "music:album:$id"
+internal fun musicArtistItem(name: String) = "music:artist:$name"
+internal fun musicGenreItem(name: String) = "music:genre:$name"
+internal fun musicPlaylistItem(id: String) = "music:playlist:$id"
+internal fun musicMenuItem(page: Int) = "music:menu:$page"

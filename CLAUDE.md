@@ -15,7 +15,10 @@ A hub supplies its title, headings, pages, bar commands and, on a tablet, what o
 - **Zune layout, phone:** the main hubs - phone, people, messaging, pictures, and music with its
   own menu - stand under a huge, bold, slightly see-through title across the top that runs off the
   right edge and slides left as the pages turn; touching it goes back. The name touched in the Zune
-  list flies up to become it (`ui/animation/ZuneHubFlight.kt`). A hub opts in with `ZuneHub(zuneTitleKey = ...)`;
+  list flies up to become it (`ui/animation/ZuneHubFlight.kt`). Pages opened inside those hubs from
+  a name - a conversation, a contact, a group, an album, a music list - do the same and send the
+  title back down on closing: mark the name with `Modifier.zuneFlightLabel(id, ...)`, call
+  `openPage`/`closePage`, and give the page a `ZuneHubFlightTitle` with the same key. A hub opts in with `ZuneHub(zuneTitleKey = ...)`;
   the people hub then has no panorama and opens on "all".
 
 When writing a hub:

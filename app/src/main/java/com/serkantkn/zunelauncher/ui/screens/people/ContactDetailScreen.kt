@@ -495,8 +495,20 @@ private fun ContactDetailContent(
                         )
                 )
 
+                // The Zune layout: the name touched in the list flies up and stands across the top
+                // of the photo, huge, running off the right.
+                if (com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current) {
+                    com.serkantkn.zunelauncher.ui.animation.ZuneHubFlightTitle(
+                        title = displayDetail.contact.name.lowercase(Locale.getDefault()),
+                        key = contactTitleKey(displayDetail.contact.id),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .statusBarsPadding()
+                            .padding(top = com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_TITLE_TOP, start = ZuneDimens.ScreenPaddingHorizontal)
+                    )
+                }
                 // Contact Name at Bottom-Left of the Photo
-                Text(
+                if (!com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current) Text(
                     text = displayDetail.contact.name.lowercase(Locale.getDefault()),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Light,
@@ -1735,3 +1747,7 @@ private fun WidePaneContactHead(
         )
     }
 }
+
+/** The title a contact's card stands under in the Zune layout, and the name in the list it flies from. */
+internal fun contactTitleKey(id: String) = "PEOPLE:contact:$id"
+internal fun contactItemId(id: String) = "people:contact:$id"

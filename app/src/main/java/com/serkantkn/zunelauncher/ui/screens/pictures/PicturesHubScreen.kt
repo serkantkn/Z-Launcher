@@ -154,11 +154,22 @@ fun PicturesHubScreen(
     val albumTabLabel = selectedAlbum?.bucketName?.ifBlank { unsortedLabel }?.lowercase(Locale.getDefault())
         ?: albumsLabel
 
+    // The Zune layout: an open album's name is the hub's title, flown up from its tile, and the
+    // heading under it stays "albums".
+    val zuneTitled = com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current && !com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen.current
+    val hubFlight = com.serkantkn.zunelauncher.ui.animation.LocalZuneHubFlight.current
     val tabs = listOf(
         stringResource(R.string.pics_tab_camera_roll),
-        albumTabLabel,
+        if (zuneTitled) albumsLabel else albumTabLabel,
         stringResource(R.string.pics_tab_favorites)
     )
+    val picturesTitleKey = selectedAlbum?.let { pictureAlbumTitleKey(it.bucketId) } ?: "PICTURES"
+    var shownPicturesTitle by remember { mutableStateOf(picturesTitleKey to albumTabLabel) }
+    LaunchedEffect(picturesTitleKey) {
+        val (before, beforeText) = shownPicturesTitle
+        if (zuneTitled && before.startsWith("$picturesTitleKey:")) hubFlight?.closePage(before, beforeText)
+        shownPicturesTitle = picturesTitleKey to albumTabLabel
+    }
     val pager = rememberLoopingPagerState(pageCount = tabs.size)
 
     // A pinned album tile asks for its album; the ask waits until the media store has been read.
@@ -262,6 +273,10 @@ fun PicturesHubScreen(
         viewModel.clearSelection()
         viewModel.selectAlbum(album)
         val label = album.bucketName.ifBlank { unsortedLabel }.lowercase(Locale.getDefault())
+        if (zuneTitled) {
+            hubFlight?.openPage(pictureAlbumTitleKey(album.bucketId), label, pictureAlbumItem(album.bucketId))
+            return
+        }
         if (from != null) {
             scope.launch { albumZoom.flyToTitle(label, from, ALBUM_TILE_NAME_SIZE) }
         }
@@ -273,7 +288,8 @@ fun PicturesHubScreen(
         val anchorBounds = albumTabAnchor.bounds
         viewModel.selectAlbum(null)
         viewModel.clearSelection()
-        if (anchorBounds != null) {
+        // The Zune layout's title flies back down by itself, as the title changes.
+        if (anchorBounds != null && !zuneTitled) {
             scope.launch {
                 albumZoom.flyToRowBounds(
                     label = leaving,
@@ -515,8 +531,8 @@ fun PicturesHubScreen(
     }
 
     ZuneHub(
-        title = stringResource(R.string.pictures_hub),
-        zuneTitleKey = "PICTURES",
+        title = if (zuneTitled && selectedAlbum != null) albumTabLabel else stringResource(R.string.pictures_hub),
+        zuneTitleKey = picturesTitleKey,
         tabs = if (isWideScreen) listOf(tabs[0], albumsLabel, tabs[2]) else tabs,
         pager = pager,
         modifier = modifier,

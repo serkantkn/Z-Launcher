@@ -1879,6 +1879,9 @@ private fun HomeHubScreenContent(
                         // title (ZuneHubFlight). A phone only; a tablet's hubs have no such title.
                         val flightKey = when {
                             isWideScreen || hubFlight == null -> null
+                            // "videolar" lands on the videos page's title, "müzik" on the hub's.
+                            hubType == HubType.MUSIC && row.videos ->
+                                com.serkantkn.zunelauncher.ui.screens.music.musicTitleKey(com.serkantkn.zunelauncher.ui.screens.music.MUSIC_VIDEOS_PAGE)
                             hubType == HubType.MUSIC -> com.serkantkn.zunelauncher.ui.screens.music.MUSIC_TITLE_KEY
                             hubType in FLIGHT_HUBS -> hubType.name
                             else -> null

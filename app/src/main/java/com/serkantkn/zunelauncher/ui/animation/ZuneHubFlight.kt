@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.animation
 
+import androidx.compose.ui.composed
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -54,21 +55,42 @@ import kotlin.math.sin
  */
 @Stable
 class ZuneHubFlight {
+    /**
+     * One word in the air: from a list's name up to a title ([down] false), or from a title back
+     * down to the name it came from ([down] true). [key] is the title's; [itemId] the name's in
+     * its list, kept out of sight until the word is back.
+     */
     internal data class Pending(
         val key: String,
         val label: String,
         val from: Rect,
         val fromSize: TextUnit,
-        val fromColor: Color
+        val fromColor: Color,
+        val down: Boolean = false,
+        val to: Rect? = null,
+        val toSize: TextUnit = ZUNE_HUB_TITLE_SIZE,
+        val toColor: Color? = null,
+        val itemId: String? = null,
+        /** How the name reads in its list, where that differs from the title's lowercase. */
+        val listText: String? = null
     )
+
+    /** A name in a list, as it was last laid out, for a word to lift off or land back on. */
+    internal data class Label(val bounds: Rect, val size: TextUnit, val color: Color, val text: String?)
 
     internal var pending by mutableStateOf<Pending?>(null)
     internal var target by mutableStateOf<Rect?>(null)
     internal val progress = Animatable(0f)
     private val known = HashMap<String, Rect>()
+    private val labels = HashMap<String, Label>()
+    /** The name each open page's title came from, so closing it can send the word back there. */
+    private val origins = HashMap<String, Pair<String, Label>>()
 
     /** Whether the title [key] is still in the air, so the hub's own title keeps out of sight. */
     fun hides(key: String): Boolean = pending?.key == key
+
+    /** Whether the list's name [itemId] is the one in the air. */
+    fun hidesItem(itemId: String): Boolean = pending?.itemId == itemId
 
     /** Whether any title is in the air. */
     val isFlying: Boolean get() = pending != null
@@ -79,10 +101,44 @@ class ZuneHubFlight {
         pending = Pending(key, label, from, fromSize, fromColor)
     }
 
+    /**
+     * A page opening from a name in a list: the name [itemId] (marked with [zuneFlightLabel]) lifts
+     * off and becomes the title [key] of the page. False when the name was never laid out.
+     */
+    fun openPage(key: String, label: String, itemId: String): Boolean {
+        val from = labels[itemId] ?: return false
+        origins[key] = itemId to from
+        target = null
+        pending = Pending(key, label, from.bounds, from.size, from.color, itemId = itemId, listText = from.text)
+        return true
+    }
+
+    /**
+     * The page [key] closing: its title goes back down to the name it came from. False when there
+     * is nowhere to go back to - the page was not opened from a name, or its title was never laid
+     * out - and the page simply closes.
+     */
+    fun closePage(key: String, label: String): Boolean {
+        val (itemId, origin) = origins.remove(key) ?: return false
+        val title = known[key] ?: return false
+        target = origin.bounds
+        pending = Pending(
+            key, label, title, ZUNE_HUB_TITLE_SIZE, Color.Unspecified,
+            down = true, to = origin.bounds, toSize = origin.size, toColor = origin.color, itemId = itemId,
+            listText = origin.text
+        )
+        return true
+    }
+
     /** Where hub [key]'s title has been laid out; the word in the air for it lands there. */
     internal fun land(key: String, bounds: Rect) {
         known[key] = bounds
-        if (pending?.key == key) target = bounds
+        val now = pending
+        if (now != null && now.key == key && !now.down) target = bounds
+    }
+
+    internal fun mark(itemId: String, label: Label) {
+        labels[itemId] = label
     }
 
     internal fun lastKnown(key: String): Rect? = known[key]
@@ -91,6 +147,36 @@ class ZuneHubFlight {
         pending = null
         target = null
     }
+}
+
+/**
+ * Marks a name in a list as one a page's title may lift off from and come back to, in the Zune
+ * layout: where it is, at what size and in what colour. Out of sight while it is the word in the
+ * air. Nothing at all in the other layouts.
+ */
+fun Modifier.zuneFlightLabel(
+    itemId: String,
+    fontSize: TextUnit,
+    color: Color,
+    /** The name as the list writes it, when the title writes it otherwise (lowercase). */
+    text: String? = null
+): Modifier = composed {
+    val flight = LocalZuneHubFlight.current
+    if (flight == null || !LocalZuneMotion.current) return@composed this
+    this
+        .onGloballyPositioned { coordinates ->
+            val at = coordinates.positionInWindow()
+            flight.mark(
+                itemId,
+                ZuneHubFlight.Label(
+                    Rect(at.x, at.y, at.x + coordinates.size.width, at.y + coordinates.size.height),
+                    fontSize,
+                    color,
+                    text
+                )
+            )
+        }
+        .graphicsLayer { alpha = if (flight.hidesItem(itemId)) 0f else 1f }
 }
 
 /** The flight under way, if the launcher keeps one; null where there is none (a preview). */
@@ -212,26 +298,39 @@ fun ZuneHubFlightOverlay(state: ZuneHubFlight) {
 
     val density = LocalDensity.current
     val ink = if (LocalZuneColors.current.isDark) Color.White else Color.Black
+    val titleColour = ink.copy(alpha = ZUNE_HUB_TITLE_ALPHA)
     val to = state.target
-    // Laid out once at the size it lands at, and scaled down to where it starts.
-    val endPx = with(density) { ZUNE_HUB_TITLE_SIZE.toPx() }
-    val startScale = with(density) { pending.fromSize.toPx() } / endPx
+    // Laid out once at the title's size, and scaled to the name's at the other end.
+    val titlePx = with(density) { ZUNE_HUB_TITLE_SIZE.toPx() }
+    val fromScale = with(density) { pending.fromSize.toPx() } / titlePx
+    val toScale = with(density) { pending.toSize.toPx() } / titlePx
     val t = if (to == null) 0f else state.progress.value
+    // A list's line and the title's sit their glyphs differently in their boxes; at the name's
+    // end the word is centred on it, at the title's it lies exactly on it.
+    val fromDrop = if (pending.down) 0f else (pending.from.height - titlePx * fromScale) / 2f
+    val toDrop = if (!pending.down || to == null) 0f else (to.height - titlePx * toScale) / 2f
     val x = if (to == null) pending.from.left else lerp(pending.from.left, to.left, t)
-    // The list's line and the title's sit their glyphs differently in their boxes; the word
-    // starts centred on the one it lifts off, and ends exactly on the title.
-    val startDrop = (pending.from.height - endPx * startScale) / 2f
-    val y = if (to == null) pending.from.top + startDrop else lerp(pending.from.top + startDrop, to.top, t)
-    val scale = lerp(startScale, 1f, t) * (1f + BULGE * sin(t * Math.PI).toFloat())
-    // Thin as it was in the list, heavy as it lands: the two weights cross over mid-flight.
-    val heavy = ((t - 0.2f) / 0.6f).coerceIn(0f, 1f)
-    val colour = lerp(pending.fromColor, ink.copy(alpha = ZUNE_HUB_TITLE_ALPHA), t)
+    val y = if (to == null) pending.from.top + fromDrop else lerp(pending.from.top + fromDrop, to.top + toDrop, t)
+    val scale = lerp(fromScale, toScale, t) * (1f + BULGE * sin(t * Math.PI).toFloat())
+    // Thin in the list, heavy as the title: the two weights cross over mid-flight.
+    val crossing = ((t - 0.2f) / 0.6f).coerceIn(0f, 1f)
+    val heavy = if (pending.down) 1f - crossing else crossing
+    val colour = if (pending.down) {
+        lerp(titleColour, pending.toColor ?: titleColour, t)
+    } else {
+        lerp(pending.fromColor, titleColour, t)
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        listOf(FontWeight.Light to 1f - heavy, FontWeight.Bold to heavy).forEach { (weight, alpha) ->
+        // The thin word reads as the list writes it, the heavy one as the title does: the name
+        // turns lowercase as it thickens, not in the instant it is touched.
+        listOf(
+            Triple(FontWeight.Light, 1f - heavy, pending.listText ?: pending.label),
+            Triple(FontWeight.Bold, heavy, pending.label)
+        ).forEach { (weight, alpha, words) ->
             if (alpha <= 0f) return@forEach
             Text(
-                text = pending.label,
+                text = words,
                 style = zuneHubTitleStyle(weight),
                 color = colour,
                 maxLines = 1,

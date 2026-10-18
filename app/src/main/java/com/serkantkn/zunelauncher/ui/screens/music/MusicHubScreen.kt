@@ -254,6 +254,26 @@ fun MusicHubScreen(
                 }
             }
 
+            // The Zune title: what it says, and which page of the hub it is the title of - the hub,
+            // one of its lists, or what is open in one. Going back up, the title flies back down to
+            // the name it came from (ZuneHubFlight).
+            val hubFlight = com.serkantkn.zunelauncher.ui.animation.LocalZuneHubFlight.current
+            val zuneDetail = when (zuneSection) {
+                ALBUMS_TAB -> selectedAlbum?.let { "album:${it.id}" }
+                ARTISTS_TAB -> selectedArtist?.let { "artist:${it.name}" }
+                GENRES_TAB -> selectedGenre?.let { "genre:$it" }
+                PLAYLISTS_TAB -> openPlaylist?.let { "playlist:${it.id}" }
+                else -> null
+            }
+            val zuneTitleKey = musicTitleKey(zuneSection, zuneDetail)
+            val zuneTitleText = zuneSection?.let { pages.getOrNull(it) } ?: stringResource(R.string.zune_row_music)
+            var shownTitle by remember { mutableStateOf(zuneTitleKey to zuneTitleText) }
+            LaunchedEffect(zuneTitleKey) {
+                val (before, beforeText) = shownTitle
+                if (zuneMenu && before.startsWith("$zuneTitleKey:")) hubFlight?.closePage(before, beforeText)
+                shownTitle = zuneTitleKey to zuneTitleText
+            }
+
             // "videos" in the Zune list opens the hub here.
             val showVideos by com.serkantkn.zunelauncher.data.repository.MusicBridge.showVideos.collectAsState()
             LaunchedEffect(showVideos) {
@@ -271,7 +291,12 @@ fun MusicHubScreen(
             fun openAlbum(album: AlbumModel, from: Rect?) {
                 viewModel.selectAlbum(album)
                 if (zuneMenu) {
-                    // The album's name is the title now, and comes in as the title does.
+                    // The album's name flies up from its tile and becomes the title.
+                    hubFlight?.openPage(
+                        musicTitleKey(ALBUMS_TAB, "album:${album.id}"),
+                        album.title.lowercase(Locale.getDefault()),
+                        musicAlbumItem(album.id)
+                    )
                     openSection(ALBUMS_TAB)
                     return
                 }
@@ -385,8 +410,8 @@ fun MusicHubScreen(
                 phoneHeader = if (zuneMenu) {
                     {
                         ZuneMusicTitle(
-                            title = zuneSection?.let { pages.getOrNull(it) } ?: stringResource(R.string.zune_row_music),
-                            arrived = { sectionIn.value }
+                            title = zuneTitleText,
+                            key = zuneTitleKey
                         )
                     }
                 } else { {
@@ -484,6 +509,10 @@ fun MusicHubScreen(
                             add(ZuneMusicEntry(VIDEOS_TAB, stringResource(R.string.music_tab_videos)))
                         }
                         ZuneMusicMenu(entries = entries, onPick = { page ->
+                            // The word touched flies up and becomes the list's title.
+                            entries.firstOrNull { it.page == page }?.let { entry ->
+                                hubFlight?.openPage(musicTitleKey(page), entry.label, musicMenuItem(page))
+                            }
                             // A list opens at its top, not inside whatever was open in it before.
                             viewModel.selectAlbum(null)
                             viewModel.selectArtist(null)
@@ -666,18 +695,39 @@ fun MusicHubScreen(
                         selectedArtist = selectedArtist,
                         onOpenAlbum = ::openAlbum,
                         onOpenArtist = { artist ->
+                            if (zuneMenu) {
+                                hubFlight?.openPage(
+                                    musicTitleKey(ARTISTS_TAB, "artist:${artist.name}"),
+                                    artist.name.lowercase(Locale.getDefault()),
+                                    musicArtistItem(artist.name)
+                                )
+                            }
                             viewModel.selectArtist(artist)
                             if (zuneMenu) openSection(ARTISTS_TAB) else scope.launch { pager.scrollToPage(ARTISTS_TAB) }
                         },
                         onTrackLongPress = { trackSheetTarget = it },
                         openPlaylist = openPlaylist,
                         onOpenPlaylist = { playlist ->
+                            if (zuneMenu) {
+                                hubFlight?.openPage(
+                                    musicTitleKey(PLAYLISTS_TAB, "playlist:${playlist.id}"),
+                                    playlist.name.lowercase(Locale.getDefault()),
+                                    musicPlaylistItem(playlist.id)
+                                )
+                            }
                             viewModel.selectPlaylist(playlist.id)
                             scope.launch { pager.scrollToPage(PLAYLISTS_TAB) }
                         },
                         onNewPlaylist = { showNewPlaylist = true },
                         selectedGenre = selectedGenre,
                         onOpenGenre = { genre ->
+                            if (zuneMenu) {
+                                hubFlight?.openPage(
+                                    musicTitleKey(GENRES_TAB, "genre:$genre"),
+                                    genre.lowercase(Locale.getDefault()),
+                                    musicGenreItem(genre)
+                                )
+                            }
                             viewModel.selectGenre(genre)
                             if (zuneMenu) openSection(GENRES_TAB)
                         }
@@ -697,7 +747,7 @@ private const val ALBUMS_TAB = 1
 private const val ARTISTS_TAB = 2
 private const val SONGS_TAB = 3
 private const val PLAYLISTS_TAB = 4
-private const val VIDEOS_TAB = 5
+private const val VIDEOS_TAB = MUSIC_VIDEOS_PAGE
 /** Only in the Zune layout, after the rest so they keep their places. */
 private const val GENRES_TAB = 6
 
