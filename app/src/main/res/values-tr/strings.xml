@@ -727,7 +727,7 @@
     <string name="social_test_message">Selam! Windows Phone bildirim kartı harika görünüyor. Bu kartı aşağı sürükleyerek bana hızlı yanıt yazmayı deneyebilirsin!</string>
     <string name="social_test_reply_sent">Test yanıtı gönderildi: \"%1$s\"</string>
     <string name="notes_locked_note">kilitli not</string>
-    <string name="apps_favorites_limit">Ücretsiz sürümde en fazla 10 favori uygulama ekleyebilirsiniz. Sınırı kaldırmak için Z Launcher Pro\'ya geçin.</string>
+    <string name="apps_favorites_limit">Ücretsiz sürümde başlangıca en fazla 10 uygulama sabitleyebilirsiniz. Sınırı kaldırmak için Z Launcher Pro\'ya geçin.</string>
     <string name="launcher_fullscreen">Tam Ekran Yap</string>
     <string name="launcher_close_hub">Hubı Kapat</string>
     <string name="toast_quick_reply">hızlı yanıt ver:</string>
@@ -1263,6 +1263,10 @@
     <string name="quickplay_new">yeni</string>
     <string name="quickplay_pin">quickplay\'e sabitle</string>
     <string name="quickplay_unpin">quickplay\'den kaldır</string>
+    <string name="zune_tiles_show_more">daha fazla göster</string>
+    <string name="zune_tiles_show_less">daha az göster</string>
+    <string name="zune_favourites_moved">favori uygulamaların artık sağdaki karolar sayfasında</string>
+    <string name="zune_tiles_empty_line">başlangıca sabitlediğin uygulamalar ve hub\'lardan sabitlediklerin burada karo olarak durur. bir uygulamayı uygulama listesinde basılı tutup sabitleyebilirsin.</string>
     <string name="quickplay_empty">henüz bir şey yok. çaldığın, çektiğin, yazdığın ve açtığın burada birikir.</string>
     <string name="quickplay_hint">sabitlemek için birine basılı tut · uygulama listesi için kaydırmaya devam et</string>
     <string name="zune_line_pinned_notes">%1$d sabitli</string>

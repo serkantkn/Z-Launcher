@@ -100,6 +100,8 @@ fun AppsHubScreen(
     val availableLetters by viewModel.availableLetters.collectAsState()
     val favoritePackages by viewModel.favoritePackages.collectAsState()
     val hiddenApps by viewModel.hiddenApps.collectAsState()
+    val quickplayApps by viewModel.quickplayApps.collectAsState()
+    val zuneLayout = com.serkantkn.zunelauncher.ui.animation.LocalZuneMotion.current
     val showingHidden by viewModel.showingHidden.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
@@ -490,6 +492,18 @@ fun AppsHubScreen(
                             menuTarget = null
                         }
                     )
+                    // The Zune layout keeps a second place for an app close at hand: quickplay.
+                    if (zuneLayout) {
+                        val inQuickplay = app.packageName in quickplayApps
+                        add(
+                            AppMenuItem(
+                                stringResource(if (inQuickplay) R.string.quickplay_unpin else R.string.quickplay_pin)
+                            ) {
+                                viewModel.toggleQuickplayApp(app.packageName, app.label)
+                                menuTarget = null
+                            }
+                        )
+                    }
                     add(
                         AppMenuItem(
                             stringResource(if (hidden) R.string.apps_unhide else R.string.apps_hide)

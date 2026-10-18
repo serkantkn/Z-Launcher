@@ -68,6 +68,8 @@ import com.serkantkn.zunelauncher.data.repository.NotesBridge
 import com.serkantkn.zunelauncher.data.repository.PicturesBridge
 import com.serkantkn.zunelauncher.ui.animation.w10mStaggeredAnimation
 import com.serkantkn.zunelauncher.data.model.QuickplayPin
+import com.serkantkn.zunelauncher.data.model.Quickplay
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material.icons.filled.PlayArrow
 import com.serkantkn.zunelauncher.ui.components.TileIconImage
 import com.serkantkn.zunelauncher.ui.components.wpTilt
@@ -95,6 +97,13 @@ fun QuickplayScreen(
     isHubOpen: Boolean,
     onHubSelected: (HubType) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Drawn above the page's name, in the same scroll: on a tablet, the pinned tiles stand over
+     * quickplay in the one pane at the right of the Zune list.
+     */
+    top: (@Composable ColumnScope.() -> Unit)? = null,
+    /** Room left at the top, under the status bar; less where something stands above. */
+    topGap: androidx.compose.ui.unit.Dp = 36.dp,
     viewModel: HomeHubViewModel = viewModel()
 ) {
     val zuneColors = LocalZuneColors.current
@@ -184,25 +193,13 @@ fun QuickplayScreen(
     )
     fun notePin(note: Note) = QuickplayPin(QuickplayPin.Kind.NOTE, note.id, note.title, note.colorHex.orEmpty())
     fun appPin(app: AppInfo) = QuickplayPin(QuickplayPin.Kind.APP, app.packageName, app.label)
-    fun openPin(pin: QuickplayPin) = leaveFor {
-        when (pin.kind) {
-            QuickplayPin.Kind.ALBUM -> pin.key.toLongOrNull()?.let {
-                playAlbum(RecentAlbum(it, pin.title, pin.subtitle, pin.art), onHubSelected)
-            }
-            QuickplayPin.Kind.PHOTO -> {
-                PicturesBridge.openPhoto(android.net.Uri.parse(pin.key))
-                onHubSelected(HubType.PICTURES)
-            }
-            QuickplayPin.Kind.VIDEO -> com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(
-                context, android.net.Uri.parse(pin.key), pin.title
-            )
-            QuickplayPin.Kind.NOTE -> {
-                NotesBridge.open(pin.key)
-                onHubSelected(HubType.NOTES)
-            }
-            QuickplayPin.Kind.APP -> viewModel.launchApp(pin.key)
-        }
-    }
+    fun openPin(pin: QuickplayPin) = leaveFor { openQuickplayItem(pin, context, viewModel, onHubSelected) }
+
+    // Across a tablet three squares to a row would each be the size of a hand; the rows hold
+    // twice as many there.
+    val wide = com.serkantkn.zunelauncher.ui.theme.LocalIsWideScreen.current
+    val squares = if (wide) 6 else 3
+    val appsPerRow = if (wide) 8 else 4
 
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -214,7 +211,8 @@ fun QuickplayScreen(
             .verticalScroll(rememberScrollState())
             .padding(start = ZuneDimens.ScreenPaddingHorizontal, end = ZuneDimens.ScreenPaddingHorizontal)
     ) {
-        Spacer(modifier = Modifier.height(topInset + 36.dp))
+        Spacer(modifier = Modifier.height(topInset + topGap))
+        top?.invoke(this)
         Text(
             text = stringResource(R.string.zune_quickplay),
             style = MaterialTheme.typography.displayLarge.copy(
@@ -244,7 +242,7 @@ fun QuickplayScreen(
         // ── Pins: what was chosen to stay, ahead of everything that merely happened ──
         if (state.pins.isNotEmpty()) {
             SectionWord(stringResource(R.string.quickplay_pins), Modifier.w10mStaggeredAnimation({ entrance.value }, slot++))
-            state.pins.chunked(3).forEach { row ->
+            state.pins.chunked(squares).forEach { row ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(Gap),
                     modifier = Modifier
@@ -262,7 +260,7 @@ fun QuickplayScreen(
                             onClick = { openPin(pin) }
                         )
                     }
-                    repeat(3 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                    repeat(squares - row.size) { Spacer(modifier = Modifier.weight(1f)) }
                 }
             }
             Spacer(modifier = Modifier.height(SectionGap - Gap))
@@ -320,7 +318,7 @@ fun QuickplayScreen(
         // ── Pictures ──
         if (state.recentPhotos.isNotEmpty()) {
             SectionWord(stringResource(R.string.quickplay_photos), Modifier.w10mStaggeredAnimation({ entrance.value }, slot++))
-            state.recentPhotos.chunked(3).forEach { row ->
+            state.recentPhotos.chunked(squares).forEach { row ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(Gap),
                     modifier = Modifier
@@ -348,7 +346,7 @@ fun QuickplayScreen(
                             )
                         }
                     }
-                    repeat(3 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                    repeat(squares - row.size) { Spacer(modifier = Modifier.weight(1f)) }
                 }
             }
             Spacer(modifier = Modifier.height(SectionGap - Gap))
@@ -378,7 +376,7 @@ fun QuickplayScreen(
         // ── Apps ──
         if (state.recentApps.isNotEmpty()) {
             SectionWord(stringResource(R.string.zune_recent_apps), Modifier.w10mStaggeredAnimation({ entrance.value }, slot++))
-            state.recentApps.chunked(4).forEach { row ->
+            state.recentApps.chunked(appsPerRow).forEach { row ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(Gap),
                     modifier = Modifier
@@ -412,7 +410,7 @@ fun QuickplayScreen(
                             )
                         }
                     }
-                    repeat(4 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                    repeat(appsPerRow - row.size) { Spacer(modifier = Modifier.weight(1f)) }
                 }
             }
         }
@@ -462,7 +460,7 @@ fun QuickplayScreen(
                             PlayMark(Modifier.align(Alignment.Center))
                         }
                     }
-                    repeat(3 - state.newVideos.size) { Spacer(modifier = Modifier.weight(1f)) }
+                    repeat(squares - state.newVideos.size) { Spacer(modifier = Modifier.weight(1f)) }
                 }
             }
         }
@@ -493,6 +491,129 @@ fun QuickplayScreen(
             }
         }
     }
+    }
+}
+
+/** Opens one thing quickplay holds - pinned, lately used or new - where it belongs. */
+internal fun openQuickplayItem(
+    item: QuickplayPin,
+    context: android.content.Context,
+    viewModel: HomeHubViewModel,
+    onHubSelected: (HubType) -> Unit
+) {
+    when (item.kind) {
+        QuickplayPin.Kind.ALBUM -> item.key.toLongOrNull()?.let {
+            playAlbum(RecentAlbum(it, item.title, item.subtitle, item.art), onHubSelected)
+        }
+        QuickplayPin.Kind.PHOTO -> {
+            PicturesBridge.openPhoto(android.net.Uri.parse(item.key))
+            onHubSelected(HubType.PICTURES)
+        }
+        QuickplayPin.Kind.VIDEO -> com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(
+            context, android.net.Uri.parse(item.key), item.title
+        )
+        QuickplayPin.Kind.NOTE -> {
+            NotesBridge.open(item.key)
+            onHubSelected(HubType.NOTES)
+        }
+        QuickplayPin.Kind.APP -> viewModel.launchApp(item.key)
+    }
+}
+
+/**
+ * What the narrow strip beside the Zune list shows of quickplay: the pins first, then what was
+ * lately played, taken, opened and written, then what is new - each once, at most [limit].
+ */
+internal fun quickplayStripItems(state: Quickplay, limit: Int): List<QuickplayPin> {
+    val lately = buildList {
+        state.recentAlbums.firstOrNull()?.let {
+            add(QuickplayPin(QuickplayPin.Kind.ALBUM, it.id.toString(), it.title, it.artist, it.artUri))
+        }
+        state.recentPhotos.take(2).forEach {
+            add(QuickplayPin(QuickplayPin.Kind.PHOTO, it.uri.toString(), it.displayName, art = it.uri.toString()))
+        }
+        state.recentApps.take(3).forEach { add(QuickplayPin(QuickplayPin.Kind.APP, it.packageName, it.label)) }
+        state.recentNotes.firstOrNull()?.let {
+            add(QuickplayPin(QuickplayPin.Kind.NOTE, it.id, it.title, it.colorHex.orEmpty()))
+        }
+        state.newAlbums.firstOrNull()?.let {
+            add(QuickplayPin(QuickplayPin.Kind.ALBUM, it.id.toString(), it.title, it.artist, it.artUri))
+        }
+        state.newVideos.firstOrNull()?.let {
+            add(QuickplayPin(QuickplayPin.Kind.VIDEO, it.uri.toString(), it.displayName, art = it.uri.toString()))
+        }
+    }
+    val all = mutableListOf<QuickplayPin>()
+    (state.pins + lately).forEach { item -> if (all.none { it.sameAs(item) }) all.add(item) }
+    return all.take(limit)
+}
+
+/** One square of the strip: its picture, its note colour, or its app's icon on the accent. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun QuickplayStripSquare(
+    item: QuickplayPin,
+    face: TileIconFace?,
+    cornerStyle: TileCornerStyle,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val zuneColors = LocalZuneColors.current
+    val shape = RoundedCornerShape(if (cornerStyle == TileCornerStyle.ROUNDED) 6.dp else 0.dp)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(shape)
+            .background(
+                if (item.kind == QuickplayPin.Kind.NOTE) noteColor(item.subtitle.ifBlank { null }, zuneColors.accentColor)
+                else zuneColors.accentColor
+            )
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    ) {
+        when {
+            item.art != null -> {
+                // A record whose cover the store only claims to have shows its name under it.
+                if (item.kind == QuickplayPin.Kind.ALBUM) {
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 10.sp),
+                        color = Color.White,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(3.dp)
+                    )
+                }
+                AsyncImage(
+                    model = item.art,
+                    contentDescription = item.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                if (item.kind == QuickplayPin.Kind.VIDEO) {
+                    androidx.compose.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.align(Alignment.Center).size(18.dp)
+                    )
+                }
+            }
+            face != null -> TileIconImage(
+                face = face,
+                size = 24.dp,
+                ink = Color.White,
+                contentDescription = item.title,
+                modifier = Modifier.align(Alignment.Center)
+            )
+            else -> Text(
+                text = item.title.take(2),
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Light),
+                color = Color.White,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
     }
 }
 

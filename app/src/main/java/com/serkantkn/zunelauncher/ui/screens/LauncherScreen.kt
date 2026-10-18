@@ -46,7 +46,6 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubType
-import com.serkantkn.zunelauncher.ui.screens.home.QuickplayScreen
 import com.serkantkn.zunelauncher.data.model.HubBackgroundMode
 import com.serkantkn.zunelauncher.data.model.NotificationStyle
 import com.serkantkn.zunelauncher.data.repository.SocialRepository
@@ -100,11 +99,12 @@ fun LauncherScreen(
     homeHubViewModel: HomeHubViewModel = viewModel()
 ) {
     val navState = rememberZuneNavigationState()
-    // Social, Start, the app list — and, in the Zune layout, quickplay between Start and the
-    // apps, as on the Zune HD. The app list is the last page either way.
+    // Social, Start, the app list — and, in the Zune layout on a phone, the tiles between the
+    // list and the apps (quickplay lives in the list's strip). A tablet shows the tiles over
+    // quickplay beside its list, so it has no page of them. The app list is the last page.
     val homeScreenLayout by settingsViewModel.homeScreenLayout.collectAsState()
-    val hasQuickplay = homeScreenLayout == HomeScreenLayout.ZUNE
-    val appsPage = if (hasQuickplay) 3 else 2
+    val hasTilesPage = homeScreenLayout == HomeScreenLayout.ZUNE && !LocalIsWideScreen.current
+    val appsPage = if (hasTilesPage) 3 else 2
     // The tablet's Windows 8 Start has its app list under it (a swipe up), not beside it: the
     // pager stops at Start there, or a sideways drag on the empty band above or below the tiles
     // turned up the phone's app list instead.
@@ -113,7 +113,7 @@ fun LauncherScreen(
         initialPage = 1,
         pageCount = {
             when {
-                homeScreenLayout == HomeScreenLayout.ZUNE -> 4
+                hasTilesPage -> 4
                 tabletStart -> 2
                 else -> 3
             }
@@ -585,6 +585,27 @@ fun LauncherScreen(
                     )
                 }
 
+                // The Zune layout's tiles, beside its list: Back to the list on the right swipe,
+                // on to the apps on the left.
+                val tilesPage: @Composable () -> Unit = {
+                    HomeHubScreen(
+                        tilesPage = true,
+                        isHubOpen = isHubOpen,
+                        isCurrentPage = pagerState.currentPage == 2,
+                        onNavigateToSocialHub = {
+                            coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                        },
+                        onNavigateToAppsHub = {
+                            coroutineScope.launch { pagerState.animateScrollToPage(appsPage) }
+                        },
+                        onHubSelected = { hub -> if (hub != HubType.HOME) navState.openHub(hub) },
+                        homeResetSignal = homeResetSignal,
+                        runningHubs = navState.backgroundHubs.toSet(),
+                        timeFormat = timeFormat,
+                        dateFormat = dateFormat
+                    )
+                }
+
                 /**
                  * A hub's ground: its wallpaper and the shade over it. The hub stands on it, and
                  * anything that covers the hub - a sub-page, the browser's start page - is handed
@@ -717,12 +738,8 @@ fun LauncherScreen(
                                         when (page) {
                                             0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
                                             1 -> startPage(false)
-                                            2 -> if (hasQuickplay) {
-                                                QuickplayScreen(
-                                                    isCurrentPage = pagerState.currentPage == 2,
-                                                    isHubOpen = false,
-                                                    onHubSelected = { hub -> navState.openHub(hub) }
-                                                )
+                                            2 -> if (hasTilesPage) {
+                                                tilesPage()
                                             } else {
                                                 AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
                                             }
@@ -887,12 +904,8 @@ fun LauncherScreen(
                                     when (page) {
                                         0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
                                         1 -> startPage(false)
-                                        2 -> if (hasQuickplay) {
-                                            QuickplayScreen(
-                                                isCurrentPage = pagerState.currentPage == 2,
-                                                isHubOpen = false,
-                                                onHubSelected = { hub -> navState.openHub(hub) }
-                                            )
+                                        2 -> if (hasTilesPage) {
+                                            tilesPage()
                                         } else {
                                             AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
                                         }
@@ -973,14 +986,8 @@ fun LauncherScreen(
                             when (page) {
                                 0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
                                 1 -> startPage(isHubOpen)
-                                2 -> if (hasQuickplay) {
-                                    QuickplayScreen(
-                                        isCurrentPage = pagerState.currentPage == 2,
-                                        isHubOpen = isHubOpen,
-                                        onHubSelected = { hub ->
-                                            if (hub != HubType.HOME) navState.openHub(hub)
-                                        }
-                                    )
+                                2 -> if (hasTilesPage) {
+                                    tilesPage()
                                 } else {
                                     AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
                                 }

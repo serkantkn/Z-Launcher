@@ -156,6 +156,23 @@ class AppsHubViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { settingsDataStore.noteAppLaunched(app.packageName) }
     }
 
+    /** The apps pinned to quickplay, which the Zune layout's app list offers to pin or take off. */
+    val quickplayApps: kotlinx.coroutines.flow.StateFlow<Set<String>> = settingsDataStore.quickplayPins
+        .map { pins ->
+            pins.filter { it.kind == com.serkantkn.zunelauncher.data.model.QuickplayPin.Kind.APP }.mapTo(HashSet()) { it.key }
+        }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptySet<String>())
+
+    fun toggleQuickplayApp(packageName: String, label: String) {
+        viewModelScope.launch {
+            settingsDataStore.toggleQuickplayPin(
+                com.serkantkn.zunelauncher.data.model.QuickplayPin(
+                    com.serkantkn.zunelauncher.data.model.QuickplayPin.Kind.APP, packageName, label
+                )
+            )
+        }
+    }
+
     fun toggleFavorite(packageName: String) {
         viewModelScope.launch { appRepository.toggleFavorite(packageName) }
     }

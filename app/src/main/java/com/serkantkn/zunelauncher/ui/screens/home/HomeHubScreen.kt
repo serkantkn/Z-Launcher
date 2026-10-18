@@ -1,5 +1,9 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
+import androidx.compose.ui.unit.times
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.draw.clipToBounds
+import com.serkantkn.zunelauncher.data.model.QuickplayPin
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import android.graphics.drawable.Drawable
@@ -184,6 +188,11 @@ fun HomeHubScreen(
     runningHubs: Set<HubType> = emptySet(),
     timeFormat: String = "HH:mm",
     dateFormat: String = "EEEE, MMMM d",
+    /**
+     * The Zune layout's tiles page, beside its list: the Windows Phone board, with the pinned
+     * apps and what was pinned from the hubs, but not the hubs themselves - the list is those.
+     */
+    tilesPage: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: HomeHubViewModel = viewModel()
 ) {
@@ -208,6 +217,7 @@ fun HomeHubScreen(
             runningHubs = runningHubs,
             timeFormat = timeFormat,
             dateFormat = dateFormat,
+            tilesPage = tilesPage,
             modifier = modifier,
             viewModel = viewModel
         )
@@ -227,6 +237,7 @@ private fun HomeHubScreenContent(
     runningHubs: Set<HubType>,
     timeFormat: String,
     dateFormat: String,
+    tilesPage: Boolean,
     modifier: Modifier,
     viewModel: HomeHubViewModel
 ) {
@@ -285,6 +296,10 @@ private fun HomeHubScreenContent(
 
     // ── State ──
     var isEditMode by remember { mutableStateOf(false) }
+    // Set when it is the tiles being edited, not the Zune list beside them (a tablet shows both):
+    // the list keeps its names plain rather than sprouting its own edit buttons.
+    var tilesEditOnly by remember { mutableStateOf(false) }
+    LaunchedEffect(isEditMode) { if (!isEditMode) tilesEditOnly = false }
     var isFavoritesExpanded by remember { mutableStateOf(false) }
 
     var localStartTiles by remember(unifiedStartTilesFlow) { mutableStateOf(unifiedStartTilesFlow) }
@@ -332,6 +347,22 @@ private fun HomeHubScreenContent(
     // the turnstile; the Windows Phone and Windows 8 boards keep their own motion untouched.
     val zuneMode = homeScreenLayout == HomeScreenLayout.ZUNE
     val zuneModeNow by rememberUpdatedState(zuneMode)
+    // The Zune layout's tiles leave the hubs out: its list is the hubs. Everything else on the
+    // board - apps, and what was pinned from inside the hubs - is the same board the Windows
+    // Phone layout shows, so pinning in either is pinning in both.
+    val boardTiles = remember(localStartTiles, zuneMode) {
+        if (!zuneMode) localStartTiles else localStartTiles.mapNotNull { tile ->
+            when (tile) {
+                is StartTileUIModel.Hub -> null
+                is StartTileUIModel.Folder -> tile.copy(children = tile.children.filterNot { it is StartTileUIModel.Hub })
+                    .takeIf { it.children.isNotEmpty() }
+                else -> tile
+            }
+        }
+    }
+    // The quickplay the Zune list carries in its strip and opens beside itself.
+    val quickplayState by viewModel.quickplay.collectAsState()
+    val stripItems = remember(quickplayState) { quickplayStripItems(quickplayState, QUICKPLAY_STRIP_ITEMS) }
     /** The time Start takes to come in, by the layout's own motion. */
     fun enterMillis() = if (zuneModeNow) com.serkantkn.zunelauncher.ui.animation.ZUNE_ENTER_MILLIS else 1200
     val win8Bounds = remember { com.serkantkn.zunelauncher.ui.animation.Win8Motion.Bounds() }
@@ -381,6 +412,8 @@ private fun HomeHubScreenContent(
     val animationsOn = LocalAnimationsEnabled.current
 
     LaunchedEffect(isCurrentPage) {
+        // The strip's "new" reads the music afresh whenever the list comes into view.
+        if (isCurrentPage && zuneMode && !tilesPage) viewModel.refreshNewMusic()
         if (!isCurrentPage) {
             clickedItemKey = null
             launching = false
@@ -480,7 +513,7 @@ private fun HomeHubScreenContent(
         }
     }
 
-    // ── Grid state for expanded favorites ──
+    // ── Grid state (the Home key scrolls it back) ──
     val gridState = rememberLazyGridState()
     // Hoisted: the Home key, pressed on a Start screen that is already in front, takes the board
     // back to its beginning.
@@ -490,25 +523,6 @@ private fun HomeHubScreenContent(
     val zuneScrollState = rememberScrollState()
     val win8ScrollState = rememberScrollState()
     val localDensity = LocalDensity.current
-
-    val gridDragDropState = rememberGridDragDropState(
-        gridState = gridState,
-        onMove = { fromIndex, toIndex ->
-            // Index 0 = "fav_label", tiles start at 1
-            if (fromIndex >= 1 && toIndex >= 1) {
-                val fromFavIndex = fromIndex - 1
-                val toFavIndex = toIndex - 1
-                val newList = favoriteApps.toMutableList()
-                if (fromFavIndex < newList.size) {
-                    val item = newList.removeAt(fromFavIndex)
-                    val insertIndex = toFavIndex.coerceAtMost(newList.size)
-                    newList.add(insertIndex, item)
-                    favoriteApps = newList
-                    viewModel.updateFavoritesOrder(newList)
-                }
-            }
-        }
-    )
 
     // ── Layout ──
     val p = expandProgress.value
@@ -596,6 +610,8 @@ private fun HomeHubScreenContent(
 
     // The Zune list's wallpaper drifts a little behind the list, and only there.
     LaunchedEffect(homeScreenLayout, isWideScreen, animationsOn) {
+        // The tiles page beside the list has no say in it.
+        if (tilesPage) return@LaunchedEffect
         if (homeScreenLayout == HomeScreenLayout.ZUNE && !isWideScreen && animationsOn) {
             snapshotFlow { zuneScrollState.value }.collect { StartParallax.set(it * StartParallax.FACTOR) }
         } else {
@@ -746,6 +762,7 @@ private fun HomeHubScreenContent(
     val holdApp: (AppInfo) -> Unit = { app ->
         val found = if (isEditMode) emptyList() else com.serkantkn.zunelauncher.util.AppShortcuts.of(shortcutsContext, app.packageName)
         if (found.isEmpty()) {
+            tilesEditOnly = zuneMode
             isEditMode = true
         } else {
             shortcutApp = app
@@ -830,6 +847,14 @@ private fun HomeHubScreenContent(
             localStartTiles = newList
             viewModel.updateStartTilesOrder(newList)
         }
+    }
+
+    /** A move on a board that leaves the hubs out, made on the whole board the hubs stay on. */
+    fun moveBoardTile(from: Int, to: Int) {
+        if (boardTiles === localStartTiles) return moveStartTile(from, to)
+        val fromId = boardTiles.getOrNull(from)?.id ?: return
+        val toId = boardTiles.getOrNull(to)?.id ?: return
+        moveStartTile(localStartTiles.indexOfFirst { it.id == fromId }, localStartTiles.indexOfFirst { it.id == toId })
     }
 
     // Collected here, not inside the tiles: this is what makes the board redraw when the icon
@@ -1382,6 +1407,79 @@ private fun HomeHubScreenContent(
         )
     }
 
+    /**
+     * The pinned tiles over quickplay on a tablet in the Zune layout: each at its own size, two
+     * rows of middle-sized tiles high at most, with the rest a tap away - opened, they push
+     * quickplay down rather than scrolling inside themselves.
+     */
+    @Composable
+    fun ZuneTabletTiles() {
+        if (boardTiles.isEmpty()) return
+        var showAll by remember { mutableStateOf(false) }
+        val gap = tileSpacing.dp
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val columns = gridColumns
+            val cell = ((maxWidth - gap * (columns - 1)) / columns).coerceAtLeast(1.dp)
+            val pitch = cell + gap
+            val rows = remember(boardTiles, columns) {
+                packMetroTiles(
+                    specs = boardTiles.map { model ->
+                        val (w, h) = TileSpan.cellsOf(model.span)
+                        MetroTileSpec(model.id, w, h)
+                    },
+                    crossAxisCells = columns,
+                    columnMajor = false
+                ).maxOfOrNull { it.row + it.rows } ?: 0
+            }
+            val fullHeight = if (rows == 0) 0.dp else rows * pitch - gap
+            val overflows = rows > TABLET_TILE_CELL_ROWS
+            val shownHeight by androidx.compose.animation.core.animateDpAsState(
+                targetValue = if (showAll || !overflows) fullHeight else TABLET_TILE_CELL_ROWS * pitch - gap,
+                animationSpec = tween(320, easing = FastOutSlowInEasing),
+                label = "zune_tablet_tiles"
+            )
+            Column {
+                Box(modifier = Modifier.fillMaxWidth().height(shownHeight).clipToBounds()) {
+                    MetroStartBoard(
+                        tiles = boardTiles,
+                        columns = columns,
+                        gap = gap,
+                        contentPadding = PaddingValues(0.dp),
+                        onEnterEditMode = {
+                            tilesEditOnly = true
+                            isEditMode = true
+                        },
+                        onMoveTile = { from, to -> moveBoardTile(from, to) },
+                        onMergeTiles = onMergeTiles,
+                        canMerge = canMerge,
+                        // A folder opens over the screen here, as it does from the list.
+                        openFolder = null,
+                        isEditMode = isEditMode,
+                        scrollEnabled = false,
+                        modifier = Modifier.fillMaxWidth().height(fullHeight),
+                        tile = { model, index, isDragging, isMergeTarget, tileModifier ->
+                            StartTile(model, index, isDragging, isMergeTarget, tileModifier, gridColumns = columns)
+                        }
+                    )
+                }
+                if (overflows) {
+                    Text(
+                        text = stringResource(if (showAll) R.string.zune_tiles_show_less else R.string.zune_tiles_show_more),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                        color = zuneColors.accentLink,
+                        modifier = Modifier
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { showAll = !showAll }
+                            .padding(top = 10.dp, bottom = 4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+
     // Any icon a tile was given is turned into a face here, once, for every tile on the screen.
     val iconResolver: (TileIcon) -> TileIconFace? = remember(tileIconStyle) {
         { icon -> viewModel.customIconFace(icon, tileIconStyle) }
@@ -1390,7 +1488,7 @@ private fun HomeHubScreenContent(
     // One box over all three Start layouts.
     CompositionLocalProvider(LocalTileIconResolver provides iconResolver) {
     Box(modifier = Modifier.fillMaxSize()) {
-        if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE && isWideScreen) {
+        if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE && isWideScreen && !tilesPage) {
             // ═══════════════════════════════════════════════
             // TABLET — Windows 8 full-screen Start menu
             // ═══════════════════════════════════════════════
@@ -1528,7 +1626,8 @@ private fun HomeHubScreenContent(
                     }
                 )
             }
-        } else if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE) {
+        } else if (homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE || tilesPage) {
+            // The Windows Phone board - and, as the tiles page, the Zune layout's
             val swipeGestureModifierWp = Modifier.pointerInput(isEditMode) {
                 if (isEditMode) return@pointerInput
                 detectHorizontalDragGestures(
@@ -1562,7 +1661,7 @@ private fun HomeHubScreenContent(
             ) {
                 val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                 MetroStartBoard(
-                    tiles = localStartTiles,
+                    tiles = boardTiles,
                     columns = gridColumns,
                     gap = tileSpacing.dp,
                     contentPadding = PaddingValues(
@@ -1575,12 +1674,16 @@ private fun HomeHubScreenContent(
                     ),
                     scrollState = boardScrollState,
                     footer = {
-                        if (isEditMode) {
+                        // The Zune tiles carry no hubs, so there is no hub to put back here.
+                        if (isEditMode && !zuneMode) {
                             AddHubButton(missing = hubsOffHome, onClick = { addingHub = true })
+                        }
+                        if (zuneMode && boardTiles.isEmpty()) {
+                            ZuneTilesEmptyState(onOpenAppList = onNavigateToAppsHub)
                         }
                     },
                     onEnterEditMode = { isEditMode = true },
-                    onMoveTile = { from, to -> moveStartTile(from, to) },
+                    onMoveTile = { from, to -> moveBoardTile(from, to) },
                     onMergeTiles = onMergeTiles,
                     canMerge = canMerge,
                     // The folder does not open over the board: it unfolds into it.
@@ -1624,6 +1727,22 @@ private fun HomeHubScreenContent(
                     }
             ) {
 
+                // The list's own editing; tiles being edited beside it leave it alone.
+                val listEditing = isEditMode && !tilesEditOnly
+
+                // The strip used to hold the favourite apps; once, somebody who had some is told
+                // where they went - to the tiles, the next page over.
+                val hintContext = LocalContext.current
+                LaunchedEffect(favoriteAppsFlow.isNotEmpty()) {
+                    if (isWideScreen || favoriteAppsFlow.isEmpty()) return@LaunchedEffect
+                    val hints = hintContext.getSharedPreferences(HINTS_PREFS, android.content.Context.MODE_PRIVATE)
+                    if (hints.getBoolean(HINT_FAVOURITES_MOVED, false)) return@LaunchedEffect
+                    hints.edit().putBoolean(HINT_FAVOURITES_MOVED, true).apply()
+                    android.widget.Toast.makeText(
+                        hintContext, hintContext.getString(R.string.zune_favourites_moved), android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+
                 // ════════════════════════════════════════════════
                 // LAYER 1 — Hub Section (Clock, Date, Weather, Hub Titles)
                 //
@@ -1644,7 +1763,7 @@ private fun HomeHubScreenContent(
                         .padding(
                             // The room on the left is the favourites' strip; with none to show,
                             // the list starts at the screen's own margin instead of an empty gutter.
-                            start = if (isWideScreen || favoriteApps.isNotEmpty()) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
+                            start = if (isWideScreen || stripItems.isNotEmpty()) 72.dp else ZuneDimens.ScreenPaddingHorizontal,
                             end = ZuneDimens.ScreenPaddingHorizontal
                         )
                         .graphicsLayer {
@@ -1729,7 +1848,7 @@ private fun HomeHubScreenContent(
                     // longest of them fits - as on the Zune HD, rather than one long word alone
                     // in smaller type. Measured afresh when the room changes: the favourites'
                     // strip coming or going, or the edit buttons taking their share of each row.
-                    val fittedSizes = remember(favoriteApps.isEmpty(), isEditMode) { mutableStateMapOf<String, androidx.compose.ui.unit.TextUnit>() }
+                    val fittedSizes = remember(stripItems.isEmpty(), listEditing) { mutableStateMapOf<String, androidx.compose.ui.unit.TextUnit>() }
                     val listSize = fittedSizes.values.minByOrNull { it.value } ?: ZuneDimens.HubTitleFontSize
 
                     // The rows of the list: one a hub, except music, which the Zune HD kept as two
@@ -1739,7 +1858,7 @@ private fun HomeHubScreenContent(
                     val videosWord = stringResource(R.string.music_tab_videos)
                     val rows = localHubOrder.flatMap { hubType ->
                         val title = stringResource(hubType.titleRes)
-                        if (hubType == HubType.MUSIC && !isEditMode) listOf(
+                        if (hubType == HubType.MUSIC && !listEditing) listOf(
                             ZuneRow(hubType, "hub_$hubType", musicWord, videos = false),
                             ZuneRow(hubType, "hub_${hubType}_videos", videosWord, videos = true)
                         ) else listOf(ZuneRow(hubType, "hub_$hubType", title, videos = false))
@@ -1751,7 +1870,7 @@ private fun HomeHubScreenContent(
                         val key = row.key
                         val index = localHubOrder.indexOf(hubType)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (isEditMode) {
+                            if (listEditing) {
                                 ZuneListEditButton(
                                     icon = Icons.Default.Close,
                                     label = stringResource(R.string.home_running_hub_close),
@@ -1795,7 +1914,7 @@ private fun HomeHubScreenContent(
                                 Row(
                                     verticalAlignment = Alignment.Top,
                                     modifier = Modifier.zuneRunningMark(
-                                        running = hubType in runningHubs && !isEditMode,
+                                        running = hubType in runningHubs && !listEditing,
                                         color = zuneColors.accentColor
                                     )
                                 ) {
@@ -1805,14 +1924,14 @@ private fun HomeHubScreenContent(
                                         verticalPadding = if (isWideScreen) ZuneDimens.SpacingXs else 0.dp,
                                         fontSize = listSize,
                                         // Re-fitted when the edit buttons take their share of the row.
-                                        fitKey = isEditMode,
+                                        fitKey = listEditing,
                                         // Beside the edit buttons "music + videos" needs smaller type.
-                                        minFontSize = if (isEditMode) 20.sp else 28.sp,
+                                        minFontSize = if (listEditing) 20.sp else 28.sp,
                                         onFitted = { size -> if (fittedSizes[key] != size) fittedSizes[key] = size },
                                         onClick = {
                                             if (isFavoritesExpanded) {
                                                 isFavoritesExpanded = false
-                                            } else if (isEditMode) {
+                                            } else if (listEditing) {
                                                 isEditMode = false
                                             } else {
                                                 handleLaunch(key) {
@@ -1825,50 +1944,21 @@ private fun HomeHubScreenContent(
                                         // opens editing.
                                         onLongClick = { isEditMode = true }
                                     )
-                                    if (!isEditMode) {
+                                    if (!listEditing) {
                                         ZuneHubCount(line.count, modifier = Modifier.padding(start = 6.dp, top = 12.dp))
                                     }
                                 }
                                 // Editing wants a plain list; the lines come back when it is done.
-                                if (!isEditMode) ZuneHubLiveLine(line.text)
+                                if (!listEditing) ZuneHubLiveLine(line.text)
                             }
                         }
                     }
 
-                    if (isEditMode) {
+                    if (listEditing) {
                         AddHubButton(missing = hubsOffHome, onClick = { addingHub = true })
                     }
 
-                    // What was pinned from the hubs — notes, people, conversations, sites,
-                    // albums, records and folders — used to be kept by the Zune list and never
-                    // shown by it. They stand under the hubs as tiles, four to a row.
-                    val pinnedTiles = localStartTiles.filter {
-                        it !is StartTileUIModel.Hub && it !is StartTileUIModel.App
-                    }
-                    if (pinnedTiles.isNotEmpty()) {
-                        ZuneSectionWord(
-                            text = stringResource(R.string.start_pinned_section),
-                            modifier = Modifier
-                                .padding(top = 20.dp, bottom = 10.dp)
-                                .zuneListMotion({ animationProgress.value }, 4 + rows.size)
-                        )
-                        ZunePinnedBoard(
-                            tiles = pinnedTiles,
-                            columns = FOLDER_COLUMNS,
-                            gap = tileSpacing.dp
-                        ) { model, index ->
-                            StartTile(
-                                model = model,
-                                index = 5 + rows.size + index,
-                                isDragging = false,
-                                isMergeTarget = false,
-                                tileModifier = Modifier.fillMaxWidth(),
-                                gridColumns = FOLDER_COLUMNS
-                            )
-                        }
-                    }
-
-                    if (!isEditMode) {
+                    if (!listEditing) {
                         ZuneListEnd(
                             onApps = onNavigateToAppsHub,
                             onSettings = { handleLaunch("hub_SETTINGS") { openHub(HubType.SETTINGS) } },
@@ -1885,13 +1975,13 @@ private fun HomeHubScreenContent(
                 }
 
                 // ════════════════════════════════════════════════
-                // LAYER 2 — Favorites Section
+                // LAYER 2 — Quickplay
                 //
-                // Overlays the left portion of the screen.
-                // Width animates from 15 % (collapsed) to 85 % (expanded).
-                // Contains two sub-layers that cross-fade:
-                //   • Collapsed: LazyColumn of small icon tiles
-                //   • Expanded:  LazyVerticalGrid (4 cols) with editing
+                // Phone: a strip of small squares down the left - the
+                // pins, then what was lately used - that widens into
+                // the whole of quickplay as the list slides aside.
+                // Tablet: quickplay stands open at the right, under
+                // the pinned tiles.
                 // ════════════════════════════════════════════════
                 Box(
                     modifier = Modifier
@@ -1903,9 +1993,9 @@ private fun HomeHubScreenContent(
                             }
                         )
                 ) {
-                    // ── Collapsed favourites (single column, small tiles) ──
+                    // ── The strip ──
                     if (!isWideScreen && p < 0.7f) {
-                        val collapsedAlpha = lerp(0.6f, 0f, (p / 0.5f).coerceIn(0f, 1f))
+                        val collapsedAlpha = lerp(0.9f, 0f, (p / 0.5f).coerceIn(0f, 1f))
 
                         LazyColumn(
                             modifier = Modifier
@@ -1927,204 +2017,49 @@ private fun HomeHubScreenContent(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             items(
-                                count = favoriteApps.size,
-                                key = { index -> "c_${favoriteApps[index].appInfo.packageName}" }
+                                count = stripItems.size,
+                                key = { index -> "q_${stripItems[index].kind}_${stripItems[index].key}" }
                             ) { index ->
-                                val favApp = favoriteApps[index]
-                                val key = "app_${favApp.appInfo.packageName}"
-                                val favLook = tileLooks["app:${favApp.appInfo.packageName}"] ?: TileLook.DEFAULT
-                                SmallFavoriteTile(
-                                    // The icon the big tile was given is the icon the small one shows.
-                                    face = favLook.icon.takeIf { it != TileIcon.Default }?.let(iconResolver)
-                                        ?: tileFace(favApp.appInfo),
-                                    label = favLook.name?.takeIf { it.isNotBlank() } ?: favApp.appInfo.label,
+                                val item = stripItems[index]
+                                val key = "quickplay_${item.kind}_${item.key}"
+                                val app = if (item.kind == QuickplayPin.Kind.APP) viewModel.appFor(item.key) else null
+                                QuickplayStripSquare(
+                                    item = item,
+                                    face = app?.let(tileFace),
                                     cornerStyle = tileCornerStyle,
-                                    // A tap opens the app, like a tap on anything else with an icon
-                                    // on it. Widening the strip is what the swipe across is for, and
-                                    // a tile that only makes itself bigger is a tile that does
-                                    // nothing — the whole point of having favourites in reach.
                                     onClick = {
-                                        handleLaunch(key) { viewModel.launchApp(favApp.appInfo.packageName) }
+                                        handleLaunch(key) { openQuickplayItem(item, lineContext, viewModel, onHubSelected) }
                                     },
+                                    // Held, the strip opens into the whole of quickplay, where
+                                    // anything can be pinned or taken off.
                                     onLongClick = { isFavoritesExpanded = true },
-                                    modifier = Modifier
-                                        .zuneListMotion(
-                                            { animationProgress.value },
-                                            2 + index,
-                                            clickedItemKey == key
-                                        )
+                                    modifier = Modifier.zuneListMotion(
+                                        { animationProgress.value },
+                                        2 + index,
+                                        clickedItemKey == key
+                                    )
                                 )
                             }
                         }
                     }
 
-                    // ── Expanded favourites (4-column grid with editing) ──
+                    // ── Quickplay itself ──
                     if (isWideScreen || p > 0.3f) {
                         val expandedAlpha = if (isWideScreen) 1f else lerp(0f, 1f, ((p - 0.3f) / 0.5f).coerceIn(0f, 1f))
-
-                        LazyVerticalGrid(
-                            state = gridState,
-                            columns = GridCells.Fixed(gridColumns),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer { alpha = expandedAlpha }
-                                .clickable(
-                                    enabled = isEditMode,
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() }
-                                ) {
-                                    isEditMode = false
-                                },
-                            contentPadding = PaddingValues(
-                                start = if (isWideScreen) 32.dp else 12.dp,
-                                end = if (isWideScreen) 32.dp else 12.dp,
-                                top = 80.dp,
-                                bottom = WindowInsets.navigationBars
-                                    .asPaddingValues()
-                                    .calculateBottomPadding() + 24.dp
-                            ),
-                            horizontalArrangement = Arrangement.spacedBy(tileSpacing.dp),
-                            verticalArrangement = Arrangement.spacedBy(tileSpacing.dp)
-                        ) {
-                            item(key = "fav_label", span = { GridItemSpan(maxLineSpan) }) {
-                                    Text(
-                                        text = stringResource(R.string.people_tab_favorites),
-                                        style = MaterialTheme.typography.displayLarge.copy(
-                                            fontWeight = FontWeight.Light,
-                                            fontSize = 96.sp,
-                                            letterSpacing = (-4).sp,
-                                            lineHeight = 96.sp
-                                        ),
-                                        color = if (zuneColors.isDark) Color.White else Color.Black,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        modifier = Modifier
-                                            .zuneListMotion({ animationProgress.value }, 8)
-                                            .graphicsLayer {
-                                                translationY = with(localDensity) { (-24).dp.toPx() }
-                                            }
-                                            .padding(bottom = 4.dp)
-                                    )
-                            }
-
-                            if (favoriteApps.isEmpty()) {
-                                item(key = "fav_empty", span = { GridItemSpan(maxLineSpan) }) {
-                                    FavoritesEmptyState(
-                                        onOpenAppList = onNavigateToAppsHub,
-                                        modifier = Modifier
-                                            .zuneListMotion({ animationProgress.value }, 9)
-                                    )
-                                }
+                        QuickplayScreen(
+                            isCurrentPage = if (isWideScreen) isCurrentPage else isFavoritesExpanded,
+                            isHubOpen = isHubOpen,
+                            onHubSelected = onHubSelected,
+                            modifier = Modifier.graphicsLayer { alpha = expandedAlpha },
+                            // On a tablet the pinned tiles stand over it; a phone has a page of them.
+                            top = if (isWideScreen) {
+                                { ZuneTabletTiles() }
                             } else {
-                                favoriteApps.forEachIndexed { favIndex, favApp ->
-                                    val absoluteIndex = favIndex + 1 // label is item 0
-                                    val isDragging =
-                                        gridDragDropState.draggingItemIndex == absoluteIndex
-
-                                    // A large tile is four cells wide and four tall; its stored
-                                    // span of eight is a width only in the packed boards, and
-                                    // here it used to swallow a whole row.
-                                    val gridSpan = TileSpan.cellsOf(favApp.span).first.coerceAtMost(gridColumns)
-                                    item(
-                                        key = "fav_${favApp.appInfo.packageName}",
-                                        span = { GridItemSpan(gridSpan) }
-                                    ) {
-                                        val key = "app_${favApp.appInfo.packageName}"
-
-                                        val favId = "app:${favApp.appInfo.packageName}"
-                                        CompositionLocalProvider(
-                                            LocalTileLook provides (tileLooks[favId] ?: TileLook.DEFAULT),
-                                            LocalTileCustomize provides { lookTargetId = favId }
-                                        ) {
-                                        W10MAppTile(
-                                            label = favApp.appInfo.label,
-                                            face = tileFace(favApp.appInfo),
-                                            span = favApp.span.coerceAtMost(gridColumns),
-                                            gridColumns = gridColumns,
-                                            isEditing = isEditMode,
-                                            isDragging = isDragging,
-                                            cornerStyle = tileCornerStyle,
-                                            notificationCount = notificationCounts[favApp.appInfo.packageName] ?: 0,
-                                            notificationTitle = latestMessages[favApp.appInfo.packageName]?.title,
-                                            notificationText = latestMessages[favApp.appInfo.packageName]?.text,
-                                            onClick = {
-                                                handleLaunch(key) {
-                                                    viewModel.launchApp(favApp.appInfo.packageName)
-                                                }
-                                            },
-                                            onLongClick = { holdApp(favApp.appInfo) },
-                                            onRemoveClick = {
-                                                viewModel.removeFavorite(favApp.appInfo.packageName)
-                                            },
-                                            onResizeClick = {
-                                                resizeTargetId = "app:${favApp.appInfo.packageName}"
-                                            },
-                                            modifier = Modifier
-                                                .zIndex(if (isDragging) 1f else 0f)
-                                                .then(
-                                                    if (!isDragging) {
-                                                        Modifier.animateItem(
-                                                            fadeInSpec = null,
-                                                            fadeOutSpec = null,
-                                                            placementSpec = spring(
-                                                                dampingRatio = Spring.DampingRatioLowBouncy,
-                                                                stiffness = Spring.StiffnessLow
-                                                            )
-                                                        )
-                                                    } else Modifier
-                                                )
-                                                .pointerInput(isEditMode) {
-                                                    if (!isEditMode) return@pointerInput
-                                                    detectDragGesturesAfterLongPress(
-                                                        onDragStart = {
-                                                            gridDragDropState.startDrag(absoluteIndex)
-                                                        },
-                                                        onDrag = { change, dragAmount ->
-                                                            change.consume()
-                                                            gridDragDropState.onDrag(dragAmount)
-                                                        },
-                                                        onDragEnd = {
-                                                            gridDragDropState.onDragInterrupted()
-                                                        },
-                                                        onDragCancel = {
-                                                            gridDragDropState.onDragInterrupted()
-                                                        }
-                                                    )
-                                                }
-                                                .graphicsLayer {
-                                                    if (isDragging) {
-                                                        val info = gridState.layoutInfo
-                                                            .visibleItemsInfo
-                                                            .firstOrNull { it.index == absoluteIndex }
-                                                            ?.offset
-                                                        if (info != null) {
-                                                            translationX =
-                                                                gridDragDropState.draggingItemInitialOffset.x +
-                                                                        gridDragDropState.totalDragAmount.x -
-                                                                        info.x
-                                                            translationY =
-                                                                gridDragDropState.draggingItemInitialOffset.y +
-                                                                        gridDragDropState.totalDragAmount.y -
-                                                                        info.y
-                                                        }
-                                                    }
-                                                }
-                                                .w10mEditWiggle(
-                                                    isEditing = isEditMode,
-                                                    isDragging = isDragging,
-                                                    index = absoluteIndex
-                                                )
-                                                .zuneListMotion(
-                                                    { animationProgress.value },
-                                                    9 + favIndex,
-                                                    clickedItemKey == key
-                                                )
-                                        )
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                                null
+                            },
+                            topGap = if (isWideScreen) 24.dp else 36.dp,
+                            viewModel = viewModel
+                        )
                     }
                 }
 
@@ -2173,6 +2108,7 @@ private fun HomeHubScreenContent(
                 },
                 onEdit = {
                     shortcutApp = null
+                    tilesEditOnly = zuneMode
                     isEditMode = true
                 },
                 onDismiss = { shortcutApp = null }
@@ -2203,44 +2139,25 @@ private const val WIN8_SPLASH_LINGER_MILLIS = 450L
 private const val WIN8_SPLASH_GIVE_UP_MILLIS = 2_000L
 
 /**
- * What stands where the favourites would be before there are any.
- *
- * An empty pane says nothing: somebody who swipes across and finds a blank half-screen learns
- * neither what the space is for nor that they can fill it. This says both, in as few words as
- * the rest of the launcher uses, and then offers the one tap that leads to the doing — the app
- * list, where an app is held down and pinned.
+ * The Zune layout's tiles page before anything is pinned: what it is for, and the way to the app
+ * list, where an app is held and pinned.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FavoritesEmptyState(
-    onOpenAppList: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun ZuneTilesEmptyState(onOpenAppList: () -> Unit, modifier: Modifier = Modifier) {
     val zuneColors = LocalZuneColors.current
     val interactionSource = remember { MutableInteractionSource() }
-
     Column(modifier = modifier.padding(top = 8.dp, end = 24.dp)) {
         Text(
-            text = stringResource(R.string.home_favorites_empty_line),
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Light,
-                lineHeight = 26.sp
-            ),
+            text = stringResource(R.string.zune_tiles_empty_line),
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Light, lineHeight = 26.sp),
             color = zuneColors.textMuted
         )
-
         Spacer(modifier = Modifier.height(ZuneDimens.SpacingLg))
-
-        // The way out of the empty state, and the only thing here that answers a tap.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .wpTilt(interactionSource)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onOpenAppList
-                )
+                .clickable(interactionSource = interactionSource, indication = null, onClick = onOpenAppList)
                 .padding(vertical = 4.dp)
         ) {
             Text(
@@ -2256,60 +2173,18 @@ private fun FavoritesEmptyState(
                 modifier = Modifier.size(18.dp)
             )
         }
-
-        Spacer(modifier = Modifier.height(ZuneDimens.SpacingXs))
-
-        Text(
-            text = stringResource(R.string.home_favorites_empty_hint),
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Light),
-            color = zuneColors.textDim
-        )
     }
 }
 
-// ────────────────────────────────────────────────────────
-// Small favourite tile used in the collapsed single-column
-// ────────────────────────────────────────────────────────
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun SmallFavoriteTile(
-    face: TileIconFace,
-    label: String,
-    cornerStyle: TileCornerStyle,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val zuneColors = LocalZuneColors.current
-    val stroke = if (zuneColors.isDark)
-        Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.4f)
-    // The same corners as the big tiles: these kept their own rounding whatever was chosen.
-    val shape = RoundedCornerShape(if (cornerStyle == TileCornerStyle.SHARP) 0.dp else 8.dp)
+/** One-time hints, and the one that says the favourites became the tiles page. */
+private const val HINTS_PREFS = "hints"
+private const val HINT_FAVOURITES_MOVED = "zune_favourites_moved"
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(shape)
-                .background(zuneColors.accentColor)
-                .border(0.5.dp, stroke, shape)
-        ) {
-            TileIconImage(
-                face = face,
-                size = 24.dp,
-                ink = Color.White,
-                contentDescription = label,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-    }
-}
+/** How many squares the strip beside the Zune list holds. */
+private const val QUICKPLAY_STRIP_ITEMS = 8
+
+/** How high the tablet's tiles over quickplay stand before "show more": two middle-sized rows. */
+private const val TABLET_TILE_CELL_ROWS = 4
 
 /**
  * When something on a live tile happened: the time for today, "dün" for yesterday, the date

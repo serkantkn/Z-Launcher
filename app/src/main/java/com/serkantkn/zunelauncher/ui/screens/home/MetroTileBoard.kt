@@ -240,6 +240,11 @@ fun MetroStartBoard(
     scrollState: ScrollState = rememberScrollState(),
     /** Drawn under the last row of tiles; the add-a-hub button lives here while editing. */
     footer: @Composable () -> Unit = {},
+    /**
+     * False where something around the board decides its height and does the scrolling - the
+     * tiles over quickplay on a tablet in the Zune layout.
+     */
+    scrollEnabled: Boolean = true,
     tile: @Composable (
         model: StartTileUIModel,
         flatIndex: Int,
@@ -383,7 +388,7 @@ fun MetroStartBoard(
             }
         }
 
-        Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState, enabled = scrollEnabled)) {
             Spacer(modifier = Modifier.height(contentPadding.calculateTopPadding()))
             Box(
                 modifier = Modifier

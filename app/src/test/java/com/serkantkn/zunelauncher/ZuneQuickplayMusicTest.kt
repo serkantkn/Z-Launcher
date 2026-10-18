@@ -81,3 +81,24 @@ class ZuneQuickplayMusicTest {
         assertEquals(listOf("Cambaz", "Çay"), genres.last().second.map { it.first })
     }
 }
+
+/** The strip beside the Zune list: pins first, each thing once, never more than it holds. */
+class QuickplayStripTest {
+
+    @Test
+    fun `pins lead, a pinned record is not shown twice, and the strip stops at its limit`() {
+        val record = com.serkantkn.zunelauncher.data.model.RecentAlbum(7L, "Homework", "Daft Punk", null)
+        val pins = listOf(
+            QuickplayPin(QuickplayPin.Kind.APP, "com.android.chrome", "Chrome"),
+            QuickplayPin(QuickplayPin.Kind.ALBUM, "7", "Homework", "Daft Punk")
+        )
+        val state = com.serkantkn.zunelauncher.data.model.Quickplay(
+            pins = pins,
+            recentAlbums = listOf(record),
+            newAlbums = listOf(com.serkantkn.zunelauncher.data.model.RecentAlbum(9L, "Karma", "Tarkan", null))
+        )
+        val strip = com.serkantkn.zunelauncher.ui.screens.home.quickplayStripItems(state, 8)
+        assertEquals(listOf("com.android.chrome", "7", "9"), strip.map { it.key })
+        assertEquals(2, com.serkantkn.zunelauncher.ui.screens.home.quickplayStripItems(state, 2).size)
+    }
+}

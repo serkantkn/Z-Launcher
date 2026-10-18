@@ -727,7 +727,7 @@
     <string name="social_test_message">Hi! The Windows Phone notification card looks great. Try dragging this card down to send me a quick reply!</string>
     <string name="social_test_reply_sent">Test reply sent: \"%1$s\"</string>
     <string name="notes_locked_note">locked note</string>
-    <string name="apps_favorites_limit">The free version allows up to 10 favorite apps. Upgrade to Z Launcher Pro to remove the limit.</string>
+    <string name="apps_favorites_limit">The free version pins up to 10 apps to start. Upgrade to Z Launcher Pro to remove the limit.</string>
     <string name="launcher_fullscreen">Enter Full Screen</string>
     <string name="launcher_close_hub">Close Hub</string>
     <string name="toast_quick_reply">quick reply:</string>
@@ -1263,6 +1263,10 @@
     <string name="quickplay_new">new</string>
     <string name="quickplay_pin">pin to quickplay</string>
     <string name="quickplay_unpin">remove from quickplay</string>
+    <string name="zune_tiles_show_more">show more</string>
+    <string name="zune_tiles_show_less">show less</string>
+    <string name="zune_favourites_moved">your favourite apps are now on the tiles page to the right</string>
+    <string name="zune_tiles_empty_line">the apps you pin to start, and whatever you pin from the hubs, stand here as tiles. hold an app in the app list to pin it.</string>
     <string name="quickplay_empty">nothing yet. what you play, take, write and open gathers here.</string>
     <string name="quickplay_hint">hold anything to pin it · keep swiping for the app list</string>
     <string name="zune_line_pinned_notes">%1$d pinned</string>
