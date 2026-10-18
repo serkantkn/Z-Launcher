@@ -245,7 +245,14 @@ fun ZuneHub(
                                 com.serkantkn.zunelauncher.ui.animation.ZuneHubFlightTitle(
                                     title = title,
                                     key = zuneTitleKey!!,
-                                    modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal)
+                                    modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal),
+                                    // Where the pages stand, so the title runs left as they turn.
+                                    cycle = {
+                                        val count = pager.pageCount
+                                        val at = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % count
+                                        if (at < 0) at + count else at
+                                    },
+                                    pageCount = pager.pageCount
                                 )
                                 if (showTabs) {
                                     ZunePivotTabs(

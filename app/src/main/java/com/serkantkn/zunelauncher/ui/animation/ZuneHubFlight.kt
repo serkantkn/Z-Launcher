@@ -1,5 +1,9 @@
 package com.serkantkn.zunelauncher.ui.animation
 
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -95,11 +99,20 @@ val LocalZuneHubFlight = staticCompositionLocalOf<ZuneHubFlight?> { null }
 @Composable
 fun rememberZuneHubFlight(): ZuneHubFlight = remember { ZuneHubFlight() }
 
-/** How big a main hub's title stands at the top in the Zune layout. */
-val ZUNE_HUB_TITLE_SIZE = 54.sp
+/**
+ * How big a main hub's title stands at the top in the Zune layout: across the whole top of the
+ * screen and off its right edge, as the Zune HD's were.
+ */
+val ZUNE_HUB_TITLE_SIZE = 104.sp
 
-/** The room over a main hub's title: clear of the status bar, as the small title's was. */
-val ZUNE_HUB_TITLE_TOP = 44.dp
+/** The room over a main hub's title: just clear of the status bar. */
+val ZUNE_HUB_TITLE_TOP = 26.dp
+
+/** A little of what is behind shows through the title, as on the Zune HD. */
+const val ZUNE_HUB_TITLE_ALPHA = 0.82f
+
+/** The least the title moves for each page turned, when it all but fits the screen. */
+private val TITLE_STEP_MIN = 40.dp
 
 /** How far into the flight the hub is opened under the word. */
 const val ZUNE_FLIGHT_OPEN_AT_MILLIS = 60L
@@ -109,20 +122,60 @@ private const val WAIT_FOR_TITLE_MILLIS = 700L
 private const val BULGE = 0.07f
 private val FlightEasing = CubicBezierEasing(0.3f, 0f, 0.1f, 1f)
 
-/** The big title of a main hub in the Zune layout: where its word lands. */
+/**
+ * The big title of a main hub in the Zune layout: where its word lands. It runs off the right of
+ * the screen, and the pages turning carry it left - [cycle] is where the pages stand, 0 to
+ * [pageCount] - so what was cut off comes into view, wrapping back to its start with the pages.
+ * Touched, it goes back, as the Back key would.
+ */
 @Composable
-fun ZuneHubFlightTitle(title: String, key: String, modifier: Modifier = Modifier) {
+fun ZuneHubFlightTitle(
+    title: String,
+    key: String,
+    modifier: Modifier = Modifier,
+    cycle: (() -> Float)? = null,
+    pageCount: Int = 1
+) {
     val flight = LocalZuneHubFlight.current
     val ink = if (LocalZuneColors.current.isDark) Color.White else Color.Black
+    val density = LocalDensity.current
+    val screenPx = with(density) { androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp.toPx() }
+    val minStepPx = with(density) { TITLE_STEP_MIN.toPx() }
+    var right by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    val back = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     Text(
         text = title,
-        style = zuneHubTitleStyle(FontWeight.SemiBold),
+        style = zuneHubTitleStyle(FontWeight.Bold),
         color = ink,
         maxLines = 1,
         softWrap = false,
         modifier = modifier
-            .onGloballyPositioned { flight?.land(key, it.boundsInWindow()) }
-            .graphicsLayer { alpha = if (flight?.hides(key) == true) 0f else 1f }
+            // As wide as the word is, not as the screen: the rest runs off to the right.
+            .wrapContentWidth(Alignment.Start, unbounded = true)
+            .onGloballyPositioned { coordinates ->
+                right = coordinates.positionInWindow().x + coordinates.size.width
+            }
+            .graphicsLayer {
+                alpha = if (flight?.hides(key) == true) 0f else ZUNE_HUB_TITLE_ALPHA
+                val turn = cycle ?: return@graphicsLayer
+                if (pageCount < 2) return@graphicsLayer
+                val last = (pageCount - 1).toFloat()
+                val overflow = (right - screenPx).coerceAtLeast(0f)
+                val step = maxOf(overflow / last, minStepPx)
+                val c = turn()
+                translationX = if (c <= last) -c * step else -step * last * (1f - (c - last))
+            }
+            // Measured where it is drawn, the pages' turn included, so a hub opened on another
+            // page has its word land where the title stands. Not clipped to the window: the title
+            // may start off its left edge.
+            .onGloballyPositioned { coordinates ->
+                val at = coordinates.positionInWindow()
+                flight?.land(key, Rect(at.x, at.y, at.x + coordinates.size.width, at.y + coordinates.size.height))
+            }
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) { back?.onBackPressed() }
     )
 }
 
@@ -131,8 +184,8 @@ private fun zuneHubTitleStyle(weight: FontWeight): TextStyle =
     MaterialTheme.typography.displayLarge.copy(
         fontWeight = weight,
         fontSize = ZUNE_HUB_TITLE_SIZE,
-        lineHeight = ZUNE_HUB_TITLE_SIZE * 1.15f,
-        letterSpacing = (-1.5).sp
+        lineHeight = ZUNE_HUB_TITLE_SIZE,
+        letterSpacing = (-3).sp
     )
 
 /**
@@ -165,14 +218,17 @@ fun ZuneHubFlightOverlay(state: ZuneHubFlight) {
     val startScale = with(density) { pending.fromSize.toPx() } / endPx
     val t = if (to == null) 0f else state.progress.value
     val x = if (to == null) pending.from.left else lerp(pending.from.left, to.left, t)
-    val y = if (to == null) pending.from.top else lerp(pending.from.top, to.top, t)
+    // The list's line and the title's sit their glyphs differently in their boxes; the word
+    // starts centred on the one it lifts off, and ends exactly on the title.
+    val startDrop = (pending.from.height - endPx * startScale) / 2f
+    val y = if (to == null) pending.from.top + startDrop else lerp(pending.from.top + startDrop, to.top, t)
     val scale = lerp(startScale, 1f, t) * (1f + BULGE * sin(t * Math.PI).toFloat())
     // Thin as it was in the list, heavy as it lands: the two weights cross over mid-flight.
     val heavy = ((t - 0.2f) / 0.6f).coerceIn(0f, 1f)
-    val colour = lerp(pending.fromColor, ink, t)
+    val colour = lerp(pending.fromColor, ink.copy(alpha = ZUNE_HUB_TITLE_ALPHA), t)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        listOf(FontWeight.Light to 1f - heavy, FontWeight.SemiBold to heavy).forEach { (weight, alpha) ->
+        listOf(FontWeight.Light to 1f - heavy, FontWeight.Bold to heavy).forEach { (weight, alpha) ->
             if (alpha <= 0f) return@forEach
             Text(
                 text = pending.label,
@@ -181,6 +237,7 @@ fun ZuneHubFlightOverlay(state: ZuneHubFlight) {
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier
+                    .wrapContentWidth(Alignment.Start, unbounded = true)
                     .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
                     .graphicsLayer {
                         scaleX = scale
