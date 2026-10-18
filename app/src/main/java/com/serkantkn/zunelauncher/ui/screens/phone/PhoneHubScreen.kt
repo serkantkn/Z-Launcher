@@ -136,9 +136,8 @@ fun PhoneHubScreen(
 
     // The role can be granted and taken away outside the launcher, so it is read afresh each visit.
     var isDefaultDialer by remember { mutableStateOf(PhoneCaller.isDefaultDialer(context)) }
-    val dialerRoleRequest = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { isDefaultDialer = PhoneCaller.isDefaultDialer(context) }
+    /** The history was asked for before the role was held: what the role does not bring is asked after it. */
+    var historyAfterRole by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -151,6 +150,29 @@ fun PhoneHubScreen(
             viewModel.loadRecentCalls()
             viewModel.loadContacts()
         }
+    }
+
+    // The call log is Google Play's to hand out only to the phone's dialler: the role comes first,
+    // and Android grants the call log with it. Contacts, and anything else the role leaves out,
+    // are asked for once it is held.
+    val requestHistory: () -> Unit = {
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.READ_CALL_LOG,
+                // Same permission group; this is what lets a missed call be marked seen.
+                Manifest.permission.WRITE_CALL_LOG,
+                Manifest.permission.READ_CONTACTS,
+                Manifest.permission.READ_PHONE_STATE
+            )
+        )
+    }
+    val dialerRoleRequest = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        isDefaultDialer = PhoneCaller.isDefaultDialer(context)
+        hasPermissions = permissionsGranted()
+        if (historyAfterRole && isDefaultDialer && !hasPermissions) requestHistory()
+        historyAfterRole = false
     }
 
     LaunchedEffect(hasPermissions) {
@@ -278,17 +300,14 @@ fun PhoneHubScreen(
                     canBlock = canBlock,
                     hasVoicemail = hasVoicemail,
                     voicemailWaiting = voicemailWaiting,
+                    needsDefault = !isDefaultDialer,
                     onRequestPermission = {
-                        permissionLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.READ_CALL_LOG,
-                                // Same permission group; this is what lets a
-                                // missed call be marked seen.
-                                Manifest.permission.WRITE_CALL_LOG,
-                                Manifest.permission.READ_CONTACTS,
-                                Manifest.permission.READ_PHONE_STATE
-                            )
-                        )
+                        if (isDefaultDialer) {
+                            requestHistory()
+                        } else {
+                            historyAfterRole = true
+                            PhoneCaller.defaultDialerRequest(context)?.let { dialerRoleRequest.launch(it) }
+                        }
                     },
                     onCall = { group -> call(group.number, group.name.orEmpty()) },
                     onMessage = { group -> openMessaging(context, group.number) },
@@ -404,10 +423,11 @@ fun PhoneHubScreen(
         pager = pager,
         modifier = modifier,
         bar = ZuneHubBar(bottomBarActions, bottomBarMenu),
+        // Without the history the page itself asks for the role; the banner would only say it twice.
         phoneAboveContent = {
-            if (!isDefaultDialer) DefaultDialerBanner(onMakeDefault = makeDefault)
+            if (!isDefaultDialer && hasPermissions) DefaultDialerBanner(onMakeDefault = makeDefault)
         },
-        wideNavExtra = if (isDefaultDialer) null else {
+        wideNavExtra = if (isDefaultDialer || !hasPermissions) null else {
             {
                 DefaultDialerBanner(
                     onMakeDefault = makeDefault,
@@ -689,6 +709,7 @@ private fun HistoryPage(
     canBlock: Boolean,
     hasVoicemail: Boolean,
     voicemailWaiting: Int,
+    needsDefault: Boolean,
     onRequestPermission: () -> Unit,
     onCall: (CallGroup) -> Unit,
     onMessage: (CallGroup) -> Unit,
@@ -700,9 +721,9 @@ private fun HistoryPage(
 
     if (!hasPermission) {
         ZunePermissionRequest(
-            title = stringResource(R.string.phone_permission_title),
-            message = stringResource(R.string.phone_permission_message),
-            buttonLabel = stringResource(R.string.grant_permission),
+            title = stringResource(if (needsDefault) R.string.phone_default_dialer_title else R.string.phone_permission_title),
+            message = stringResource(if (needsDefault) R.string.phone_history_needs_default else R.string.phone_permission_message),
+            buttonLabel = stringResource(if (needsDefault) R.string.phone_default_dialer_title else R.string.grant_permission),
             onRequest = onRequestPermission
         )
         return

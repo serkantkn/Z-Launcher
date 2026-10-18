@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Used by ZuneKeyAccessibilityService. The only capability we need is filtering hardware key
-  events (volume keys) so the Windows Phone volume bar can replace the system panel while
-  other apps are in front. No window content is read.
+  Used by ZuneKeyAccessibilityService, for two parts of the Windows Phone interface:
+  - filtering the hardware volume keys, so the WP volume bar can replace the system panel while
+    other apps are in front;
+  - with the action center on, finding the status bar from the kind and bounds of the windows on
+    screen (getWindows needs canRetrieveWindowContent) and telling the notification shade by
+    SystemUI's window-state events, so it can be closed and the action center shown instead.
+  No other app's text is read: window events are looked at only when they come from SystemUI.
+  What it does is shown to the user before they turn it on (AccessibilityDisclosureDialog).
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"

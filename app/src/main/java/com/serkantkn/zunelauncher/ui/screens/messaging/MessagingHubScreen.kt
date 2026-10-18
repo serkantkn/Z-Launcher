@@ -203,9 +203,29 @@ fun MessagingHubScreen(
 
     // The system's own "make this the messaging app" sheet. Its answer arrives here, where the
     // banner can be taken down the moment the role is held — not on the next cold start.
+    // SMS is Google Play's to hand out only to the phone's messaging app: the role comes first, and
+    // Android grants SMS with it. Contacts and the SIMs, which the role leaves out, are asked after.
+    var permissionsAfterRole by remember { mutableStateOf(false) }
+    val requestMessagePermissions: () -> Unit = {
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.READ_SMS,
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.RECEIVE_SMS,
+                Manifest.permission.READ_CONTACTS,
+                // Without this the phone will not name its SIMs, and the
+                // chooser for which one to send from never appears.
+                Manifest.permission.READ_PHONE_STATE
+            )
+        )
+    }
     val roleRequest = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
-    ) { viewModel.checkPermissionAndLoad(context) }
+    ) {
+        viewModel.checkPermissionAndLoad(context)
+        if (permissionsAfterRole && com.serkantkn.zunelauncher.data.repository.SmsRepository.isDefaultSmsApp(context)) requestMessagePermissions()
+        permissionsAfterRole = false
+    }
     val askToBeDefault: () -> Unit = {
         defaultSmsRequest(context)?.let { intent ->
             runCatching { roleRequest.launch(intent) }
@@ -601,18 +621,14 @@ fun MessagingHubScreen(
     @Composable
     fun PermissionCard() {
         MessagePermissionCard(
+            needsDefault = !isDefaultApp,
             onGrant = {
-                permissionLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.READ_SMS,
-                        Manifest.permission.SEND_SMS,
-                        Manifest.permission.RECEIVE_SMS,
-                        Manifest.permission.READ_CONTACTS,
-                        // Without this the phone will not name its SIMs, and the
-                        // chooser for which one to send from never appears.
-                        Manifest.permission.READ_PHONE_STATE
-                    )
-                )
+                if (isDefaultApp) {
+                    requestMessagePermissions()
+                } else {
+                    permissionsAfterRole = true
+                    askToBeDefault()
+                }
             }
         )
     }

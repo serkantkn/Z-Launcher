@@ -4,7 +4,7 @@
 <resources>
     <!-- Manifest labels: what the system shows in its own lists -->
     <string name="label_notes_share">notes</string>
-    <string name="label_key_service">Z Launcher volume keys</string>
+    <string name="label_key_service">Z Launcher volume bar and action center</string>
     <string name="label_social_listener">Z Launcher social hub</string>
     <string name="label_sms_compose">Z Launcher messages</string>
 

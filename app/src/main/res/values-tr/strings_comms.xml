@@ -2,7 +2,7 @@
 <resources>
     <!-- Manifest labels -->
     <string name="label_notes_share">notlar</string>
-    <string name="label_key_service">Z Launcher ses tuşları</string>
+    <string name="label_key_service">Z Launcher ses çubuğu ve eylem merkezi</string>
     <string name="label_social_listener">Z Launcher sosyal merkezi</string>
     <string name="label_sms_compose">Z Launcher mesajlar</string>
 

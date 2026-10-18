@@ -304,6 +304,13 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                     if (volumeBarStyle == VolumeBarStyle.WINDOWS_PHONE) {
                         val hasOverlay = remember(tick) { Settings.canDrawOverlays(context) }
                         val hasKeyService = remember(tick) { ZuneKeyAccessibilityService.isEnabled(context) }
+                        var disclosureOpen by remember { mutableStateOf(false) }
+                        if (disclosureOpen) {
+                            AccessibilityDisclosureDialog(
+                                onAccept = { openSystemPage(context, Settings.ACTION_ACCESSIBILITY_SETTINGS) },
+                                onDismiss = { disclosureOpen = false }
+                            )
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = stringResource(R.string.settings_volume_permissions_info),
@@ -323,7 +330,11 @@ internal fun DisplayAndSoundSettingsPage(viewModel: SettingsViewModel) {
                             title = stringResource(R.string.settings_key_service),
                             subtitle = if (hasKeyService) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_key_service_sub),
                             isActive = hasKeyService,
-                            onClick = { openSystemPage(context, Settings.ACTION_ACCESSIBILITY_SETTINGS) }
+                            // Turning it off needs no explaining; turning it on does.
+                            onClick = {
+                                if (hasKeyService) openSystemPage(context, Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                else disclosureOpen = true
+                            }
                         )
                     }
                 }

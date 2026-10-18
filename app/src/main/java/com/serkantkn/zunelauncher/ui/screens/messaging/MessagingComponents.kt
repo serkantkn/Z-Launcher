@@ -428,7 +428,7 @@ internal fun MessageDetailsDialog(title: String, lines: List<String>, onDismiss:
 // ── Standing notices ────────────────────────────────────────────────────────
 
 @Composable
-internal fun MessagePermissionCard(onGrant: () -> Unit) {
+internal fun MessagePermissionCard(needsDefault: Boolean, onGrant: () -> Unit) {
     val zuneColors = LocalZuneColors.current
     Surface(
         modifier = Modifier
@@ -439,13 +439,13 @@ internal fun MessagePermissionCard(onGrant: () -> Unit) {
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = stringResource(R.string.msg_permission_title),
+                text = stringResource(if (needsDefault) R.string.msg_make_default else R.string.msg_permission_title),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.msg_permission_message),
+                text = stringResource(if (needsDefault) R.string.msg_needs_default else R.string.msg_permission_message),
                 style = MaterialTheme.typography.bodyMedium,
                 color = zuneColors.textMuted
             )
@@ -458,7 +458,7 @@ internal fun MessagePermissionCard(onGrant: () -> Unit) {
                 ),
                 shape = RoundedCornerShape(2.dp)
             ) {
-                Text(stringResource(R.string.msg_permission_button))
+                Text(stringResource(if (needsDefault) R.string.msg_make_default else R.string.msg_permission_button))
             }
         }
     }

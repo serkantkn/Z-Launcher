@@ -625,3 +625,38 @@ private fun Modifier.horizontalFadingEdge(fadeWidth: androidx.compose.ui.unit.Dp
             blendMode = BlendMode.DstIn
         )
     }
+
+/**
+ * What the accessibility service does, said before the user is sent to turn it on, with a choice
+ * to accept or not. Google Play asks this of any app whose service is not an aid for a disability,
+ * and it is only fair besides: the system's own warning about the service says far less.
+ */
+@Composable
+internal fun AccessibilityDisclosureDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
+    com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.a11y_disclosure_title),
+        confirmButton = {
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = stringResource(R.string.a11y_disclosure_accept),
+                onClick = { dismissWithAnim(onAccept) },
+                borderColor = LocalZuneColors.current.accentColor
+            )
+        },
+        dismissButton = {
+            com.serkantkn.zunelauncher.ui.components.ZuneDialogButton(
+                text = stringResource(R.string.common_cancel_cap),
+                onClick = { dismissWithAnim() },
+                borderColor = LocalZuneColors.current.textMuted
+            )
+        }
+    ) {
+        Text(
+            text = stringResource(R.string.a11y_disclosure_body),
+            style = MaterialTheme.typography.bodyMedium,
+            // The dialog is dark in either theme, and scrolls its content itself.
+            color = Color.White.copy(alpha = 0.85f)
+        )
+    }
+}
+

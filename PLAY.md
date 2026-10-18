@@ -9,32 +9,54 @@ olmalı, yoksa ilk ret ikincisini de getirir.
 ## 1. Erişilebilirlik API beyanı
 
 > **Bu en riskli maddedir.** Google erişilebilirlik API'sinin engelli kullanıcılara yardım
-> amacıyla kullanılmasını bekler; bizim kullanımımız bir arayüz tercihidir. Savunma,
-> servisin kapsamının gerçekten dar olmasına dayanıyor: pencere içeriği okumuyor, yalnızca
-> ses tuşu olaylarını filtreliyor, kullanıcı açıkça açmadıkça hiç çalışmıyor.
+> amacıyla kullanılmasını bekler; bizim kullanımımız bir arayüz özelliğidir. Beyan, servisin
+> yaptığını eksiksiz ve abartısız anlatmalı: inceleme uzmanı servisin ayar dosyasında
+> `canRetrieveWindowContent="true"` görecek, beyan bunu açıklamalı.
+
+**Uygulamanız bir erişilebilirlik aracı mı?** Hayır (`isAccessibilityTool` tanımlı değil).
 
 **Hangi erişilebilirlik özelliklerini kullanıyorsunuz?**
 
-> Yalnızca donanım tuşu filtreleme (`FLAG_REQUEST_FILTER_KEY_EVENTS`). Servis
-> `canRetrieveWindowContent="false"` ile tanımlıdır; ekran içeriğini okuma, pencereleri
-> inceleme, tıklama veya metin girme yetkisi istemez ve kullanmaz.
+> - Donanım tuşu filtreleme (`flagRequestFilterKeyEvents`): yalnızca ses artırma ve azaltma
+>   tuşları işlenir; diğer tüm tuşlar sisteme olduğu gibi geçer.
+> - Etkileşimli pencere listesi (`flagRetrieveInteractiveWindows`, bunun için
+>   `canRetrieveWindowContent`): yalnızca pencerelerin türü ve ekrandaki konumu okunur, durum
+>   çubuğunun görünüp görünmediğini anlamak için. Pencerelerin içindeki düğümler okunmaz.
+> - Pencere durumu olayları (`typeWindowStateChanged`): yalnızca paketi
+>   `com.android.systemui` olan olaylara bakılır; olayın sınıf adı ve kısa metninden Android
+>   bildirim panelinin açıldığı anlaşılır. Diğer uygulamaların olayları hemen bırakılır.
+> - Genel eylemler: `GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE` (eski sürümlerde `BACK`) ile
+>   bildirim paneli kapatılır.
 
 **Bu, uygulamanın hangi işlevi için gerekli?**
 
-> Z Launcher, Windows Phone arayüzünü yeniden üreten bir başlatıcıdır. Ses seviyesi
-> göstergesi de bu arayüzün parçasıdır. Android'de donanım tuşları yalnızca ön plandaki
-> uygulamaya ulaştığı için, başlatıcı arka plandayken ses çubuğunu gösterebilmenin tek yolu
-> tuş olaylarını erişilebilirlik servisiyle filtrelemektir. Servis yalnızca ses artırma ve
-> azaltma tuşlarını işler; diğer tüm olaylar sisteme olduğu gibi geçer.
+> Z Launcher, Windows Phone arayüzünü yeniden üreten bir başlatıcıdır. Servis bu arayüzün iki
+> parçası içindir ve her ikisi de kullanıcı ayarlardan açmadıkça çalışmaz:
+>
+> 1. **Ses çubuğu.** Android'de donanım tuşları yalnızca ön plandaki uygulamaya ulaşır; başlatıcı
+>    arka plandayken Windows Phone ses çubuğunu gösterebilmenin tek yolu ses tuşlarını
+>    erişilebilirlik servisiyle filtrelemektir.
+> 2. **Eylem merkezi.** Durum çubuğundan aşağı çekince Android'in bildirim paneli yerine Windows 10
+>    Mobile eylem merkezi açılır. Bunun için servis durum çubuğunun yerini pencere listesinden
+>    bulur, Android paneli yine de açılırsa (kilit ekranı dışındaki başka bir yoldan) bunu
+>    SystemUI'nin pencere olayından anlar, paneli kapatır ve eylem merkezini gösterir. Kilit
+>    ekranında hiçbir şey yapmaz; orada Android'in kendi paneli kalır.
 
-**Kullanıcıya nasıl açıklanıyor?**
+**Kullanıcıya nasıl açıklanıyor? (belirgin açıklama ve onay)**
 
-> Ayarlar → Ses bölümünde, kullanıcı erişilebilirlik ayarlarına yönlendirilmeden önce şu
-> metin görünür: "Servis yalnızca ses tuşlarını dinler: ekranındaki hiçbir şeyi okumaz,
-> hiçbir kayıt tutmaz, hiçbir veri dışarı göndermez. İstediğin an kapatabilirsin." Aynı
-> açıklama Android'in erişilebilirlik ekranında servisin altında da yazar.
+> Kullanıcı Ayarlar → ekran+ses → ses çubuğu ya da Ayarlar → eylem merkezi'nden servisi açmak
+> istediğinde, Android'in erişilebilirlik ayarlarına gönderilmeden önce tam ekran bir iletişim
+> kutusu çıkar. Kutuda servisin bu iki işi, diğer uygulamaların ekranındaki yazıları okumadığı,
+> hiçbir şey kaydetmediği ve dışarı göndermediği yazar; "Kabul et" ve "İptal" düğmeleri vardır.
+> Yalnızca "Kabul et"e basınca ayarlar açılır. Aynı açıklama Android'in erişilebilirlik
+> ekranında servisin altında da görünür (`accessibility_service_description`).
 
-**Toplanan veri:** Hiçbiri. Servis hiçbir şey kaydetmez, saklamaz ve göndermez.
+**Toplanan veri:** Hiçbiri. Servis hiçbir şey kaydetmez, saklamaz ve göndermez. Pencere türü,
+konumu ve SystemUI olaylarının metni yalnızca o an karar vermek için kullanılır ve atılır.
+
+**Video:** Servisin açıklama kutusu → kabul → Android erişilebilirlik ayarlarında açma → başka
+bir uygulama açıkken ses tuşuna basınca Windows Phone ses çubuğu → durum çubuğundan çekince
+eylem merkezi.
 
 ---
 
@@ -52,6 +74,13 @@ verir. Z Launcher her iki rolü de üstlenebilir: manifestte `ACTION_SENDTO` (sm
 > Mesajlar okunur, yazılır, gönderilir ve bildirilir; çağrılar cevaplanır, başlatılır ve
 > çağrı kaydı gösterilir. İzinler yalnızca bu hub'lar için kullanılır; hiçbir mesaj veya
 > çağrı bilgisi cihazdan çıkmaz, üçüncü tarafa aktarılmaz.
+
+**İzinler ne zaman isteniyor:** Yalnızca uygulama varsayılan uygulama yapıldıktan sonra.
+Mesajlar hub'ı, telefon hub'ının arama geçmişi ve ayarlardaki izin anahtarları, uygulama
+varsayılan SMS ya da telefon uygulaması değilse izin penceresi açmaz, önce Android'in "varsayılan
+uygulama yap" penceresini açar (rol isteği). SMS ve çağrı kaydı izinlerini Android bu rolle
+birlikte verir; rehber ve SIM bilgisi gibi rolün kapsamadığı izinler ancak rol alındıktan sonra
+istenir. Uygulama varsayılan değilken bu izinler hiç istenmez.
 
 **Video:** Konsol, akışı gösteren kısa bir video ister. Gerekli olan: uygulamayı varsayılan
 SMS uygulaması yapma → bir mesaj gelmesi → Mesajlar hub'ında okunup yanıtlanması; sonra
@@ -80,7 +109,8 @@ varsayılan telefon uygulaması yapma → çağrı ekranı → çağrı kaydı.
 | Bildirim dinleyicisi | Canlı kutucuklardaki bildirim sayıları ve önizlemeleri. Hiçbir bildirim diske yazılmaz. |
 | `ACCESS_FINE_LOCATION` | Yalnızca ayarlar → bağlantılar'da bağlı Wi-Fi ağının adı (Android SSID'yi bu izin olmadan vermez). İsteğe bağlı, kullanıcı bağlantılar sayfasından ister; arka planda konum yok. Hava durumu konumu ~1 km'ye yuvarlar. |
 | `BLUETOOTH_CONNECT` | Yalnızca ayarlar → bağlantılar'da şu an bağlı Bluetooth cihazlarının adları. Tarama, eşleştirme, bağlanma yok. İsteğe bağlı. |
-| `SCHEDULE_EXACT_ALARM` | Saat hub'ındaki alarmlar ve zamanlayıcı — dakikası dakikasına çalması gerekir. |
+| `SCHEDULE_EXACT_ALARM` | Saat hub'ındaki alarmlar ve zamanlayıcı, takvim hatırlatmaları — dakikası dakikasına çalması gerekir. Kullanıcının "Alarmlar ve hatırlatıcılar" ayarından verdiği izin; Android 14'ten itibaren kapalı gelir, saat hub'ı kullanıcıyı o ayara yönlendirir. `USE_EXACT_ALARM` bilerek kullanılmıyor: Play onu asıl işi çalar saat ya da takvim olan uygulamalara ayırıyor. Bu iznin beyan formu yok. |
+| `USE_FULL_SCREEN_INTENT` | Gelen çağrı ekranı ve çalan alarm, kilit ekranında tam ekran açılır. Play'in "Tam ekran amaç izni" beyanında "Arama" ve "Alarm" seçilir. |
 | `REQUEST_INSTALL_PACKAGES` | Dosyalar hub'ı bir dosya yöneticisidir ve .apk dosyalarını sistem yükleyicisine verir; İnternet hub'ı da kendi indirdiği .apk'yı açar. Bu izin olmadan yükleyici hiç açılmaz. Kullanıcı yine de ayarlardan "bilinmeyen uygulama" izni verir ve her yüklemeyi kendisi onaylar; uygulama kendi başına hiçbir şey yüklemez. Play bu izni "dosya yöneticisi / tarayıcı" gerekçesiyle kabul eder, beyanda bu gerekçe seçilmeli. |
 
 ---

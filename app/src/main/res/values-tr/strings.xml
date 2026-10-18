@@ -46,7 +46,10 @@
     <string name="open_settings">ayarları aç</string>
     <string name="type_message">mesaj yaz...</string>
     <string name="send">gönder</string>
-    <string name="accessibility_service_description">Ses tuşlarını yakalayarak Windows Phone ses barını gösterir ve durum çubuğunu kaplayarak yukarıdan çekince sistem paneli yerine Windows Phone eylem merkezini açar. Ekran içeriği okunmaz.</string>
+    <string name="accessibility_service_description">Diğer uygulamalar açıkken ses tuşlarını yakalayıp Windows Phone ses çubuğunu gösterir. Eylem merkezi açıksa ekrandaki pencerelerin türüne ve yerine bakarak durum çubuğunu bulur, Android\'in bildirim panelinin açıldığını sistem arayüzünün pencere adından anlar ve paneli kapatıp eylem merkezini açar. Diğer uygulamaların ekranındaki yazıları okumaz, hiçbir şeyi kaydetmez ve telefondan dışarı göndermez.</string>
+    <string name="a11y_disclosure_title">erişilebilirlik servisi</string>
+    <string name="a11y_disclosure_body">Z Launcher erişilebilirlik servisini engellilere yönelik bir yardım olarak değil, Windows Phone arayüzünün iki parçası için kullanır:\n\n• Ses çubuğu: diğer uygulamalar açıkken ses tuşlarına basıldığını görür, sesi ayarlar ve Windows Phone ses çubuğunu gösterir. Başka hiçbir tuşa karışmaz.\n\n• Eylem merkezi (açtıysan): ekrandaki pencerelerin türüne ve yerine bakarak durum çubuğunu bulur; Android\'in bildirim panelinin açıldığını sistem arayüzünün pencere adından anlar, paneli kapatır ve yerine eylem merkezini açar.\n\nDiğer uygulamaların ekranındaki yazıları okumaz, yazdıklarını görmez, hiçbir şeyi kaydetmez ve hiçbir veriyi telefondan dışarı göndermez. Servisi istediğin an erişilebilirlik ayarlarından kapatabilirsin.\n\nKabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Z Launcher ses çubuğu ve eylem merkezi\" servisini açman gerekir.</string>
+    <string name="a11y_disclosure_accept">Kabul et</string>
     <string name="settings_language">dil</string>
     <string name="settings_language_subtitle">uygulama dili</string>
     <string name="language_system">sistem dili</string>
@@ -200,7 +203,7 @@
     <string name="settings_volume_style">ses arayüzü stili</string>
     <string name="settings_volume_wp_sub">ekranın üstünden kayan köşeli wp ses kontrolü</string>
     <string name="settings_volume_system_sub">sistemin kendi ses paneli kullanılır</string>
-    <string name="settings_volume_permissions_info">diğer uygulamalar açıkken de wp ses barı için iki izin gerekir. servis yalnızca ses tuşlarını dinler: ekranındaki hiçbir şeyi okumaz, hiçbir kayıt tutmaz, hiçbir veri dışarı göndermez. istediğin an kapatabilirsin.</string>
+    <string name="settings_volume_permissions_info">diğer uygulamalar açıkken de wp ses barı için iki izin gerekir: diğer uygulamaların üstünde gösterme ve Z Launcher\'ın erişilebilirlik servisi. servisin tam olarak ne yaptığı açmadan önce gösterilir; istediğin an kapatabilirsin.</string>
     <string name="settings_overlay_permission">üstte gösterim izni</string>
     <string name="settings_permission_granted">verildi</string>
     <string name="settings_overlay_permission_sub">ses barının diğer uygulamaların üstünde çizilmesi için</string>
@@ -322,9 +325,9 @@
     <string name="settings_perm_contacts">kişiler erişimi</string>
     <string name="settings_perm_contacts_sub">kişiler hubı ve telefon rehberi eşleştirmeleri için</string>
     <string name="settings_perm_call_log">arama kayıtları</string>
-    <string name="settings_perm_call_log_sub">telefon hubında son aramaları ve geçmişi göstermek için</string>
+    <string name="settings_perm_call_log_sub">telefon hubında son aramaları ve geçmişi göstermek için; açınca Z Launcher telefon uygulaması olur</string>
     <string name="settings_perm_sms">sms ve mesajlaşma</string>
-    <string name="settings_perm_sms_sub">mesajlar hubında sms almak ve yanıtlamak için</string>
+    <string name="settings_perm_sms_sub">mesajlar hubında sms almak ve yanıtlamak için; açınca Z Launcher mesaj uygulaması olur</string>
     <string name="settings_perm_storage">dosya ve depolama</string>
     <string name="settings_perm_storage_sub">dosyalar hubı ve özel duvar kağıdı yüklemek için</string>
     <string name="settings_perm_notification_listener">bildirim dinleme izni</string>
@@ -1331,6 +1334,7 @@
     <string name="phone_no_missed">Cevapsız arama yok.</string>
     <string name="phone_default_dialer_title">telefon uygulaması yap</string>
     <string name="phone_default_dialer_body">Aramalar her hâlükârda gerçek. Z Launcher telefon uygulaması olana kadar aramaları bu ekran değil, telefonun kendi arayıcısı gösterir.</string>
+    <string name="phone_history_needs_default">son aramaları gösterebilmek için Z Launcher\'ın telefon uygulaması olması gerekiyor. Android çağrı geçmişine erişimi bu adımla birlikte verir; istediğin an ayarlardan geri alabilirsin.</string>
 
     <!-- Telesekreter, engellenen numaralar, aramanın çıkacağı SIM ve gerçek hızlı yanıtlar -->
     <string name="phone_voicemail">telesekreter</string>
@@ -1459,6 +1463,7 @@
     <string name="msg_needs_default_app">bunu yalnızca telefonun mesaj uygulaması değiştirebilir</string>
     <string name="msg_make_default">mesaj uygulaması yap</string>
     <string name="msg_default_app_prompt">başlatıcı mesajlarınızı okuyabilir, ama okundu işaretlemeyi, silmeyi ve taslak tutmayı yalnızca telefonun mesaj uygulaması yapabilir.</string>
+    <string name="msg_needs_default">mesajlarını okuyup gönderebilmek için Z Launcher\'ın mesaj uygulaması olması gerekiyor. Android SMS erişimini bu adımla birlikte verir; istediğin an ayarlardan geri alabilirsin.</string>
     <string name="msg_blocked">numara engellendi</string>
     <string name="msg_unblocked">numaranın engeli kaldırıldı</string>
     <string name="msg_block_failed">numara engellenemedi</string>

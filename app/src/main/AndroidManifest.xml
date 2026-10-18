@@ -31,11 +31,9 @@
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Exact alarms: the user-granted one on Android 12, the alarm-clock one from 13 on. -->
-    <uses-permission
-        android:name="android.permission.SCHEDULE_EXACT_ALARM"
-        android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Exact alarms, granted by the user ("alarms and reminders"). Not USE_EXACT_ALARM: Google
+         Play keeps that one for apps whose main purpose is an alarm clock or a calendar. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -298,6 +296,7 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
 

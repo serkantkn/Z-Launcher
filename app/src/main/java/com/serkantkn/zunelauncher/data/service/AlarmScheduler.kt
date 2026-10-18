@@ -126,9 +126,9 @@ class AlarmScheduler(private val context: Context) {
     /**
      * Whether the phone will let the launcher name an exact minute.
      *
-     * The launcher holds USE_EXACT_ALARM, which an alarm clock is allowed to and which is not
-     * revocable — but a build without it, or an OEM that treats it differently, would otherwise
-     * fail silently at the moment the alarm was supposed to ring.
+     * SCHEDULE_EXACT_ALARM is the user's to give, and from Android 14 a new install starts without
+     * it; the clock hub sends them to the switch. Until then alarms are booked without the exact
+     * minute rather than not at all.
      */
     fun canScheduleExact(): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) alarmManager.canScheduleExactAlarms() else true

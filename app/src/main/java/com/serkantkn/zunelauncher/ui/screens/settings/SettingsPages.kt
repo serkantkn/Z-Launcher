@@ -588,6 +588,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.actionCenterItem(view
         var checks by remember { mutableIntStateOf(0) }
         LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { checks++ }
         val status = remember(checks) { ActionCenterPermissions.read(context) }
+        var disclosureOpen by remember { mutableStateOf(false) }
+        if (disclosureOpen) {
+            AccessibilityDisclosureDialog(
+                onAccept = { ActionCenterPermissions.open(context, ActionCenterPermissions.SERVICE) },
+                onDismiss = { disclosureOpen = false }
+            )
+        }
 
         SettingGroup(title = stringResource(R.string.ac_settings_group)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -607,7 +614,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.actionCenterItem(view
                         title = stringResource(R.string.ac_perm_service),
                         subtitle = if (status.service) stringResource(R.string.settings_enabled) else stringResource(R.string.ac_perm_service_sub),
                         isActive = status.service,
-                        onClick = { ActionCenterPermissions.open(context, ActionCenterPermissions.SERVICE) }
+                        onClick = {
+                            if (status.service) ActionCenterPermissions.open(context, ActionCenterPermissions.SERVICE)
+                            else disclosureOpen = true
+                        }
                     )
                     if (!status.service && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                         SystemSettingRow(
@@ -1242,6 +1252,14 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissionTrigger++ }
     )
+    // The call log and SMS are Google Play's to hand out only to the phone's dialler and messaging
+    // app, so until the launcher is one, these switches ask for the role; Android grants the
+    // permission with it.
+    val settingsViewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val roleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = { permissionTrigger++ }
+    )
 
     SettingsLazyColumn {
         item(key = "about") {
@@ -1307,7 +1325,11 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
                         checked = hasCallLog,
                         onCheckedChange = {
                             if (!hasCallLog) {
-                                requestCallLogLauncher.launch(Manifest.permission.READ_CALL_LOG)
+                                if (com.serkantkn.zunelauncher.util.PhoneCaller.isDefaultDialer(context)) {
+                                    requestCallLogLauncher.launch(Manifest.permission.READ_CALL_LOG)
+                                } else {
+                                    settingsViewModel.requestDefaultPhoneApp(context, roleLauncher)
+                                }
                             } else {
                                 openAppSettings(context)
                             }
@@ -1320,12 +1342,16 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
                         checked = hasSms,
                         onCheckedChange = {
                             if (!hasSms) {
-                                requestSmsLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.READ_SMS,
-                                        Manifest.permission.SEND_SMS
+                                if (com.serkantkn.zunelauncher.data.repository.SmsRepository.isDefaultSmsApp(context)) {
+                                    requestSmsLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.READ_SMS,
+                                            Manifest.permission.SEND_SMS
+                                        )
                                     )
-                                )
+                                } else {
+                                    settingsViewModel.requestDefaultSmsApp(context, roleLauncher)
+                                }
                             } else {
                                 openAppSettings(context)
                             }
