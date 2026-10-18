@@ -56,6 +56,10 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
     private val _groupedContacts = MutableStateFlow<Map<Char, List<ContactModel>>>(emptyMap())
     val groupedContacts: StateFlow<Map<Char, List<ContactModel>>> = _groupedContacts.asStateFlow()
 
+    /** While something is typed: the people who answer it, best first, with no letters between. */
+    private val _searchResults = MutableStateFlow<List<ContactModel>>(emptyList())
+    val searchResults: StateFlow<List<ContactModel>> = _searchResults.asStateFlow()
+
     private val _favoriteContacts = MutableStateFlow<List<ContactModel>>(emptyList())
     val favoriteContacts: StateFlow<List<ContactModel>> = _favoriteContacts.asStateFlow()
 
@@ -152,7 +156,10 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun loadContacts() {
         viewModelScope.launch {
-            _isLoading.value = true
+            // Only the first load shows the spinner. A list already on screen is refreshed under
+            // it: the spinner takes the hub's pages away while it turns, and coming back to the
+            // launcher - after every phone call - the hub vanished and came in all over again.
+            if (_allContacts.value.isEmpty()) _isLoading.value = true
             try {
                 val contacts = contactRepository.getContacts()
                 _allContacts.value = contacts
@@ -214,16 +221,9 @@ class PeopleHubViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun updateGroupedContacts(contacts: List<ContactModel>, query: String) {
-        val filtered = if (query.isBlank()) {
-            contacts
-        } else {
-            // Typing digits should find the person those digits belong to, not nothing.
-            val digits = query.filter { it.isDigit() }
-            contacts.filter { contact ->
-                contact.name.contains(query, ignoreCase = true) ||
-                    (digits.length >= 3 && numbersOf(contact.id).any { it.contains(digits) })
-            }
-        }
+        val ranked = rankContacts(contacts, query, ::numbersOf)
+        _searchResults.value = ranked
+        val filtered = if (query.isBlank()) contacts else ranked
 
         // Grouped and ordered the way the language reads: Ç after C and Ş after S in Turkish,
         // rather than after Z where their code points would put them. Same rule as the app list.

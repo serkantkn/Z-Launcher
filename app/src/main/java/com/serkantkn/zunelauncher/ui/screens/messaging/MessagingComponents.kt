@@ -118,6 +118,11 @@ internal fun MessageSearchBar(
                         .focusRequester(focusRequester)
                 )
             }
+            com.serkantkn.zunelauncher.ui.components.SearchClearButton(
+                query = query,
+                onClear = { onQueryChange("") },
+                tint = hintColor
+            )
         }
     }
 }

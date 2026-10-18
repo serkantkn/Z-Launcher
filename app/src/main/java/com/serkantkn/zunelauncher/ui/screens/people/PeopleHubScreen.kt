@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -109,6 +110,7 @@ fun PeopleHubScreen(
     var linkPickerOpen by remember { mutableStateOf(false) }
     var newGroupOpen by remember { mutableStateOf(false) }
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
 
     var isSearchVisible by remember { mutableStateOf(false) }
 
@@ -134,6 +136,8 @@ fun PeopleHubScreen(
     /** The alphabet laid open to jump with, after a letter tile is tapped. */
     var letterJumpOpen by remember { mutableStateOf(false) }
     val allListState = rememberLazyListState()
+    // A tablet's search page has a list of its own, or jumping in "all" would move the matches too.
+    val searchListState = rememberLazyListState()
 
     // The Windows Phone 7 people hub's sections - all, what's new, recent - with the favourites
     // and groups this hub has as well between them: "recent" stays last, so the hub can come in
@@ -350,11 +354,38 @@ fun PeopleHubScreen(
             label = stringResource(R.string.common_search),
             onClick = {
                 // A tablet has searching as a heading of its own; the bar's button goes there.
-                if (isWideScreen) coroutineScope.launch { pager.scrollToPage(PEOPLE_SEARCH_PAGE) }
-                else isSearchVisible = !isSearchVisible
+                if (isWideScreen) {
+                    coroutineScope.launch { pager.scrollToPage(PEOPLE_SEARCH_PAGE) }
+                } else {
+                    isSearchVisible = !isSearchVisible
+                    // Putting the box away puts what was typed in it away too, or "all" would
+                    // go on showing only what matched it, with no box on screen to say why.
+                    if (!isSearchVisible) viewModel.updateSearchQuery("")
+                }
+            }
+        ),
+        WpBarAction(
+            icon = Icons.Default.KeyboardArrowUp,
+            label = stringResource(R.string.apps_scroll_top),
+            onClick = {
+                coroutineScope.launch {
+                    // "All" is where the long list is; from any other page this goes back to it.
+                    val onSearchPage = isWideScreen && pager.currentPage == PEOPLE_SEARCH_PAGE
+                    if (!onSearchPage && pager.currentPage != 0) pager.animateScrollToPage(0)
+                    (if (onSearchPage) searchListState else allListState).animateScrollToItem(0)
+                }
             }
         )
     )
+
+    // A new search starts at the top, where its best match is.
+    var searchedFor by remember { mutableStateOf(searchQuery) }
+    LaunchedEffect(searchQuery) {
+        if (searchQuery == searchedFor) return@LaunchedEffect
+        searchedFor = searchQuery
+        allListState.scrollToItem(0)
+        searchListState.scrollToItem(0)
+    }
 
     // What was typed on a tablet's search page is let go of when another heading is chosen, or
     // "all" would go on showing only what matched it, with no box on screen to say why.
@@ -407,9 +438,7 @@ fun PeopleHubScreen(
                                 )
                             } else {
                                 LazyColumn(
-                                    // The search page has a list of its own, or jumping in "all"
-                                    // would move the matches too.
-                                    state = if (tabIndex == 0) allListState else rememberLazyListState(),
+                                    state = if (tabIndex == 0) allListState else searchListState,
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(bottom = 80.dp, end = 12.dp)
                                 ) {
@@ -427,7 +456,15 @@ fun PeopleHubScreen(
                                             }
                                         }
                                     }
-                                    groupedContacts.forEach { (letter, contactsInGroup) ->
+                                    if (searchQuery.isNotBlank()) {
+                                        // What was searched for: the best match on top, and no
+                                        // letters between, which would only put it back in order.
+                                        items(searchResults, key = { it.id }) { contact ->
+                                            ContactListItem(contact = contact, highlighted = contact.id == openContactId) {
+                                                selectContactWithAnimation(it)
+                                            }
+                                        }
+                                    } else groupedContacts.forEach { (letter, contactsInGroup) ->
                                         item(key = "header_$letter") {
                                             PeopleLetterTile(letter) { if (tabIndex == 0) letterJumpOpen = true }
                                         }
@@ -987,6 +1024,11 @@ private fun SearchBar(
                         .focusRequester(focusRequester)
                 )
             }
+            com.serkantkn.zunelauncher.ui.components.SearchClearButton(
+                query = query,
+                onClear = { onQueryChange("") },
+                tint = hintColor
+            )
         }
     }
 }

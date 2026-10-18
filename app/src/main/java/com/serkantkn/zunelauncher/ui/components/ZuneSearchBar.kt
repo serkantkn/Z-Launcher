@@ -55,15 +55,18 @@ fun ZuneSearchBar(
             )
         }
 
-        BasicTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                color = MaterialTheme.colorScheme.onSurface
-            ),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            SearchClearButton(query = query, onClear = { onQueryChange("") }, tint = zuneColors.textDim)
+        }
     }
 }

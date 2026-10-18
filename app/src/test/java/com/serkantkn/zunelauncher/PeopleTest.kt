@@ -5,6 +5,7 @@ import com.serkantkn.zunelauncher.data.model.StartTileItem
 import com.serkantkn.zunelauncher.util.ContactTouch
 import com.serkantkn.zunelauncher.ui.screens.people.cropRectFor
 import com.serkantkn.zunelauncher.ui.screens.people.formatBirthday
+import com.serkantkn.zunelauncher.ui.screens.people.rankContacts
 import com.serkantkn.zunelauncher.util.recentContacts
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -30,6 +31,36 @@ class PeopleTest {
         "2" to listOf("0532 444 55 66", "+90 216 700 80 90"),
         "3" to listOf("5559998877")
     )
+
+    // ── Searching ─────────────────────────────────────────────────────────────────────────────
+
+    private fun digitsOf(id: String) = numbers[id].orEmpty().map { it.filter(Char::isDigit) }
+
+    @Test
+    fun theBestMatchComesFirstNotWhereTheAlphabetPutsIt() {
+        val people = listOf(person("1", "Ahmet Ali"), person("2", "Alper Kaya"), person("3", "Ali"), person("4", "Zeynep Kalinci"))
+        val found = rankContacts(people, "ali", ::digitsOf, Locale("tr"))
+        // The whole name, then a word that starts with it, then one with it inside.
+        assertEquals(listOf("Ali", "Ahmet Ali", "Zeynep Kalinci"), found.map { it.name })
+    }
+
+    @Test
+    fun aSearchFindsTurkishNamesTypedWithoutTheirLetters() {
+        val found = rankContacts(everyone, "ayse", ::digitsOf, Locale("tr"))
+        assertEquals(listOf(ayse), found)
+    }
+
+    @Test
+    fun digitsFindWhoseNumberTheyAreAfterTheNames() {
+        val found = rankContacts(everyone, "444", ::digitsOf, Locale("tr"))
+        assertEquals(listOf(mehmet), found)
+        assertTrue(rankContacts(everyone, "44", ::digitsOf, Locale("tr")).isEmpty())
+    }
+
+    @Test
+    fun nothingTypedFindsNobody() {
+        assertTrue(rankContacts(everyone, "  ", ::digitsOf).isEmpty())
+    }
 
     // ── Recently in touch ─────────────────────────────────────────────────────────────────────
 
