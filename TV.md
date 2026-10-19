@@ -61,12 +61,21 @@ other way round.
   display+sound and keyboard are left out, and so are the tour, the permissions list and the
   other hubs' groups.
 
-## Still to do
+## Start's live content (done)
 
-1. **The Start's live content**: what was last watched in the launcher's own player, the album
-   playing, the weather; other apps' "continue watching" is not readable by a launcher.
-2. **Being Home.** Google TV keeps the Home button for its own launcher; on those, Z Launcher is an
+- `ui/tv/TvLive.kt`, read again whenever Start is come back to:
+  - **continue**: the video last left part way in the launcher's own player (its resume record),
+    by its picture, name and how far in; it leads the board as a wide tile and the list as its
+    first word, and opens where it was left. Other apps' "continue watching" is not readable by
+    a launcher.
+  - **pictures**: the newest picture on the TV.
+- From the hub's own data: the music playing (name, artist, album art), the weather, the first
+  headline, the next alarm.
+- A focused tile is no longer cut off at the row's edge.
+
+## Still to do
+1. **Being Home.** Google TV keeps the Home button for its own launcher; on those, Z Launcher is an
    app in the row unless the user makes it Home by adb. Older Android TV boxes let it be chosen.
-3. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs
+2. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs
    "display over other apps" on the TV), the settings on both sides.
-4. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.
+3. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.

@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.tv
 
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.graphics.asImageBitmap
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -116,7 +118,14 @@ fun TvStartScreen(
     val apps by produceState(initialValue = emptyList<TvApp>(), context) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadTvApps(context) }
     }
-    val places = tvPlaces(homeHubViewModel, onOpenHub)
+    // Read again whenever Start is come back to: from a hub, from another app, from standby.
+    var liveTurn by remember { mutableIntStateOf(0) }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { liveTurn++ }
+    LaunchedEffect(hubOpen) { if (!hubOpen) liveTurn++ }
+    val live by produceState(initialValue = TvLive(), liveTurn) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadTvLive(context) }
+    }
+    val places = tvPlaces(homeHubViewModel, live, onOpenHub)
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -179,33 +188,53 @@ internal class TvPlace(
     val key: String,
     val title: String,
     val line: String?,
+    /** A picture for its tile: the album playing, the last photo, the film left part way. */
+    val image: ImageBitmap? = null,
+    /** How far in something is, 0-1, drawn along the tile's foot. */
+    val progress: Float? = null,
     val open: () -> Unit
 )
 
 @Composable
-private fun tvPlaces(viewModel: HomeHubViewModel, onOpenHub: (HubType) -> Unit): List<TvPlace> {
+private fun tvPlaces(viewModel: HomeHubViewModel, live: TvLive, onOpenHub: (HubType) -> Unit): List<TvPlace> {
     val context = LocalContext.current
     val nowPlaying by viewModel.nowPlaying.collectAsState()
     val weather by viewModel.weatherSnapshot.collectAsState()
+    val news by viewModel.newsStories.collectAsState()
+    val alarms by viewModel.enabledAlarms.collectAsState()
     val playing = nowPlaying.takeIf { it.isPlaying && it.title.isNotBlank() }
-        ?.let { listOf(it.title, it.artist).filter(String::isNotBlank).joinToString(" · ") }
+    val playingLine = playing?.let { listOf(it.title, it.artist).filter(String::isNotBlank).joinToString(" · ") }
     val weatherLine = weather?.let { "${it.now.temperature.roundToInt()}° ${it.place.name}" }
-    return listOf(
-        TvPlace("videos", stringResource(R.string.music_tab_videos), null) {
+    val nextAlarm = remember(alarms) {
+        val now = System.currentTimeMillis()
+        alarms.mapNotNull { it.dueAt(now) }.minOrNull()
+    }
+    val alarmLine = nextAlarm?.let {
+        stringResource(R.string.zune_line_alarm, SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it)))
+    }
+    val left = live.continueWatching
+    return buildList {
+        // The film left part way, ahead of everything, as the Xbox put what you were doing first.
+        if (left != null) {
+            add(TvPlace("continue", stringResource(R.string.tv_continue), left.title, left.thumbnail, left.progress) {
+                com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, left.uri, left.title)
+            })
+        }
+        add(TvPlace("videos", stringResource(R.string.music_tab_videos), null) {
             MusicBridge.openVideos()
             onOpenHub(HubType.MUSIC)
-        },
-        TvPlace("music", stringResource(R.string.zune_row_music), playing) { onOpenHub(HubType.MUSIC) },
-        TvPlace("pictures", stringResource(HubType.PICTURES.titleRes), null) { onOpenHub(HubType.PICTURES) },
-        TvPlace("weather", stringResource(HubType.WEATHER.titleRes), weatherLine) { onOpenHub(HubType.WEATHER) },
-        TvPlace("files", stringResource(HubType.FILES.titleRes), null) { onOpenHub(HubType.FILES) },
-        TvPlace("clock", stringResource(HubType.CLOCK.titleRes), null) { onOpenHub(HubType.CLOCK) },
-        TvPlace("news", stringResource(HubType.NEWS.titleRes), null) { onOpenHub(HubType.NEWS) },
-        TvPlace("settings", stringResource(R.string.settings_hub), null) { onOpenHub(HubType.SETTINGS) },
-        TvPlace("android_settings", stringResource(R.string.tv_android_settings), null) {
+        })
+        add(TvPlace("music", stringResource(R.string.zune_row_music), playingLine, playing?.albumArt?.asImageBitmap()) { onOpenHub(HubType.MUSIC) })
+        add(TvPlace("pictures", stringResource(HubType.PICTURES.titleRes), null, live.latestPhoto) { onOpenHub(HubType.PICTURES) })
+        add(TvPlace("weather", stringResource(HubType.WEATHER.titleRes), weatherLine) { onOpenHub(HubType.WEATHER) })
+        add(TvPlace("news", stringResource(HubType.NEWS.titleRes), news.firstOrNull()?.title) { onOpenHub(HubType.NEWS) })
+        add(TvPlace("files", stringResource(HubType.FILES.titleRes), null) { onOpenHub(HubType.FILES) })
+        add(TvPlace("clock", stringResource(HubType.CLOCK.titleRes), alarmLine) { onOpenHub(HubType.CLOCK) })
+        add(TvPlace("settings", stringResource(R.string.settings_hub), null) { onOpenHub(HubType.SETTINGS) })
+        add(TvPlace("android_settings", stringResource(R.string.tv_android_settings), null) {
             context.startSafely(Intent(Settings.ACTION_SETTINGS))
-        }
-    )
+        })
+    }
 }
 
 // ── A: the Xbox 360's board ─────────────────────────────────────────────────────────────────
@@ -219,12 +248,20 @@ private fun tvPlaces(viewModel: HomeHubViewModel, onOpenHub: (HubType) -> Unit):
 private fun TvBoardStart(places: List<TvPlace>, apps: List<TvApp>) {
     val byKey = places.associateBy { it.key }
     val sections = listOf(
-        TvSection(stringResource(R.string.browser_home), listOf(
-            TvColumn.Big(byKey.getValue("videos")),
-            TvColumn.Pair(byKey.getValue("music"), byKey.getValue("pictures")),
-            TvColumn.Pair(byKey.getValue("weather"), byKey.getValue("news")),
-            TvColumn.Pair(byKey.getValue("files"), byKey.getValue("clock"))
-        )),
+        TvSection(stringResource(R.string.browser_home), buildList {
+            // The big tile is the film left part way when there is one, the videos when not.
+            val lead = byKey["continue"]
+            if (lead != null) {
+                add(TvColumn.Big(lead))
+                add(TvColumn.Pair(byKey.getValue("videos"), byKey.getValue("music")))
+            } else {
+                add(TvColumn.Big(byKey.getValue("videos")))
+                add(TvColumn.Pair(byKey.getValue("music"), null))
+            }
+            add(TvColumn.Pair(byKey.getValue("pictures"), byKey.getValue("weather")))
+            add(TvColumn.Pair(byKey.getValue("news"), byKey.getValue("files")))
+            add(TvColumn.Pair(byKey.getValue("clock"), null))
+        }),
         TvSection(stringResource(R.string.apps_hub), apps.chunked(2).map { TvColumn.Apps(it) }),
         TvSection(stringResource(R.string.settings_hub), listOf(
             TvColumn.Pair(byKey.getValue("settings"), byKey.getValue("android_settings"))
@@ -257,9 +294,13 @@ private fun TvBoardStart(places: List<TvPlace>, apps: List<TvApp>) {
                 )
             }
         }
+        // Room round the tiles for the focused one to grow into: a row clips what it holds, and
+        // the first tile's edge and its words were cut off. The row is moved back by as much,
+        // so the tiles stand where they did.
         LazyRow(
             state = listState,
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(FOCUS_ROOM),
+            modifier = Modifier.fillMaxWidth().weight(1f).offset(x = -FOCUS_ROOM, y = -FOCUS_ROOM),
             horizontalArrangement = Arrangement.spacedBy(SECTION_GAP),
             verticalAlignment = Alignment.Top
         ) {
@@ -296,14 +337,17 @@ private fun TvBoardColumn(column: TvColumn, firstFocus: Modifier) {
             title = column.place.title,
             line = column.place.line,
             color = accent,
-            width = BIG_TILE,
+            // The film's own picture is wide: its tile is too.
+            width = if (column.place.image != null && column.place.key == "continue") BIG_WIDE else BIG_TILE,
             height = BIG_TILE,
             onClick = column.place.open,
-            modifier = firstFocus.remembered(column.place.key)
+            modifier = firstFocus.remembered(column.place.key),
+            image = column.place.image,
+            progress = column.place.progress
         )
         is TvColumn.Pair -> Column(verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
-            TvTile(column.top.title, column.top.line, accent.shade(0.8f), SMALL_TILE, SMALL_TILE, column.top.open, firstFocus.remembered(column.top.key))
-            column.bottom?.let { TvTile(it.title, it.line, accent.shade(0.62f), SMALL_TILE, SMALL_TILE, it.open, Modifier.remembered(it.key)) }
+            TvTile(column.top.title, column.top.line, accent.shade(0.8f), SMALL_TILE, SMALL_TILE, column.top.open, firstFocus.remembered(column.top.key), column.top.image, column.top.progress)
+            column.bottom?.let { TvTile(it.title, it.line, accent.shade(0.62f), SMALL_TILE, SMALL_TILE, it.open, Modifier.remembered(it.key), it.image, it.progress) }
         }
         is TvColumn.Apps -> {
             val context = LocalContext.current
@@ -329,6 +373,7 @@ private fun TvBoardColumn(column: TvColumn, firstFocus: Modifier) {
 private fun TvZuneStart(places: List<TvPlace>, apps: List<TvApp>) {
     val appsWord = stringResource(R.string.apps_hub)
     val words = buildList {
+        places.firstOrNull { it.key == "continue" }?.let { add(it) }
         add(places.first { it.key == "videos" })
         add(places.first { it.key == "music" })
         add(places.first { it.key == "pictures" })
@@ -386,9 +431,11 @@ private fun TvZuneStart(places: List<TvPlace>, apps: List<TvApp>) {
                         title = place.title,
                         line = null,
                         color = LocalZuneColors.current.accentColor,
-                        width = BANNER_WIDTH,
-                        height = SMALL_TILE,
-                        onClick = place.open
+                        width = if (place.image != null) PREVIEW_WIDE else BANNER_WIDTH,
+                        height = if (place.image != null) PREVIEW_TALL else SMALL_TILE,
+                        onClick = place.open,
+                        image = place.image,
+                        progress = place.progress
                     )
                 }
             }
@@ -399,7 +446,11 @@ private fun TvZuneStart(places: List<TvPlace>, apps: List<TvApp>) {
 @Composable
 private fun TvAppsPreview(apps: List<TvApp>) {
     val context = LocalContext.current
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(TILE_GAP)) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(TILE_GAP),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(FOCUS_ROOM),
+        modifier = Modifier.offset(x = -FOCUS_ROOM)
+    ) {
         itemsIndexed(apps.chunked(2)) { _, pair ->
             Column(verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
                 pair.forEach { app ->
@@ -434,7 +485,8 @@ private fun TvTile(
     height: Dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    image: ImageBitmap? = null
+    image: ImageBitmap? = null,
+    progress: Float? = null
 ) {
     val source = remember { MutableInteractionSource() }
     Box(
@@ -447,6 +499,20 @@ private fun TvTile(
     ) {
         if (image != null) {
             Image(bitmap = image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            // The words at the foot stay readable over any picture.
+            if (title.isNotEmpty() || line != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.45f)
+                        .align(Alignment.BottomStart)
+                        .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))))
+                )
+            }
+        }
+        if (progress != null) {
+            Box(modifier = Modifier.fillMaxWidth().height(4.dp).align(Alignment.BottomStart).background(Color.White.copy(alpha = 0.3f)))
+            Box(modifier = Modifier.fillMaxWidth(progress).height(4.dp).align(Alignment.BottomStart).background(LocalZuneColors.current.accentColor))
         }
         Column(modifier = Modifier.align(Alignment.BottomStart).padding(12.dp)) {
             if (line != null) {
@@ -560,6 +626,11 @@ private val TV_SAFE_X = 48.dp
 private val TV_SAFE_Y = 27.dp
 private val TV_GROUND = Color(0xFF0E0D10)
 private val BIG_TILE = 352.dp
+/** How far a focused tile may grow past its row's edge without being cut off. */
+private val FOCUS_ROOM = 20.dp
+private val BIG_WIDE = 626.dp
+private val PREVIEW_WIDE = 480.dp
+private val PREVIEW_TALL = 270.dp
 private val SMALL_TILE = 170.dp
 private val BANNER_WIDTH = 302.dp
 private val TILE_GAP = 12.dp
