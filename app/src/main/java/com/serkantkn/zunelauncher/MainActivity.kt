@@ -130,11 +130,7 @@ class MainActivity : FragmentActivity() {
             }
         }
         
-        if (resources.configuration.smallestScreenWidthDp < 600) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        } else {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
-        }
+        lockOrientation(resources.configuration.smallestScreenWidthDp)
 
         // Prevent back button from closing the launcher
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -339,13 +335,22 @@ class MainActivity : FragmentActivity() {
         return super.dispatchKeyEvent(event)
     }
 
+    /**
+     * A phone is held upright; a tablet turns as it likes. A television is neither: it is lying
+     * on its side already, and a phone-sized one (960 × 540 dp at 1080p) would otherwise be
+     * turned on its end.
+     */
+    private fun lockOrientation(smallestWidthDp: Int) {
+        requestedOrientation = when {
+            com.serkantkn.zunelauncher.ui.theme.isTelevision(this) -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            smallestWidthDp < 600 -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+        }
+    }
+
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (newConfig.smallestScreenWidthDp < 600) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        } else {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER
-        }
+        lockOrientation(newConfig.smallestScreenWidthDp)
     }
 
     private fun setLauncherContent() {

@@ -110,6 +110,18 @@ val LocalZuneColors = staticCompositionLocalOf { ZuneExtendedColors() }
 val LocalIsWideScreen = staticCompositionLocalOf { false }
 
 /**
+ * Whether this is a television: nothing to touch, a remote's arrows and a sofa's distance. Start
+ * is drawn for it instead of a phone's or a tablet's (ui/tv), and everything must be reachable
+ * by focus alone.
+ */
+val LocalIsTv = staticCompositionLocalOf { false }
+
+/** Whether [context] runs on a television, as Android itself reports it. */
+fun isTelevision(context: android.content.Context): Boolean =
+    (context.getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager)
+        ?.currentModeType == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+
+/**
  * Whether the launcher's own motion is wanted.
  *
  * The setting existed and was stored for a long time without a single animation consulting it.
@@ -156,6 +168,7 @@ fun ZuneLauncherTheme(
     val isWideScreen = configuration.screenWidthDp >= 600
 
     val context = LocalContext.current
+    val isTv = remember(context) { isTelevision(context) }
     val resolvedAccentColor = when (accentColor) {
         AccentColor.DYNAMIC -> {
             if (dynamicThemeColor != null) {
@@ -241,6 +254,7 @@ fun ZuneLauncherTheme(
     CompositionLocalProvider(
         LocalZuneColors provides zuneColors,
         LocalIsWideScreen provides isWideScreen,
+        LocalIsTv provides isTv,
         LocalAnimationsEnabled provides animationsEnabled,
         LocalDensity provides scaledDensity
     ) {

@@ -3,6 +3,9 @@
     <string name="app_name">Z Launcher</string>
     <string name="home_hub">ana ekran</string>
     <string name="apps_hub">uygulamalar</string>
+    <string name="tv_launcher_settings">z launcher ayarları</string>
+    <string name="tv_android_settings">android ayarları</string>
+    <string name="tv_open_hint">açmak için orta tuşa bas</string>
     <string name="music_hub">müzik + videolar</string>
     <string name="people_hub">kişiler</string>
     <string name="pictures_hub">fotoğraflar</string>

@@ -565,8 +565,16 @@ fun LauncherScreen(
                 // The Start page is the same page whichever pane it is drawn in, so it is given
                 // the same ways out: the two split layouts used to leave it unable to swipe to
                 // the social page, the app list or quickplay.
+                val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
                 val startPage: @Composable (isHubOpenHere: Boolean) -> Unit = { isHubOpenHere ->
-                    HomeHubScreen(
+                    // A television has its own Start, worked with a remote (ui/tv).
+                    if (isTv) {
+                        com.serkantkn.zunelauncher.ui.tv.TvStartScreen(
+                            layout = homeScreenLayout,
+                            homeHubViewModel = homeHubViewModel,
+                            onOpenHub = { hub -> if (hub != HubType.HOME) navState.openHub(hub) }
+                        )
+                    } else HomeHubScreen(
                         isHubOpen = isHubOpenHere,
                         isCurrentPage = pagerState.currentPage == 1,
                         onNavigateToSocialHub = {
@@ -978,7 +986,8 @@ fun LauncherScreen(
                         HorizontalPager(
                             state = pagerState,
                             modifier = Modifier.weight(1f),
-                            userScrollEnabled = navState.currentHub == null,
+                            // On a TV the remote moves the focus, not the pages: Start is the whole screen.
+                            userScrollEnabled = navState.currentHub == null && !isTv,
                             flingBehavior = PagerDefaults.flingBehavior(
                                 state = pagerState,
                                 snapPositionalThreshold = if (isWideScreen) TABLET_PAGE_TURN else 0.5f
@@ -1099,7 +1108,12 @@ fun LauncherScreen(
 
                 val onboardingViewModel: OnboardingViewModel = viewModel()
                 val firstRun by onboardingViewModel.screen.collectAsState()
-                if (firstRun != FirstRunScreen.None) Box(modifier = Modifier.fillMaxSize().zIndex(FIRST_RUN_Z)) {
+                // The tour teaches touch: swipes, holds, the shade. A television gets one of its
+                // own later; until then it goes straight to Start.
+                LaunchedEffect(isTv, firstRun) {
+                    if (isTv && firstRun is FirstRunScreen.Tour) onboardingViewModel.finish()
+                }
+                if (firstRun != FirstRunScreen.None && !(isTv && firstRun is FirstRunScreen.Tour)) Box(modifier = Modifier.fillMaxSize().zIndex(FIRST_RUN_Z)) {
                 when (val screen = firstRun) {
                     is FirstRunScreen.Tour -> OnboardingScreen(
                         tour = screen,
@@ -1200,6 +1214,8 @@ private fun RenderHubScreen(
  * brings that down and never the system shade; with it off, the system shade as before.
  */
 internal fun expandNotificationPanel(context: Context) {
+    // Nothing is pulled down on a television: a remote's "up" at the top of a list is only "up".
+    if (com.serkantkn.zunelauncher.ui.theme.isTelevision(context)) return
     kotlinx.coroutines.MainScope().launch {
         val wpPanel = runCatching {
             context.applicationContext.appContainer.settingsDataStore.wpActionCenter.first()

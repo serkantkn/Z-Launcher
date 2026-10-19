@@ -3,6 +3,9 @@
     <string name="app_name">Z Launcher</string>
     <string name="home_hub">home</string>
     <string name="apps_hub">apps</string>
+    <string name="tv_launcher_settings">z launcher settings</string>
+    <string name="tv_android_settings">android settings</string>
+    <string name="tv_open_hint">press the centre button to open</string>
     <string name="music_hub">music + videos</string>
     <string name="people_hub">people</string>
     <string name="pictures_hub">pictures</string>

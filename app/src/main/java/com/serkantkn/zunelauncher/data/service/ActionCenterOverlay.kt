@@ -112,6 +112,8 @@ object ActionCenterOverlay {
 
     /** Brings the panel down. Returns false if nothing on this phone may draw it. */
     fun open(context: Context): Boolean {
+        // A television has no status bar to pull and no shade to replace.
+        if (com.serkantkn.zunelauncher.ui.theme.isTelevision(context)) return false
         if (!attach(context)) return false
         settle(1f)
         return true
