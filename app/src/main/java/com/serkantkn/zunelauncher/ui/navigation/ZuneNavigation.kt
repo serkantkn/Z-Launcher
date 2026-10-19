@@ -70,7 +70,12 @@ class ZuneNavigationState {
         leftHub = null
     }
 
+    /** Set on a television, where only the hubs made for one ([HubType.onTelevision]) open. */
+    var television: Boolean = false
+
     fun openHub(hub: HubType) {
+        // A notification, a shortcut or another app may still ask a TV for the phone hub.
+        if (television && !hub.onTelevision) return
         // Coming back to a hub that was left running: it leaves the running list and is picked up
         // where it stood, because its composition was never thrown away.
         backgroundHubs = backgroundHubs - hub

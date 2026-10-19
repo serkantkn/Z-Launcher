@@ -820,7 +820,8 @@ private fun SearchPage(
         MetroTextField(
             value = query,
             onValueChange = onQueryChange,
-            placeholder = stringResource(R.string.pics_search_hint)
+            placeholder = stringResource(R.string.pics_search_hint),
+            search = true
         )
         Spacer(modifier = Modifier.height(ZuneDimens.SpacingMd))
 

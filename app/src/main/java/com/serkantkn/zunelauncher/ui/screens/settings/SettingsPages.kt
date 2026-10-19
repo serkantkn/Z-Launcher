@@ -137,8 +137,10 @@ internal fun HubSettingsPage(
         }
     }
 
+    // A television has none of these: the hubs, the tour and the permissions they are for.
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
     SettingsLazyColumn {
-        item(key = "social") {
+        if (!isTv) item(key = "social") {
             SettingGroup(title = stringResource(R.string.settings_group_social)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingChoiceRow(
@@ -166,7 +168,7 @@ internal fun HubSettingsPage(
             }
         }
 
-        item(key = "calendar") {
+        if (!isTv) item(key = "calendar") {
             val calendars by viewModel.calendars.collectAsState()
             val visible by viewModel.visibleCalendars.collectAsState()
             val reminder by viewModel.calendarReminderMinutes.collectAsState()
@@ -281,7 +283,7 @@ internal fun HubSettingsPage(
             }
         }
 
-        item(key = "phone") {
+        if (!isTv) item(key = "phone") {
             SettingGroup(title = stringResource(R.string.settings_group_phone)) {
                 SettingSwitchRow(
                     title = stringResource(R.string.settings_direct_call),
@@ -292,7 +294,7 @@ internal fun HubSettingsPage(
             }
         }
 
-        item(key = "messaging") {
+        if (!isTv) item(key = "messaging") {
             val deliveryReports by viewModel.smsDeliveryReports.collectAsState()
             val deliveredNotice by viewModel.smsDeliveredNotice.collectAsState()
             val autoDownload by viewModel.mmsAutoDownload.collectAsState()
@@ -338,7 +340,7 @@ internal fun HubSettingsPage(
             }
         }
 
-        item(key = "internet") {
+        if (!isTv) item(key = "internet") {
             val searchEngine by viewModel.searchEngine.collectAsState()
             val suggestionsOn by viewModel.searchSuggestionsEnabled.collectAsState()
             var showClearDialog by remember { mutableStateOf(false) }
@@ -410,7 +412,7 @@ internal fun HubSettingsPage(
             }
         }
 
-        item(key = "hub_order") {
+        if (!isTv) item(key = "hub_order") {
             SettingGroup(title = stringResource(R.string.settings_hub_order)) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
@@ -1078,6 +1080,8 @@ internal fun SystemSettingsPage(
 
     val appLanguage by viewModel.appLanguage.collectAsState()
 
+    // A television has none of these: the hubs, the tour and the permissions they are for.
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
     SettingsLazyColumn {
 
         item(key = "language") {
@@ -1148,7 +1152,7 @@ internal fun SystemSettingsPage(
             }
         }
 
-        item(key = "replay_onboarding") {
+        if (!isTv) item(key = "replay_onboarding") {
             // The tour is not only for the first run: it is where the gestures are written down,
             // and somebody who forgot how to move a tile should be able to go back and look.
             val onboardingViewModel: com.serkantkn.zunelauncher.ui.screens.onboarding.OnboardingViewModel =
@@ -1261,6 +1265,8 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
         onResult = { permissionTrigger++ }
     )
 
+    // A television has none of these: the hubs, the tour and the permissions they are for.
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
     SettingsLazyColumn {
         item(key = "about") {
             SettingGroup(title = stringResource(R.string.settings_about_group)) {
@@ -1296,7 +1302,7 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
             AboutDeviceGroup()
         }
 
-        item(key = "permissions") {
+        if (!isTv) item(key = "permissions") {
             SettingGroup(title = stringResource(R.string.settings_permissions_group)) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(

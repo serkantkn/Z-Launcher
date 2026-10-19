@@ -261,7 +261,8 @@ fun MusicSearchOverlay(
             onValueChange = onQueryChange,
             placeholder = androidx.compose.ui.res.stringResource(
                 com.serkantkn.zunelauncher.R.string.music_search_hint
-            )
+            ),
+            search = true
         )
     }
 }

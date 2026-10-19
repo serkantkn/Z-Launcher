@@ -98,7 +98,7 @@ class VideoPlayerActivity : ComponentActivity() {
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         // The TV's focus frame follows closely while the remote is in use.
-        com.serkantkn.zunelauncher.ui.tv.TvFocus.lastKeyAt = android.os.SystemClock.uptimeMillis()
+        com.serkantkn.zunelauncher.ui.tv.TvFocus.onKey(window?.decorView?.findFocus(), event)
         return super.dispatchKeyEvent(event)
     }
 

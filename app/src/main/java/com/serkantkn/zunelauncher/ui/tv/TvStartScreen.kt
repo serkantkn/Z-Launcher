@@ -199,6 +199,7 @@ private fun tvPlaces(viewModel: HomeHubViewModel, onOpenHub: (HubType) -> Unit):
         TvPlace("pictures", stringResource(HubType.PICTURES.titleRes), null) { onOpenHub(HubType.PICTURES) },
         TvPlace("weather", stringResource(HubType.WEATHER.titleRes), weatherLine) { onOpenHub(HubType.WEATHER) },
         TvPlace("files", stringResource(HubType.FILES.titleRes), null) { onOpenHub(HubType.FILES) },
+        TvPlace("clock", stringResource(HubType.CLOCK.titleRes), null) { onOpenHub(HubType.CLOCK) },
         TvPlace("news", stringResource(HubType.NEWS.titleRes), null) { onOpenHub(HubType.NEWS) },
         TvPlace("settings", stringResource(R.string.settings_hub), null) { onOpenHub(HubType.SETTINGS) },
         TvPlace("android_settings", stringResource(R.string.tv_android_settings), null) {
@@ -222,7 +223,7 @@ private fun TvBoardStart(places: List<TvPlace>, apps: List<TvApp>) {
             TvColumn.Big(byKey.getValue("videos")),
             TvColumn.Pair(byKey.getValue("music"), byKey.getValue("pictures")),
             TvColumn.Pair(byKey.getValue("weather"), byKey.getValue("news")),
-            TvColumn.Pair(byKey.getValue("files"), null)
+            TvColumn.Pair(byKey.getValue("files"), byKey.getValue("clock"))
         )),
         TvSection(stringResource(R.string.apps_hub), apps.chunked(2).map { TvColumn.Apps(it) }),
         TvSection(stringResource(R.string.settings_hub), listOf(
@@ -332,7 +333,7 @@ private fun TvZuneStart(places: List<TvPlace>, apps: List<TvApp>) {
         add(places.first { it.key == "music" })
         add(places.first { it.key == "pictures" })
         add(TvPlace("apps", appsWord, null) {})
-        addAll(places.filter { it.key in setOf("weather", "news", "files", "settings") })
+        addAll(places.filter { it.key in setOf("weather", "news", "files", "clock", "settings") })
     }
     var chosen by remember { mutableIntStateOf(0) }
     val firstWord = remember { FocusRequester() }

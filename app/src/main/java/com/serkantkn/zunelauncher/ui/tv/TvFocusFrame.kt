@@ -74,6 +74,25 @@ object TvFocus {
     @Volatile
     var lastKeyAt = 0L
 
+    /**
+     * Where the focus stood when the centre button was last pressed: the row that opened
+     * whatever is now open, taken before anything moved (a hub hinges away as its page opens,
+     * and its rows with it).
+     */
+    @Volatile
+    var pressedAt: android.graphics.Rect? = null
+
+    /** Called for every key the launcher's windows receive. */
+    fun onKey(view: android.view.View?, event: android.view.KeyEvent) {
+        lastKeyAt = android.os.SystemClock.uptimeMillis()
+        if (event.action != android.view.KeyEvent.ACTION_DOWN || event.repeatCount != 0) return
+        when (event.keyCode) {
+            android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+            android.view.KeyEvent.KEYCODE_ENTER,
+            android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> pressedAt = view?.let { focusedRectOf(it) }
+        }
+    }
+
     /** How many things that draw their own focus hold it now: 0 or 1, counted to be safe. */
     @Volatile
     var ownFocus = 0
@@ -129,3 +148,47 @@ suspend fun androidx.compose.ui.focus.FocusRequester.tvTake(): Boolean {
 private const val TAKE_FIRST_MILLIS = 120L
 private const val TAKE_TRIES = 15
 private const val TAKE_RETRY_MILLIS = 100L
+
+/** Where the focus is, in the launcher view's own coordinates; null when nothing holds it. */
+fun focusedRectOf(view: android.view.View): android.graphics.Rect? {
+    if (!view.hasFocus()) return null
+    val rect = android.graphics.Rect()
+    view.getFocusedRect(rect)
+    return rect.takeUnless { it.isEmpty }
+}
+
+/**
+ * Walks the focus, a step at a time as the remote would, to whatever stands at [target]: back
+ * from a page, to the row that opened it. Compose keeps no way to name that row from outside, but
+ * the place it was is known, and the arrows lead there - sideways first, so the walk leaves a
+ * tablet hub's headings at once rather than turning its pages on the way. Gives up when a step
+ * goes nowhere.
+ */
+suspend fun tvWalkFocusTo(
+    view: android.view.View,
+    focusManager: androidx.compose.ui.focus.FocusManager,
+    target: android.graphics.Rect
+) {
+    // A place already stood on means the walk is going round in a circle: it stops there.
+    val seen = mutableSetOf<android.graphics.Rect>()
+    repeat(WALK_STEPS) {
+        // A step can scroll a list to keep the new row in sight: the place is read once it has.
+        delay(WALK_SETTLE_MILLIS)
+        val now = focusedRectOf(view) ?: return
+        if (!seen.add(now)) return
+        // Sideways while the focus is not yet over the target's columns, then up or down to it.
+        val x = now.centerX()
+        val y = now.centerY()
+        val direction = when {
+            x < target.left -> androidx.compose.ui.focus.FocusDirection.Right
+            x > target.right -> androidx.compose.ui.focus.FocusDirection.Left
+            y < target.top -> androidx.compose.ui.focus.FocusDirection.Down
+            y > target.bottom -> androidx.compose.ui.focus.FocusDirection.Up
+            else -> return
+        }
+        if (!focusManager.moveFocus(direction)) return
+    }
+}
+
+private const val WALK_STEPS = 30
+private const val WALK_SETTLE_MILLIS = 90L

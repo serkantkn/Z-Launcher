@@ -1,5 +1,10 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import com.serkantkn.zunelauncher.ui.tv.tvTake
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -104,9 +109,14 @@ fun MetroTextField(
     placeholder: String,
     modifier: Modifier = Modifier,
     keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
-    keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default
+    keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
+    /** A search box: on a television it takes the remote as it appears, and the keyboard opens. */
+    search: Boolean = false
 ) {
     val zuneColors = LocalZuneColors.current
+    val takeFocus = search && com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+    val requester = remember { FocusRequester() }
+    if (takeFocus) LaunchedEffect(Unit) { requester.tvTake() }
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -131,7 +141,9 @@ fun MetroTextField(
             cursorBrush = SolidColor(zuneColors.accentColor),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (takeFocus) Modifier.focusRequester(requester) else Modifier)
         )
     }
 }

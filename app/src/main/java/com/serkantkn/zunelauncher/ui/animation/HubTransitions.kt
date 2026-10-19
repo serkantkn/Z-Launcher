@@ -11,6 +11,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import com.serkantkn.zunelauncher.ui.tv.tvTake
+import com.serkantkn.zunelauncher.ui.tv.TvFocus
+import com.serkantkn.zunelauncher.ui.tv.tvWalkFocusTo
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -109,7 +111,7 @@ fun Modifier.pageHingeIn(
 
 /**
  * On a television, the hub behind an open page: out of the remote's reach while the page covers
- * it, and given the focus again when the page goes, rather than leaving it nowhere.
+ * it, and when the page goes, the focus is walked back to the row that opened it.
  */
 private fun Modifier.tvHubBehindPage(progress: () -> Float): Modifier = composed {
     if (!com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) return@composed Modifier
@@ -119,13 +121,19 @@ private fun Modifier.tvHubBehindPage(progress: () -> Float): Modifier = composed
     val away by remember { derivedStateOf { current() > TV_COVERED } }
     val requester = remember { FocusRequester() }
     var wasAway by remember { mutableStateOf(away) }
+    val view = androidx.compose.ui.platform.LocalView.current
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    /** Where the row that opened the page stood, to walk the focus back to. */
+    var opener by remember { mutableStateOf<android.graphics.Rect?>(null) }
     LaunchedEffect(away) {
-        if (wasAway && !away) requester.tvTake()
+        // The row pressed to open the page, as it stood before the hub began to turn away.
+        if (away && !wasAway) opener = TvFocus.pressedAt
+        if (wasAway && !away) {
+            requester.tvTake()
+            opener?.let { tvWalkFocusTo(view, focusManager, it) }
+        }
         wasAway = away
     }
-    // Back from the page the focus goes into the hub at its first stop - on a tablet layout the
-    // heading of the page that was open. Handing it back to the very row that opened the page
-    // (focusRestorer) did not take across the page's coming and going; that is still to do.
     Modifier
         .focusRequester(requester)
         .focusProperties { onEnter = { if (away) cancelFocusChange() } }

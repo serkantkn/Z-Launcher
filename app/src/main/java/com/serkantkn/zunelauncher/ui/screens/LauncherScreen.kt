@@ -100,6 +100,7 @@ fun LauncherScreen(
     homeHubViewModel: HomeHubViewModel = viewModel()
 ) {
     val navState = rememberZuneNavigationState()
+    navState.television = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
     // Social, Start, the app list — and, in the Zune layout on a phone, the tiles between the
     // list and the apps (quickplay lives in the list's strip). A tablet shows the tiles over
     // quickplay beside its list, so it has no page of them. The app list is the last page.

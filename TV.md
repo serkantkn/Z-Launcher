@@ -46,17 +46,27 @@ other way round.
 - `WpSlider`: focusable, the arrows move it a stop.
 - A long press of the centre button is a long press (Compose's `combinedClickable` does it).
 
-Known gaps: back from a hub's page the focus lands on the hub's heading, not on the row that
-opened the page; text fields need checking with the TV's on-screen keyboard.
+- Back from a hub's page the focus is walked back to the row that opened it (`tvWalkFocusTo`,
+  from where the centre button was pressed).
+- Search boxes take the remote as they appear on a TV, and the TV's own keyboard opens; typing
+  and Back (keyboard away) work.
+
+## Hubs on a TV (done)
+
+- `HubType.onTelevision`: music + videos, pictures, files, weather, news, clock and settings.
+  The rest (phone, messaging, people, camera, mail, notes, calendar, calculator, internet,
+  social) do not open on a TV by any route - Start, a notification, a shortcut, another app.
+- Start: the clock joined the tiles and the words.
+- Settings on a TV: look, hubs (the clock's only), connections, system, about. Notifications,
+  display+sound and keyboard are left out, and so are the tour, the permissions list and the
+  other hubs' groups.
 
 ## Still to do
 
-1. **Which hubs.** Videos, music, pictures, files, weather, news, clock and settings stay; phone,
-   messaging, camera, the action center, the volume bar and the keyboard are left out on a TV.
-2. **The Start's live content**: what was last watched in the launcher's own player, the album
+1. **The Start's live content**: what was last watched in the launcher's own player, the album
    playing, the weather; other apps' "continue watching" is not readable by a launcher.
-3. **Being Home.** Google TV keeps the Home button for its own launcher; on those, Z Launcher is an
+2. **Being Home.** Google TV keeps the Home button for its own launcher; on those, Z Launcher is an
    app in the row unless the user makes it Home by adb. Older Android TV boxes let it be chosen.
-4. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs
+3. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs
    "display over other apps" on the TV), the settings on both sides.
-5. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.
+4. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.

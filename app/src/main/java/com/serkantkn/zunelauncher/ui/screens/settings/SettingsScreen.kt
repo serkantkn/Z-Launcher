@@ -47,6 +47,9 @@ private enum class SettingsTab(@StringRes val titleRes: Int) {
     ABOUT(R.string.settings_tab_about)
 }
 
+/** The settings pages a television does without. */
+private val TV_LEFT_OUT = setOf(SettingsTab.NOTIFICATIONS, SettingsTab.DISPLAY_AND_SOUND, SettingsTab.KEYBOARD)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SettingsScreen(
@@ -61,8 +64,12 @@ fun SettingsScreen(
 
     val zuneColors = LocalZuneColors.current
     val isWideScreen = LocalIsWideScreen.current
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
     val tabs = remember {
         SettingsTab.entries.filter {
+            // A television has no shade, no volume bar of ours, no screen to dim and no keyboard
+            // of ours to set up: those pages stay on the phone.
+            if (isTv && it in TV_LEFT_OUT) return@filter false
             it != SettingsTab.KEYBOARD || com.serkantkn.zunelauncher.util.Pro.unlocked
         }
     }

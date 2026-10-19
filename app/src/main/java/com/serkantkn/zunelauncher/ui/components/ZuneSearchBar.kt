@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import androidx.compose.ui.focus.focusRequester
+import com.serkantkn.zunelauncher.ui.tv.tvTake
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
@@ -32,6 +34,10 @@ fun ZuneSearchBar(
     placeholder: String = stringResource(R.string.search_apps)
 ) {
     val zuneColors = LocalZuneColors.current
+    // On a television the box takes the remote as it appears, and the keyboard opens.
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+    val requester = androidx.compose.runtime.remember { androidx.compose.ui.focus.FocusRequester() }
+    if (isTv) androidx.compose.runtime.LaunchedEffect(Unit) { requester.tvTake() }
 
     Box(
         modifier = modifier
@@ -64,7 +70,9 @@ fun ZuneSearchBar(
                 ),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 singleLine = true,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .then(if (isTv) Modifier.focusRequester(requester) else Modifier)
             )
             SearchClearButton(query = query, onClear = { onQueryChange("") }, tint = zuneColors.textDim)
         }
