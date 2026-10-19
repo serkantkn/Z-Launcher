@@ -7,6 +7,15 @@
     <string name="tv_android_settings">android settings</string>
     <string name="tv_open_hint">press the centre button to open</string>
     <string name="tv_continue">continue</string>
+    <string name="tv_home_group">home screen</string>
+    <string name="tv_home_intro">On Google TV the remote\'s Home button always opens Google\'s home screen; Android does not hand it to another launcher. Z Launcher can catch the button with an accessibility service and open itself. On older Android TV boxes Z Launcher can also simply be made the default home screen.</string>
+    <string name="tv_home_key">Home opens Z Launcher</string>
+    <string name="tv_home_key_off">turn on the \"Z Launcher Home button\" service in the accessibility settings</string>
+    <string name="tv_home_key_on">on; a long press opens Z Launcher too</string>
+    <string name="tv_home_default">default home screen</string>
+    <string name="tv_home_default_sub">Android\'s own choice of home screen. On older Android TV boxes it gives the Home button to Z Launcher; on Google TV it does not.</string>
+    <string name="tv_home_default_google">Google TV does not apply this choice to the Home button; use the service above</string>
+    <string name="a11y_disclosure_body_tv">Z Launcher uses an accessibility service not as an aid for disabilities but for one thing on a television: it sees the remote\'s Home button being pressed and opens Z Launcher instead of Google TV\'s home screen.\n\nIt leaves every other button alone, does not read what is on the screen, keeps no record and sends nothing off the TV. You can turn the service off in the accessibility settings whenever you like, and Home opens Google TV\'s home screen again.\n\nIf you accept, Android\'s accessibility settings open; turn on the \"Z Launcher Home button\" service there.</string>
     <string name="music_hub">music + videos</string>
     <string name="people_hub">people</string>
     <string name="pictures_hub">pictures</string>

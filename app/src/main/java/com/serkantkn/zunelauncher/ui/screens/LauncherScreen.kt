@@ -372,7 +372,8 @@ fun LauncherScreen(
                 // to it, once the hinge has put the hub away. A second press meanwhile cancels
                 // this, and the balloon waits for the next time.
                 val settings = context.applicationContext.appContainer.settingsDataStore
-                if (!settings.switcherTipShown.first()) {
+                // The balloon tells of the strip under a phone's board, which a TV has not.
+                if (!navState.television && !settings.switcherTipShown.first()) {
                     kotlinx.coroutines.delay(SWITCHER_TIP_DELAY_MILLIS)
                     settings.setSwitcherTipShown()
                     switcherTipShown = true

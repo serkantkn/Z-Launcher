@@ -1,5 +1,8 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusRequester
+import com.serkantkn.zunelauncher.ui.tv.tvTake
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.core.Animatable
@@ -88,6 +91,13 @@ fun ZuneFlipDialog(
         ZuneFlipDialogScope(dismissWithAnimLambda)
     }
 
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+    val dialogFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    if (isTv) {
+        // A group asked for the focus hands it to its first stop.
+        LaunchedEffect(Unit) { dialogFocus.tvTake() }
+    }
+
     Dialog(
         onDismissRequest = { scope.dismissWithAnim() },
         properties = DialogProperties(
@@ -111,6 +121,9 @@ fun ZuneFlipDialog(
                 // Flip Container Card attached flush to Top, Left, Right
                 Surface(
                     modifier = Modifier
+                        // On a television the remote is put inside the dialog as it opens, on its
+                        // first stop - a list's first row, or the button that leaves it be.
+                        .then(if (isTv) Modifier.focusRequester(dialogFocus).focusGroup() else Modifier)
                         .fillMaxWidth()
                         .padding(top = 0.dp, start = 0.dp, end = 0.dp, bottom = 24.dp)
                         .swallowTaps()

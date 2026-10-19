@@ -7,6 +7,15 @@
     <string name="tv_android_settings">android ayarları</string>
     <string name="tv_open_hint">açmak için orta tuşa bas</string>
     <string name="tv_continue">devam et</string>
+    <string name="tv_home_group">ana ekran</string>
+    <string name="tv_home_intro">Google TV\'de kumandanın Home tuşu her zaman Google\'ın ana ekranını açar; Android bunu başka bir başlatıcıya bırakmaz. Z Launcher, erişilebilirlik servisiyle tuşu yakalayıp kendini açabilir. Eski Android TV kutularında Z Launcher doğrudan varsayılan ana ekran da yapılabilir.</string>
+    <string name="tv_home_key">Home tuşu Z Launcher\'ı açsın</string>
+    <string name="tv_home_key_off">erişilebilirlik ayarlarından \"Z Launcher Home tuşu\" servisini aç</string>
+    <string name="tv_home_key_on">açık; uzun basış da Z Launcher\'ı açar</string>
+    <string name="tv_home_default">varsayılan ana ekran</string>
+    <string name="tv_home_default_sub">Android\'in kendi ana ekran seçimi. Eski Android TV kutularında Home tuşunu Z Launcher\'a verir; Google TV\'de vermez.</string>
+    <string name="tv_home_default_google">Google TV bu seçimi Home tuşuna uygulamaz; yukarıdaki servisi kullan</string>
+    <string name="a11y_disclosure_body_tv">Z Launcher erişilebilirlik servisini engellilere yönelik bir yardım olarak değil, televizyonda tek bir iş için kullanır: kumandanın Home tuşuna basıldığını görür ve Google TV\'nin ana ekranı yerine Z Launcher\'ı açar.\n\nBaşka hiçbir tuşa karışmaz, ekrandaki yazıları okumaz, hiçbir şeyi kaydetmez ve hiçbir veriyi televizyondan dışarı göndermez. Servisi istediğin an erişilebilirlik ayarlarından kapatabilirsin; Home tuşu yeniden Google TV\'nin ana ekranını açar.\n\nKabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Z Launcher Home tuşu\" servisini açman gerekir.</string>
     <string name="music_hub">müzik + videolar</string>
     <string name="people_hub">kişiler</string>
     <string name="pictures_hub">fotoğraflar</string>

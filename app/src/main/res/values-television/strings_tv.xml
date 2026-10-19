@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- On a television the accessibility service has one job, and says so where Android lists it. -->
+<resources>
+    <string name="label_key_service">Z Launcher Home button</string>
+    <string name="accessibility_service_description">Sees the remote\'s Home button being pressed and opens Z Launcher instead of the TV\'s own home screen. It leaves every other button alone, does not read what is on the screen, keeps no record and sends nothing off the TV.</string>
+</resources>

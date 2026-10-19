@@ -632,7 +632,11 @@ private fun Modifier.horizontalFadingEdge(fadeWidth: androidx.compose.ui.unit.Dp
  * and it is only fair besides: the system's own warning about the service says far less.
  */
 @Composable
-internal fun AccessibilityDisclosureDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
+internal fun AccessibilityDisclosureDialog(
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit,
+    body: String = stringResource(R.string.a11y_disclosure_body)
+) {
     com.serkantkn.zunelauncher.ui.components.ZuneFlipDialog(
         onDismissRequest = onDismiss,
         title = stringResource(R.string.a11y_disclosure_title),
@@ -652,7 +656,7 @@ internal fun AccessibilityDisclosureDialog(onAccept: () -> Unit, onDismiss: () -
         }
     ) {
         Text(
-            text = stringResource(R.string.a11y_disclosure_body),
+            text = body,
             style = MaterialTheme.typography.bodyMedium,
             // The dialog is dark in either theme, and scrolls its content itself.
             color = Color.White.copy(alpha = 0.85f)

@@ -65,7 +65,9 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         shieldJob?.cancel()
         shieldJob = scope.launch {
             try {
-                applicationContext.appContainer.settingsDataStore.wpActionCenter.collect { on ->
+                applicationContext.appContainer.settingsDataStore.wpActionCenter.collect { setting ->
+                    // A television has no status bar to cover and no shade to replace.
+                    val on = setting && !isTv
                     actionCenterOn = on
                     if (on) {
                         StatusBarShield.attach(this@ZuneKeyAccessibilityService)
@@ -203,11 +205,34 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         }
     }
 
+    private val isTv by lazy { com.serkantkn.zunelauncher.ui.theme.isTelevision(this) }
+
+    /**
+     * Opens Z Launcher as Home would: the same intent the system sends, so a launcher already in
+     * front takes it as the Home key (puts a hub away, goes back to Start) and one behind another
+     * app comes forward.
+     */
+    private fun goHome() {
+        val home = Intent(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_HOME)
+            .setClassName(packageName, "com.serkantkn.zunelauncher.MainActivity")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        runCatching { startActivity(home) }
+            .onFailure { ZuneLog.e(TAG, "Home could not be brought up", it) }
+    }
+
     override fun onInterrupt() {
         // Nothing to interrupt.
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        // A television: the remote's Home brings Z Launcher, not Google TV's own home screen,
+        // which Android will not let another launcher replace there. Both halves of the press
+        // are kept, so the system never sees one and opens its own.
+        if (isTv && event.keyCode == KeyEvent.KEYCODE_HOME) {
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) goHome()
+            return true
+        }
         // Back puts the action center away, whatever app is underneath it.
         if (event.keyCode == KeyEvent.KEYCODE_BACK && ActionCenterOverlay.isOpen) {
             if (event.action == KeyEvent.ACTION_UP) ActionCenterOverlay.close()

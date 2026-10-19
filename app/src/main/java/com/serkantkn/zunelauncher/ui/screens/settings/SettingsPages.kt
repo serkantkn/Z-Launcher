@@ -1115,7 +1115,9 @@ internal fun SystemSettingsPage(
             }
         }
 
-        item(key = "device") {
+        // A television: the Home button, instead of a phone's default apps.
+        if (isTv) item(key = "tv_home") { TvHomeGroup(defaultAppsTrigger, roleLauncher) }
+        if (!isTv) item(key = "device") {
             SettingGroup(title = stringResource(R.string.settings_device)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SystemSettingRow(
