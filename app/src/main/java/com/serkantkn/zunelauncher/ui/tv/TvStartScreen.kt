@@ -160,7 +160,9 @@ fun TvStartScreen(
             var libraryOpen by remember { mutableStateOf(false) }
             var shutdownOpen by remember { mutableStateOf(false) }
             val categories = vistaCategories(places, apps, onOpenHub, { libraryOpen = true }, { shutdownOpen = true })
-            LaunchedEffect(Unit) {
+            // Given at first, and again after Home: Home lets go of the focus on its way (for a
+            // hub's text field), and Start, which takes the remote whole, must take it back.
+            LaunchedEffect(homeResetSignal) {
                 delay(FIRST_FOCUS_DELAY_MILLIS)
                 if (!hubOpen) memory.focus(VISTA_KEY)
             }
