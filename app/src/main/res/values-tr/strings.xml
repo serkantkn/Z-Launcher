@@ -3,10 +3,11 @@
     <string name="app_name">Z Launcher</string>
     <string name="home_hub">ana ekran</string>
     <string name="apps_hub">uygulamalar</string>
-    <string name="tv_launcher_settings">z launcher ayarları</string>
     <string name="tv_android_settings">android ayarları</string>
-    <string name="tv_open_hint">açmak için orta tuşa bas</string>
     <string name="tv_continue">devam et</string>
+    <string name="tv_strip_pictures_videos">resimler + videolar</string>
+    <string name="tv_strip_extras">bilgiler</string>
+    <string name="tv_strip_tasks">görevler</string>
     <string name="news_no_tv_browser">bu televizyonda haberi açacak bir tarayıcı yok</string>
     <string name="tv_home_group">ana ekran</string>
     <string name="tv_home_intro">Google TV\'de kumandanın Home tuşu her zaman Google\'ın ana ekranını açar; Android bunu başka bir başlatıcıya bırakmaz. Z Launcher, erişilebilirlik servisiyle tuşu yakalayıp kendini açabilir. Eski Android TV kutularında Z Launcher doğrudan varsayılan ana ekran da yapılabilir.</string>

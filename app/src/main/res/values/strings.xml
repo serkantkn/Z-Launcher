@@ -3,10 +3,11 @@
     <string name="app_name">Z Launcher</string>
     <string name="home_hub">home</string>
     <string name="apps_hub">apps</string>
-    <string name="tv_launcher_settings">z launcher settings</string>
     <string name="tv_android_settings">android settings</string>
-    <string name="tv_open_hint">press the centre button to open</string>
     <string name="tv_continue">continue</string>
+    <string name="tv_strip_pictures_videos">pictures + videos</string>
+    <string name="tv_strip_extras">extras</string>
+    <string name="tv_strip_tasks">tasks</string>
     <string name="news_no_tv_browser">there is no browser on this TV to open the story in</string>
     <string name="tv_home_group">home screen</string>
     <string name="tv_home_intro">On Google TV the remote\'s Home button always opens Google\'s home screen; Android does not hand it to another launcher. Z Launcher can catch the button with an accessibility service and open itself. On older Android TV boxes Z Launcher can also simply be made the default home screen.</string>

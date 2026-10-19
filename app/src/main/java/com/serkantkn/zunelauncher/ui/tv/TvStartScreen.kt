@@ -1,5 +1,23 @@
 package com.serkantkn.zunelauncher.ui.tv
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.graphics.asImageBitmap
 import android.content.Context
@@ -72,20 +90,13 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * Start on a television, in the two ways Metro came to the living room:
- *
- * - **the board** ([HomeScreenLayout.WINDOWS_PHONE]): the Xbox 360's - sections named along the
- *   top, large tiles under them running off to the right;
- * - **the list** ([HomeScreenLayout.ZUNE]): Windows Media Center's and the Zune's - the places
- *   as huge words down the left, and what is in the one chosen beside it.
- *
- * Both are worked with a remote: every tile and word takes focus, the focused one stands out in
- * white and a little larger, and nothing is reached by touch alone. The edges keep the 5% a
- * television may cut off.
+ * Start on a television: Windows Media Center's - its strips one above another (pictures and
+ * videos, music, apps, extras, tasks), the one the remote is in bright with its things in a row,
+ * the film left part way leading when there is one. Worked with a remote alone; the edges keep
+ * the 5% a television may cut off. A TV has this Start and no other.
  */
 @Composable
 fun TvStartScreen(
-    layout: HomeScreenLayout,
     homeHubViewModel: HomeHubViewModel,
     onOpenHub: (HubType) -> Unit,
     modifier: Modifier = Modifier,
@@ -110,7 +121,7 @@ fun TvStartScreen(
     // Start lends the remote a way back too, for when nothing has the focus while it is showing.
     val rescueScope = rememberCoroutineScope()
     androidx.compose.runtime.DisposableEffect(memory) {
-        val rescue: () -> Unit = { rescueScope.launch { memory.restoreOr("videos") } }
+        val rescue: () -> Unit = { rescueScope.launch { memory.restoreOr("pictures") } }
         TvFocus.startRescue = rescue
         onDispose { if (TvFocus.startRescue === rescue) TvFocus.startRescue = null }
     }
@@ -118,7 +129,7 @@ fun TvStartScreen(
         if (wasOpen && !hubOpen) {
             delay(FIRST_FOCUS_DELAY_MILLIS)
             // A hub opened before anything on Start had the focus returns it to the first tile.
-            memory.restoreOr("videos")
+            memory.restoreOr("pictures")
         }
         wasOpen = hubOpen
     }
@@ -133,23 +144,17 @@ fun TvStartScreen(
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadTvLive(context) }
     }
     val places = tvPlaces(homeHubViewModel, live, onOpenHub)
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(TV_GROUND)
-            .onFocusChanged { startHasFocus = it.hasFocus }
-            .padding(horizontal = TV_SAFE_X, vertical = TV_SAFE_Y)
-    ) {
-        androidx.compose.runtime.CompositionLocalProvider(
-            LocalTvFocusMemory provides memory,
-            LocalTvHubOpen provides hubOpen
-        ) {
-            when (layout) {
-                HomeScreenLayout.ZUNE -> TvZuneStart(places = places, apps = apps)
-                else -> TvBoardStart(places = places, apps = apps)
+    val strips = tvStrips(places, apps)
+    MediaCenterBackground(modifier = modifier.onFocusChanged { startHasFocus = it.hasFocus }) {
+        Box(modifier = Modifier.fillMaxSize().padding(horizontal = TV_SAFE_X, vertical = TV_SAFE_Y)) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                LocalTvFocusMemory provides memory,
+                LocalTvHubOpen provides hubOpen
+            ) {
+                MediaCenterStart(strips)
             }
+            TvClock(modifier = Modifier.align(Alignment.TopEnd))
         }
-        TvClock(modifier = Modifier.align(Alignment.TopEnd))
     }
 }
 
@@ -244,359 +249,180 @@ private fun tvPlaces(viewModel: HomeHubViewModel, live: TvLive, onOpenHub: (HubT
     }
 }
 
-// ── A: the Xbox 360's board ─────────────────────────────────────────────────────────────────
+// ── Media Center's Start ────────────────────────────────────────────────────────────────────
+
+/** One of Media Center's strips: its name, and what it holds. */
+private class TvStrip(val title: String, val items: List<TvStripItem>)
+
+private class TvStripItem(
+    val key: String,
+    val label: String,
+    val line: String?,
+    val icon: ImageVector?,
+    val image: ImageBitmap?,
+    /** An app's own banner, which fills the tile and carries its name. */
+    val banner: Boolean = false,
+    val progress: Float? = null,
+    val open: () -> Unit
+)
+
+@Composable
+private fun tvStrips(places: List<TvPlace>, apps: List<TvApp>): List<TvStrip> {
+    val context = LocalContext.current
+    val byKey = places.associateBy { it.key }
+    fun item(key: String, icon: ImageVector): TvStripItem? = byKey[key]?.let {
+        TvStripItem(it.key, it.title, it.line, icon, it.image, progress = it.progress, open = it.open)
+    }
+    return buildList {
+        byKey["continue"]?.let { left ->
+            add(TvStrip(left.title, listOf(
+                TvStripItem("continue", left.line.orEmpty(), null, Icons.Default.PlayArrow, left.image, progress = left.progress, open = left.open)
+            )))
+        }
+        add(TvStrip(stringResource(R.string.tv_strip_pictures_videos), listOfNotNull(
+            item("pictures", Icons.Default.Photo), item("videos", Icons.Default.Movie)
+        )))
+        add(TvStrip(stringResource(R.string.zune_row_music), listOfNotNull(item("music", Icons.Default.MusicNote))))
+        if (apps.isNotEmpty()) {
+            add(TvStrip(stringResource(R.string.apps_hub), apps.map { app ->
+                TvStripItem(app.packageName, app.label, null, null, app.banner ?: app.icon, banner = app.banner != null) {
+                    context.startSafely(app.launch)
+                }
+            }))
+        }
+        add(TvStrip(stringResource(R.string.tv_strip_extras), listOfNotNull(
+            item("weather", Icons.Default.WbSunny), item("news", Icons.Default.Article), item("clock", Icons.Default.Alarm)
+        )))
+        add(TvStrip(stringResource(R.string.tv_strip_tasks), listOfNotNull(
+            item("files", Icons.Default.Folder), item("settings", Icons.Default.Settings), item("android_settings", Icons.Default.Tv)
+        )))
+    }
+}
 
 /**
- * The sections as one row running right, their names along the top: the one the focus is in is
- * white, the rest dimmed, as the Xbox 360's channels were. Up from the tiles reaches the names;
- * a name taken goes to its section.
+ * Media Center's Start: its strips one above another down the middle of the screen, the one the
+ * remote is in bright and at full size with its things in a row beside its name, the others pale
+ * and smaller above and below it. Up and down go from strip to strip, left and right along one.
  */
 @Composable
-private fun TvBoardStart(places: List<TvPlace>, apps: List<TvApp>) {
-    val byKey = places.associateBy { it.key }
-    val sections = listOf(
-        TvSection(stringResource(R.string.browser_home), buildList {
-            // The big tile is the film left part way when there is one, the videos when not.
-            // The rest follow two to a column, with no hole left in either case.
-            val lead = byKey["continue"]
-            add(TvColumn.Big(lead ?: byKey.getValue("videos")))
-            val rest = listOfNotNull(
-                byKey["videos"].takeIf { lead != null },
-                byKey["music"], byKey["pictures"], byKey["weather"], byKey["news"], byKey["files"], byKey["clock"]
-            )
-            rest.chunked(2).forEach { add(TvColumn.Pair(it[0], it.getOrNull(1))) }
-        }),
-        TvSection(stringResource(R.string.apps_hub), apps.chunked(2).map { TvColumn.Apps(it) }),
-        TvSection(stringResource(R.string.settings_hub), listOf(
-            TvColumn.Pair(byKey.getValue("settings"), byKey.getValue("android_settings"))
-        ))
-    )
+private fun MediaCenterStart(strips: List<TvStrip>) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    var current by remember { mutableIntStateOf(0) }
-    val firstTile = remember { FocusRequester() }
-    // Asked for once the row has been laid out, or the focus falls on the first section's name.
-    // Read when the time comes, not when the wait began: a hub opened meanwhile keeps the focus.
+    // The strip the remote is in, by its name: "continue" can come in above the others once the
+    // videos are read, and the strips' places move down under it.
+    var current by remember { mutableStateOf(strips.firstOrNull()?.title) }
+    val memory = LocalTvFocusMemory.current
     val hubOpen by androidx.compose.runtime.rememberUpdatedState(LocalTvHubOpen.current)
-    LaunchedEffect(Unit) {
+    val firstKey = strips.firstOrNull()?.items?.firstOrNull()?.key
+    // The first focus is given once, when the strips are first there; strips that come later
+    // must not pull the remote back from where it has gone.
+    LaunchedEffect(firstKey != null) {
         delay(FIRST_FOCUS_DELAY_MILLIS)
-        if (!hubOpen) runCatching { firstTile.requestFocus() }
+        if (!hubOpen && firstKey != null) memory.restoreOr(firstKey)
     }
-
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-            sections.forEachIndexed { index, section ->
-                TvFocusText(
-                    text = section.title,
-                    size = 26.sp,
-                    selected = index == current,
-                    onFocus = {
-                        current = index
-                        scope.launch { listState.animateScrollToItem(index) }
-                    },
-                    onClick = { scope.launch { listState.animateScrollToItem(index) } }
-                )
-            }
-        }
-        // Room round the tiles for the focused one to grow into: a row clips what it holds, and
-        // the first tile's edge and its words were cut off. The row is moved back by as much,
-        // so the tiles stand where they did.
-        LazyRow(
-            state = listState,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(FOCUS_ROOM),
-            modifier = Modifier.fillMaxWidth().weight(1f).offset(x = -FOCUS_ROOM, y = -FOCUS_ROOM),
-            horizontalArrangement = Arrangement.spacedBy(SECTION_GAP),
-            verticalAlignment = Alignment.Top
-        ) {
-            itemsIndexed(sections) { index, section ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .onFocusChanged { if (it.hasFocus) current = index },
-                    horizontalArrangement = Arrangement.spacedBy(TILE_GAP)
-                ) {
-                    section.columns.forEachIndexed { columnIndex, column ->
-                        val focus = if (index == 0 && columnIndex == 0) Modifier.focusRequester(firstTile) else Modifier
-                        TvBoardColumn(column, focus)
-                    }
-                }
-            }
-        }
+    val currentIndex = strips.indexOfFirst { it.title == current }
+    LaunchedEffect(strips.size) {
+        if (currentIndex >= 0) listState.scrollToItem(currentIndex)
     }
-}
-
-private class TvSection(val title: String, val columns: List<TvColumn>)
-
-private sealed interface TvColumn {
-    class Big(val place: TvPlace) : TvColumn
-    class Pair(val top: TvPlace, val bottom: TvPlace?) : TvColumn
-    class Apps(val apps: List<TvApp>) : TvColumn
-}
-
-@Composable
-private fun TvBoardColumn(column: TvColumn, firstFocus: Modifier) {
-    val accent = LocalZuneColors.current.accentColor
-    when (column) {
-        is TvColumn.Big -> TvTile(
-            title = column.place.title,
-            line = column.place.line,
-            color = accent,
-            // The film's own picture is wide: its tile is too.
-            width = if (column.place.image != null && column.place.key == "continue") BIG_WIDE else BIG_TILE,
-            height = BIG_TILE,
-            onClick = column.place.open,
-            modifier = firstFocus.remembered(column.place.key),
-            image = column.place.image,
-            progress = column.place.progress
-        )
-        is TvColumn.Pair -> Column(verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
-            TvTile(column.top.title, column.top.line, accent.shade(0.8f), SMALL_TILE, SMALL_TILE, column.top.open, firstFocus.remembered(column.top.key), column.top.image, column.top.progress)
-            column.bottom?.let { TvTile(it.title, it.line, accent.shade(0.62f), SMALL_TILE, SMALL_TILE, it.open, Modifier.remembered(it.key), it.image, it.progress) }
-        }
-        is TvColumn.Apps -> {
-            val context = LocalContext.current
-            Column(verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
-                column.apps.forEachIndexed { i, app ->
-                    TvAppTile(app, BANNER_WIDTH, SMALL_TILE, (if (i == 0) firstFocus else Modifier).remembered(app.packageName)) {
-                        context.startSafely(app.launch)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ── C: the Zune's / Media Center's list ─────────────────────────────────────────────────────
-
-/**
- * The places as huge words down the left, the one with the focus in white and the rest fading
- * with their distance from it, the way Media Center's strip read across a room. Beside the words
- * is what the chosen place holds; right from a word goes into it.
- */
-@Composable
-private fun TvZuneStart(places: List<TvPlace>, apps: List<TvApp>) {
-    val appsWord = stringResource(R.string.apps_hub)
-    val words = buildList {
-        places.firstOrNull { it.key == "continue" }?.let { add(it) }
-        add(places.first { it.key == "videos" })
-        add(places.first { it.key == "music" })
-        add(places.first { it.key == "pictures" })
-        add(TvPlace("apps", appsWord, null) {})
-        addAll(places.filter { it.key in setOf("weather", "news", "files", "clock", "settings") })
-    }
-    var chosen by remember { mutableIntStateOf(0) }
-    val firstWord = remember { FocusRequester() }
-    val wordsState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    // Read when the time comes, not when the wait began: a hub opened meanwhile keeps the focus.
-    val hubOpen by androidx.compose.runtime.rememberUpdatedState(LocalTvHubOpen.current)
-    LaunchedEffect(Unit) {
-        delay(FIRST_FOCUS_DELAY_MILLIS)
-        if (!hubOpen) runCatching { firstWord.requestFocus() }
-    }
-
-    Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(48.dp)) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // The strip with the remote stands a little above the middle, as Media Center's did.
+        val above = maxHeight * 0.30f
         LazyColumn(
-            state = wordsState,
-            modifier = Modifier.fillMaxHeight().width(WORDS_WIDTH),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 60.dp)
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = above, bottom = maxHeight * 0.45f),
+            verticalArrangement = Arrangement.spacedBy(STRIP_GAP)
         ) {
-            itemsIndexed(words) { index, place ->
-                val distance = kotlin.math.abs(index - chosen)
-                TvFocusText(
-                    text = place.title,
-                    size = 54.sp,
-                    selected = index == chosen,
-                    fade = (1f - distance * 0.22f).coerceIn(0.3f, 1f),
-                    onFocus = {
-                        chosen = index
-                        // The chosen word rides near the middle, as Media Center's strip did,
-                        // with the words before it still in sight above.
-                        scope.launch { wordsState.animateScrollToItem((index - WORDS_ABOVE).coerceAtLeast(0)) }
-                    },
-                    onClick = place.open,
-                    modifier = (if (index == 0) Modifier.focusRequester(firstWord) else Modifier).remembered(place.key)
-                )
-            }
-        }
-        val place = words[chosen]
-        Box(modifier = Modifier.fillMaxHeight().weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (place.key == "apps") {
-                TvAppsPreview(apps)
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = place.line ?: stringResource(R.string.tv_open_hint),
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Light),
-                        color = Color.White.copy(alpha = 0.82f)
-                    )
-                    TvTile(
-                        title = place.title,
-                        line = null,
-                        color = LocalZuneColors.current.accentColor,
-                        width = if (place.image != null) PREVIEW_WIDE else BANNER_WIDTH,
-                        height = if (place.image != null) PREVIEW_TALL else SMALL_TILE,
-                        onClick = place.open,
-                        image = place.image,
-                        progress = place.progress
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TvAppsPreview(apps: List<TvApp>) {
-    val context = LocalContext.current
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(TILE_GAP),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(FOCUS_ROOM),
-        modifier = Modifier.offset(x = -FOCUS_ROOM)
-    ) {
-        itemsIndexed(apps.chunked(2)) { _, pair ->
-            Column(verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
-                pair.forEach { app ->
-                    TvAppTile(app, BANNER_WIDTH, SMALL_TILE, Modifier.remembered(app.packageName)) { context.startSafely(app.launch) }
-                }
-            }
-        }
-    }
-}
-
-// ── Shared pieces ───────────────────────────────────────────────────────────────────────────
-
-/**
- * How a TV shows where the remote is: the focused thing grows a little and gains a white frame,
- * as the Xbox's tiles did. Focus is the only pointer a sofa has, so it is never left unmarked.
- */
-@Composable
-private fun Modifier.tvFocus(source: MutableInteractionSource): Modifier {
-    val focused by source.collectIsFocusedAsState()
-    val scale by animateFloatAsState(if (focused) FOCUS_SCALE else 1f, tween(FOCUS_MILLIS), label = "tvFocus")
-    return this
-        .graphicsLayer { scaleX = scale; scaleY = scale }
-        .border(if (focused) 3.dp else 0.dp, if (focused) Color.White else Color.Transparent)
-}
-
-@Composable
-private fun TvTile(
-    title: String,
-    line: String?,
-    color: Color,
-    width: Dp,
-    height: Dp,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    image: ImageBitmap? = null,
-    progress: Float? = null
-) {
-    val source = remember { MutableInteractionSource() }
-    Box(
-        modifier = modifier
-            .size(width, height)
-            .tvFocus(source)
-            .background(color)
-            .tvOwnFocus()
-            .clickable(interactionSource = source, indication = null, onClick = onClick)
-    ) {
-        if (image != null) {
-            Image(bitmap = image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            // The words at the foot stay readable over any picture.
-            if (title.isNotEmpty() || line != null) {
-                Box(
+            itemsIndexed(strips, key = { _, strip -> strip.title }) { index, strip ->
+                val active = strip.title == current
+                val scale by animateFloatAsState(if (active) 1f else 0.78f, tween(220), label = "stripScale")
+                val fade by animateFloatAsState(if (active) 1f else 0.42f, tween(220), label = "stripFade")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.45f)
-                        .align(Alignment.BottomStart)
-                        .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))))
-                )
+                        .onFocusChanged {
+                            if (it.hasFocus && current != strip.title) {
+                                current = strip.title
+                                scope.launch { listState.animateScrollToItem(index) }
+                            }
+                        }
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            alpha = fade
+                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+                        }
+                ) {
+                    Text(
+                        text = strip.title,
+                        style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Light, fontSize = 36.sp, lineHeight = 38.sp),
+                        color = if (active) Color.White else MediaCenter.Dim,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(STRIP_TITLE_WIDTH)
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(TILE_GAP),
+                        contentPadding = PaddingValues(FOCUS_ROOM),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        itemsIndexed(strip.items, key = { _, item -> item.key }) { _, item ->
+                            MediaCenterTile(item, Modifier.remembered(item.key))
+                        }
+                    }
+                }
             }
         }
-        if (progress != null) {
-            Box(modifier = Modifier.fillMaxWidth().height(4.dp).align(Alignment.BottomStart).background(Color.White.copy(alpha = 0.3f)))
-            Box(modifier = Modifier.fillMaxWidth(progress).height(4.dp).align(Alignment.BottomStart).background(LocalZuneColors.current.accentColor))
-        }
-        Column(modifier = Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-            if (line != null) {
-                Text(
-                    text = line,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.85f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+    }
+}
+
+/** A thing on a strip: its picture, or its sign on Media Center's blue, its name under it. */
+@Composable
+private fun MediaCenterTile(item: TvStripItem, modifier: Modifier) {
+    Column(modifier = Modifier.width(TILE_WIDTH)) {
+        Box(
+            modifier = modifier
+                .size(TILE_WIDTH, TILE_HEIGHT)
+                .background(
+                    Brush.verticalGradient(listOf(Color(0xFF2A62B0), Color(0xFF123E80))),
+                    RoundedCornerShape(4.dp)
                 )
+                .clip(RoundedCornerShape(4.dp))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = item.open),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                item.image != null && item.banner -> Image(item.image, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                item.image != null && item.icon == null -> Image(item.image, null, modifier = Modifier.size(72.dp))
+                item.image != null -> Image(item.image, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                item.icon != null -> Icon(item.icon, null, tint = Color.White, modifier = Modifier.size(52.dp))
             }
+            if (item.progress != null) {
+                Box(modifier = Modifier.fillMaxWidth().height(4.dp).align(Alignment.BottomStart).background(Color.White.copy(alpha = 0.3f)))
+                Box(modifier = Modifier.fillMaxWidth(item.progress).height(4.dp).align(Alignment.BottomStart).background(MediaCenter.Glow))
+            }
+        }
+        if (!item.banner) {
             Text(
-                text = title,
+                text = item.label,
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 8.dp)
             )
+            if (item.line != null) {
+                Text(
+                    text = item.line,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MediaCenter.Dim,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
-}
-
-/** An app by the banner it made for TVs; one without a banner shows its icon on the accent. */
-@Composable
-private fun TvAppTile(app: TvApp, width: Dp, height: Dp, modifier: Modifier, onClick: () -> Unit) {
-    if (app.banner != null) {
-        TvTile(title = "", line = null, color = Color.Black, width = width, height = height, onClick = onClick, modifier = modifier, image = app.banner)
-        return
-    }
-    val source = remember { MutableInteractionSource() }
-    Box(
-        modifier = modifier
-            .size(width, height)
-            .tvFocus(source)
-            .background(LocalZuneColors.current.accentColor.shade(0.7f))
-            .tvOwnFocus()
-            .clickable(interactionSource = source, indication = null, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        app.icon?.let { Image(bitmap = it, contentDescription = null, modifier = Modifier.size(72.dp)) }
-        Text(
-            text = app.label,
-            style = MaterialTheme.typography.titleSmall,
-            color = Color.White,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.align(Alignment.BottomStart).padding(10.dp)
-        )
-    }
-}
-
-/** A word to be taken with the remote: white while it has the focus, dimmed while it has not. */
-@Composable
-private fun TvFocusText(
-    text: String,
-    size: androidx.compose.ui.unit.TextUnit,
-    selected: Boolean,
-    onFocus: () -> Unit,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    fade: Float = 1f
-) {
-    val source = remember { MutableInteractionSource() }
-    val focused by source.collectIsFocusedAsState()
-    LaunchedEffect(focused) { if (focused) onFocus() }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.displayMedium.copy(
-            fontWeight = FontWeight.Light,
-            fontSize = size,
-            lineHeight = size * 1.15f
-        ),
-        color = when {
-            focused -> Color.White
-            selected -> Color.White.copy(alpha = 0.78f)
-            else -> Color.White.copy(alpha = 0.4f * fade)
-        },
-        maxLines = 1,
-        modifier = modifier.tvOwnFocus().clickable(interactionSource = source, indication = null, onClick = onClick)
-    )
 }
 
 /** The time in the corner, as the Xbox kept it; read off the minute, not polled. */
@@ -628,20 +454,12 @@ private fun Context.startSafely(intent: Intent) {
 /** The part of the picture a TV may crop: 5% of 960 × 540 dp. */
 private val TV_SAFE_X = 48.dp
 private val TV_SAFE_Y = 27.dp
-private val TV_GROUND = Color(0xFF0E0D10)
-private val BIG_TILE = 352.dp
-/** How far a focused tile may grow past its row's edge without being cut off. */
+/** How far a focused tile may glow past its row's edge without being cut off. */
 private val FOCUS_ROOM = 20.dp
-private val BIG_WIDE = 626.dp
-private val PREVIEW_WIDE = 480.dp
-private val PREVIEW_TALL = 270.dp
-private val SMALL_TILE = 170.dp
-private val BANNER_WIDTH = 302.dp
-private val TILE_GAP = 12.dp
-private val SECTION_GAP = 64.dp
-private val WORDS_WIDTH = 380.dp
-private const val FOCUS_SCALE = 1.06f
-private const val WORDS_ABOVE = 2
+private val TILE_WIDTH = 200.dp
+private val TILE_HEIGHT = 112.dp
+private val TILE_GAP = 14.dp
+private val STRIP_GAP = 8.dp
+private val STRIP_TITLE_WIDTH = 210.dp
 private const val FIRST_FOCUS_DELAY_MILLIS = 120L
 private const val HUB_TAKES_FOCUS_MILLIS = 600L
-private const val FOCUS_MILLIS = 140

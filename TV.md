@@ -6,12 +6,9 @@ other way round.
 
 ## Decided
 
-- **Two Starts, as on the phone.** The setting that picks the Windows Phone board or the Zune list
-  picks, on a TV:
-  - **A, the board** (`HomeScreenLayout.WINDOWS_PHONE`): the Xbox 360's - section names along the
-    top, large tiles running off to the right.
-  - **C, the list** (`HomeScreenLayout.ZUNE`): Windows Media Center's and the Zune's - huge words
-    down the left, what the chosen one holds beside it.
+- **One design: Windows Media Center.** (2026-10-19: the A board and C list of the draft are
+  gone.) Start and every hub are Media Center's; the phone's Start setting, wallpaper, hub
+  background, tiles and icons are not offered on a TV, only the theme and type and motion.
 - **Worked with a remote.** Every tile and word takes focus; the focused one grows a little and
   gains a white frame. The edges keep the 5% a TV may crop (48 × 27 dp).
 - **Phone and messages through the phone.** A phone running Z Launcher can tell a paired TV on the
@@ -24,7 +21,7 @@ other way round.
 ## Done in the draft
 
 - `LocalIsTv` / `isTelevision()` (`ui/theme/Theme.kt`); a TV is not turned upright like a phone.
-- `ui/tv/TvStartScreen.kt`: both Starts, the clock, the TV's own apps by their banners
+- `ui/tv/TvStartScreen.kt`: Start, the clock, the TV's own apps by their banners
   (`ui/tv/TvApps.kt`), hubs opened through the usual navigation.
 - Manifest: `leanback` and `touchscreen` not required, `LEANBACK_LAUNCHER`, a 320 × 180 banner.
 - The touch tour and the action center are left out on a TV.
@@ -142,6 +139,22 @@ The user asked for every hub on a TV in Media Center's design, with no exception
 - The focus frame is Media Center's glow: a soft blue halo, a bright edge, a wash of light.
 - Fixes found on the TV: the list's commands give way while an item is open beside it; the photo
   viewer keeps the remote in itself, and the arrows go from the picture to its commands.
+
+## Start as Windows Media Center (2026-10-19)
+
+The user asked for Start in Media Center's design too, and for no other design on a TV.
+
+- `MediaCenterStart`: strips down the screen, each a name and a row of tiles beside it -
+  "continue" (a film left part way, when there is one), pictures + videos, music, the TV's apps
+  by their banners, extras (weather, news, clock), tasks (files, settings, Android settings).
+  The strip the remote is in stands a little above the middle, bright and full size; the others
+  are smaller and pale. Up and down go from strip to strip, left and right along one.
+- The strip the remote is in is known by its name, not its place: "continue" comes in above once
+  the videos are read, and the first focus is given once, so a strip arriving late does not pull
+  the remote back.
+- Look settings on a TV: theme and type and motion only.
+- Tried on the Mi TV: moving through every strip, settings opened and closed (the remote back on
+  its tile), the pictures hub, "continue" playing from where it stopped, music.
 
 ## Still to do
 

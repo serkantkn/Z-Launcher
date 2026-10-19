@@ -80,9 +80,15 @@ internal fun LookSettingsPage(
     val tileCornerStyle by viewModel.tileCornerStyle.collectAsState()
     val tileSpacing by viewModel.tileSpacing.collectAsState()
     val homeScreenLayout by viewModel.homeScreenLayout.collectAsState()
+    // A television is Media Center and nothing else: its own Start and blue, no tiles or icons to
+    // dress, no wallpaper behind the hubs - and no phone's Start to preview.
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+    val tvLeftOut = if (isTv) setOf(
+        LookPage.WALLPAPER, LookPage.HUB_BACKGROUND, LookPage.START_SCREEN, LookPage.TILES, LookPage.ICONS
+    ) else emptySet()
 
     SettingsLazyColumn {
-        item(key = "preview") {
+        if (!isTv) item(key = "preview") {
             val tileOpacity by viewModel.tileOpacity.collectAsState()
             val tileBlur by viewModel.tileBlur.collectAsState()
             val tileInk by viewModel.tileInk.collectAsState()
@@ -106,7 +112,7 @@ internal fun LookSettingsPage(
             )
         }
 
-        items(LookPage.entries, key = { it.name }) { page ->
+        items(LookPage.entries.filter { it !in tvLeftOut }, key = { it.name }) { page ->
             SystemSettingRow(
                 title = stringResource(page.titleRes),
                 subtitle = lookPageSummary(page, viewModel),

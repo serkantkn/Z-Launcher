@@ -577,7 +577,6 @@ fun LauncherScreen(
                     // A television has its own Start, worked with a remote (ui/tv).
                     if (isTv) {
                         com.serkantkn.zunelauncher.ui.tv.TvStartScreen(
-                            layout = homeScreenLayout,
                             homeHubViewModel = homeHubViewModel,
                             onOpenHub = { hub -> if (hub != HubType.HOME) navState.openHub(hub) },
                             hubOpen = isHubOpenHere
