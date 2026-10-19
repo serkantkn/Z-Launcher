@@ -126,6 +126,23 @@ Xiaomi Mi TV (MiTV_MZTU0, Google TV, Android 14, MediaTek, 1.8 GB, 32-bit, UI at
   settings. The Home button service cannot be driven by adb (adb keys skip accessibility); the
   user tries it.
 
+## Every hub as Windows Media Center (2026-10-19)
+
+The user asked for every hub on a TV in Media Center's design, with no exception.
+
+- `ui/tv/MediaCenter.kt`: the deep blue ground with its band of light; `MediaCenterHub` - the
+  hub's name small at the top left, its pages as one row of words the remote runs along (moving
+  along turns the page), the page under it, folders/albums down the left, an open item beside;
+  `MediaCenterCommandStrip` - the bar's commands along the foot, icon and name side by side.
+- `ZuneHub` draws `MediaCenterHub` on a TV, so music, pictures, settings, clock and news follow;
+  weather and files (off the hub standard) call it / its row themselves. `WindowsPhoneBottomBar`
+  and `Win8CommandBar` draw the strip on a TV, so sub-screens and the photo viewer do too.
+- The hubs' ground on a TV is Media Center's blue (also behind sub-screens); weather's painted
+  sky is the phone's. Sub-screen headers take Media Center's margins and pale blue path.
+- The focus frame is Media Center's glow: a soft blue halo, a bright edge, a wash of light.
+- Fixes found on the TV: the list's commands give way while an item is open beside it; the photo
+  viewer keeps the remote in itself, and the arrows go from the picture to its commands.
+
 ## Still to do
 
 1. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs

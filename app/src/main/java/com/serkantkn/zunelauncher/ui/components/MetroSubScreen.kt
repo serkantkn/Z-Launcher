@@ -55,6 +55,10 @@ fun MetroSubScreen(
     BackHandler { onClose() }
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    // A television sets it as Media Center did a page inside a library: its margins, the path
+    // small and pale blue, the page's name under it.
+    val tv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+    val side = if (tv) com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE else ZuneDimens.ScreenPaddingHorizontal
 
     HubGround(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -62,9 +66,9 @@ fun MetroSubScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
-                        top = 32.dp,
-                        start = ZuneDimens.ScreenPaddingHorizontal,
-                        end = ZuneDimens.ScreenPaddingHorizontal
+                        top = if (tv) 28.dp else 32.dp,
+                        start = side,
+                        end = side
                     )
             ) {
                 Text(
@@ -74,7 +78,8 @@ fun MetroSubScreen(
                         fontSize = 18.sp,
                         letterSpacing = 1.sp
                     ),
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+                    color = if (tv) com.serkantkn.zunelauncher.ui.tv.MediaCenter.Dim
+                    else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
                     maxLines = 1
                 )
                 Text(
@@ -93,7 +98,7 @@ fun MetroSubScreen(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+                    .padding(horizontal = side)
             ) {
                 content(PaddingValues(bottom = bottomInset + 32.dp))
             }

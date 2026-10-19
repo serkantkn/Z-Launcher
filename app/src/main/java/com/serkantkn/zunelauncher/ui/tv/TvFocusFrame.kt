@@ -57,13 +57,33 @@ fun TvFocusFrame(modifier: Modifier = Modifier) {
     }
     Canvas(modifier = modifier) {
         val box = frame ?: return@Canvas
-        val stroke = FRAME_WIDTH.toPx()
-        val out = FRAME_OUTSET.toPx() + stroke / 2
-        drawRect(
-            color = Color.White,
+        // Media Center's highlight: a soft blue glow round the thing, a bright edge and a faint
+        // wash of light over it, the corners a little rounded.
+        val out = FRAME_OUTSET.toPx()
+        val radius = androidx.compose.ui.geometry.CornerRadius(CORNER.toPx())
+        val glowSteps = 5
+        for (step in glowSteps downTo 1) {
+            val spread = out + step * GLOW_STEP.toPx()
+            drawRoundRect(
+                color = MediaCenter.Glow.copy(alpha = 0.06f * (glowSteps - step + 1)),
+                topLeft = Offset(box.left - spread, box.top - spread),
+                size = Size(box.width + spread * 2, box.height + spread * 2),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius.x + step * GLOW_STEP.toPx()),
+                style = Stroke(width = GLOW_STEP.toPx() * 1.5f)
+            )
+        }
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.10f),
             topLeft = Offset(box.left - out, box.top - out),
             size = Size(box.width + out * 2, box.height + out * 2),
-            style = Stroke(width = stroke)
+            cornerRadius = radius
+        )
+        drawRoundRect(
+            color = MediaCenter.Glow,
+            topLeft = Offset(box.left - out, box.top - out),
+            size = Size(box.width + out * 2, box.height + out * 2),
+            cornerRadius = radius,
+            style = Stroke(width = FRAME_WIDTH.toPx())
         )
     }
 }
@@ -151,8 +171,10 @@ fun Modifier.tvOwnFocus(): Modifier = composed {
     }
 }
 
-private val FRAME_WIDTH = 3.dp
-private val FRAME_OUTSET = 2.dp
+private val FRAME_WIDTH = 2.dp
+private val FRAME_OUTSET = 4.dp
+private val CORNER = 6.dp
+private val GLOW_STEP = 3.dp
 private const val BUSY_MILLIS = 900L
 private const val IDLE_MILLIS = 120L
 

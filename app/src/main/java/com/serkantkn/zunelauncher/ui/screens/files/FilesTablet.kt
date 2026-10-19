@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.screens.files
 
+import com.serkantkn.zunelauncher.ui.tv.tvTake
+import androidx.compose.ui.focus.focusRequester
 import com.serkantkn.zunelauncher.ui.components.swallowTaps
 import android.os.Environment
 import androidx.compose.animation.animateColorAsState
@@ -181,6 +183,124 @@ internal fun FilesTabletLayout(
     }
     val shiftPx = with(LocalDensity.current) { ENTRANCE_SHIFT.toPx() }
 
+    // ── The place itself: the folder, its header, what is in it ──
+    @Composable
+    fun PlaceColumn(placeModifier: Modifier) {
+        Column(modifier = placeModifier) {
+            if (inRecycleBin) {
+                RecycleBinTabletPlace(viewModel = viewModel, ink = ink, bottomPadding = bottomPadding, modifier = Modifier.weight(1f))
+                return@Column
+            }
+            PlaceHeader(
+                viewModel = viewModel,
+                inCloud = inCloud,
+                canGoBack = canGoBack,
+                onBack = onBack,
+                onAncestor = { goTo(it) },
+                ink = ink
+            )
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        val p = entrance.value
+                        alpha = p
+                        translationX = (1f - p) * shiftPx * if (fromRight) 1f else -1f
+                    }
+            ) {
+                when {
+                    inCloud -> cloudPage(PaddingValues(bottom = bottomPadding))
+                    !hasPermission -> permissionGate()
+                    else -> {
+                        val shown = deepResults ?: fileItems.filter {
+                            searchQuery.isBlank() || matchesFileQuery(it.name, searchQuery)
+                        }
+                        val open: (FileItemModel) -> Unit = { item ->
+                            when {
+                                viewModel.selection.value.isNotEmpty() -> viewModel.toggleSelection(item)
+                                item.isDirectory -> goTo(item.file)
+                                else -> onOpenFile(item)
+                            }
+                        }
+                        if (filesView == FilesView.THUMBNAILS) {
+                            ThumbnailsView(
+                                viewModel = viewModel,
+                                items = shown,
+                                bottomPadding = bottomPadding,
+                                onOpen = open,
+                                onLongClick = onItemLongClick
+                            )
+                        } else DetailsView(
+                            viewModel = viewModel,
+                            items = shown,
+                            bottomPadding = bottomPadding,
+                            showPathInsteadOfType = deepResults != null,
+                            volumeRoot = currentVolume?.root,
+                            ink = ink,
+                            onOpen = open,
+                            onLongClick = onItemLongClick
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // ── A television: Media Center's library - the places as one row of words across the
+    // top, the remote running along it, the folder under them. ──
+    if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
+        data class TvPlace(val label: String, val chosen: Boolean, val open: () -> Unit)
+        val places = buildList {
+            volumes.forEach { volume ->
+                val here = !inCloud && !inRecycleBin && currentVolume?.root?.absolutePath == volume.root.absolutePath &&
+                    FilesLibrary.entries.none { isInside(currentDirectory, File(primaryRoot, it.folder)) }
+                add(TvPlace(volume.label.lowercase(Locale.getDefault()), here) { goToVolume(volume) })
+            }
+            FilesLibrary.entries.forEach { library ->
+                val folder = File(primaryRoot, library.folder)
+                add(TvPlace(stringResource(library.labelRes).lowercase(Locale.getDefault()), !inCloud && !inRecycleBin && isInside(currentDirectory, folder)) { goTo(folder) })
+            }
+            add(TvPlace(stringResource(R.string.files_cloud_place).lowercase(Locale.getDefault()), inCloud) { onInCloudChange(true) })
+            add(TvPlace(stringResource(R.string.files_bin_title).lowercase(Locale.getDefault()), inRecycleBin) {
+                onInCloudChange(false)
+                viewModel.openRecycleBin()
+            })
+        }
+        val firstWord = remember { androidx.compose.ui.focus.FocusRequester() }
+        LaunchedEffect(Unit) { firstWord.tvTake() }
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(start = com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE, end = com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE, top = 28.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.hub_files),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal, fontSize = 22.sp),
+                color = com.serkantkn.zunelauncher.ui.tv.MediaCenter.Dim
+            )
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(36.dp),
+                contentPadding = PaddingValues(vertical = 6.dp, horizontal = 4.dp),
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                items(places.size) { i ->
+                    val place = places[i]
+                    com.serkantkn.zunelauncher.ui.tv.MediaCenterWord(
+                        text = place.label,
+                        chosen = place.chosen,
+                        modifier = if (i == 0) Modifier.focusRequester(firstWord) else Modifier,
+                        onClick = place.open
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            PlaceColumn(Modifier.weight(1f).fillMaxWidth())
+        }
+        return
+    }
+
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val paneWidth = if (maxWidth < NARROW_FROM) PANE_WIDTH_NARROW else PANE_WIDTH
 
@@ -241,72 +361,7 @@ internal fun FilesTabletLayout(
                 }
             }
 
-            // ── The place itself ──
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .padding(top = 40.dp, end = 40.dp)
-            ) {
-                if (inRecycleBin) {
-                    RecycleBinTabletPlace(viewModel = viewModel, ink = ink, bottomPadding = bottomPadding, modifier = Modifier.weight(1f))
-                    return@Column
-                }
-                PlaceHeader(
-                    viewModel = viewModel,
-                    inCloud = inCloud,
-                    canGoBack = canGoBack,
-                    onBack = onBack,
-                    onAncestor = { goTo(it) },
-                    ink = ink
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .graphicsLayer {
-                            val p = entrance.value
-                            alpha = p
-                            translationX = (1f - p) * shiftPx * if (fromRight) 1f else -1f
-                        }
-                ) {
-                    when {
-                        inCloud -> cloudPage(PaddingValues(bottom = bottomPadding))
-                        !hasPermission -> permissionGate()
-                        else -> {
-                            val shown = deepResults ?: fileItems.filter {
-                                searchQuery.isBlank() || matchesFileQuery(it.name, searchQuery)
-                            }
-                            val open: (FileItemModel) -> Unit = { item ->
-                                when {
-                                    viewModel.selection.value.isNotEmpty() -> viewModel.toggleSelection(item)
-                                    item.isDirectory -> goTo(item.file)
-                                    else -> onOpenFile(item)
-                                }
-                            }
-                            if (filesView == FilesView.THUMBNAILS) {
-                                ThumbnailsView(
-                                    viewModel = viewModel,
-                                    items = shown,
-                                    bottomPadding = bottomPadding,
-                                    onOpen = open,
-                                    onLongClick = onItemLongClick
-                                )
-                            } else DetailsView(
-                                viewModel = viewModel,
-                                items = shown,
-                                bottomPadding = bottomPadding,
-                                showPathInsteadOfType = deepResults != null,
-                                volumeRoot = currentVolume?.root,
-                                ink = ink,
-                                onOpen = open,
-                                onLongClick = onItemLongClick
-                            )
-                        }
-                    }
-                }
-            }
+            PlaceColumn(Modifier.weight(1f).fillMaxHeight().padding(top = 40.dp, end = 40.dp))
         }
     }
 }

@@ -630,8 +630,12 @@ fun LauncherScreen(
                  */
                 val groundAccent = zuneColors.accentColor
                 val hubGround: com.serkantkn.zunelauncher.ui.components.HubGroundPainter = remember(
-                    effectiveHubMode, hubBackdrop, groundAccent, hubBackgroundOpacity, zuneGlow
+                    effectiveHubMode, hubBackdrop, groundAccent, hubBackgroundOpacity, zuneGlow, isTv
                 ) { { groundModifier, content ->
+                  // A television's hubs stand on Media Center's blue, whatever the phone's wallpaper.
+                  if (isTv) {
+                    com.serkantkn.zunelauncher.ui.tv.MediaCenterBackground(modifier = groundModifier, content = content)
+                  } else
                     ZuneBackground(
                         mode = effectiveHubMode,
                         glow = zuneGlow,

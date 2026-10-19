@@ -101,10 +101,19 @@ fun Win8CommandBar(
         exit = slideOutVertically(tween(180)) { it } + fadeOut(tween(180)),
         modifier = modifier
     ) {
+        // A television draws the same commands on Media Center's strip (ui/tv/MediaCenter).
+        val tv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFEDEDED))
+                .then(
+                    if (tv) Modifier.background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            listOf(Color.Transparent, com.serkantkn.zunelauncher.ui.tv.MediaCenter.Strip.copy(alpha = 0.92f))
+                        )
+                    )
+                    else Modifier.background(if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFEDEDED))
+                )
                 // The bar takes its own taps so they do not fall through to the page.
                 .swallowTaps()
                 .padding(bottom = navBottom)
@@ -140,7 +149,30 @@ private fun CommandButton(command: Win8Command, fg: Color, onAnyCommand: () -> U
     val zuneColors = LocalZuneColors.current
     var menuOpen by remember { mutableStateOf(false) }
     val tint = if (command.enabled) fg else fg.copy(alpha = 0.35f)
+    val tv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
     Box {
+      if (tv) {
+        // Media Center's command: the icon with its name beside it, no ring.
+        androidx.compose.foundation.layout.Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .clickable(
+                    enabled = command.enabled,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    if (command.menu != null) menuOpen = true else {
+                        command.onClick()
+                        onAnyCommand()
+                    }
+                }
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Icon(imageVector = command.icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+            Text(text = command.label.lowercase(), style = MaterialTheme.typography.bodyLarge, color = tint, maxLines = 1)
+        }
+      } else
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
@@ -177,7 +209,8 @@ private fun CommandButton(command: Win8Command, fg: Color, onAnyCommand: () -> U
             DropdownMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                containerColor = if (zuneColors.isDark) Color(0xFF2B2B2B) else Color.White,
+                containerColor = if (tv) com.serkantkn.zunelauncher.ui.tv.MediaCenter.Top
+                else if (zuneColors.isDark) Color(0xFF2B2B2B) else Color.White,
                 shape = RectangleShape
             ) {
                 menu { menuOpen = false; onAnyCommand() }

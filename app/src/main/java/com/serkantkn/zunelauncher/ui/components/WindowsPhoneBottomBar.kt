@@ -74,6 +74,11 @@ fun WindowsPhoneBottomBar(
     menuItems: List<WpBarMenuItem> = emptyList(),
     wideCommandsAtStart: Boolean = false
 ) {
+    // A television is Media Center: the same commands, on its strip along the foot.
+    if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
+        com.serkantkn.zunelauncher.ui.tv.MediaCenterCommandStrip(actions, menuItems, bottomBarHeight(), modifier)
+        return
+    }
     // A tablet is Windows 8, not Windows Phone: the same commands, on Windows 8's bar.
     if (LocalIsWideScreen.current) {
         Win8BarForPhoneCommands(actions, menuItems, wideCommandsAtStart, modifier)
@@ -255,6 +260,10 @@ fun WindowsPhoneBottomBar(
  */
 @Composable
 fun WindowsPhoneBottomBarStrip(modifier: Modifier = Modifier) {
+    if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
+        com.serkantkn.zunelauncher.ui.tv.MediaCenterCommandStrip(emptyList(), emptyList(), bottomBarHeight(), modifier)
+        return
+    }
     if (LocalIsWideScreen.current) {
         Win8CommandBar(left = emptyList(), right = emptyList(), modifier = modifier)
         return

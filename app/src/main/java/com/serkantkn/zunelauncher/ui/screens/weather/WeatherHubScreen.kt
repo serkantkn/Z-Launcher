@@ -271,16 +271,27 @@ fun WeatherHubScreen(
         }
     }
 
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
     Box(modifier = modifier.fillMaxSize()) {
-        WeatherSkyBackground(
-            sky = sky,
-            isDay = isDay,
-            animated = animatedSky,
-            parallax = parallax
-        )
+        // A television stands every hub on Media Center's blue; the painted sky is the phone's.
+        if (!isTv) {
+            WeatherSkyBackground(
+                sky = sky,
+                isDay = isDay,
+                animated = animatedSky,
+                parallax = parallax
+            )
+        }
 
         ZuneHubEntranceLayout { bottomBarModifier ->
-            if (isWideScreen) {
+            if (isTv) {
+                com.serkantkn.zunelauncher.ui.tv.MediaCenterHub(
+                    title = stringResource(R.string.hub_weather),
+                    tabs = tabs,
+                    pager = pager,
+                    bottomRoom = bottomBarClearance
+                ) { index -> PageFor(index) }
+            } else if (isWideScreen) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     ZuneWideHubTitle(text = stringResource(R.string.hub_weather))
                     ZuneWidePanorama(

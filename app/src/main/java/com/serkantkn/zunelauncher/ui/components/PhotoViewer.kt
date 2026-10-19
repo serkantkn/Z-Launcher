@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusGroup
 import com.serkantkn.zunelauncher.ui.tv.tvOwnFocus
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.focusRequester
@@ -154,6 +156,19 @@ fun PhotoViewer(
                 .then(
                     if (!isTv) Modifier
                     else Modifier
+                        // The remote stays in the viewer: the grid it was opened from is still
+                        // there underneath, and the arrows would wander off into it.
+                        .focusProperties { onExit = { cancelFocusChange() } }
+                        .focusGroup()
+                )
+        ) {
+            // On a TV, the remote's place on the picture: a point at its middle, beside the
+            // controls rather than round them, so the arrows go from it down to them and back up.
+            if (isTv) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(1.dp)
                         .onKeyEvent { event ->
                             if (!pictureFocused || event.type != KeyEventType.KeyDown) return@onKeyEvent false
                             when (event.key) {
@@ -180,7 +195,7 @@ fun PhotoViewer(
                         .tvOwnFocus()
                         .focusable()
                 )
-        ) {
+            }
             HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = currentScale == 1f && currentDragOffsetY == 0f,

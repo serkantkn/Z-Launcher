@@ -230,7 +230,13 @@ fun ZuneHub(
         fadeIn = { reveal.value }
     ) { barModifier ->
         Box(modifier = Modifier.fillMaxSize()) {
-            if (LocalIsWideScreen.current) {
+            if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
+                // A television: every hub as a Windows Media Center library (ui/tv/MediaCenter).
+                TvHub(
+                    title, tabs, pager, bar, showTabs, takeover, barModifier, wideHiddenTabs,
+                    wideOnSelected, wideNavExtra, wideSidePaneWidth, wideSidePane, widePane, page
+                )
+            } else if (LocalIsWideScreen.current) {
                 WideHub(
                     title, tabs, pager, bar, showTabs, takeover, barModifier,
                     wideHiddenTabs, wideOnSelected, wideNavExtra, wideSidePaneWidth, wideSidePane,
@@ -424,6 +430,47 @@ private fun BoxScope.PhoneHub(
         if (bar != null) Spacer(modifier = Modifier.height(bottomBarHeight()))
     }
     if (bar != null) {
+        WindowsPhoneBottomBar(
+            actions = bar.actions,
+            menuItems = bar.menu,
+            modifier = Modifier.align(Alignment.BottomCenter).then(barModifier)
+        )
+    }
+}
+
+@Composable
+private fun BoxScope.TvHub(
+    title: String,
+    tabs: List<String>,
+    pager: ZuneLoopingPagerState,
+    bar: ZuneHubBar?,
+    showTabs: Boolean,
+    takeover: (@Composable () -> Unit)?,
+    barModifier: Modifier,
+    hiddenTabs: Set<Int>,
+    onSelected: (Int) -> Unit,
+    navExtra: (@Composable ColumnScope.() -> Unit)?,
+    sidePaneWidth: Dp,
+    sidePane: (@Composable () -> Unit)?,
+    pane: ZuneHubPane?,
+    page: @Composable (Int) -> Unit
+) {
+    com.serkantkn.zunelauncher.ui.tv.MediaCenterHub(
+        title = title,
+        tabs = if (showTabs && takeover == null) tabs else emptyList(),
+        pager = pager,
+        hiddenTabs = hiddenTabs,
+        onSelected = onSelected,
+        navExtra = navExtra,
+        sidePaneWidth = sidePaneWidth,
+        sidePane = sidePane,
+        pane = pane?.takeIf { it.key != null }?.let { p -> { p.content(p.key, barModifier) } },
+        paneKey = pane?.key,
+        bottomRoom = if (bar != null) bottomBarHeight() else 0.dp
+    ) { index -> if (takeover != null) takeover() else page(index) }
+    // While something is open beside the list, its own commands are the strip: the list's would
+    // stand on top of them. Back closes it and the list's come back.
+    if (bar != null && pane?.key == null) {
         WindowsPhoneBottomBar(
             actions = bar.actions,
             menuItems = bar.menu,
