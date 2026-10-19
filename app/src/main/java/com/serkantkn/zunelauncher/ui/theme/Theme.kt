@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -161,18 +162,25 @@ fun ZuneLauncherTheme(
     animationsEnabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val isDarkTheme = when (themeMode) {
-        ThemeMode.LIGHT -> false
-        ThemeMode.DARK -> true
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-    }
 
     val configuration = LocalConfiguration.current
     val isWideScreen = configuration.screenWidthDp >= 600
 
     val context = LocalContext.current
     val isTv = remember(context) { isTelevision(context) }
-    val resolvedAccentColor = when (accentColor) {
+    // A TV may wear Vista's Media Center: its type is Selawik and its colour Media Center's blue.
+    val vista = if (isTv) {
+        remember(context) { com.serkantkn.zunelauncher.ui.tv.TvDesign.attach(context) }
+        com.serkantkn.zunelauncher.ui.tv.TvDesign.vista.collectAsState().value
+    } else false
+    // Media Center - Windows 7's and Vista's - was blue and white whatever Windows was set to: a
+    // light theme put dark words on its blue, where nobody could read them.
+    val isDarkTheme = isTv || when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+    val chosenAccentColor = when (accentColor) {
         AccentColor.DYNAMIC -> {
             if (dynamicThemeColor != null) {
                 Color(dynamicThemeColor)
@@ -194,6 +202,7 @@ fun ZuneLauncherTheme(
             accentColor.toColor()
         }
     }
+    val resolvedAccentColor = if (vista) com.serkantkn.zunelauncher.ui.tv.Vista.Link else chosenAccentColor
 
     val colorScheme = if (isDarkTheme) {
         if (solidBackgroundEnabled) {
@@ -260,12 +269,13 @@ fun ZuneLauncherTheme(
         LocalZuneColors provides zuneColors,
         LocalIsWideScreen provides isWideScreen,
         LocalIsTv provides isTv,
+        com.serkantkn.zunelauncher.ui.tv.LocalVista provides vista,
         LocalAnimationsEnabled provides animationsEnabled,
         LocalDensity provides scaledDensity
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = ZuneTypography,
+            typography = if (vista) remember { com.serkantkn.zunelauncher.ui.tv.vistaTypography(ZuneTypography) } else ZuneTypography,
             content = content
         )
     }

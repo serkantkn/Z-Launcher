@@ -270,12 +270,23 @@ internal fun FilesTabletLayout(
         }
         val firstWord = remember { androidx.compose.ui.focus.FocusRequester() }
         LaunchedEffect(Unit) { firstWord.tvTake() }
+        // Vista: the library's name huge and faint in the corner, its places as its ways in.
+        val vista = com.serkantkn.zunelauncher.ui.tv.LocalVista.current
+        if (vista) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                com.serkantkn.zunelauncher.ui.tv.VistaLibraryTitle(stringResource(R.string.hub_files), modifier = Modifier.align(Alignment.TopEnd))
+            }
+        }
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(start = com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE, end = com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE, top = 28.dp)
+                .padding(
+                    start = if (vista) 110.dp else com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE,
+                    end = com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE,
+                    top = if (vista) 98.dp else 28.dp
+                )
         ) {
-            Text(
+            if (!vista) Text(
                 text = stringResource(R.string.hub_files),
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal, fontSize = 22.sp),
                 color = com.serkantkn.zunelauncher.ui.tv.MediaCenter.Dim

@@ -98,6 +98,9 @@ fun TvStartScreen(
     homeResetSignal: Int = 0
 ) {
     val context = LocalContext.current
+    // Vista's Start is one thing to the remote; Windows 7's hands it from tile to tile.
+    val vista = LocalVista.current
+    val startKey = if (vista) VISTA_KEY else "pictures"
     // What had the focus when a hub was opened gets it back when the hub closes, as on the Xbox.
     val memory = remember { TvFocusMemory() }
     var wasOpen by remember { mutableStateOf(hubOpen) }
@@ -116,7 +119,7 @@ fun TvStartScreen(
     // Start lends the remote a way back too, for when nothing has the focus while it is showing.
     val rescueScope = rememberCoroutineScope()
     androidx.compose.runtime.DisposableEffect(memory) {
-        val rescue: () -> Unit = { rescueScope.launch { memory.restoreOr("pictures") } }
+        val rescue: () -> Unit = { rescueScope.launch { memory.restoreOr(startKey) } }
         TvFocus.startRescue = rescue
         onDispose { if (TvFocus.startRescue === rescue) TvFocus.startRescue = null }
     }
@@ -124,7 +127,7 @@ fun TvStartScreen(
         if (wasOpen && !hubOpen) {
             delay(FIRST_FOCUS_DELAY_MILLIS)
             // A hub opened before anything on Start had the focus returns it to the first tile.
-            memory.restoreOr("pictures")
+            memory.restoreOr(startKey)
         }
         wasOpen = hubOpen
     }
@@ -152,16 +155,41 @@ fun TvStartScreen(
     }
     val live = read ?: TvLive()
     val places = tvPlaces(homeHubViewModel, live, onOpenHub)
-    val strips = tvStrips(places, apps)
     MediaCenterBackground(modifier = modifier.onFocusChanged { startHasFocus = it.hasFocus }) {
-        Box(modifier = Modifier.fillMaxSize().padding(horizontal = TV_SAFE_X, vertical = TV_SAFE_Y)) {
-            androidx.compose.runtime.CompositionLocalProvider(
-                LocalTvFocusMemory provides memory,
-                LocalTvHubOpen provides hubOpen
-            ) {
-                MediaCenterStart(strips, homeResetSignal, ready = read != null)
+        if (vista) {
+            var libraryOpen by remember { mutableStateOf(false) }
+            var shutdownOpen by remember { mutableStateOf(false) }
+            val categories = vistaCategories(places, apps, onOpenHub, { libraryOpen = true }, { shutdownOpen = true })
+            LaunchedEffect(Unit) {
+                delay(FIRST_FOCUS_DELAY_MILLIS)
+                if (!hubOpen) memory.focus(VISTA_KEY)
             }
-            TvClock(modifier = Modifier.align(Alignment.TopEnd))
+            androidx.compose.runtime.CompositionLocalProvider(LocalTvFocusMemory provides memory) {
+                VistaStart(
+                    categories = categories,
+                    apps = apps,
+                    hubOpen = hubOpen,
+                    homeResetSignal = homeResetSignal,
+                    libraryOpen = libraryOpen,
+                    onLibraryOpen = { libraryOpen = it },
+                    shutdownOpen = shutdownOpen,
+                    onShutdownOpen = { shutdownOpen = it },
+                    focusModifier = Modifier.remembered(VISTA_KEY)
+                )
+            }
+            // The library is a page of its own, with its name where the clock stands.
+            if (!libraryOpen) VistaClock(modifier = Modifier.align(Alignment.TopEnd).padding(top = 22.dp, end = 40.dp))
+        } else {
+            val strips = tvStrips(places, apps)
+            Box(modifier = Modifier.fillMaxSize().padding(horizontal = TV_SAFE_X, vertical = TV_SAFE_Y)) {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    LocalTvFocusMemory provides memory,
+                    LocalTvHubOpen provides hubOpen
+                ) {
+                    MediaCenterStart(strips, homeResetSignal, ready = read != null)
+                }
+                TvClock(modifier = Modifier.align(Alignment.TopEnd))
+            }
         }
     }
 }
@@ -512,4 +540,6 @@ private val TILE_GAP = 14.dp
 private val STRIP_GAP = 8.dp
 private val STRIP_TITLE_WIDTH = 210.dp
 private const val FIRST_FOCUS_DELAY_MILLIS = 120L
+/** Vista's Start takes the remote whole, under this name in [TvFocusMemory]. */
+private const val VISTA_KEY = "vista"
 private const val HUB_TAKES_FOCUS_MILLIS = 600L

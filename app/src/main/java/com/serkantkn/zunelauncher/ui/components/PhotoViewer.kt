@@ -92,7 +92,9 @@ fun PhotoViewer(
      * A picture from outside the library - another app's attachment or download: it is not the
      * launcher's to edit, delete or mark, so only what can be done with any picture is offered.
      */
-    standalone: Boolean = false
+    standalone: Boolean = false,
+    /** Opens already turning its pages, for a "play all". */
+    startSlideshow: Boolean = false
 ) {
     AnimatedVisibility(
         visible = !photos.isNullOrEmpty(),
@@ -113,7 +115,7 @@ fun PhotoViewer(
         var currentDragOffsetY by remember { mutableFloatStateOf(0f) }
         var showControls by remember { mutableStateOf(true) }
         var showDetails by remember { mutableStateOf(false) }
-        var slideshow by remember { mutableStateOf(false) }
+        var slideshow by remember { mutableStateOf(startSlideshow) }
 
         val currentPhoto = photos.getOrNull(pagerState.currentPage) ?: photos[0]
         // Marked now by a key that survives a rescan, marked once by a plain id: both count.

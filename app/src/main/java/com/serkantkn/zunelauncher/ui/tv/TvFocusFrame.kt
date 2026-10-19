@@ -55,8 +55,23 @@ fun TvFocusFrame(modifier: Modifier = Modifier) {
             }
         }
     }
+    val vista = LocalVista.current
     Canvas(modifier = modifier) {
         val box = frame ?: return@Canvas
+        if (vista) {
+            // Vista's pane of glass over whatever the remote is on.
+            val out = VISTA_OUTSET.toPx()
+            // A picture is framed rather than glazed over: Vista lifted a gallery's picture out of
+            // its row with a light edge, and kept the glass for lines and buttons.
+            val large = box.height > LARGE_FOCUS.toPx()
+            drawVistaGlass(
+                topLeft = Offset(box.left - out, box.top - out),
+                size = Size(box.width + out * 2, box.height + out * 2),
+                strength = 0.85f,
+                fill = if (large) 0.2f else 1f
+            )
+            return@Canvas
+        }
         // Media Center's highlight: a soft blue glow round the thing, a bright edge and a faint
         // wash of light over it, the corners a little rounded.
         val out = FRAME_OUTSET.toPx()
@@ -105,6 +120,7 @@ object TvFocus {
     /** Called for every key the launcher's windows receive. */
     fun onKey(view: android.view.View?, event: android.view.KeyEvent): Boolean {
         lastKeyAt = android.os.SystemClock.uptimeMillis()
+        if (event.action == android.view.KeyEvent.ACTION_DOWN) view?.context?.let { vistaSound(it, event) }
         if (event.action != android.view.KeyEvent.ACTION_DOWN || event.repeatCount != 0) return false
         when (event.keyCode) {
             android.view.KeyEvent.KEYCODE_DPAD_CENTER,
@@ -121,7 +137,8 @@ object TvFocus {
                 lastArrowAt = lastKeyAt
                 // The focus went with something that closed - a viewer, a dialog, a page - and
                 // the remote has nothing to move: it is put back where it was, this press taken.
-                val lost = view == null || focusedRectOf(view)?.let { it.fills(view) } ?: true
+                // Something that takes the remote whole (Vista's Start) fills the screen and is not lost.
+                val lost = ownFocus == 0 && (view == null || focusedRectOf(view)?.let { it.fills(view) } ?: true)
                 val rescue = hubRescue ?: startRescue
                 if (lost && rescue != null) {
                     rescue()
@@ -131,6 +148,29 @@ object TvFocus {
         }
         return false
     }
+
+    /** Vista's tick for a move, chime for a choice, and its note for back; a held key ticks as it repeats. */
+    private fun vistaSound(context: android.content.Context, event: android.view.KeyEvent) {
+        if (!TvDesign.vista.value || !TvDesign.sounds.value) return
+        val kind = when (event.keyCode) {
+            android.view.KeyEvent.KEYCODE_DPAD_UP,
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> VistaSounds.Kind.MOVE
+            android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+            android.view.KeyEvent.KEYCODE_ENTER,
+            android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> if (event.repeatCount == 0) VistaSounds.Kind.SELECT else null
+            android.view.KeyEvent.KEYCODE_BACK -> if (event.repeatCount == 0) VistaSounds.Kind.BACK else null
+            else -> null
+        } ?: return
+        val now = android.os.SystemClock.uptimeMillis()
+        if (kind == VistaSounds.Kind.MOVE && now - lastTickAt < TICK_GAP_MILLIS) return
+        lastTickAt = now
+        VistaSounds.play(context, kind)
+    }
+
+    private var lastTickAt = 0L
+    private const val TICK_GAP_MILLIS = 70L
 
     /** When an arrow key last arrived: a heading turns its page only when the remote went to it. */
     @Volatile
@@ -172,6 +212,8 @@ fun Modifier.tvOwnFocus(): Modifier = composed {
 }
 
 private val FRAME_WIDTH = 2.dp
+private val VISTA_OUTSET = 3.dp
+private val LARGE_FOCUS = 120.dp
 private val FRAME_OUTSET = 4.dp
 private val CORNER = 6.dp
 private val GLOW_STEP = 3.dp

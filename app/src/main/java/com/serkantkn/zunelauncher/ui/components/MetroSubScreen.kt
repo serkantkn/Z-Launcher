@@ -60,6 +60,44 @@ fun MetroSubScreen(
     val tv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
     val side = if (tv) com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE else ZuneDimens.ScreenPaddingHorizontal
 
+    // Vista set a page inside a library or its settings as a menu: where you came from huge and
+    // faint at the left ("settings"), the page's name in small white capitals, the page under it.
+    if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+        HubGround(modifier = modifier) {
+            androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val pageStart = maxWidth * VISTA_PAGE_START
+                Text(
+                    text = breadcrumb.lowercase(java.util.Locale.getDefault()),
+                    style = MaterialTheme.typography.displaySmall.copy(
+                        fontFamily = com.serkantkn.zunelauncher.ui.tv.SelawikFamily,
+                        fontWeight = FontWeight.Light,
+                        fontSize = 28.sp
+                    ),
+                    color = com.serkantkn.zunelauncher.ui.tv.Vista.Faint,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = maxWidth * VISTA_PATH_START, top = 30.dp)
+                )
+                Column(modifier = Modifier.fillMaxSize().padding(start = pageStart, end = 48.dp, top = 26.dp)) {
+                    Text(
+                        text = if (lowercaseTitle) title.uppercase(java.util.Locale.getDefault()) else title,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = com.serkantkn.zunelauncher.ui.tv.SelawikFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 20.sp
+                        ),
+                        color = androidx.compose.ui.graphics.Color.White,
+                        maxLines = 1,
+                        modifier = Modifier.padding(bottom = 30.dp)
+                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        content(PaddingValues(bottom = bottomInset + 32.dp))
+                    }
+                }
+            }
+        }
+        return
+    }
+
     HubGround(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -152,3 +190,7 @@ fun MetroTextField(
         )
     }
 }
+
+/** Where Vista's pages set the faint path and the page itself across the screen. */
+private const val VISTA_PATH_START = 0.12f
+private const val VISTA_PAGE_START = 0.30f

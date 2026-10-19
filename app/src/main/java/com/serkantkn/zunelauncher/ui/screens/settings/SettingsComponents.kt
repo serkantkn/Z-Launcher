@@ -89,14 +89,16 @@ internal fun SettingGroup(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column {
+            // Vista headed its settings' pages in small capitals, white.
+            val vista = com.serkantkn.zunelauncher.ui.tv.LocalVista.current
             Text(
-                text = title,
+                text = if (vista) title.uppercase() else title,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Light,
-                    fontSize = 18.sp,
-                    letterSpacing = 1.sp
+                    fontWeight = if (vista) FontWeight.SemiBold else FontWeight.Light,
+                    fontSize = if (vista) 17.sp else 18.sp,
+                    letterSpacing = if (vista) 0.sp else 1.sp
                 ),
-                color = LocalZuneColors.current.textMuted,
+                color = if (vista) Color.White else LocalZuneColors.current.textMuted,
                 modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
             )
             content()
@@ -455,7 +457,15 @@ internal fun SettingChoiceRow(
                 onClick = onClick
             )
     ) {
-        SettingRowContent(
+        // Vista's radio stands before its words.
+        if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+            SettingRowContent(
+                title = title,
+                subtitle = subtitle,
+                leading = { com.serkantkn.zunelauncher.ui.tv.VistaRadio(selected) },
+                trailing = {}
+            )
+        } else SettingRowContent(
             title = title,
             subtitle = subtitle,
             trailing = {
@@ -481,7 +491,15 @@ internal fun SettingSwitchRow(
                 onClick = { onCheckedChange(!checked) }
             )
     ) {
-        SettingRowContent(
+        // Vista's check box stands before its words.
+        if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+            SettingRowContent(
+                title = title,
+                subtitle = subtitle,
+                leading = { com.serkantkn.zunelauncher.ui.tv.VistaCheck(checked) },
+                trailing = {}
+            )
+        } else SettingRowContent(
             title = title,
             subtitle = subtitle,
             trailing = {
@@ -525,7 +543,8 @@ internal fun SystemSettingRow(
                                 .background(androidx.compose.ui.graphics.Color(0xFF27AE60), CircleShape)
                         )
                     }
-                    Icon(
+                    // Vista's menus had no arrows: a line is a line, and the glass says which.
+                    if (!com.serkantkn.zunelauncher.ui.tv.LocalVista.current) Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
                         tint = LocalZuneColors.current.textMuted
@@ -572,7 +591,8 @@ internal fun SettingRowContent(
                         fontSize = 13.sp,
                         lineHeight = 17.sp
                     ),
-                    color = LocalZuneColors.current.textMuted,
+                    color = if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) com.serkantkn.zunelauncher.ui.tv.Vista.Category
+                    else LocalZuneColors.current.textMuted,
                     maxLines = 4
                 )
             }

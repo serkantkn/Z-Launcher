@@ -281,6 +281,14 @@ fun MusicHubScreen(
                 com.serkantkn.zunelauncher.data.repository.MusicBridge.consumeVideos()
                 if (zuneMenu) openSection(VIDEOS_TAB, animate = false) else pager.scrollToPage(VIDEOS_TAB)
             }
+            // Vista's "play all": everything shuffled, the hub on what is playing, once the songs are read.
+            val shuffleAll by com.serkantkn.zunelauncher.data.repository.MusicBridge.pendingShuffleAll.collectAsState()
+            LaunchedEffect(shuffleAll, songs.isNotEmpty()) {
+                if (!shuffleAll || songs.isEmpty()) return@LaunchedEffect
+                com.serkantkn.zunelauncher.data.repository.MusicBridge.consumeShuffleAll()
+                viewModel.shuffleSongs(songs)
+                if (zuneMenu) openSection(0, animate = false) else pager.scrollToPage(0)
+            }
             // A record played from quickplay or a pinned tile opens on that record.
             val pendingAlbum by com.serkantkn.zunelauncher.data.repository.MusicBridge.pendingAlbum.collectAsState()
             LaunchedEffect(pendingAlbum) {

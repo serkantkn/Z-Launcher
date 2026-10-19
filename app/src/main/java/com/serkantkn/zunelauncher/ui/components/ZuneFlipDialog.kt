@@ -3,6 +3,7 @@ package com.serkantkn.zunelauncher.ui.components
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusRequester
 import com.serkantkn.zunelauncher.ui.tv.tvTake
+import com.serkantkn.zunelauncher.ui.tv.vistaGlass
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.core.Animatable
@@ -96,6 +97,22 @@ fun ZuneFlipDialog(
     if (isTv) {
         // A group asked for the focus hands it to its first stop.
         LaunchedEffect(Unit) { dialogFocus.tvTake() }
+    }
+
+    if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+        VistaDialog(
+            progress = flipAnim.value,
+            title = title,
+            focus = dialogFocus,
+            onDismiss = { scope.dismissWithAnim() },
+            buttons = if (confirmButton != null || dismissButton != null) {
+                {
+                    if (confirmButton != null) scope.confirmButton()
+                    if (dismissButton != null) scope.dismissButton()
+                }
+            } else null
+        ) { scope.content() }
+        return
     }
 
     Dialog(
@@ -200,6 +217,86 @@ fun ZuneFlipDialog(
     }
 }
 
+/**
+ * A dialog as Vista Media Center put one up: a pane of blue glass in the bottom right corner over
+ * the page, dimmed behind it; the glass comes first, empty, and the words come into it. Its name in
+ * small white capitals, the question under it, the buttons side by side along its foot - the
+ * answer that goes ahead first.
+ */
+@Composable
+private fun VistaDialog(
+    progress: Float,
+    title: String?,
+    focus: androidx.compose.ui.focus.FocusRequester,
+    onDismiss: () -> Unit,
+    buttons: (@Composable RowScope.() -> Unit)?,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true, dismissOnClickOutside = true)
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f * progress))
+                    .pointerInput(Unit) { detectTapGestures { onDismiss() } }
+            )
+            val words = ((progress - 0.45f) / 0.55f).coerceIn(0f, 1f)
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 44.dp, bottom = 40.dp)
+                    .width(minOf(maxWidth * 0.5f, 560.dp))
+                    .heightIn(max = maxHeight * 0.8f)
+                    .focusRequester(focus)
+                    .focusGroup()
+                    .swallowTaps()
+                    .graphicsLayer {
+                        alpha = progress
+                        val grow = 0.92f + 0.08f * progress
+                        scaleX = grow
+                        scaleY = grow
+                        transformOrigin = TransformOrigin(1f, 1f)
+                    }
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            listOf(
+                                com.serkantkn.zunelauncher.ui.tv.Vista.PanelTop.copy(alpha = 0.95f),
+                                com.serkantkn.zunelauncher.ui.tv.Vista.PanelBottom.copy(alpha = 0.95f)
+                            )
+                        )
+                    )
+                    .vistaGlass(strength = 0.45f)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Column(modifier = Modifier.graphicsLayer { alpha = words }) {
+                    if (!title.isNullOrEmpty()) {
+                        Text(
+                            text = title.uppercase(),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
+                            color = Color.White,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), content = content)
+                    if (buttons != null) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            content = buttons
+                        )
+                    }
+                }
+            }
+            com.serkantkn.zunelauncher.ui.tv.TvFocusFrame(modifier = Modifier.matchParentSize())
+        }
+    }
+}
+
 /** How much of the screen a dialog may take before its content scrolls. */
 private const val DIALOG_MAX_HEIGHT_FRACTION = 0.85f
 
@@ -213,6 +310,21 @@ fun ZuneDialogButton(
     modifier: Modifier = Modifier,
     borderColor: Color = Color.White
 ) {
+    // Vista's button: a wide pane of glass with its word in the middle.
+    if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = modifier
+                .widthIn(min = 150.dp)
+                .height(42.dp)
+                .vistaGlass(strength = 0.55f)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+                .padding(horizontal = 18.dp)
+        ) {
+            Text(text = text, style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp), color = Color.White, maxLines = 1)
+        }
+        return
+    }
     OutlinedButton(
         onClick = onClick,
         modifier = modifier,

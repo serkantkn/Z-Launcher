@@ -41,4 +41,16 @@ object PicturesBridge {
     fun consumePhoto() {
         _pendingPhoto.value = null
     }
+
+    /** Vista's "play all" under pictures: every picture as a slide show, as the hub opens. */
+    private val _playAll = MutableStateFlow(false)
+    val pendingPlayAll: StateFlow<Boolean> = _playAll.asStateFlow()
+
+    fun playAll() {
+        _playAll.value = true
+    }
+
+    fun consumePlayAll() {
+        _playAll.value = false
+    }
 }

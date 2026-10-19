@@ -58,4 +58,16 @@ object MusicBridge {
     fun consumeVideos() {
         _showVideos.value = false
     }
+
+    /** Vista's "play all" under music: everything, shuffled, as the hub opens. */
+    private val _shuffleAll = MutableStateFlow(false)
+    val pendingShuffleAll: StateFlow<Boolean> = _shuffleAll.asStateFlow()
+
+    fun shuffleAll() {
+        _shuffleAll.value = true
+    }
+
+    fun consumeShuffleAll() {
+        _shuffleAll.value = false
+    }
 }

@@ -70,6 +70,22 @@ internal fun LookSubSettingsScreen(
 ) {
     val zuneColors = LocalZuneColors.current
 
+    // Vista sets it as one of its settings' pages: the path faint at the left, the page's name
+    // in small capitals, the page under it.
+    if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+        com.serkantkn.zunelauncher.ui.components.MetroSubScreen(
+            breadcrumb = stringResource(R.string.settings_hub),
+            title = stringResource(page.titleRes),
+            onClose = onClose,
+            modifier = modifier
+        ) { padding ->
+            Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding)) {
+                LookPageGroups(page, viewModel)
+            }
+        }
+        return
+    }
+
     BackHandler { onClose() }
 
     HubGround(modifier = modifier) {
@@ -124,18 +140,23 @@ internal fun LookSubSettingsScreen(
                     .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
                     .navigationBarsPadding()
             ) {
-                when (page) {
-                    LookPage.THEME -> ThemeGroups(viewModel)
-                    LookPage.WALLPAPER -> WallpaperGroups(viewModel)
-                    LookPage.HUB_BACKGROUND -> HubBackgroundGroups(viewModel)
-                    LookPage.START_SCREEN -> StartScreenGroups(viewModel)
-                    LookPage.TILES -> TileGroups(viewModel)
-                    LookPage.ICONS -> IconGroups(viewModel)
-                    LookPage.TEXT_AND_MOTION -> TextAndMotionGroups(viewModel)
-                }
+                LookPageGroups(page, viewModel)
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun LookPageGroups(page: LookPage, viewModel: SettingsViewModel) {
+    when (page) {
+        LookPage.THEME -> ThemeGroups(viewModel)
+        LookPage.WALLPAPER -> WallpaperGroups(viewModel)
+        LookPage.HUB_BACKGROUND -> HubBackgroundGroups(viewModel)
+        LookPage.START_SCREEN -> StartScreenGroups(viewModel)
+        LookPage.TILES -> TileGroups(viewModel)
+        LookPage.ICONS -> IconGroups(viewModel)
+        LookPage.TEXT_AND_MOTION -> TextAndMotionGroups(viewModel)
     }
 }
 
@@ -150,11 +171,14 @@ private fun ThemeGroups(viewModel: SettingsViewModel) {
     val customThemeColor by viewModel.customThemeColor.collectAsState()
     val dynamicThemeColor by viewModel.dynamicThemeColor.collectAsState()
 
-    SettingGroup(title = stringResource(R.string.theme_setting)) {
-        ThemeChoiceRow(selectedMode = themeMode, onSelected = viewModel::setThemeMode)
-    }
+    // A TV is always Media Center's blue: only the accent colour is the user's there.
+    if (!com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
+        SettingGroup(title = stringResource(R.string.theme_setting)) {
+            ThemeChoiceRow(selectedMode = themeMode, onSelected = viewModel::setThemeMode)
+        }
 
-    Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+    }
 
     SettingGroup(title = stringResource(R.string.settings_accent_color)) {
         AccentColorChoiceRow(
@@ -776,7 +800,7 @@ internal fun lookPageSummary(page: LookPage, viewModel: SettingsViewModel): Stri
                 ThemeMode.SYSTEM -> R.string.theme_system
             }
         )
-        "$theme • ${accentName(accentColor)}"
+        if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) accentName(accentColor) else "$theme • ${accentName(accentColor)}"
     }
 
     LookPage.TEXT_AND_MOTION -> {

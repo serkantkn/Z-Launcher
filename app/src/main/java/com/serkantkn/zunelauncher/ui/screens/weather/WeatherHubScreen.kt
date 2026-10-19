@@ -285,11 +285,17 @@ fun WeatherHubScreen(
 
         ZuneHubEntranceLayout { bottomBarModifier ->
             if (isTv) {
+                val vista = com.serkantkn.zunelauncher.ui.tv.LocalVista.current
                 com.serkantkn.zunelauncher.ui.tv.MediaCenterHub(
                     title = stringResource(R.string.hub_weather),
                     tabs = tabs,
                     pager = pager,
-                    bottomRoom = bottomBarClearance
+                    bottomRoom = if (vista) 0.dp else bottomBarClearance,
+                    // Vista keeps a library's commands as links at its top left.
+                    links = if (vista) {
+                        bottomBarActions.map { com.serkantkn.zunelauncher.ui.tv.VistaLink(it.label, it.icon, it.onClick) } +
+                            bottomBarMenuItems.map { com.serkantkn.zunelauncher.ui.tv.VistaLink(it.text, null, it.onClick) }
+                    } else emptyList()
                 ) { index -> PageFor(index) }
             } else if (isWideScreen) {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -367,7 +373,7 @@ fun WeatherHubScreen(
                 }
             }
 
-            WindowsPhoneBottomBar(
+            if (!(isTv && com.serkantkn.zunelauncher.ui.tv.LocalVista.current)) WindowsPhoneBottomBar(
                 modifier = Modifier.align(Alignment.BottomCenter).then(bottomBarModifier),
                 actions = bottomBarActions,
                 menuItems = bottomBarMenuItems

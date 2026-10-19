@@ -196,6 +196,8 @@ fun PicturesHubScreen(
 
     var viewingPhotosList by remember { mutableStateOf<List<MediaImage>?>(null) }
     var viewingInitialIndex by remember { mutableIntStateOf(0) }
+    // Vista's "play all": the viewer opens already turning its pages.
+    var viewingSlideshow by remember { mutableStateOf(false) }
     var isSearchOpen by remember { mutableStateOf(false) }
     var showColumnsSheet by remember { mutableStateOf(false) }
 
@@ -346,6 +348,17 @@ fun PicturesHubScreen(
         val stills = list.filter { !it.isVideo }
         viewingPhotosList = stills
         viewingInitialIndex = stills.indexOf(item).coerceAtLeast(0)
+    }
+
+    val playAll by PicturesBridge.pendingPlayAll.collectAsState()
+    LaunchedEffect(playAll, allImages.isNotEmpty()) {
+        if (!playAll || allImages.isEmpty()) return@LaunchedEffect
+        PicturesBridge.consumePlayAll()
+        val stills = allImages.filter { !it.isVideo }
+        if (stills.isEmpty()) return@LaunchedEffect
+        viewingSlideshow = true
+        viewingPhotosList = stills
+        viewingInitialIndex = 0
     }
 
     fun onTileClick(list: List<MediaImage>, item: MediaImage) {
@@ -646,8 +659,12 @@ fun PicturesHubScreen(
             PhotoViewer(
                 photos = viewingPhotosList,
                 initialIndex = viewingInitialIndex,
+                startSlideshow = viewingSlideshow,
                 favoritePhotoIds = favoritePhotoIds,
-                onDismiss = { viewingPhotosList = null },
+                onDismiss = {
+                    viewingPhotosList = null
+                    viewingSlideshow = false
+                },
                 onToggleFavorite = { photo -> viewModel.toggleFavorite(photo) },
                 onEditPhoto = { photo -> editingPhoto = photo },
                 onShare = { photo -> viewModel.share(context, listOf(photo)) },

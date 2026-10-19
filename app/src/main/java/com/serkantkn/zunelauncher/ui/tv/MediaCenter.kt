@@ -88,6 +88,10 @@ object MediaCenter {
  */
 @Composable
 fun MediaCenterBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit = {}) {
+    if (LocalVista.current) {
+        VistaBackground(modifier = modifier, content = content)
+        return
+    }
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -137,8 +141,18 @@ fun MediaCenterHub(
     pane: (@Composable () -> Unit)? = null,
     paneKey: Any? = null,
     bottomRoom: Dp = 0.dp,
+    /** The hub's commands, which Vista sets as links at the top rather than a strip at the foot. */
+    links: List<VistaLink> = emptyList(),
     page: @Composable (index: Int) -> Unit
 ) {
+    if (LocalVista.current) {
+        VistaHub(
+            title = title, tabs = tabs, pager = pager, modifier = modifier, hiddenTabs = hiddenTabs,
+            onSelected = onSelected, links = links, navExtra = navExtra, sidePaneWidth = sidePaneWidth,
+            sidePane = sidePane, pane = pane, paneKey = paneKey, bottomRoom = bottomRoom, page = page
+        )
+        return
+    }
     val scope = rememberCoroutineScope()
     val shown = tabs.indices.filter { it !in hiddenTabs }
     val focus = remember(tabs.size) { List(tabs.size) { FocusRequester() } }
@@ -239,6 +253,10 @@ fun MediaCenterWord(
     onFocused: () -> Unit = {},
     onClick: () -> Unit
 ) {
+    if (LocalVista.current) {
+        VistaPivotWord(text = text, chosen = chosen, modifier = modifier, onFocused = onFocused, onClick = onClick)
+        return
+    }
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
     LaunchedEffect(focused) { if (focused) onFocused() }
@@ -272,6 +290,14 @@ fun MediaCenterCommandStrip(
     height: Dp,
     modifier: Modifier = Modifier
 ) {
+    if (LocalVista.current) {
+        VistaCommandLinks(
+            links = actions.map { VistaLink(it.label, it.icon, it.onClick) } + menuItems.map { VistaLink(it.text, null, it.onClick) },
+            height = height,
+            modifier = modifier
+        )
+        return
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()

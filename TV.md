@@ -6,8 +6,8 @@ other way round.
 
 ## Decided
 
-- **One design: Windows Media Center.** (2026-10-19: the A board and C list of the draft are
-  gone.) Start and every hub are Media Center's; the phone's Start setting, wallpaper, hub
+- **Windows Media Center, two of them.** (2026-10-19: the A board and C list of the draft are
+  gone; 2026-10-20: Vista's added beside Windows 7's, chosen in settings.) Start and every hub are Media Center's; the phone's Start setting, wallpaper, hub
   background, tiles and icons are not offered on a TV, only the theme and type and motion.
 - **Worked with a remote.** Every tile and word takes focus; the focused one grows a little and
   gains a white frame. The edges keep the 5% a TV may crop (48 × 27 dp).
@@ -169,6 +169,31 @@ The user asked for Start in Media Center's design too, and for no other design o
 - Apps put on or taken off while away now show or go when Start comes back.
 - A film opened from files (a USB stick) now comes up in "continue", with the frame it stopped at.
 - The clock follows the TV's 12/24-hour setting; banners are drawn at the tile's size.
+
+## Vista's Media Center, a second design (2026-10-20)
+
+The user asked for Windows Vista's Media Center beside Windows 7's, chosen in settings (look →
+media center), copied from a video of Vista's own (youtu.be/PpDe5JZOYCo), Start and every hub.
+
+- `ui/tv/Vista.kt`: the ground (navy, lit middle, rays drawn once and drifting), the pane of glass
+  (`drawVistaGlass`), the orb and clock, Selawik (Microsoft's open Segoe UI twin, OFL, in
+  `res/font`, licence in `assets/licenses`), `TvDesign` (the choice and the sounds, read at once
+  from SharedPreferences so the first frame is right), `VistaSounds` (made here, `res/raw`).
+- `ui/tv/VistaStart.kt`: Start - "start" faint at the left, the strips one above another round and
+  round, the glass fixed and the things sliding through it, the shutdown tile and its panel (close,
+  TV off and sleep through the accessibility service), the program library, the logo at launch.
+  Start takes the remote whole; Back and Home go back to "TV + Movies".
+- `ui/tv/VistaHub.kt`: a library - its name huge and faint top right, its commands as links at its
+  top left, its ways in with the chosen one between chevrons; `VistaPanel` for choices.
+- Everything else follows through `LocalVista`: `MediaCenterHub`, `MediaCenterWord`,
+  `MediaCenterCommandStrip`, `MediaCenterBackground`, the focus frame (glass), `MetroSubScreen`
+  (Vista's settings page), `ZuneFlipDialog` and `MessagingSheet` (glass in the bottom right),
+  settings rows (radio and check box before the words), the theme (Selawik, Vista's blue).
+- Hubs open and close with Vista's zoom; the remote ticks, chimes and goes back (can be turned off).
+- "play all" under pictures and music: a slide show of every picture, every song shuffled.
+- A TV is always dark now, in both designs: a light theme put dark words on Media Center's blue.
+- Tried on the emulator (the TV was off): every strip, the program library, shutdown, settings and
+  their pages, pictures with viewer and panel, music, weather, news, clock, files, switching both ways.
 
 ## Still to do
 

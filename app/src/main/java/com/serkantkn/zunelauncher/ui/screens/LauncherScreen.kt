@@ -115,6 +115,9 @@ fun LauncherScreen(
     // pager stops at Start there, or a sideways drag on the empty band above or below the tiles
     // turned up the phone's app list instead.
     val tabletStart = LocalIsWideScreen.current && homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE
+    // A TV in Vista's Media Center: its pages zoom - the one going grows past and fades, the one
+    // coming grows into place - instead of turning or fading.
+    val vistaTv = navState.television && com.serkantkn.zunelauncher.ui.tv.LocalVista.current
     val pagerState = rememberPagerState(
         initialPage = 1,
         pageCount = {
@@ -261,6 +264,7 @@ fun LauncherScreen(
     // The Zune layout has no hinge: its hubs slide in flat over the list, as the Zune HD's menus did.
     val zuneStart = homeScreenLayout == HomeScreenLayout.ZUNE
     fun hubInSpec() = when {
+        vistaTv -> quickSpec(VISTA_PAGE_MILLIS)
         tabletStart -> quickSpec(WIN8_HUB_FADE_IN_MILLIS)
         zuneStart -> quickSpec(com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_MILLIS)
         else -> hingeSpec
@@ -277,6 +281,9 @@ fun LauncherScreen(
     // Drive 2-stage hinge animation when switching hubs or returning to home screen
     LaunchedEffect(navState.currentHub) {
         val targetHub = navState.currentHub
+        if (vistaTv && targetHub != activeHub) {
+            com.serkantkn.zunelauncher.ui.tv.VistaSounds.play(context, com.serkantkn.zunelauncher.ui.tv.VistaSounds.Kind.PAGE)
+        }
         if (targetHub == activeHub) {
             // The hub is the one already set, but its hinge may have been cut short: on a cold
             // start a hub asked for by a notification begins to swing in while the screen is still
@@ -306,6 +313,7 @@ fun LauncherScreen(
             } else {
                 isHubHingeOpening = false
                 hingeProgress.animateTo(0f, animationSpec = when {
+                    vistaTv -> quickSpec(VISTA_PAGE_MILLIS)
                     tabletStart -> quickSpec(WIN8_HUB_FADE_OUT_MILLIS)
                     zuneStart -> quickSpec(com.serkantkn.zunelauncher.ui.animation.ZUNE_HUB_MILLIS)
                     else -> hingeSpec
@@ -978,6 +986,12 @@ fun LauncherScreen(
                             .zIndex(1f)
                             .graphicsLayer {
                                 val progress = hingeProgress.value
+                                if (vistaTv) {
+                                    scaleX = 1f + VISTA_ZOOM_PAST * progress
+                                    scaleY = 1f + VISTA_ZOOM_PAST * progress
+                                    alpha = if (layoutReady) 1f - progress else 0f
+                                    return@graphicsLayer
+                                }
                                 if (tabletStart) {
                                     // Windows 8: Start does not turn away; the hub comes up over it.
                                     alpha = if (layoutReady) 1f else 0f
@@ -995,7 +1009,7 @@ fun LauncherScreen(
                                 alpha = if (layoutReady) (1f - progress * 1.5f).coerceIn(0f, 1f) else 0f
                             }
                             .drawWithContent {
-                                val seen = if (tabletStart) hingeProgress.value < 1f else (1f - hingeProgress.value * 1.5f) > 0f
+                                val seen = if (tabletStart || vistaTv) hingeProgress.value < 1f else (1f - hingeProgress.value * 1.5f) > 0f
                                 if (layoutReady && seen) drawContent()
                             }
                             // Behind an open hub Start must not answer touches. On the phone it is
@@ -1083,6 +1097,13 @@ fun LauncherScreen(
                                 )
                                 .graphicsLayer {
                                     val progress = hingeProgress.value
+                                    if (vistaTv) {
+                                        val grow = VISTA_ZOOM_FROM + (1f - VISTA_ZOOM_FROM) * progress
+                                        scaleX = grow
+                                        scaleY = grow
+                                        alpha = progress
+                                        return@graphicsLayer
+                                    }
                                     if (tabletStart) {
                                         // Windows 8: the hub fades up over the launch splash, and
                                         // fades away again over Start's tiles coming back in; one
@@ -1206,6 +1227,19 @@ fun LauncherScreen(
                         modifier = Modifier.fillMaxSize().zIndex(TV_FOCUS_Z)
                     )
                 }
+                // Vista's Media Center opened on its logo, once each time it started.
+                if (isTv) {
+                    var splashDone by remember { mutableStateOf(com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown || !vistaTv) }
+                    LaunchedEffect(Unit) { if (!vistaTv) com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown = true }
+                    if (!splashDone) {
+                        Box(modifier = Modifier.fillMaxSize().zIndex(FIRST_RUN_Z + 1f)) {
+                            com.serkantkn.zunelauncher.ui.tv.VistaSplash(onDone = {
+                                com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown = true
+                                splashDone = true
+                            })
+                        }
+                    }
+                }
             }
         }
     }
@@ -1216,6 +1250,11 @@ fun LauncherScreen(
 private const val TABLET_PAGE_TURN = 0.15f
 
 private const val BANNER_Z = 20f
+
+/** Vista's page zoom: how far the page going grows past, and how small the one coming starts. */
+private const val VISTA_PAGE_MILLIS = 380
+private const val VISTA_ZOOM_PAST = 0.25f
+private const val VISTA_ZOOM_FROM = 0.7f
 
 /** The first-run tour and the what's-new note, over everything including the banners. */
 private const val FIRST_RUN_Z = 30f

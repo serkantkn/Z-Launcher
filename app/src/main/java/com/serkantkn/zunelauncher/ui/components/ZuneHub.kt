@@ -455,6 +455,7 @@ private fun BoxScope.TvHub(
     pane: ZuneHubPane?,
     page: @Composable (Int) -> Unit
 ) {
+    val vista = com.serkantkn.zunelauncher.ui.tv.LocalVista.current
     com.serkantkn.zunelauncher.ui.tv.MediaCenterHub(
         title = title,
         tabs = if (showTabs && takeover == null) tabs else emptyList(),
@@ -466,11 +467,16 @@ private fun BoxScope.TvHub(
         sidePane = sidePane,
         pane = pane?.takeIf { it.key != null }?.let { p -> { p.content(p.key, barModifier) } },
         paneKey = pane?.key,
-        bottomRoom = if (bar != null) bottomBarHeight() else 0.dp
+        bottomRoom = if (bar != null && !vista) bottomBarHeight() else 0.dp,
+        // Vista keeps a library's commands as links at its top left, while nothing is open beside it.
+        links = if (vista && bar != null && pane?.key == null) {
+            bar.actions.map { com.serkantkn.zunelauncher.ui.tv.VistaLink(it.label, it.icon, it.onClick) } +
+                bar.menu.map { com.serkantkn.zunelauncher.ui.tv.VistaLink(it.text, null, it.onClick) }
+        } else emptyList()
     ) { index -> if (takeover != null) takeover() else page(index) }
     // While something is open beside the list, its own commands are the strip: the list's would
     // stand on top of them. Back closes it and the list's come back.
-    if (bar != null && pane?.key == null) {
+    if (bar != null && pane?.key == null && !vista) {
         WindowsPhoneBottomBar(
             actions = bar.actions,
             menuItems = bar.menu,

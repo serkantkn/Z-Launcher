@@ -365,6 +365,11 @@ internal fun MessagingSheet(
     onDismiss: () -> Unit,
     content: @Composable () -> Unit
 ) {
+    // Vista put its choices on a pane of blue glass in the bottom right corner, over the page.
+    if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+        com.serkantkn.zunelauncher.ui.tv.VistaPanel(title = title, onDismiss = onDismiss, content = content)
+        return
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
