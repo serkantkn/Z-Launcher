@@ -73,9 +73,25 @@ other way round.
   headline, the next alarm.
 - A focused tile is no longer cut off at the row's edge.
 
+## Being Home (done)
+
+- Google TV keeps the Home button for its own launcher whatever Android's default is (tried:
+  the home role given to Z Launcher, Home still opened `launcherx`).
+- So on a TV the accessibility service catches the remote's Home and opens Z Launcher with the
+  Home intent: from another app it comes forward, inside it a hub is put away. Both halves of
+  the press are kept, so a long press opens Z Launcher too, not Google TV's panel.
+- On a TV the service is listed as "Z Launcher Home button" with its own description
+  (`values-television`, `values-tr-television`), and never covers a status bar.
+- Settings > system on a TV: "home screen" - the service (with its own disclosure, and the
+  restricted-settings row for sideloaded installs) and Android's default home screen for older
+  Android TV boxes (said plainly not to work on Google TV).
+- Dialogs take the focus on a TV as they open (their first stop: the button that leaves things
+  be). The phone's "running hubs" balloon is not shown on a TV.
+- Testing: the `Google_TV_1080p` AVD needs `hw.keyboard=yes` for the emulator's gRPC keys to
+  reach it; evdev 102 arrives as Android's Home.
+
 ## Still to do
-1. **Being Home.** Google TV keeps the Home button for its own launcher; on those, Z Launcher is an
-   app in the row unless the user makes it Home by adb. Older Android TV boxes let it be chosen.
-2. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs
+
+1. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs
    "display over other apps" on the TV), the settings on both sides.
-3. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.
+2. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.
