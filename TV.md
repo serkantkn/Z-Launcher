@@ -29,17 +29,34 @@ other way round.
 - Manifest: `leanback` and `touchscreen` not required, `LEANBACK_LAUNCHER`, a 320 × 180 banner.
 - The touch tour and the action center are left out on a TV.
 
+## Focus in the hubs (done)
+
+- `ui/tv/TvFocusFrame.kt`: one white frame round whatever holds the focus, for the whole
+  launcher, the video player and dialogs; read from the view's focused rectangle, so no hub had to
+  learn it. Start's tiles and words draw their own (`tvOwnFocus`).
+- Empty `clickable {}` used to stop taps (panels, bars, dialogs) took the focus as well; they are
+  `swallowTaps()` now.
+- A tablet hub's headings take the focus as it opens, and moving onto one turns to its page.
+- Start behind a hub, hubs kept out of sight and a hub behind its open page are fenced off from the
+  remote (`tvFocusFence`, `pageHingeAway`); a page coming in takes the focus (`pageHingeIn`).
+- Closing a hub gives the focus back to the tile or word that opened it.
+- Video player: centre plays and pauses, left and right jump ten seconds, up and down show the
+  controls (focus on play/pause), Back hides them, media keys work.
+- Photo viewer: left and right turn the photo, centre shows the controls.
+- `WpSlider`: focusable, the arrows move it a stop.
+- A long press of the centre button is a long press (Compose's `combinedClickable` does it).
+
+Known gaps: back from a hub's page the focus lands on the hub's heading, not on the row that
+opened the page; text fields need checking with the TV's on-screen keyboard.
+
 ## Still to do
 
-1. **Focus in the hubs.** They open (in the tablet layout) but show no focus: every list row,
-   heading, bar command and dialog needs the TV focus look, and every touch-only gesture (hold,
-   swipe, drag) a remote's way (the menu key, a long press of the centre button).
-2. **Which hubs.** Videos, music, pictures, files, weather, news, clock and settings stay; phone,
+1. **Which hubs.** Videos, music, pictures, files, weather, news, clock and settings stay; phone,
    messaging, camera, the action center, the volume bar and the keyboard are left out on a TV.
-3. **The Start's live content**: what was last watched in the launcher's own player, the album
+2. **The Start's live content**: what was last watched in the launcher's own player, the album
    playing, the weather; other apps' "continue watching" is not readable by a launcher.
-4. **Being Home.** Google TV keeps the Home button for its own launcher; on those, Z Launcher is an
+3. **Being Home.** Google TV keeps the Home button for its own launcher; on those, Z Launcher is an
    app in the row unless the user makes it Home by adb. Older Android TV boxes let it be chosen.
-5. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs
+4. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs
    "display over other apps" on the TV), the settings on both sides.
-6. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.
+5. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.

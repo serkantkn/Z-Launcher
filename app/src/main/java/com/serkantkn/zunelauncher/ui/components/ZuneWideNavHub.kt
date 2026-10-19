@@ -1,5 +1,10 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import com.serkantkn.zunelauncher.ui.tv.tvTake
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -71,6 +76,7 @@ fun ZuneWideNavHub(
     val zuneColors = LocalZuneColors.current
     val scope = rememberCoroutineScope()
     val ink = if (zuneColors.isDark) Color.White else Color.Black
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
 
     Row(modifier = modifier.fillMaxSize()) {
         // ── The headings ──
@@ -102,6 +108,15 @@ fun ZuneWideNavHub(
                     animationSpec = tween(180),
                     label = "wide_nav_heading"
                 )
+                // On a television the headings are the way into the hub: the chosen one takes the
+                // focus as the hub opens, and moving onto another turns to its page, as Media
+                // Center's did, without a press.
+                val requester = remember { FocusRequester() }
+                if (isTv && index == state.currentPage) {
+                    LaunchedEffect(Unit) {
+                        requester.tvTake()
+                    }
+                }
                 Text(
                     text = label,
                     style = MaterialTheme.typography.headlineMedium.copy(
@@ -116,6 +131,17 @@ fun ZuneWideNavHub(
                     modifier = Modifier
                         .fillMaxWidth()
                         .wpTilt(interactionSource = source)
+                        .then(
+                            if (!isTv) Modifier
+                            else Modifier
+                                .focusRequester(requester)
+                                .onFocusChanged { focus ->
+                                    if (focus.isFocused && state.currentPage != index) {
+                                        onSelected(index)
+                                        scope.launch { state.scrollToPage(index) }
+                                    }
+                                }
+                        )
                         .clickable(indication = null, interactionSource = source) {
                             onSelected(index)
                             scope.launch { state.scrollToPage(index) }

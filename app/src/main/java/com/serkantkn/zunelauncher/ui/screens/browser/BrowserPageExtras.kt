@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.browser
 
+import com.serkantkn.zunelauncher.ui.components.swallowTaps
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -314,7 +315,7 @@ internal fun PageContextMenu(
             Column(
                 modifier = Modifier
                     .background(menuColor)
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
+                    .swallowTaps()
                     .padding(vertical = 8.dp)
             ) {
                 Text(
@@ -409,7 +410,7 @@ internal fun TextSizePanel(
             Column(
                 modifier = Modifier
                     .background(menuColor)
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
+                    .swallowTaps()
                     .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
                 Text(

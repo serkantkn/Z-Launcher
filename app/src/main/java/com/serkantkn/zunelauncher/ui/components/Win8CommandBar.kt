@@ -106,7 +106,7 @@ fun Win8CommandBar(
                 .fillMaxWidth()
                 .background(if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFEDEDED))
                 // The bar takes its own taps so they do not fall through to the page.
-                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+                .swallowTaps()
                 .padding(bottom = navBottom)
         ) {
             // At least as wide as the screen, so the two groups sit at its two ends; wider, and
@@ -248,7 +248,7 @@ fun Win8MessageDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(if (zuneColors.isDark) Color(0xFF1F1F1F) else Color.White)
-                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+                    .swallowTaps()
                     .padding(vertical = 28.dp)
             ) {
                 Column(modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth().padding(horizontal = 32.dp)) {

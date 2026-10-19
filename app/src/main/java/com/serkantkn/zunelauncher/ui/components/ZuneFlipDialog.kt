@@ -1,5 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -94,90 +96,92 @@ fun ZuneFlipDialog(
             dismissOnClickOutside = true
         )
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.65f * flipAnim.value))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { scope.dismissWithAnim() }
-                ),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            // Flip Container Card attached flush to Top, Left, Right
-            Surface(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 0.dp, start = 0.dp, end = 0.dp, bottom = 24.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {} // Prevents closing when tapping inside dialog card
-                    )
-                    .graphicsLayer {
-                        // 3D Flip around horizontal axis (X-axis)
-                        val rotation = (1f - flipAnim.value) * -90f
-                        rotationX = rotation
-                        transformOrigin = TransformOrigin(0.5f, 0.5f)
-                        cameraDistance = 12f * density.density
-                        alpha = flipAnim.value.coerceIn(0f, 1f)
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.65f * flipAnim.value))
+                    // A tap outside closes it. Not a clickable: that would make the whole scrim
+                    // somewhere a TV's remote could stop.
+                    .pointerInput(Unit) {
+                        detectTapGestures { scope.dismissWithAnim() }
                     },
-                shape = RoundedCornerShape(0.dp), // Rectangular attached edges
-                color = if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFF2B2B2B),
-                shadowElevation = 16.dp,
-                tonalElevation = 8.dp
+                contentAlignment = Alignment.TopCenter
             ) {
-                // Never taller than most of the screen: a long list — every hub that can be
-                // added back — used to push the buttons off the bottom. The content scrolls
-                // inside; the title and the buttons stay put.
-                val maxDialogHeight = LocalConfiguration.current.screenHeightDp.dp * DIALOG_MAX_HEIGHT_FRACTION
-                Column(
+                // Flip Container Card attached flush to Top, Left, Right
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = maxDialogHeight)
-                        .padding(top = 28.dp, bottom = 20.dp, start = 20.dp, end = 20.dp)
+                        .padding(top = 0.dp, start = 0.dp, end = 0.dp, bottom = 24.dp)
+                        .swallowTaps()
+                        .graphicsLayer {
+                            // 3D Flip around horizontal axis (X-axis)
+                            val rotation = (1f - flipAnim.value) * -90f
+                            rotationX = rotation
+                            transformOrigin = TransformOrigin(0.5f, 0.5f)
+                            cameraDistance = 12f * density.density
+                            alpha = flipAnim.value.coerceIn(0f, 1f)
+                        },
+                    shape = RoundedCornerShape(0.dp), // Rectangular attached edges
+                    color = if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFF2B2B2B),
+                    shadowElevation = 16.dp,
+                    tonalElevation = 8.dp
                 ) {
-                    if (!title.isNullOrEmpty()) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 24.sp,
-                                letterSpacing = (-0.5).sp
-                            ),
-                            color = Color.White,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    }
-
-                    // Dialog Content
+                    // Never taller than most of the screen: a long list — every hub that can be
+                    // added back — used to push the buttons off the bottom. The content scrolls
+                    // inside; the title and the buttons stay put.
+                    val maxDialogHeight = LocalConfiguration.current.screenHeightDp.dp * DIALOG_MAX_HEIGHT_FRACTION
                     Column(
                         modifier = Modifier
-                            .weight(1f, fill = false)
-                            .verticalScroll(rememberScrollState())
+                            .fillMaxWidth()
+                            .heightIn(max = maxDialogHeight)
+                            .padding(top = 28.dp, bottom = 20.dp, start = 20.dp, end = 20.dp)
                     ) {
-                        scope.content()
-                    }
-
-                    // Action Buttons Row
-                    if (confirmButton != null || dismissButton != null) {
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
+                        if (!title.isNullOrEmpty()) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 24.sp,
+                                    letterSpacing = (-0.5).sp
+                                ),
+                                color = Color.White,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+                        }
+    
+                        // Dialog Content
+                        Column(
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState())
                         ) {
-                            if (dismissButton != null) {
-                                scope.dismissButton()
-                                Spacer(modifier = Modifier.width(12.dp))
-                            }
-                            if (confirmButton != null) {
-                                scope.confirmButton()
+                            scope.content()
+                        }
+    
+                        // Action Buttons Row
+                        if (confirmButton != null || dismissButton != null) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (dismissButton != null) {
+                                    scope.dismissButton()
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                }
+                                if (confirmButton != null) {
+                                    scope.confirmButton()
+                                }
                             }
                         }
                     }
                 }
+            }
+            // The dialog is a window of its own: a TV's focus frame has to be drawn in it too.
+            if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
+                com.serkantkn.zunelauncher.ui.tv.TvFocusFrame(modifier = Modifier.matchParentSize())
             }
         }
     }

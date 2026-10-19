@@ -769,13 +769,14 @@ internal fun RingButton(
     label: String,
     enabled: Boolean,
     size: androidx.compose.ui.unit.Dp = 38.dp,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val ink = MaterialTheme.colorScheme.onBackground.copy(alpha = if (enabled) 0.9f else 0.3f)
     val source = remember { MutableInteractionSource() }
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .size(size)
             .wpTilt(source)
             .border(1.5.dp, ink, CircleShape)

@@ -64,6 +64,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -170,11 +174,69 @@ internal fun VideoPlayerScreen(
         if (optionsOpen) optionsOpen = false else lockShownAt = System.currentTimeMillis()
     }
 
+    // ── A television's remote ──
+    // What a TV's own player does: the centre button plays and pauses, left and right jump ten
+    // seconds while the controls are down (with them up, the arrows move between the buttons),
+    // up and down bring the controls, Back puts them away first, and the remote's media keys do
+    // what they say. The screen itself takes the focus, so the keys arrive with nothing shown.
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+    val screenFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val playFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    if (isTv) {
+        // The controls coming up put the remote on play/pause, so the arrows go from there to
+        // the buttons beside it; their going puts it back on the screen.
+        val controlsUp = controlsVisible && !locked && !optionsOpen && errorText == null
+        LaunchedEffect(controlsUp) {
+            delay(TV_FOCUS_DELAY_MS)
+            runCatching { if (controlsUp) playFocus.requestFocus() else screenFocus.requestFocus() }
+        }
+        LaunchedEffect(Unit) {
+            delay(TV_FOCUS_DELAY_MS)
+            runCatching { screenFocus.requestFocus() }
+        }
+        BackHandler(enabled = controlsVisible && !optionsOpen && !locked) {
+            controlsVisible = false
+            runCatching { screenFocus.requestFocus() }
+        }
+    }
+    fun remoteKey(event: androidx.compose.ui.input.key.KeyEvent): Boolean {
+        if (!isTv || locked || optionsOpen) return false
+        if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return false
+        val shown = controlsVisible
+        touchedAt = System.currentTimeMillis()
+        return when (event.nativeKeyEvent.keyCode) {
+            android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+            android.view.KeyEvent.KEYCODE_MEDIA_PLAY,
+            android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> { onTogglePlay(); controlsVisible = true; true }
+            android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { jump(1); true }
+            android.view.KeyEvent.KEYCODE_MEDIA_REWIND -> { jump(-1); true }
+            android.view.KeyEvent.KEYCODE_MEDIA_NEXT -> { if (hasNext) onNext(); true }
+            android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { if (hasPrevious) onPrevious(); true }
+            // With the controls up these move between the buttons, as arrows should.
+            android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+            android.view.KeyEvent.KEYCODE_ENTER -> if (shown) false else { onTogglePlay(); controlsVisible = true; true }
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> if (shown) false else { jump(-1); true }
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> if (shown) false else { jump(1); true }
+            android.view.KeyEvent.KEYCODE_DPAD_UP,
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN -> if (shown) false else { controlsVisible = true; true }
+            else -> false
+        }
+    }
+
     val density = LocalDensity.current
     val navigationBottom = WindowInsets.navigationBars.getBottom(density)
     val controlsHeightPx = with(density) { CONTROLS_BOTTOM.toPx() } + navigationBottom
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .onPreviewKeyEvent { remoteKey(it) }
+            .then(
+                if (isTv) Modifier.focusRequester(screenFocus).focusable()
+                else Modifier
+            )
+    ) {
         val showControls = controlsVisible && !locked && !optionsOpen && errorText == null
         AndroidView(
             factory = { context ->
@@ -353,7 +415,8 @@ internal fun VideoPlayerScreen(
                         icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         label = stringResource(if (isPlaying) R.string.video_pause else R.string.video_play),
                         enabled = true,
-                        size = 80.dp
+                        size = 80.dp,
+                        modifier = Modifier.focusRequester(playFocus)
                     ) {
                         touchedAt = System.currentTimeMillis()
                         onTogglePlay()
@@ -631,6 +694,8 @@ internal fun formatTime(ms: Long): String {
 }
 
 private const val JUMP_MS = 10_000L
+/** Long enough for the player to be laid out before its screen asks for a TV remote's keys. */
+private const val TV_FOCUS_DELAY_MS = 150L
 private const val JUMP_WINDOW_MS = 800L
 private const val CONTROLS_LINGER_MS = 3_000L
 private const val LOCK_LINGER_MS = 2_500L

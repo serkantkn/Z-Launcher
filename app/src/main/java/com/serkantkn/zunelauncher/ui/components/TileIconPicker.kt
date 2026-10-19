@@ -78,11 +78,7 @@ fun TileIconPicker(
             .fillMaxSize()
             .zIndex(PICKER_Z)
             .background(if (zuneColors.isDark) Color.Black else Color.White)
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = {}
-            )
+            .swallowTaps()
     ) {
         Column(
             modifier = Modifier

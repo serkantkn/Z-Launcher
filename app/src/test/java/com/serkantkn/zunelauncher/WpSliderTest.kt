@@ -3,6 +3,7 @@ package com.serkantkn.zunelauncher
 import com.serkantkn.zunelauncher.ui.components.sliderFraction
 import com.serkantkn.zunelauncher.ui.components.sliderValueAt
 import com.serkantkn.zunelauncher.ui.components.snapToSteps
+import com.serkantkn.zunelauncher.ui.components.sliderStep
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,6 +39,18 @@ class WpSliderTest {
         assertEquals(0.75f, snapToSteps(0.7f, 0f..1f, 3), 0.0001f)
         assertEquals(1f, snapToSteps(0.95f, 0f..1f, 3), 0.0001f)
         assertEquals(0.3f, snapToSteps(0.3f, 0f..1f, 0), 0.0001f)
+    }
+
+    @Test
+    fun anArrowMovesAStopOrATwentiethAndStopsAtTheEnds() {
+        // Three steps: a press goes to the next stop.
+        assertEquals(0.5f, sliderStep(0.25f, 0f..1f, 3, 1), 0.0001f)
+        assertEquals(0f, sliderStep(0.25f, 0f..1f, 3, -1), 0.0001f)
+        // No steps: a twentieth of the way.
+        assertEquals(55f, sliderStep(50f, 0f..100f, 0, 1), 0.0001f)
+        // Never past the ends.
+        assertEquals(100f, sliderStep(98f, 0f..100f, 0, 1), 0.0001f)
+        assertEquals(0f, sliderStep(0f, 0f..1f, 3, -1), 0.0001f)
     }
 
     @Test

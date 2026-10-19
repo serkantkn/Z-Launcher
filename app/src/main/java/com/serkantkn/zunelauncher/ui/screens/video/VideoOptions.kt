@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.video
 
+import com.serkantkn.zunelauncher.ui.components.swallowTaps
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -95,7 +96,7 @@ internal fun VideoOptionsPanel(
                 .fillMaxHeight()
                 .background(PANEL)
                 // Taps on the panel itself stay on it.
-                .clickable(interactionSource = panelSource, indication = null) {}
+                .swallowTaps()
                 .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
                 .navigationBarsPadding()

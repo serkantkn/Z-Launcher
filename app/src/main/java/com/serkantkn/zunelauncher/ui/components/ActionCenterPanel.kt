@@ -448,7 +448,7 @@ private fun PhonePanel(
             .fillMaxSize()
             .graphicsLayer { translationY = -(1f - progress()) * size.height }
             .background(sheet)
-            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+            .swallowTaps()
             .padding(top = statusTop + 8.dp, bottom = navBottom)
     ) {
         // ── Clock, date, battery; all settings and expand ──
@@ -553,7 +553,7 @@ private fun androidx.compose.foundation.layout.BoxScope.SidePanel(
             .graphicsLayer { translationX = (1f - progress()) * size.width }
             .background(sheet)
             .drawBehind { drawRect(ink.copy(alpha = 0.14f), size = androidx.compose.ui.geometry.Size(1.dp.toPx(), size.height)) }
-            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+            .swallowTaps()
             .padding(top = statusTop + 8.dp, bottom = navBottom + 12.dp)
     ) {
         // ── Head: clock and date, and the notifications' own links ──

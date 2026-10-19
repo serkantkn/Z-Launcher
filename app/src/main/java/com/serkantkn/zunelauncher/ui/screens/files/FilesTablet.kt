@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.files
 
+import com.serkantkn.zunelauncher.ui.components.swallowTaps
 import android.os.Environment
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -964,7 +965,7 @@ internal fun FileDetailsPanel(
                 .fillMaxHeight()
                 .graphicsLayer { translationX = (1f - progress.value) * panelPx }
                 .background(if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFF7F7F7))
-                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
+                .swallowTaps()
                 .verticalScroll(rememberScrollState())
                 .padding(start = 28.dp, end = 28.dp, top = 40.dp, bottom = navBottom + 24.dp)
         ) {

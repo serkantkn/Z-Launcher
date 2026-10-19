@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
+import com.serkantkn.zunelauncher.ui.components.swallowTaps
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -71,7 +72,7 @@ fun HubTargetPicker(
             .fillMaxSize()
             .zIndex(PICKER_Z)
             .background(if (zuneColors.isDark) Color.Black else Color.White)
-            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = {})
+            .swallowTaps()
     ) {
         Column(
             modifier = Modifier

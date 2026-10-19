@@ -1,5 +1,15 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
@@ -121,10 +131,51 @@ fun PhotoViewer(
 
         val backgroundAlpha = (1f - (abs(currentDragOffsetY) / 600f)).coerceIn(0.2f, 1f)
 
+        // A television's remote: the picture itself holds the focus, and while it does the left
+        // and right arrows turn to the photo before or after, the centre button shows or hides the
+        // controls (and stops a slideshow), up and down bring them. Once one of the controls has
+        // the focus, the arrows move between them as usual.
+        val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+        val pictureFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+        var pictureFocused by remember { mutableStateOf(false) }
+        val remoteScope = rememberCoroutineScope()
+        if (isTv) {
+            LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(TV_FOCUS_DELAY_MILLIS)
+                runCatching { pictureFocus.requestFocus() }
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = backgroundAlpha))
+                .then(
+                    if (!isTv) Modifier
+                    else Modifier
+                        .onKeyEvent { event ->
+                            if (!pictureFocused || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                            when (event.key) {
+                                Key.DirectionLeft, Key.DirectionRight -> {
+                                    val next = pagerState.currentPage + if (event.key == Key.DirectionLeft) -1 else 1
+                                    if (next in photos.indices) remoteScope.launch { pagerState.animateScrollToPage(next) }
+                                    true
+                                }
+                                Key.DirectionCenter, Key.Enter -> {
+                                    if (slideshow) slideshow = false
+                                    showControls = !showControls
+                                    true
+                                }
+                                Key.DirectionUp, Key.DirectionDown -> {
+                                    if (!showControls) { showControls = true; true } else false
+                                }
+                                else -> false
+                            }
+                        }
+                        .onFocusChanged { pictureFocused = it.isFocused }
+                        .focusRequester(pictureFocus)
+                        .focusable()
+                )
         ) {
             HorizontalPager(
                 state = pagerState,
@@ -560,3 +611,6 @@ private fun ZoomablePhotoItem(
         )
     }
 }
+
+/** Long enough for the viewer to be laid out before the picture asks for a TV remote's keys. */
+private const val TV_FOCUS_DELAY_MILLIS = 150L

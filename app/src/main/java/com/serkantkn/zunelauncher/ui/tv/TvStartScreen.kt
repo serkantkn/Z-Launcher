@@ -86,9 +86,33 @@ fun TvStartScreen(
     layout: HomeScreenLayout,
     homeHubViewModel: HomeHubViewModel,
     onOpenHub: (HubType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hubOpen: Boolean = false
 ) {
     val context = LocalContext.current
+    // What had the focus when a hub was opened gets it back when the hub closes, as on the Xbox.
+    val memory = remember { TvFocusMemory() }
+    var wasOpen by remember { mutableStateOf(hubOpen) }
+    // A hub opened over Start (from a notification, a shortcut, as the launcher starts) must not
+    // leave the remote on Start's tiles underneath it: the focus is let go of, and the hub takes it.
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    var startHasFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(hubOpen, startHasFocus) {
+        // The hub is given a moment to take it itself (its headings do); clearing at once raced
+        // that and could leave nothing focused at all.
+        if (hubOpen && startHasFocus) {
+            delay(HUB_TAKES_FOCUS_MILLIS)
+            focusManager.clearFocus(force = true)
+        }
+    }
+    LaunchedEffect(hubOpen) {
+        if (wasOpen && !hubOpen) {
+            delay(FIRST_FOCUS_DELAY_MILLIS)
+            // A hub opened before anything on Start had the focus returns it to the first tile.
+            memory.restoreOr("videos")
+        }
+        wasOpen = hubOpen
+    }
     val apps by produceState(initialValue = emptyList<TvApp>(), context) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadTvApps(context) }
     }
@@ -97,14 +121,57 @@ fun TvStartScreen(
         modifier = modifier
             .fillMaxSize()
             .background(TV_GROUND)
+            .onFocusChanged { startHasFocus = it.hasFocus }
             .padding(horizontal = TV_SAFE_X, vertical = TV_SAFE_Y)
     ) {
-        when (layout) {
-            HomeScreenLayout.ZUNE -> TvZuneStart(places = places, apps = apps)
-            else -> TvBoardStart(places = places, apps = apps)
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalTvFocusMemory provides memory,
+            LocalTvHubOpen provides hubOpen
+        ) {
+            when (layout) {
+                HomeScreenLayout.ZUNE -> TvZuneStart(places = places, apps = apps)
+                else -> TvBoardStart(places = places, apps = apps)
+            }
         }
         TvClock(modifier = Modifier.align(Alignment.TopEnd))
     }
+}
+
+/** Which of Start's tiles or words last held the focus, so it can be handed back. */
+internal class TvFocusMemory {
+    private val requesters = mutableMapOf<String, FocusRequester>()
+    private var last: String? = null
+
+    fun requester(key: String): FocusRequester = requesters.getOrPut(key) { FocusRequester() }
+
+    fun focused(key: String) {
+        last = key
+    }
+
+    /** Hands the focus back; true if there was somewhere to hand it. */
+    fun restore(): Boolean {
+        val key = last ?: return false
+        return runCatching { requesters[key]?.requestFocus() }.isSuccess
+    }
+
+    /** Hands the focus to [key] if nothing had it before. */
+    fun restoreOr(key: String) {
+        if (!restore()) runCatching { requesters[key]?.requestFocus() }
+    }
+}
+
+internal val LocalTvFocusMemory = androidx.compose.runtime.staticCompositionLocalOf { TvFocusMemory() }
+
+/** Whether a hub stands over Start, which then asks for no focus of its own. */
+private val LocalTvHubOpen = androidx.compose.runtime.compositionLocalOf { false }
+
+/** Gives [key]'s tile or word a place in [TvFocusMemory]. */
+@Composable
+private fun Modifier.remembered(key: String): Modifier {
+    val memory = LocalTvFocusMemory.current
+    return this
+        .focusRequester(memory.requester(key))
+        .onFocusChanged { if (it.isFocused) memory.focused(key) }
 }
 
 /** One of the launcher's places on a TV: a hub, or the system's own settings. */
@@ -167,9 +234,11 @@ private fun TvBoardStart(places: List<TvPlace>, apps: List<TvApp>) {
     var current by remember { mutableIntStateOf(0) }
     val firstTile = remember { FocusRequester() }
     // Asked for once the row has been laid out, or the focus falls on the first section's name.
+    // Read when the time comes, not when the wait began: a hub opened meanwhile keeps the focus.
+    val hubOpen by androidx.compose.runtime.rememberUpdatedState(LocalTvHubOpen.current)
     LaunchedEffect(Unit) {
         delay(FIRST_FOCUS_DELAY_MILLIS)
-        runCatching { firstTile.requestFocus() }
+        if (!hubOpen) runCatching { firstTile.requestFocus() }
     }
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -229,17 +298,17 @@ private fun TvBoardColumn(column: TvColumn, firstFocus: Modifier) {
             width = BIG_TILE,
             height = BIG_TILE,
             onClick = column.place.open,
-            modifier = firstFocus
+            modifier = firstFocus.remembered(column.place.key)
         )
         is TvColumn.Pair -> Column(verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
-            TvTile(column.top.title, column.top.line, accent.shade(0.8f), SMALL_TILE, SMALL_TILE, column.top.open, firstFocus)
-            column.bottom?.let { TvTile(it.title, it.line, accent.shade(0.62f), SMALL_TILE, SMALL_TILE, it.open) }
+            TvTile(column.top.title, column.top.line, accent.shade(0.8f), SMALL_TILE, SMALL_TILE, column.top.open, firstFocus.remembered(column.top.key))
+            column.bottom?.let { TvTile(it.title, it.line, accent.shade(0.62f), SMALL_TILE, SMALL_TILE, it.open, Modifier.remembered(it.key)) }
         }
         is TvColumn.Apps -> {
             val context = LocalContext.current
             Column(verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
                 column.apps.forEachIndexed { i, app ->
-                    TvAppTile(app, BANNER_WIDTH, SMALL_TILE, if (i == 0) firstFocus else Modifier) {
+                    TvAppTile(app, BANNER_WIDTH, SMALL_TILE, (if (i == 0) firstFocus else Modifier).remembered(app.packageName)) {
                         context.startSafely(app.launch)
                     }
                 }
@@ -269,9 +338,11 @@ private fun TvZuneStart(places: List<TvPlace>, apps: List<TvApp>) {
     val firstWord = remember { FocusRequester() }
     val wordsState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    // Read when the time comes, not when the wait began: a hub opened meanwhile keeps the focus.
+    val hubOpen by androidx.compose.runtime.rememberUpdatedState(LocalTvHubOpen.current)
     LaunchedEffect(Unit) {
         delay(FIRST_FOCUS_DELAY_MILLIS)
-        runCatching { firstWord.requestFocus() }
+        if (!hubOpen) runCatching { firstWord.requestFocus() }
     }
 
     Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(48.dp)) {
@@ -295,7 +366,7 @@ private fun TvZuneStart(places: List<TvPlace>, apps: List<TvApp>) {
                         scope.launch { wordsState.animateScrollToItem((index - WORDS_ABOVE).coerceAtLeast(0)) }
                     },
                     onClick = place.open,
-                    modifier = if (index == 0) Modifier.focusRequester(firstWord) else Modifier
+                    modifier = (if (index == 0) Modifier.focusRequester(firstWord) else Modifier).remembered(place.key)
                 )
             }
         }
@@ -331,7 +402,7 @@ private fun TvAppsPreview(apps: List<TvApp>) {
         itemsIndexed(apps.chunked(2)) { _, pair ->
             Column(verticalArrangement = Arrangement.spacedBy(TILE_GAP)) {
                 pair.forEach { app ->
-                    TvAppTile(app, BANNER_WIDTH, SMALL_TILE, Modifier) { context.startSafely(app.launch) }
+                    TvAppTile(app, BANNER_WIDTH, SMALL_TILE, Modifier.remembered(app.packageName)) { context.startSafely(app.launch) }
                 }
             }
         }
@@ -370,6 +441,7 @@ private fun TvTile(
             .size(width, height)
             .tvFocus(source)
             .background(color)
+            .tvOwnFocus()
             .clickable(interactionSource = source, indication = null, onClick = onClick)
     ) {
         if (image != null) {
@@ -409,6 +481,7 @@ private fun TvAppTile(app: TvApp, width: Dp, height: Dp, modifier: Modifier, onC
             .size(width, height)
             .tvFocus(source)
             .background(LocalZuneColors.current.accentColor.shade(0.7f))
+            .tvOwnFocus()
             .clickable(interactionSource = source, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -451,7 +524,7 @@ private fun TvFocusText(
             else -> Color.White.copy(alpha = 0.4f * fade)
         },
         maxLines = 1,
-        modifier = modifier.clickable(interactionSource = source, indication = null, onClick = onClick)
+        modifier = modifier.tvOwnFocus().clickable(interactionSource = source, indication = null, onClick = onClick)
     )
 }
 
@@ -494,4 +567,5 @@ private val WORDS_WIDTH = 380.dp
 private const val FOCUS_SCALE = 1.06f
 private const val WORDS_ABOVE = 2
 private const val FIRST_FOCUS_DELAY_MILLIS = 120L
+private const val HUB_TAKES_FOCUS_MILLIS = 600L
 private const val FOCUS_MILLIS = 140

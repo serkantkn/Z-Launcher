@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.video
 
+import androidx.compose.foundation.layout.fillMaxSize
 import com.serkantkn.zunelauncher.util.Pro
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
@@ -94,6 +95,12 @@ import java.util.Locale
  */
 @OptIn(UnstableApi::class)
 class VideoPlayerActivity : ComponentActivity() {
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        // The TV's focus frame follows closely while the remote is in use.
+        com.serkantkn.zunelauncher.ui.tv.TvFocus.lastKeyAt = android.os.SystemClock.uptimeMillis()
+        return super.dispatchKeyEvent(event)
+    }
 
     private lateinit var player: ExoPlayer
     private var session: MediaSession? = null
@@ -200,6 +207,7 @@ class VideoPlayerActivity : ComponentActivity() {
                 fontScale = fontScale,
                 animationsEnabled = animations
             ) {
+              androidx.compose.foundation.layout.Box(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
                 VideoPlayerScreen(
                     player = player,
                     title = title,
@@ -230,6 +238,11 @@ class VideoPlayerActivity : ComponentActivity() {
                     onClose = { finish() },
                     onOpenElsewhere = ::openElsewhere
                 )
+                // A TV's remote has no other way to see where it is (ui/tv).
+                if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
+                    com.serkantkn.zunelauncher.ui.tv.TvFocusFrame(modifier = androidx.compose.ui.Modifier.fillMaxSize())
+                }
+              }
             }
         }
 

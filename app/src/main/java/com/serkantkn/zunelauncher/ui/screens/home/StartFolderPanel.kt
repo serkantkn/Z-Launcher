@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens.home
 
+import com.serkantkn.zunelauncher.ui.components.swallowTaps
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -114,11 +115,7 @@ fun StartFolderPanel(
                         .statusBarsPadding()
                         .padding(top = 20.dp, bottom = 16.dp)
                         // Taps inside the panel must not reach the scrim behind it.
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() },
-                            onClick = {}
-                        )
+                        .swallowTaps()
                 ) {
                     FolderHeaderBar(
                         folderId = open.id,

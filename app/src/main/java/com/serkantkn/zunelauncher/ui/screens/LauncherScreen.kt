@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.screens
 
+import com.serkantkn.zunelauncher.ui.tv.tvFocusFence
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
 import com.serkantkn.zunelauncher.util.ZuneLog
@@ -572,7 +573,8 @@ fun LauncherScreen(
                         com.serkantkn.zunelauncher.ui.tv.TvStartScreen(
                             layout = homeScreenLayout,
                             homeHubViewModel = homeHubViewModel,
-                            onOpenHub = { hub -> if (hub != HubType.HOME) navState.openHub(hub) }
+                            onOpenHub = { hub -> if (hub != HubType.HOME) navState.openHub(hub) },
+                            hubOpen = isHubOpenHere
                         )
                     } else HomeHubScreen(
                         isHubOpen = isHubOpenHere,
@@ -703,6 +705,8 @@ fun LauncherScreen(
                             .fillMaxSize()
                             .zIndex(0f)
                             .drawWithContent { /* nothing: nobody can see these */ }
+                            // Nor reach them with a remote or a keyboard's arrows.
+                            .tvFocusFence(true)
                             // Nor should a screen reader find them: without this, TalkBack walks
                             // straight into a hub that is not on screen.
                             .clearAndSetSemantics { }
@@ -979,6 +983,8 @@ fun LauncherScreen(
                             // (the hub only fades up over it), so a tap on an empty part of the
                             // hub fell through to the tile underneath and opened that instead.
                             .then(if (isHubOpen) Modifier.blockPointerInput() else Modifier)
+                            // Nor, behind an open hub, to a remote's arrows.
+                            .tvFocusFence(isHubOpen)
                     ) {
                         // On a tablet a page is a long way across: the pager's own rule — half
                         // the page, or a throw — asks for a drag the width of a hand. There a
@@ -1131,6 +1137,13 @@ fun LauncherScreen(
                     FirstRunScreen.None -> Unit
                 }
                 }
+
+                // On a television, the white frame round whatever the remote is on (ui/tv).
+                if (isTv) {
+                    com.serkantkn.zunelauncher.ui.tv.TvFocusFrame(
+                        modifier = Modifier.fillMaxSize().zIndex(TV_FOCUS_Z)
+                    )
+                }
             }
         }
     }
@@ -1144,6 +1157,9 @@ private const val BANNER_Z = 20f
 
 /** The first-run tour and the what's-new note, over everything including the banners. */
 private const val FIRST_RUN_Z = 30f
+
+/** A TV's focus frame, over everything, so it is never hidden under what it marks. */
+private const val TV_FOCUS_Z = 40f
 
 @Composable
 private fun RenderHubScreen(
