@@ -5,9 +5,11 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.util.Size
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -47,33 +49,56 @@ internal fun loadTvLive(context: Context): TvLive = TvLive(
 )
 
 /**
- * The video most recently left part way, by the player's own record of where each was left. Only
- * one still in the media store counts: a record outlives a deleted file.
+ * The video most recently left part way, by the player's own record of where each was left: one
+ * from the media store, or a file the launcher handed the player (a film on a USB stick, opened
+ * from files). Only one still there counts - a record outlives a deleted file - and one that
+ * cannot be read is passed over for the next.
  */
 private fun lastVideo(context: Context): TvContinue? {
-    if (!canRead(context, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_VIDEO else Manifest.permission.READ_EXTERNAL_STORAGE)) return null
-    val left = VideoResumeStore(context).all()
-        .filterKeys { it.startsWith(MEDIA_PREFIX) }
-        .entries
-        .sortedByDescending { it.value.second }
+    val left = VideoResumeStore(context).all().entries.sortedByDescending { it.value.second }
+    val ownFiles = "${context.packageName}.fileprovider"
+    val mayReadMedia = canRead(context, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_VIDEO else Manifest.permission.READ_EXTERNAL_STORAGE)
     for ((key, value) in left) {
-        val id = key.removePrefix(MEDIA_PREFIX).toLongOrNull() ?: continue
-        val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
-        val projection = arrayOf(MediaStore.Video.Media.TITLE, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.DURATION)
-        val found = context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-            if (!cursor.moveToFirst()) return@use null
-            val title = cursor.getString(0)?.takeIf { it.isNotBlank() } ?: cursor.getString(1).orEmpty()
-            title to cursor.getLong(2)
-        } ?: continue
-        return TvContinue(
-            uri = uri,
-            title = found.first,
-            positionMs = value.first,
-            durationMs = found.second,
-            thumbnail = thumbnailOf(context, uri, VIDEO_THUMB)
-        )
+        val found = runCatching {
+            when {
+                key.startsWith(MEDIA_PREFIX) && mayReadMedia -> mediaVideo(context, key, value.first)
+                Uri.parse(key).authority == ownFiles -> fileVideo(context, Uri.parse(key), value.first)
+                else -> null
+            }
+        }.onFailure { ZuneLog.w(TAG, "a video left part way could not be read", it) }.getOrNull()
+        if (found != null) return found
     }
     return null
+}
+
+private fun mediaVideo(context: Context, key: String, positionMs: Long): TvContinue? {
+    val id = key.removePrefix(MEDIA_PREFIX).toLongOrNull() ?: return null
+    val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
+    val projection = arrayOf(MediaStore.Video.Media.TITLE, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.DURATION)
+    val found = context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+        if (!cursor.moveToFirst()) return@use null
+        val title = cursor.getString(0)?.takeIf { it.isNotBlank() } ?: cursor.getString(1).orEmpty()
+        title to cursor.getLong(2)
+    } ?: return null
+    return TvContinue(uri, found.first, positionMs, found.second, thumbnailOf(context, uri, VIDEO_THUMB))
+}
+
+/** A file through the launcher's own provider: its name, its length and the frame it was left at. */
+private fun fileVideo(context: Context, uri: Uri, positionMs: Long): TvContinue? {
+    val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0) else null
+    } ?: return null
+    val retriever = MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(context, uri)
+        val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        val frame = runCatching {
+            retriever.getScaledFrameAtTime(positionMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, VIDEO_THUMB.width, VIDEO_THUMB.height)
+        }.getOrNull()
+        TvContinue(uri, name.substringBeforeLast('.'), positionMs, duration, frame?.asImageBitmap())
+    } finally {
+        retriever.release()
+    }
 }
 
 /** The newest picture on the TV - a cast, a screenshot, something copied over. */

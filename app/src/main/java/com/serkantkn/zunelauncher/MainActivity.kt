@@ -62,6 +62,13 @@ class MainActivity : FragmentActivity() {
 
         /** Set by the call notification: the call screen was hidden with Back and is wanted back. */
         const val EXTRA_OPEN_CALL = "open_call"
+
+        /**
+         * The remote's Home on a TV, caught by the accessibility service. It is not sent as a
+         * HOME intent: that makes Android start a second Z Launcher of the home kind beside the
+         * one opened from the TV's own app list.
+         */
+        const val EXTRA_HOME_KEY = "home_key"
     }
 
     private var currentVolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
@@ -259,8 +266,10 @@ class MainActivity : FragmentActivity() {
      */
     private fun handleHomeKey(intent: Intent?) {
         val isHome = intent?.action == Intent.ACTION_MAIN &&
-            intent.hasCategory(Intent.CATEGORY_HOME)
+            (intent.hasCategory(Intent.CATEGORY_HOME) || intent.getBooleanExtra(EXTRA_HOME_KEY, false))
         if (isHome) com.serkantkn.zunelauncher.data.repository.HomeKeyBridge.press()
+        // Seen once; a configuration change must not press it again.
+        intent?.removeExtra(EXTRA_HOME_KEY)
     }
 
     /** A message notification tap carries the conversation; hand it to the Messaging hub. */

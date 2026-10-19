@@ -208,14 +208,16 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
     private val isTv by lazy { com.serkantkn.zunelauncher.ui.theme.isTelevision(this) }
 
     /**
-     * Opens Z Launcher as Home would: the same intent the system sends, so a launcher already in
-     * front takes it as the Home key (puts a hub away, goes back to Start) and one behind another
-     * app comes forward.
+     * Opens Z Launcher as Home would, so a launcher already in front takes it as the Home key
+     * (puts a hub away, goes back to Start) and one behind another app comes forward. Marked by
+     * an extra rather than the HOME category: Google TV is the home there, and a HOME intent to
+     * Z Launcher made Android start a second one, of the home kind, beside the one opened from
+     * the TV's app list - two launchers in a TV's little memory, the first press a cold start.
      */
     private fun goHome() {
         val home = Intent(Intent.ACTION_MAIN)
-            .addCategory(Intent.CATEGORY_HOME)
             .setClassName(packageName, "com.serkantkn.zunelauncher.MainActivity")
+            .putExtra(com.serkantkn.zunelauncher.MainActivity.EXTRA_HOME_KEY, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         runCatching { startActivity(home) }
             .onFailure { ZuneLog.e(TAG, "Home could not be brought up", it) }

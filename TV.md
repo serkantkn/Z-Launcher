@@ -156,6 +156,20 @@ The user asked for Start in Media Center's design too, and for no other design o
 - Tried on the Mi TV: moving through every strip, settings opened and closed (the remote back on
   its tile), the pictures hub, "continue" playing from where it stopped, music.
 
+## Start's faults, found on the Mi TV (2026-10-19)
+
+- A remote held down lost presses: the strips were a lazy list, and one not laid out yet gave the
+  press nowhere to go. All six are laid out now and slid into place.
+- Home on Start let go of the focus and gave it to nothing; Home and Back now go to the first
+  strip's first tile, as Google TV's Start does.
+- The Home key made a second Z Launcher: a HOME intent to an app that is not the TV's home starts
+  one of the home kind beside the one opened from the app list. The service now sends a plain
+  intent marked `EXTRA_HOME_KEY`.
+- The first focus waited for nothing and went to pictures before "continue" was read.
+- Apps put on or taken off while away now show or go when Start comes back.
+- A film opened from files (a USB stick) now comes up in "continue", with the frame it stopped at.
+- The clock follows the TV's 12/24-hour setting; banners are drawn at the tile's size.
+
 ## Still to do
 
 1. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs

@@ -579,7 +579,8 @@ fun LauncherScreen(
                         com.serkantkn.zunelauncher.ui.tv.TvStartScreen(
                             homeHubViewModel = homeHubViewModel,
                             onOpenHub = { hub -> if (hub != HubType.HOME) navState.openHub(hub) },
-                            hubOpen = isHubOpenHere
+                            hubOpen = isHubOpenHere,
+                            homeResetSignal = homeResetSignal
                         )
                     } else HomeHubScreen(
                         isHubOpen = isHubOpenHere,

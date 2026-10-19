@@ -4,6 +4,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Icon
@@ -18,7 +23,6 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
-import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.graphics.asImageBitmap
 import android.content.Context
 import android.content.Intent
@@ -27,26 +31,20 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,21 +70,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.R
-import com.serkantkn.zunelauncher.data.model.HomeScreenLayout
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.data.repository.MusicBridge
 import com.serkantkn.zunelauncher.ui.screens.home.HomeHubViewModel
-import com.serkantkn.zunelauncher.ui.theme.LocalZuneColors
 import com.serkantkn.zunelauncher.util.ZuneLog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -100,7 +93,9 @@ fun TvStartScreen(
     homeHubViewModel: HomeHubViewModel,
     onOpenHub: (HubType) -> Unit,
     modifier: Modifier = Modifier,
-    hubOpen: Boolean = false
+    hubOpen: Boolean = false,
+    /** Goes up by one each time Home is pressed on Start: back to the first strip's first tile. */
+    homeResetSignal: Int = 0
 ) {
     val context = LocalContext.current
     // What had the focus when a hub was opened gets it back when the hub closes, as on the Xbox.
@@ -133,16 +128,29 @@ fun TvStartScreen(
         }
         wasOpen = hubOpen
     }
-    val apps by produceState(initialValue = emptyList<TvApp>(), context) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadTvApps(context) }
-    }
     // Read again whenever Start is come back to: from a hub, from another app, from standby.
     var liveTurn by remember { mutableIntStateOf(0) }
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { liveTurn++ }
     LaunchedEffect(hubOpen) { if (!hubOpen) liveTurn++ }
-    val live by produceState(initialValue = TvLive(), liveTurn) {
+    // The apps too: one put on from the store, or taken off in the TV's settings, shows or goes
+    // when Start is back - listed again only if something did change.
+    var appsSeen by remember { mutableStateOf<List<Pair<String, Long>>?>(null) }
+    var apps by remember { mutableStateOf(emptyList<TvApp>()) }
+    LaunchedEffect(liveTurn) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val signature = tvAppsSignature(context)
+            if (signature != appsSeen) {
+                apps = loadTvApps(context)
+                appsSeen = signature
+            }
+        }
+    }
+    // Null until first read: Start gives its first focus only then, to "continue" if there is a
+    // film to carry on with, and not to the strip that would stand under it a moment later.
+    val read by produceState<TvLive?>(initialValue = null, liveTurn) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadTvLive(context) }
     }
+    val live = read ?: TvLive()
     val places = tvPlaces(homeHubViewModel, live, onOpenHub)
     val strips = tvStrips(places, apps)
     MediaCenterBackground(modifier = modifier.onFocusChanged { startHasFocus = it.hasFocus }) {
@@ -151,7 +159,7 @@ fun TvStartScreen(
                 LocalTvFocusMemory provides memory,
                 LocalTvHubOpen provides hubOpen
             ) {
-                MediaCenterStart(strips)
+                MediaCenterStart(strips, homeResetSignal, ready = read != null)
             }
             TvClock(modifier = Modifier.align(Alignment.TopEnd))
         }
@@ -161,7 +169,9 @@ fun TvStartScreen(
 /** Which of Start's tiles or words last held the focus, so it can be handed back. */
 internal class TvFocusMemory {
     private val requesters = mutableMapOf<String, FocusRequester>()
-    private var last: String? = null
+    /** Read while drawing: Back on Start does something only away from the first tile. */
+    var last: String? by mutableStateOf(null)
+        private set
 
     fun requester(key: String): FocusRequester = requesters.getOrPut(key) { FocusRequester() }
 
@@ -169,16 +179,20 @@ internal class TvFocusMemory {
         last = key
     }
 
-    /** Hands the focus back; true if there was somewhere to hand it. */
-    fun restore(): Boolean {
-        val key = last ?: return false
-        return runCatching { requesters[key]?.requestFocus() }.isSuccess
+    /**
+     * Hands the focus back; true if it went. A tile that is gone - the film finished, the app
+     * taken off - takes nothing, and the caller's fallback has it instead.
+     */
+    fun restore(): Boolean = last?.let(::focus) == true
+
+    /** Hands the focus to [key] if what had it before is not there to take it. */
+    fun restoreOr(key: String) {
+        if (!restore()) focus(key)
     }
 
-    /** Hands the focus to [key] if nothing had it before. */
-    fun restoreOr(key: String) {
-        if (!restore()) runCatching { requesters[key]?.requestFocus() }
-    }
+    /** Hands the focus to [key] whatever had it before. */
+    fun focus(key: String): Boolean =
+        runCatching { requesters[key]?.requestFocus() == true }.getOrDefault(false)
 }
 
 internal val LocalTvFocusMemory = androidx.compose.runtime.staticCompositionLocalOf { TvFocusMemory() }
@@ -222,7 +236,7 @@ private fun tvPlaces(viewModel: HomeHubViewModel, live: TvLive, onOpenHub: (HubT
         alarms.mapNotNull { it.dueAt(now) }.minOrNull()
     }
     val alarmLine = nextAlarm?.let {
-        stringResource(R.string.zune_line_alarm, SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it)))
+        stringResource(R.string.zune_line_alarm, android.text.format.DateFormat.getTimeFormat(context).format(Date(it)))
     }
     val left = live.continueWatching
     return buildList {
@@ -305,8 +319,7 @@ private fun tvStrips(places: List<TvPlace>, apps: List<TvApp>): List<TvStrip> {
  * and smaller above and below it. Up and down go from strip to strip, left and right along one.
  */
 @Composable
-private fun MediaCenterStart(strips: List<TvStrip>) {
-    val listState = rememberLazyListState()
+private fun MediaCenterStart(strips: List<TvStrip>, homeResetSignal: Int, ready: Boolean) {
     val scope = rememberCoroutineScope()
     // The strip the remote is in, by its name: "continue" can come in above the others once the
     // videos are read, and the strips' places move down under it.
@@ -314,64 +327,101 @@ private fun MediaCenterStart(strips: List<TvStrip>) {
     val memory = LocalTvFocusMemory.current
     val hubOpen by androidx.compose.runtime.rememberUpdatedState(LocalTvHubOpen.current)
     val firstKey = strips.firstOrNull()?.items?.firstOrNull()?.key
-    // The first focus is given once, when the strips are first there; strips that come later
-    // must not pull the remote back from where it has gone.
-    LaunchedEffect(firstKey != null) {
+    // The first focus is given once, when what Start shows has been read; strips that come
+    // later must not pull the remote back from where it has gone.
+    // The window hands the focus to the first tile it finds as soon as it has one - before the
+    // films are read, that is pictures - so what counts is whether the remote has been touched.
+    val first by androidx.compose.runtime.rememberUpdatedState(strips.firstOrNull())
+    val shownAt = remember { android.os.SystemClock.uptimeMillis() }
+    LaunchedEffect(ready) {
+        if (!ready) return@LaunchedEffect
         delay(FIRST_FOCUS_DELAY_MILLIS)
-        if (!hubOpen && firstKey != null) memory.restoreOr(firstKey)
+        val strip = first ?: return@LaunchedEffect
+        if (!hubOpen && TvFocus.lastKeyAt < shownAt) {
+            current = strip.title
+            strip.items.firstOrNull()?.let { memory.focus(it.key) }
+        }
     }
-    val currentIndex = strips.indexOfFirst { it.title == current }
-    LaunchedEffect(strips.size) {
-        if (currentIndex >= 0) listState.scrollToItem(currentIndex)
+    // Home on Start, and Back away from the first tile, go back to the top as Google TV's own
+    // Start does: the first strip, its first tile. Home first let go of the focus (LauncherScreen
+    // clears it, for a hub's text field), so it is given here again.
+    val toTop: () -> Unit = {
+        if (firstKey != null) {
+            current = strips.first().title
+            memory.focus(firstKey)
+        }
     }
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    var homeSeen by remember { mutableIntStateOf(homeResetSignal) }
+    LaunchedEffect(homeResetSignal) {
+        if (homeResetSignal != homeSeen) {
+            homeSeen = homeResetSignal
+            if (!hubOpen) toTop()
+        }
+    }
+    androidx.activity.compose.BackHandler(enabled = !hubOpen && firstKey != null && memory.last != firstKey) {
+        toTop()
+    }
+    // Where each strip stands in the column, to bring the one with the remote to its place.
+    val tops = remember { androidx.compose.runtime.mutableStateMapOf<String, Float>() }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().clipToBounds()) {
         // The strip with the remote stands a little above the middle, as Media Center's did.
-        val above = maxHeight * 0.30f
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = above, bottom = maxHeight * 0.45f),
-            verticalArrangement = Arrangement.spacedBy(STRIP_GAP)
+        val above = with(LocalDensity.current) { (maxHeight * 0.30f).toPx() }
+        val shift by animateFloatAsState(above - (tops[current] ?: 0f), tween(260), label = "stripShift")
+        // Every strip is laid out, not only those on screen: a remote held down outruns the
+        // slide, and a strip not there yet would give the press nowhere to go. There are six.
+        Column(
+            verticalArrangement = Arrangement.spacedBy(STRIP_GAP),
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(Alignment.Top, unbounded = true)
+                .graphicsLayer { translationY = shift }
         ) {
-            itemsIndexed(strips, key = { _, strip -> strip.title }) { index, strip ->
-                val active = strip.title == current
-                val scale by animateFloatAsState(if (active) 1f else 0.78f, tween(220), label = "stripScale")
-                val fade by animateFloatAsState(if (active) 1f else 0.42f, tween(220), label = "stripFade")
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onFocusChanged {
-                            if (it.hasFocus && current != strip.title) {
-                                current = strip.title
-                                scope.launch { listState.animateScrollToItem(index) }
-                            }
-                        }
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            alpha = fade
-                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
-                        }
-                ) {
-                    Text(
-                        text = strip.title,
-                        style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Light, fontSize = 36.sp, lineHeight = 38.sp),
-                        color = if (active) Color.White else MediaCenter.Dim,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(STRIP_TITLE_WIDTH)
+            strips.forEach { strip ->
+                androidx.compose.runtime.key(strip.title) {
+                    MediaCenterStrip(
+                        strip = strip,
+                        active = strip.title == current,
+                        modifier = Modifier
+                            .onPlaced { tops[strip.title] = it.positionInParent().y }
+                            .onFocusChanged { if (it.hasFocus) current = strip.title }
                     )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(TILE_GAP),
-                        contentPadding = PaddingValues(FOCUS_ROOM),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        itemsIndexed(strip.items, key = { _, item -> item.key }) { _, item ->
-                            MediaCenterTile(item, Modifier.remembered(item.key))
-                        }
-                    }
                 }
+            }
+        }
+    }
+}
+
+/** One strip: its name, bright while the remote is in it, and its things in a row beside it. */
+@Composable
+private fun MediaCenterStrip(strip: TvStrip, active: Boolean, modifier: Modifier) {
+    val scale by animateFloatAsState(if (active) 1f else 0.78f, tween(220), label = "stripScale")
+    val fade by animateFloatAsState(if (active) 1f else 0.42f, tween(220), label = "stripFade")
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = fade
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+            }
+    ) {
+        Text(
+            text = strip.title,
+            style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Light, fontSize = 36.sp, lineHeight = 38.sp),
+            color = if (active) Color.White else MediaCenter.Dim,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.width(STRIP_TITLE_WIDTH)
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(TILE_GAP),
+            contentPadding = PaddingValues(FOCUS_ROOM),
+            modifier = Modifier.weight(1f)
+        ) {
+            itemsIndexed(strip.items, key = { _, item -> item.key }) { _, item ->
+                MediaCenterTile(item, Modifier.remembered(item.key))
             }
         }
     }
@@ -428,9 +478,11 @@ private fun MediaCenterTile(item: TvStripItem, modifier: Modifier) {
 /** The time in the corner, as the Xbox kept it; read off the minute, not polled. */
 @Composable
 private fun TvClock(modifier: Modifier = Modifier) {
-    val time by produceState(initialValue = clockNow()) {
+    val context = LocalContext.current
+    // As the TV is set: 24 hours, or 12 with am/pm.
+    val time by produceState(initialValue = clockNow(context)) {
         while (true) {
-            value = clockNow()
+            value = clockNow(context)
             delay(60_000L - System.currentTimeMillis() % 60_000L)
         }
     }
@@ -442,9 +494,7 @@ private fun TvClock(modifier: Modifier = Modifier) {
     )
 }
 
-private fun clockNow(): String = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-
-private fun Color.shade(factor: Float): Color = Color(red * factor, green * factor, blue * factor, alpha)
+private fun clockNow(context: Context): String = android.text.format.DateFormat.getTimeFormat(context).format(Date())
 
 private fun Context.startSafely(intent: Intent) {
     runCatching { startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
