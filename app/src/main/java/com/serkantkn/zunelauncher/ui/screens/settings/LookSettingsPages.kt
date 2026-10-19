@@ -384,8 +384,9 @@ private fun StartScreenGroups(viewModel: SettingsViewModel) {
         }
     }
 
-    // The Zune layout's own ground; the other layouts stand on the wallpaper.
-    if (homeScreenLayout == HomeScreenLayout.ZUNE) {
+    // The Zune layout's own ground; the other layouts stand on the wallpaper. A television's
+    // Start has a ground of its own and no wallpaper behind it.
+    if (homeScreenLayout == HomeScreenLayout.ZUNE && !com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
         val glow by viewModel.zuneGlow.collectAsState()
         Spacer(modifier = Modifier.height(24.dp))
         SettingGroup(title = stringResource(R.string.settings_zune_glow)) {

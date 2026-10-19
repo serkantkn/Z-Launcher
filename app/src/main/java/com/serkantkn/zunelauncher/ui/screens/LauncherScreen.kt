@@ -1,5 +1,9 @@
 package com.serkantkn.zunelauncher.ui.screens
 
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import com.serkantkn.zunelauncher.ui.tv.tvTake
 import com.serkantkn.zunelauncher.ui.tv.tvFocusFence
 import com.serkantkn.zunelauncher.R
 import androidx.compose.ui.res.stringResource
@@ -1017,10 +1021,29 @@ fun LauncherScreen(
 
                     // LAYER 2 — Hub overlay
                     if (visibleHub != null) {
+                        // On a television the remote goes into the hub as it opens. Most hubs
+                        // hand it to their chosen heading themselves; one that does not (the
+                        // files hub's explorer) is given it at its first stop, so the remote is
+                        // never left with nothing to move.
+                        val hubFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+                        var hubHasFocus by remember { mutableStateOf(false) }
+                        if (isTv) {
+                            LaunchedEffect(visibleHub) {
+                                kotlinx.coroutines.delay(TV_HUB_FOCUS_GRACE_MILLIS)
+                                if (!hubHasFocus) hubFocus.tvTake()
+                            }
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .zIndex(2f)
+                                .then(
+                                    if (!isTv) Modifier
+                                    else Modifier
+                                        .onFocusChanged { hubHasFocus = it.hasFocus }
+                                        .focusRequester(hubFocus)
+                                        .focusGroup()
+                                )
                                 .graphicsLayer {
                                     val progress = hingeProgress.value
                                     if (tabletStart) {
@@ -1159,6 +1182,9 @@ private const val BANNER_Z = 20f
 
 /** The first-run tour and the what's-new note, over everything including the banners. */
 private const val FIRST_RUN_Z = 30f
+
+/** How long a hub opening on a TV is given to take the remote itself before it is handed in. */
+private const val TV_HUB_FOCUS_GRACE_MILLIS = 900L
 
 /** A TV's focus frame, over everything, so it is never hidden under what it marks. */
 private const val TV_FOCUS_Z = 40f

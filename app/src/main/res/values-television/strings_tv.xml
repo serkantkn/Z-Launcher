@@ -3,4 +3,8 @@
 <resources>
     <string name="label_key_service">Z Launcher Home button</string>
     <string name="accessibility_service_description">Sees the remote\'s Home button being pressed and opens Z Launcher instead of the TV\'s own home screen. It leaves every other button alone, does not read what is on the screen, keeps no record and sends nothing off the TV.</string>
+    <!-- The two Starts as a television has them. -->
+    <string name="settings_layout_zune_sub">Media Center\'s list: the places as huge words, what each holds beside it</string>
+    <string name="settings_layout_win8">xbox</string>
+    <string name="settings_layout_win8_sub">the Xbox 360\'s board: sections along the top, large tiles running right</string>
 </resources>

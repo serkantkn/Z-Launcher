@@ -250,17 +250,14 @@ private fun TvBoardStart(places: List<TvPlace>, apps: List<TvApp>) {
     val sections = listOf(
         TvSection(stringResource(R.string.browser_home), buildList {
             // The big tile is the film left part way when there is one, the videos when not.
+            // The rest follow two to a column, with no hole left in either case.
             val lead = byKey["continue"]
-            if (lead != null) {
-                add(TvColumn.Big(lead))
-                add(TvColumn.Pair(byKey.getValue("videos"), byKey.getValue("music")))
-            } else {
-                add(TvColumn.Big(byKey.getValue("videos")))
-                add(TvColumn.Pair(byKey.getValue("music"), null))
-            }
-            add(TvColumn.Pair(byKey.getValue("pictures"), byKey.getValue("weather")))
-            add(TvColumn.Pair(byKey.getValue("news"), byKey.getValue("files")))
-            add(TvColumn.Pair(byKey.getValue("clock"), null))
+            add(TvColumn.Big(lead ?: byKey.getValue("videos")))
+            val rest = listOfNotNull(
+                byKey["videos"].takeIf { lead != null },
+                byKey["music"], byKey["pictures"], byKey["weather"], byKey["news"], byKey["files"], byKey["clock"]
+            )
+            rest.chunked(2).forEach { add(TvColumn.Pair(it[0], it.getOrNull(1))) }
         }),
         TvSection(stringResource(R.string.apps_hub), apps.chunked(2).map { TvColumn.Apps(it) }),
         TvSection(stringResource(R.string.settings_hub), listOf(

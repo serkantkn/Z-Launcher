@@ -90,6 +90,23 @@ other way round.
 - Testing: the `Google_TV_1080p` AVD needs `hw.keyboard=yes` for the emulator's gRPC keys to
   reach it; evdev 102 arrives as Android's Home.
 
+## Tried on a real TV (2026-10-19)
+
+Xiaomi Mi TV (MiTV_MZTU0, Google TV, Android 14, MediaTek, 1.8 GB, 32-bit, UI at 1920 × 1080).
+
+- Both Starts, the TV apps' banners, the clock and settings hubs and the board work with the
+  remote. Found and fixed there:
+  - a hub that hands the remote to no heading of its own (files) now gets it at its first stop
+    (LauncherScreen, after 0.9 s);
+  - the files hub no longer takes the remote's arrows as a keyboard's on a TV;
+  - the layout choices are named for a TV ("xbox", Media Center's list), and the Zune glow, which
+    a TV's Start does not use, is not offered there;
+  - the board leaves no hole when there is no film to continue.
+- Speed (release build, warmed): moving along Start 48 ms per frame at the median; Google TV's own
+  launcher, same keys, 61 ms. The TV is slow; Z Launcher is a little quicker than its own home.
+- Not tried on the TV: anything needing a permission (not granted on the user's devices), and
+  the Home button service, which the user turns on.
+
 ## Still to do
 
 1. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs

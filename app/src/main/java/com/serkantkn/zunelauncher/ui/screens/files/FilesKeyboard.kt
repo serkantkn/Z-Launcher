@@ -288,6 +288,15 @@ internal fun FilesKeyboardRoot(
 ) {
     val dispatcher = remember(keyboard) { FilesKeyDispatcher(keyboard) }
     val currentOnKey by rememberUpdatedState(onKey)
+    // A television's remote is not a keyboard: its arrows move the focus between the hub's own
+    // rows and buttons, as everywhere else on a TV, and the hub does not take them for itself.
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+    if (isTv) {
+        CompositionLocalProvider(LocalFilesKeyboard provides keyboard) {
+            Box(modifier = modifier, content = content)
+        }
+        return
+    }
     // The keys come to the hub from the activity itself, whatever holds Compose's focus. The hub's
     // own focus was not to be relied on: Start stays composed behind the hub on a tablet, and
     // something there took the focus back moments after the hub was given it, so the keyboard
