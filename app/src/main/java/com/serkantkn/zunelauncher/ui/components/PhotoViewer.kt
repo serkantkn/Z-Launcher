@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import com.serkantkn.zunelauncher.ui.tv.tvOwnFocus
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -174,6 +175,9 @@ fun PhotoViewer(
                         }
                         .onFocusChanged { pictureFocused = it.isFocused }
                         .focusRequester(pictureFocus)
+                        // The picture is the whole screen: framing it in white would only
+                        // frame the television.
+                        .tvOwnFocus()
                         .focusable()
                 )
         ) {

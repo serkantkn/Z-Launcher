@@ -4,7 +4,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import com.serkantkn.zunelauncher.ui.tv.tvTake
+import kotlinx.coroutines.delay
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -77,6 +77,22 @@ fun ZuneWideNavHub(
     val scope = rememberCoroutineScope()
     val ink = if (zuneColors.isDark) Color.White else Color.Black
     val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+    // On a television the headings are the way into the hub: the heading of the page showing
+    // takes the focus as the hub opens, and moving onto another turns to its page, as Media
+    // Center's did, without a press. Which page is showing is read when the focus is given, not
+    // when the hub was made: a hub asked to open at one of its pages turns there first, and the
+    // first heading taking the focus would turn it straight back.
+    val headingFocus = remember(tabs.size) { List(tabs.size) { FocusRequester() } }
+    if (isTv) {
+        LaunchedEffect(Unit) {
+            delay(TV_FIRST_FOCUS_MILLIS)
+            repeat(TV_FOCUS_TRIES) {
+                val page = state.currentPage.coerceIn(0, tabs.lastIndex)
+                if (runCatching { headingFocus[page].requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+                delay(TV_FOCUS_RETRY_MILLIS)
+            }
+        }
+    }
 
     Row(modifier = modifier.fillMaxSize()) {
         // ── The headings ──
@@ -85,7 +101,7 @@ fun ZuneWideNavHub(
                 .width(ZuneWideNavWidth)
                 .fillMaxHeight()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 56.dp, end = 16.dp, top = 40.dp, bottom = 96.dp)
+                .padding(start = 56.dp, end = 16.dp, top = 40.dp, bottom = if (isTv) TV_HEADINGS_FOOT else 96.dp)
         ) {
             Text(
                 text = title,
@@ -108,15 +124,7 @@ fun ZuneWideNavHub(
                     animationSpec = tween(180),
                     label = "wide_nav_heading"
                 )
-                // On a television the headings are the way into the hub: the chosen one takes the
-                // focus as the hub opens, and moving onto another turns to its page, as Media
-                // Center's did, without a press.
-                val requester = remember { FocusRequester() }
-                if (isTv && index == state.currentPage) {
-                    LaunchedEffect(Unit) {
-                        requester.tvTake()
-                    }
-                }
+                val requester = headingFocus[index]
                 Text(
                     text = label,
                     style = MaterialTheme.typography.headlineMedium.copy(
@@ -136,7 +144,11 @@ fun ZuneWideNavHub(
                             else Modifier
                                 .focusRequester(requester)
                                 .onFocusChanged { focus ->
-                                    if (focus.isFocused && state.currentPage != index) {
+                                    // Only when the remote went there: the focus handed back to
+                                    // a heading after a page closes must not turn the hub's page.
+                                    val byArrow = android.os.SystemClock.uptimeMillis() -
+                                        com.serkantkn.zunelauncher.ui.tv.TvFocus.lastArrowAt < ARROW_RECENT_MILLIS
+                                    if (focus.isFocused && byArrow && state.currentPage != index) {
                                         onSelected(index)
                                         scope.launch { state.scrollToPage(index) }
                                     }
@@ -146,7 +158,9 @@ fun ZuneWideNavHub(
                             onSelected(index)
                             scope.launch { state.scrollToPage(index) }
                         }
-                        .padding(vertical = 7.dp)
+                        // A TV's type is set larger and its screen is shorter than a tablet's:
+                        // the headings sit closer, or seven of them would not fit.
+                        .padding(vertical = if (isTv) 3.dp else 7.dp)
                 )
             }
             navExtra?.invoke(this)
@@ -189,3 +203,17 @@ fun ZuneWideNavLabel(text: String, modifier: Modifier = Modifier) {
         modifier = modifier
     )
 }
+
+/** Long enough for a hub asked to open at one of its pages to have turned there. */
+private const val TV_FIRST_FOCUS_MILLIS = 250L
+private const val TV_FOCUS_TRIES = 15
+private const val TV_FOCUS_RETRY_MILLIS = 100L
+
+/**
+ * What a TV's headings keep free at their foot: the bar's height and a little. A tablet's 96 dp
+ * made the column taller than a TV's screen, so it scrolled, and the hub's name went off the top
+ * as the remote went down the headings.
+ */
+private val TV_HEADINGS_FOOT = 64.dp
+
+private const val ARROW_RECENT_MILLIS = 400L

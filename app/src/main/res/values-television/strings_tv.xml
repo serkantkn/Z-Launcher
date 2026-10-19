@@ -7,4 +7,21 @@
     <string name="settings_layout_zune_sub">Media Center\'s list: the places as huge words, what each holds beside it</string>
     <string name="settings_layout_win8">xbox</string>
     <string name="settings_layout_win8_sub">the Xbox 360\'s board: sections along the top, large tiles running right</string>
+    <!-- A television has no camera: its first pictures page is all of them. -->
+    <string name="pics_tab_camera_roll">all pictures</string>
+    <string name="pics_empty_camera_roll">no pictures on this TV yet</string>
+    <string name="pics_empty_camera_roll_hint">pictures copied over, cast or on a USB stick appear here</string>
+    <!-- What the phone\'s wording says of "the phone", said of the TV. -->
+    <string name="music_permission_message">Z Launcher needs permission to read the music on this TV.</string>
+    <string name="music_no_albums_hint">albums appear once there is music on the TV or a USB stick</string>
+    <string name="music_no_artists_hint">artists appear once there is music on the TV or a USB stick</string>
+    <string name="music_not_found_hint">copy some music onto the TV or plug in a USB stick and it turns up here</string>
+    <string name="music_online_extras_summary">look up what is missing from the TV</string>
+    <string name="files_cloud_save">Save to this TV</string>
+    <string name="files_cloud_picker_intro">Files on Google Drive, OneDrive, Dropbox and the like open through the TV\'s own picker, so there is nothing to sign in to here.</string>
+    <string name="files_cloud_apps">cloud apps on this TV: %1$s</string>
+    <string name="files_cloud_no_apps">No cloud app on this TV yet. Install Google Drive, OneDrive or Dropbox and it shows up here.</string>
+    <string name="files_cloud_no_picker">This TV has no document picker.</string>
+    <string name="music_no_videos_hint">videos on the TV or a USB stick turn up here</string>
+    <string name="music_video_permission_message">To show the videos on this TV, the launcher needs to be allowed to see them.</string>
 </resources>

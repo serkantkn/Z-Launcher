@@ -116,6 +116,9 @@ val LocalIsWideScreen = staticCompositionLocalOf { false }
  */
 val LocalIsTv = staticCompositionLocalOf { false }
 
+/** How much larger a television's type is set than a phone's at the same font-size setting. */
+private const val TV_FONT_SCALE = 1.15f
+
 /** Whether [context] runs on a television, as Android itself reports it. */
 fun isTelevision(context: android.content.Context): Boolean =
     (context.getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager)
@@ -246,9 +249,11 @@ fun ZuneLauncherTheme(
     }
 
     val platformDensity = LocalDensity.current
-    val scaledDensity = remember(platformDensity, fontScale) {
-        if (fontScale == 1.0f) platformDensity
-        else Density(density = platformDensity.density, fontScale = platformDensity.fontScale * fontScale)
+    // Read from across a room: a television's type is set a size up, whatever the user chose.
+    val effectiveFontScale = if (isTv) fontScale * TV_FONT_SCALE else fontScale
+    val scaledDensity = remember(platformDensity, effectiveFontScale) {
+        if (effectiveFontScale == 1.0f) platformDensity
+        else Density(density = platformDensity.density, fontScale = platformDensity.fontScale * effectiveFontScale)
     }
 
     CompositionLocalProvider(

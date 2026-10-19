@@ -7,4 +7,21 @@
     <string name="settings_layout_zune_sub">Media Center listesi: yerler dev kelimelerle, seçilenin içi yanında</string>
     <string name="settings_layout_win8">xbox</string>
     <string name="settings_layout_win8_sub">Xbox 360 panosu: üstte bölümler, yana kayan büyük karolar</string>
+    <!-- Televizyonda kamera yok: ilk fotoğraf sayfası hepsini gösterir. -->
+    <string name="pics_tab_camera_roll">tüm resimler</string>
+    <string name="pics_empty_camera_roll">bu televizyonda henüz resim yok</string>
+    <string name="pics_empty_camera_roll_hint">kopyalanan, yansıtılan ya da USB bellekteki resimler burada görünür</string>
+    <!-- Telefon için "telefon" diyen metinler, televizyon için. -->
+    <string name="music_permission_message">Bu televizyondaki müzikleri gösterebilmek için izin gerekiyor.</string>
+    <string name="music_no_albums_hint">televizyonda ya da USB bellekte müzik oldukça albümler belirir</string>
+    <string name="music_no_artists_hint">televizyonda ya da USB bellekte müzik oldukça sanatçılar belirir</string>
+    <string name="music_not_found_hint">televizyona müzik kopyaladığında ya da USB bellek taktığında burada görünür</string>
+    <string name="music_online_extras_summary">televizyonda olmayanı internetten ara</string>
+    <string name="files_cloud_save">Bu televizyona kaydet</string>
+    <string name="files_cloud_picker_intro">Google Drive, OneDrive, Dropbox gibi yerlerdeki dosyalar televizyonun kendi seçicisiyle açılır; burada oturum açmana gerek yok.</string>
+    <string name="files_cloud_apps">televizyondaki bulut uygulamaları: %1$s</string>
+    <string name="files_cloud_no_apps">Bu televizyonda henüz bulut uygulaması yok. Google Drive, OneDrive ya da Dropbox uygulamasını yüklersen burada görünür.</string>
+    <string name="files_cloud_no_picker">Bu televizyonda belge seçici yok.</string>
+    <string name="music_no_videos_hint">televizyonda ya da USB bellekte video oldukça burada belirir</string>
+    <string name="music_video_permission_message">Bu televizyondaki videoları gösterebilmesi için başlatıcının onları görmesine izin vermen gerekiyor.</string>
 </resources>

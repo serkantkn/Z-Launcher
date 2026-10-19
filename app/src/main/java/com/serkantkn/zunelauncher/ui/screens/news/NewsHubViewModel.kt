@@ -151,8 +151,28 @@ class NewsHubViewModel(application: Application) : AndroidViewModel(application)
 
     /** Goes on reading on the story's own site, in the launcher's browser. */
     fun readOnSite(link: String) {
+        val app = getApplication<android.app.Application>()
+        // A television has no internet hub: the story goes to the TV's own browser, if it has one.
+        if (com.serkantkn.zunelauncher.ui.theme.isTelevision(app)) {
+            if (!openInTvBrowser(app, link)) _status.value = R.string.news_no_tv_browser
+            return
+        }
         BrowserBridge.openFromNews(link)
         HubBridge.open(HubType.INTERNET)
+    }
+
+    /** The first browser on the TV that is not the launcher itself; false when there is none. */
+    private fun openInTvBrowser(context: android.content.Context, link: String): Boolean {
+        val view = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link))
+            .addCategory(android.content.Intent.CATEGORY_BROWSABLE)
+        val browser = context.packageManager.queryIntentActivities(view, 0)
+            .firstOrNull { it.activityInfo.packageName != context.packageName } ?: return false
+        return runCatching {
+            context.startActivity(
+                view.setClassName(browser.activityInfo.packageName, browser.activityInfo.name)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }.isSuccess
     }
 
     // --- Settings --------------------------------------------------------------------------------

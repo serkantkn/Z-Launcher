@@ -1,5 +1,6 @@
 package com.serkantkn.zunelauncher.ui.components
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,6 +73,7 @@ fun ZuneWidePanorama(
     page: @Composable (index: Int) -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
+    val isTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
     LazyRow(
         modifier = modifier,
         contentPadding = PaddingValues(
@@ -91,7 +93,11 @@ fun ZuneWidePanorama(
                     text = tabs[index],
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Light),
                     color = zuneColors.accentColor,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    // On a television the section names are where the remote moves along the
+                    // panorama: left and right go from one to the next, and the row follows.
+                    modifier = Modifier
+                        .padding(bottom = 16.dp)
+                        .then(if (isTv) Modifier.focusable() else Modifier)
                 )
                 if (fillPageHeight) {
                     Box(modifier = Modifier.weight(1f)) {

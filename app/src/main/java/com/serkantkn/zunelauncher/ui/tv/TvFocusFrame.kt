@@ -83,15 +83,49 @@ object TvFocus {
     var pressedAt: android.graphics.Rect? = null
 
     /** Called for every key the launcher's windows receive. */
-    fun onKey(view: android.view.View?, event: android.view.KeyEvent) {
+    fun onKey(view: android.view.View?, event: android.view.KeyEvent): Boolean {
         lastKeyAt = android.os.SystemClock.uptimeMillis()
-        if (event.action != android.view.KeyEvent.ACTION_DOWN || event.repeatCount != 0) return
+        if (event.action != android.view.KeyEvent.ACTION_DOWN || event.repeatCount != 0) return false
         when (event.keyCode) {
             android.view.KeyEvent.KEYCODE_DPAD_CENTER,
             android.view.KeyEvent.KEYCODE_ENTER,
-            android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> pressedAt = view?.let { focusedRectOf(it) }
+            android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                // Only something smaller than the screen: a photo or a film being looked at
+                // fills it, and is not where anything was opened from.
+                view?.let { v -> focusedRectOf(v)?.takeIf { !it.fills(v) } }?.let { pressedAt = it }
+            }
+            android.view.KeyEvent.KEYCODE_DPAD_UP,
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                lastArrowAt = lastKeyAt
+                // The focus went with something that closed - a viewer, a dialog, a page - and
+                // the remote has nothing to move: it is put back where it was, this press taken.
+                val lost = view == null || focusedRectOf(view)?.let { it.fills(view) } ?: true
+                val rescue = hubRescue ?: startRescue
+                if (lost && rescue != null) {
+                    rescue()
+                    return true
+                }
+            }
         }
+        return false
     }
+
+    /** When an arrow key last arrived: a heading turns its page only when the remote went to it. */
+    @Volatile
+    var lastArrowAt = 0L
+
+    /** Puts the focus back into the hub on screen; set while one is. */
+    @Volatile
+    var hubRescue: (() -> Unit)? = null
+
+    /** Puts the focus back on Start; set while Start is what is on screen. */
+    @Volatile
+    var startRescue: (() -> Unit)? = null
+
+    private fun android.graphics.Rect.fills(view: android.view.View): Boolean =
+        width() >= view.width * 9 / 10 && height() >= view.height * 9 / 10
 
     /** How many things that draw their own focus hold it now: 0 or 1, counted to be safe. */
     @Volatile

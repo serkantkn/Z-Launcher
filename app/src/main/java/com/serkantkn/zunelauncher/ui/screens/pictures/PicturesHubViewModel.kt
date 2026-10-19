@@ -165,7 +165,9 @@ class PicturesHubViewModel(application: Application) : AndroidViewModel(applicat
             try {
                 val images = mediaRepository.getAllImages()
                 _allImages.value = images
-                _cameraRollImages.value = mediaRepository.getCameraRollImages(images)
+                // A television has no camera: its first page is every picture on it, newest first.
+                _cameraRollImages.value = if (com.serkantkn.zunelauncher.ui.theme.isTelevision(getApplication())) images
+                else mediaRepository.getCameraRollImages(images)
                 _albums.value = mediaRepository.getAlbums(images)
                 _errorMessage.value = null
             } catch (e: kotlinx.coroutines.CancellationException) {

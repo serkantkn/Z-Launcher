@@ -116,6 +116,8 @@ internal fun VideoPlayerScreen(
     onRotate: () -> Unit,
     onPip: () -> Unit,
     onControlsShown: (Boolean) -> Unit,
+    /** Goes up when the controls are to be put away from outside (a TV remote's Back). */
+    hideControlsRequests: Int = 0,
     onClose: () -> Unit,
     onOpenElsewhere: () -> Unit
 ) {
@@ -186,15 +188,14 @@ internal fun VideoPlayerScreen(
         // The controls coming up put the remote on play/pause, so the arrows go from there to
         // the buttons beside it; their going puts it back on the screen.
         val controlsUp = controlsVisible && !locked && !optionsOpen && errorText == null
+        // (This also gives the screen the focus as the player opens: asked for separately, the two
+        // raced, and the remote landed on whatever control came first.)
         LaunchedEffect(controlsUp) {
             delay(TV_FOCUS_DELAY_MS)
             runCatching { if (controlsUp) playFocus.requestFocus() else screenFocus.requestFocus() }
         }
-        LaunchedEffect(Unit) {
-            delay(TV_FOCUS_DELAY_MS)
-            runCatching { screenFocus.requestFocus() }
-        }
-        BackHandler(enabled = controlsVisible && !optionsOpen && !locked) {
+        LaunchedEffect(hideControlsRequests) {
+            if (hideControlsRequests == 0) return@LaunchedEffect
             controlsVisible = false
             runCatching { screenFocus.requestFocus() }
         }

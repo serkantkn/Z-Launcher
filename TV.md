@@ -107,6 +107,25 @@ Xiaomi Mi TV (MiTV_MZTU0, Google TV, Android 14, MediaTek, 1.8 GB, 32-bit, UI at
 - Not tried on the TV: anything needing a permission (not granted on the user's devices), and
   the Home button service, which the user turns on.
 
+## Hubs fitted to a TV, and a full pass on the real TV (2026-10-19)
+
+- Type a size up on a TV (x1.15), and the hub's content kept clear of the top edge.
+- Tablet hubs' headings: they sit closer on a TV so seven fit; the heading of the page showing
+  takes the focus (a hub opened at its videos page stays there); a heading handed the focus back
+  does not turn the page - only the remote's arrows do.
+- Weather's panorama: its section names take the focus, so the remote moves along it.
+- Pictures: on a TV the first page is every picture ("tüm resimler"), the TV having no camera.
+- News: "read on" opens the TV's own browser (no internet hub on a TV), or says there is none.
+- Words that said "phone" say "TV" on a TV (music, videos, files' cloud).
+- Video player: Back with the controls up puts them away (caught in the activity: Back arrives
+  as a navigation event there); the controls take the focus as they come up, the screen as they go.
+- Photo viewer: the picture is not framed in white (it fills the screen); when a viewer or a
+  dialog closes under the focus, the next arrow puts it back on the row that opened it.
+- Tried on the Mi TV with permissions granted: Start (both), music, videos and the player,
+  pictures and the viewer, weather, news (and the TV browser), clock, files (with its dialog),
+  settings. The Home button service cannot be driven by adb (adb keys skip accessibility); the
+  user tries it.
+
 ## Still to do
 
 1. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs

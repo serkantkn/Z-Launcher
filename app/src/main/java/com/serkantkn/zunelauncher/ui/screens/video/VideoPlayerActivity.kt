@@ -98,9 +98,24 @@ class VideoPlayerActivity : ComponentActivity() {
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         // The TV's focus frame follows closely while the remote is in use.
-        com.serkantkn.zunelauncher.ui.tv.TvFocus.onKey(window?.decorView?.findFocus(), event)
+        if (com.serkantkn.zunelauncher.ui.tv.TvFocus.onKey(window?.decorView?.findFocus(), event)) return true
+        // A remote's Back with the controls up puts them away rather than leaving the film. Taken
+        // here, both halves of the press: inside the player Back arrives as a navigation event,
+        // and with a button focused it went to letting go of the focus, or out of the player.
+        if (event.keyCode == android.view.KeyEvent.KEYCODE_BACK && controlsUp &&
+            com.serkantkn.zunelauncher.ui.theme.isTelevision(this)
+        ) {
+            if (event.action == android.view.KeyEvent.ACTION_UP) hideControlsRequests++
+            return true
+        }
         return super.dispatchKeyEvent(event)
     }
+
+    /** Whether the player's controls are on screen, as it last said. */
+    private var controlsUp = false
+
+    /** Goes up each time Back asks the controls to go. */
+    private var hideControlsRequests by androidx.compose.runtime.mutableIntStateOf(0)
 
     private lateinit var player: ExoPlayer
     private var session: MediaSession? = null
@@ -234,7 +249,11 @@ class VideoPlayerActivity : ComponentActivity() {
                     onStartOver = ::startOver,
                     onRotate = ::rotate,
                     onPip = { enterPip() },
-                    onControlsShown = ::showSystemBars,
+                    onControlsShown = { shown ->
+                        controlsUp = shown
+                        showSystemBars(shown)
+                    },
+                    hideControlsRequests = hideControlsRequests,
                     onClose = { finish() },
                     onOpenElsewhere = ::openElsewhere
                 )

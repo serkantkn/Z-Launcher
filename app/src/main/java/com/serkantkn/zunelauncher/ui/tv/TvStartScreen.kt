@@ -107,6 +107,13 @@ fun TvStartScreen(
             focusManager.clearFocus(force = true)
         }
     }
+    // Start lends the remote a way back too, for when nothing has the focus while it is showing.
+    val rescueScope = rememberCoroutineScope()
+    androidx.compose.runtime.DisposableEffect(memory) {
+        val rescue: () -> Unit = { rescueScope.launch { memory.restoreOr("videos") } }
+        TvFocus.startRescue = rescue
+        onDispose { if (TvFocus.startRescue === rescue) TvFocus.startRescue = null }
+    }
     LaunchedEffect(hubOpen) {
         if (wasOpen && !hubOpen) {
             delay(FIRST_FOCUS_DELAY_MILLIS)

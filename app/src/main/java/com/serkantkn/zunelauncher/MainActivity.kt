@@ -321,7 +321,7 @@ class MainActivity : FragmentActivity() {
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         // The TV's focus frame follows closely while the remote is in use.
-        com.serkantkn.zunelauncher.ui.tv.TvFocus.onKey(window?.decorView?.findFocus(), event)
+        if (com.serkantkn.zunelauncher.ui.tv.TvFocus.onKey(window?.decorView?.findFocus(), event)) return true
         // A hub that handles a hardware keyboard (the files hub) gets the keys first.
         if (com.serkantkn.zunelauncher.ui.screens.files.HardwareKeys.handler?.invoke(event) == true) return true
         if (currentVolumeBarStyle == VolumeBarStyle.WINDOWS_PHONE && event.action == android.view.KeyEvent.ACTION_DOWN) {

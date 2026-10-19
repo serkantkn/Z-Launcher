@@ -652,7 +652,17 @@ fun LauncherScreen(
                 val hubBackground: @Composable (content: @Composable () -> Unit) -> Unit = { content ->
                     hubGround(Modifier) {
                         CompositionLocalProvider(com.serkantkn.zunelauncher.ui.components.LocalHubGround provides hubGround) {
-                            content()
+                            // A television may crop the picture's top: the hub's own content keeps
+                            // clear of it, while its ground still runs to the edge.
+                            if (isTv) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(top = TV_HUB_INSET_TOP)
+                                ) { content() }
+                            } else {
+                                content()
+                            }
                         }
                     }
                 }
@@ -1032,6 +1042,29 @@ fun LauncherScreen(
                                 kotlinx.coroutines.delay(TV_HUB_FOCUS_GRACE_MILLIS)
                                 if (!hubHasFocus) hubFocus.tvTake()
                             }
+                            // When whatever had the focus closes under it (a photo viewer, a
+                            // dialog), the next arrow puts it back where the remote last opened
+                            // something, inside this hub.
+                            val rescueScope = rememberCoroutineScope()
+                            val rescueView = LocalView.current
+                            val rescueFocus = LocalFocusManager.current
+                            DisposableEffect(visibleHub) {
+                                val rescue: () -> Unit = {
+                                    rescueScope.launch {
+                                        if (hubFocus.tvTake()) {
+                                            com.serkantkn.zunelauncher.ui.tv.TvFocus.pressedAt?.let {
+                                                com.serkantkn.zunelauncher.ui.tv.tvWalkFocusTo(rescueView, rescueFocus, it)
+                                            }
+                                        }
+                                    }
+                                }
+                                com.serkantkn.zunelauncher.ui.tv.TvFocus.hubRescue = rescue
+                                onDispose {
+                                    if (com.serkantkn.zunelauncher.ui.tv.TvFocus.hubRescue === rescue) {
+                                        com.serkantkn.zunelauncher.ui.tv.TvFocus.hubRescue = null
+                                    }
+                                }
+                            }
                         }
                         Box(
                             modifier = Modifier
@@ -1182,6 +1215,13 @@ private const val BANNER_Z = 20f
 
 /** The first-run tour and the what's-new note, over everything including the banners. */
 private const val FIRST_RUN_Z = 30f
+
+/**
+ * What a hub keeps clear of at the top of a TV, on top of its own margin. Across, the hubs' own
+ * margins already keep clear of the edges, and the bar along the foot is meant to run edge to
+ * edge.
+ */
+private val TV_HUB_INSET_TOP = 16.dp
 
 /** How long a hub opening on a TV is given to take the remote itself before it is handed in. */
 private const val TV_HUB_FOCUS_GRACE_MILLIS = 900L
