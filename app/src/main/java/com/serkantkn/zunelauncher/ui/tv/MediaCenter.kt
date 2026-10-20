@@ -190,11 +190,12 @@ fun MediaCenterHub(
     val rowState = rememberLazyListState()
 
     // The remote starts on the word of the page showing, read when the hub has settled on it.
-    LaunchedEffect(Unit) {
+    LaunchedEffect(tabs.isEmpty()) {
+        if (tabs.isEmpty()) return@LaunchedEffect
         delay(FIRST_FOCUS_MILLIS)
         repeat(FOCUS_TRIES) {
-            val at = pager.currentPage.coerceIn(0, (tabs.size - 1).coerceAtLeast(0))
-            if (tabs.isEmpty() || runCatching { focus[at].requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+            val at = pager.currentPage.coerceIn(0, tabs.size - 1)
+            if (runCatching { focus[at].requestFocus() }.getOrDefault(false)) return@LaunchedEffect
             delay(FOCUS_RETRY_MILLIS)
         }
     }

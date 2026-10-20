@@ -2,7 +2,7 @@
 <!-- Televizyonda erişilebilirlik servisinin tek bir işi var; Android'in listesinde de bunu söyler. -->
 <resources>
     <string name="label_key_service">Z Launcher Home tuşu</string>
-    <string name="accessibility_service_description">Kumandanın Home tuşuna basıldığını görür ve televizyonun kendi ana ekranı yerine Z Launcher\'ı açar. Başka hiçbir tuşa karışmaz, ekrandakileri okumaz, hiçbir şeyi kaydetmez ve televizyondan dışarı hiçbir şey göndermez.</string>
+    <string name="accessibility_service_description">Televizyonda üç iş için çalışır: kumandanın Home tuşuna basıldığını görüp televizyonun kendi ana ekranı yerine Z Launcher\'ı açar; Media Center\'daki \"kapat\" penceresinden istersen televizyonun kapatma menüsünü ya da uyku modunu açar; eşlediğin telefondan gelen arama ve mesaj bildirimini diğer uygulamaların üstünde gösterir. Başka hiçbir tuşa karışmaz, ekrandakileri okumaz, hiçbir şeyi kaydetmez ve dışarı göndermez.</string>
     <!-- Televizyonun iki başlangıç ekranı. -->
     <string name="settings_layout_zune_sub">Media Center listesi: yerler dev kelimelerle, seçilenin içi yanında</string>
     <string name="settings_layout_win8">xbox</string>

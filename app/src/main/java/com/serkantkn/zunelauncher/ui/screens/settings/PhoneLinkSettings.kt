@@ -195,6 +195,12 @@ internal fun PhoneLinkGroup() {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { tick++ }
     val missing = remember(tick) { LINK_PERMISSIONS.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED } }
     val hasNotificationAccess = remember(tick) { context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context) }
+    // Not the phone and SMS app: calls and texts are read from those apps' notifications.
+    val ownsCallsAndTexts = remember(tick) {
+        val telecom = context.getSystemService(android.telecom.TelecomManager::class.java)
+        telecom?.defaultDialerPackage == context.packageName &&
+            android.provider.Telephony.Sms.getDefaultSmsPackage(context) == context.packageName
+    }
     val ask = rememberPermissionAsk(missing.toTypedArray()) { tick++ }
 
     SettingGroup(title = stringResource(R.string.phone_link_group)) {
@@ -225,6 +231,15 @@ internal fun PhoneLinkGroup() {
                     }
                     SettingSwitchRow(stringResource(R.string.phone_link_text), stringResource(R.string.phone_link_text_sub), send.text) {
                         LinkStore.setSend(send.copy(text = it))
+                    }
+                    if (!hasNotificationAccess && !ownsCallsAndTexts) {
+                        SystemSettingRow(
+                            title = stringResource(R.string.phone_link_notification_access),
+                            subtitle = stringResource(R.string.phone_link_notification_access_sub),
+                            onClick = {
+                                runCatching { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                            }
+                        )
                     }
                     if (missing.isNotEmpty()) {
                         SystemSettingRow(
@@ -387,11 +402,13 @@ private fun RemoveDialog(title: String, body: String, onRemove: () -> Unit, onCl
     }
 }
 
-/** What the phone needs to hear calls and messages and name who they are from. */
+/**
+ * What the phone needs to know a call is ringing, answered or missed, and to name who a number
+ * belongs to. Not the call log or SMS: Google Play allows those only to the default phone and SMS
+ * apps, and the launcher has them only when it is one - through that role, asked for elsewhere.
+ */
 private val LINK_PERMISSIONS = listOf(
     Manifest.permission.READ_PHONE_STATE,
-    Manifest.permission.READ_CALL_LOG,
-    Manifest.permission.RECEIVE_SMS,
     Manifest.permission.READ_CONTACTS
 )
 

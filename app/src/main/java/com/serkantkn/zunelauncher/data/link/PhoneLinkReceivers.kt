@@ -20,6 +20,14 @@ private fun sending(context: Context): LinkStore.SendSettings? {
     return store.send.value.takeIf { it.enabled }
 }
 
+/** A notification's title that is only a number - the phone app knew no name for it. */
+private fun looksLikeNumber(text: String): Boolean =
+    text.count(Char::isDigit) >= 5 && text.all { it.isDigit() || it in "+-() ." }
+
+/** A notification's title, with a bare number turned into its contact's name where there is one. */
+internal suspend fun namedTitle(context: Context, title: String): String =
+    if (looksLikeNumber(title)) nameFor(context, title) else title
+
 private suspend fun nameFor(context: Context, number: String): String =
     if (number.isBlank()) context.localizedString(R.string.phone_private_number)
     else runCatching { SmsRepository.contactNameFor(context, number) }.getOrDefault(number)
@@ -28,8 +36,11 @@ private suspend fun nameFor(context: Context, number: String): String =
  * Calls, from the phone's own state - whichever app answers them. A ringing phone tells the TV
  * who is calling; answered, the notice goes from the TV; left to ring out, it says missed.
  *
- * Android sends the ringing state twice when the app may read the call log - once without the
- * number and once with it - so a ring without one waits a moment for the one that has it.
+ * Who is calling comes from the number when the launcher may read it (it is the phone app, and
+ * Android gave it the call log with that role), otherwise from the phone app's own incoming-call
+ * notification, read by the notification listener ([PhoneLinkAppMessages]). Google Play allows
+ * the call log and SMS permissions only to the default phone and SMS apps, so they are never
+ * asked for here.
  */
 class PhoneLinkCallReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -44,58 +55,100 @@ class PhoneLinkCallReceiver : BroadcastReceiver() {
         PhoneLink.scope.launch {
             try {
                 when (state) {
-                    TelephonyManager.EXTRA_STATE_RINGING -> ringing(app, number)
-                    TelephonyManager.EXTRA_STATE_OFFHOOK -> if (ringingNumber != null) {
-                        ringingNumber = null
-                        PhoneLink.announce(app, LinkNotice(LinkNotice.Kind.CALL_ENDED, ""))
-                    }
-                    TelephonyManager.EXTRA_STATE_IDLE -> ringingNumber?.let { missed ->
-                        ringingNumber = null
-                        PhoneLink.announce(app, LinkNotice(LinkNotice.Kind.MISSED_CALL, nameFor(app, missed), missed))
-                    }
+                    TelephonyManager.EXTRA_STATE_RINGING -> PhoneLinkCalls.ringing(app, number)
+                    TelephonyManager.EXTRA_STATE_OFFHOOK -> PhoneLinkCalls.answered(app)
+                    TelephonyManager.EXTRA_STATE_IDLE -> PhoneLinkCalls.ended(app)
                 }
             } catch (e: Exception) {
-                ZuneLog.w(TAG, "the call could not be told", e)
+                ZuneLog.w("PhoneLinkCall", "the call could not be told", e)
             } finally {
                 pending.finish()
             }
         }
     }
+}
 
-    private suspend fun ringing(context: Context, number: String?) {
-        if (number == null) {
-            // The numbered broadcast usually follows at once; if it does not come, the call is
-            // told without a number.
-            val waitingSince = System.currentTimeMillis()
-            lastRingAt = waitingSince
-            delay(NUMBER_WAIT_MILLIS)
-            if (ringingNumber != null || lastRingAt != waitingSince) return
-            ringingNumber = ""
-            PhoneLink.announce(context, LinkNotice(LinkNotice.Kind.CALL, nameFor(context, "")))
+/** The one call ringing now, put together from the phone's state and the phone app's notification. */
+internal object PhoneLinkCalls {
+    private var ringing = false
+    private var announced = false
+    private var name: String? = null
+    private var number: String = ""
+    /** A name from an incoming-call notification that came before the phone said it was ringing. */
+    private var earlyName: String? = null
+    private var earlyAt = 0L
+
+    suspend fun ringing(context: Context, incoming: String?) {
+        synchronized(this) {
+            if (ringing && (incoming == null || incoming == number)) {
+                // The second, numbered broadcast of the same ring.
+                if (incoming == null || announced) return
+            }
+            ringing = true
+            announced = false
+            number = incoming.orEmpty()
+            name = earlyName?.takeIf { System.currentTimeMillis() - earlyAt < EARLY_MILLIS }
+            earlyName = null
+        }
+        if (incoming != null) {
+            announce(context, nameFor(context, incoming))
             return
         }
-        if (ringingNumber == number) return
-        ringingNumber = number
-        lastRingAt = System.currentTimeMillis()
-        PhoneLink.announce(context, LinkNotice(LinkNotice.Kind.CALL, nameFor(context, number), number))
+        // No number: the phone app's notification, or the numbered broadcast, usually follows.
+        delay(WAIT_MILLIS)
+        val known = synchronized(this) { if (!ringing || announced) return else name }
+        announce(context, known?.let { namedTitle(context, it) } ?: context.localizedString(R.string.phone_private_number))
     }
 
-    companion object {
-        private const val TAG = "PhoneLinkCall"
-        private const val NUMBER_WAIT_MILLIS = 600L
-
-        /** The number ringing now, "" for one without a number, null when nothing rings. */
-        @Volatile
-        private var ringingNumber: String? = null
-
-        @Volatile
-        private var lastRingAt = 0L
+    /** The phone app's incoming-call notification, with the caller's name on it. */
+    fun fromNotification(context: Context, caller: String) {
+        val now = synchronized(this) {
+            if (!ringing) {
+                earlyName = caller
+                earlyAt = System.currentTimeMillis()
+                return
+            }
+            if (announced) return
+            name = caller
+            true
+        }
+        // (A bare number is named when the notice goes.)
+        if (now) PhoneLink.scope.launch { announce(context, namedTitle(context, caller)) }
     }
+
+    suspend fun answered(context: Context) {
+        val was = synchronized(this) { ringing.also { ringing = false } }
+        if (was) PhoneLink.announce(context, LinkNotice(LinkNotice.Kind.CALL_ENDED, ""))
+    }
+
+    suspend fun ended(context: Context) {
+        val missed = synchronized(this) {
+            if (!ringing) return
+            ringing = false
+            (name ?: number.ifBlank { null }) to number
+        }
+        val who = missed.first?.let { namedTitle(context, it) } ?: context.localizedString(R.string.phone_private_number)
+        PhoneLink.announce(context, LinkNotice(LinkNotice.Kind.MISSED_CALL, who, missed.second))
+    }
+
+    private suspend fun announce(context: Context, who: String) {
+        val num = synchronized(this) {
+            if (announced) return
+            announced = true
+            name = who
+            number
+        }
+        PhoneLink.announce(context, LinkNotice(LinkNotice.Kind.CALL, who, num))
+    }
+
+    private const val WAIT_MILLIS = 900L
+    private const val EARLY_MILLIS = 5_000L
 }
 
 /**
- * Text messages, as they arrive - whichever app files them. Only the sender goes to the TV unless
- * the user let the text go too.
+ * Text messages, as they arrive, while the launcher is the SMS app (only then does Android - and
+ * Google Play - let it receive them). Otherwise the SMS app's own notification brings them, through
+ * [PhoneLinkAppMessages]. Only the sender goes to the TV unless the user let the text go too.
  */
 class PhoneLinkSmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -129,9 +182,10 @@ class PhoneLinkSmsReceiver : BroadcastReceiver() {
 }
 
 /**
- * Messages from other apps (WhatsApp, Telegram, ...), read from their notifications by the
- * launcher's notification listener while it has access. The phone's own SMS app is left out: its
- * messages come through [PhoneLinkSmsReceiver] already.
+ * What the phone's other apps announce, read from their notifications by the launcher's
+ * notification listener while it has access: messages (WhatsApp, Telegram, ...), and - when the
+ * launcher is not the SMS or phone app itself - the SMS app's messages and the phone app's
+ * incoming call.
  */
 internal object PhoneLinkAppMessages {
     private val recent = LinkedHashMap<String, Long>()
@@ -139,13 +193,23 @@ internal object PhoneLinkAppMessages {
     fun onPosted(context: Context, sbn: android.service.notification.StatusBarNotification) {
         val app = context.applicationContext
         val settings = sending(app) ?: return
-        if (!settings.apps) return
-        val n = sbn.notification
-        if (n.category != android.app.Notification.CATEGORY_MESSAGE) return
-        if (n.flags and android.app.Notification.FLAG_GROUP_SUMMARY != 0) return
         if (sbn.packageName == app.packageName) return
-        if (sbn.packageName == Telephony.Sms.getDefaultSmsPackage(app)) return
+        val n = sbn.notification
+        if (n.flags and android.app.Notification.FLAG_GROUP_SUMMARY != 0) return
         val title = n.extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString()?.takeIf { it.isNotBlank() } ?: return
+        if (n.category == android.app.Notification.CATEGORY_CALL) {
+            // The phone app's incoming call; its ongoing-call notification is not a ring, and
+            // PhoneLinkCalls tells the two apart by the phone's own state.
+            if (settings.calls) PhoneLinkCalls.fromNotification(app, title)
+            return
+        }
+        if (n.category != android.app.Notification.CATEGORY_MESSAGE) return
+        val smsApp = sbn.packageName == Telephony.Sms.getDefaultSmsPackage(app)
+        // While the launcher is the SMS app, its own receiver has the message already.
+        if (smsApp && androidx.core.content.ContextCompat.checkSelfPermission(app, android.Manifest.permission.RECEIVE_SMS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return
+        if (if (smsApp) !settings.sms else !settings.apps) return
         val text = n.extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString().orEmpty()
         // A notification updated in place - another message in the same chat, a "sending" tick -
         // is told once a few seconds at most.
@@ -156,7 +220,7 @@ internal object PhoneLinkAppMessages {
             recent[key] = now
             while (recent.size > 32) recent.remove(recent.keys.first())
         }
-        val appName = runCatching {
+        val appName = if (smsApp) null else runCatching {
             app.packageManager.getApplicationLabel(app.packageManager.getApplicationInfo(sbn.packageName, 0)).toString()
         }.getOrDefault(sbn.packageName)
         PhoneLink.scope.launch {
@@ -164,8 +228,8 @@ internal object PhoneLinkAppMessages {
                 PhoneLink.announce(
                     app,
                     LinkNotice(
-                        LinkNotice.Kind.APP_MESSAGE,
-                        title,
+                        if (smsApp) LinkNotice.Kind.SMS else LinkNotice.Kind.APP_MESSAGE,
+                        if (smsApp) namedTitle(app, title) else title,
                         text = text.takeIf { settings.text && it.isNotBlank() }?.take(MAX_TEXT),
                         app = appName
                     )

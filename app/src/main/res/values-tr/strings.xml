@@ -56,7 +56,9 @@
     <string name="phone_link_not_pairing">TV kod beklemiyor. TV\'de \"telefon ekle\"yi aç.</string>
     <string name="phone_link_unreachable">TV\'ye ulaşılamadı. Aynı Wi-Fi\'da mısınız?</string>
     <string name="phone_link_pairing">eşleniyor…</string>
-    <string name="phone_link_permissions">Aramaları ve SMS\'leri görebilmesi için Z Launcher\'ın telefon ve SMS izinleri gerekir; vermek için seç</string>
+    <string name="phone_link_permissions">Aramanın çaldığını ve kimin aradığını anlayabilmesi için telefon durumu ve rehber izinleri gerekir; vermek için seç</string>
+    <string name="phone_link_notification_access_sub">Z Launcher varsayılan telefon ve SMS uygulaması değilken aramaları ve mesajları o uygulamaların bildirimlerinden okur; açmak için seç</string>
+    <string name="phone_link_notification_access">bildirim erişimi</string>
     <string name="phone_link_remove_body">Bu TV artık bildirim almaz. Yeniden eklemek için tekrar eşlemen gerekir.</string>
     <string name="vista_start">başlat</string>
     <string name="vista_cat_pictures">Resimler + Videolar</string>
@@ -93,7 +95,15 @@
     <string name="tv_home_default">varsayılan ana ekran</string>
     <string name="tv_home_default_sub">Android\'in kendi ana ekran seçimi. Eski Android TV kutularında Home tuşunu Z Launcher\'a verir; Google TV\'de vermez.</string>
     <string name="tv_home_default_google">Google TV bu seçimi Home tuşuna uygulamaz; yukarıdaki servisi kullan</string>
-    <string name="a11y_disclosure_body_tv">Z Launcher erişilebilirlik servisini engellilere yönelik bir yardım olarak değil, televizyonda tek bir iş için kullanır: kumandanın Home tuşuna basıldığını görür ve Google TV\'nin ana ekranı yerine Z Launcher\'ı açar.\n\nBaşka hiçbir tuşa karışmaz, ekrandaki yazıları okumaz, hiçbir şeyi kaydetmez ve hiçbir veriyi televizyondan dışarı göndermez. Servisi istediğin an erişilebilirlik ayarlarından kapatabilirsin; Home tuşu yeniden Google TV\'nin ana ekranını açar.\n\nKabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Z Launcher Home tuşu\" servisini açman gerekir.</string>
+    <string name="a11y_disclosure_body_tv">Z Launcher erişilebilirlik servisini engellilere yönelik bir yardım olarak değil, televizyonda üç iş için kullanır:
+
+• Home tuşu: kumandanın Home tuşuna basıldığını görür ve Google TV\'nin ana ekranı yerine Z Launcher\'ı açar.
+• Kapat penceresi: Media Center\'daki \"kapat\" penceresinde \"TV\'yi kapat\" ya da \"uyku\"yu seçersen televizyonun kapatma menüsünü açar ya da onu uyutur.
+• Telefon bildirimleri: eşlediğin telefondan gelen arama ve mesaj bildirimini, açık olan uygulamanın üstünde ekranın köşesinde gösterir.
+
+Başka hiçbir tuşa karışmaz, ekrandaki yazıları okumaz, hiçbir şeyi kaydetmez ve hiçbir veriyi televizyondan dışarı göndermez. Servisi istediğin an erişilebilirlik ayarlarından kapatabilirsin.
+
+Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Z Launcher Home tuşu\" servisini açman gerekir.</string>
     <string name="music_hub">müzik + videolar</string>
     <string name="people_hub">kişiler</string>
     <string name="pictures_hub">fotoğraflar</string>

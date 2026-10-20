@@ -100,11 +100,14 @@ fun VistaHub(
     // zooming in can come to nothing, and the launcher then hands the hub's first stop - a link
     // above the words - the focus; so this asks until a word really has it, or the remote moves.
     var wordFocused by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
+    // Keyed on whether there are words yet: a hub showing something else first (its loading, a
+    // takeover) has none, and the remote is put on them when they come.
+    LaunchedEffect(tabs.isEmpty()) {
+        if (tabs.isEmpty()) return@LaunchedEffect
         val since = android.os.SystemClock.uptimeMillis()
         delay(FIRST_FOCUS_MILLIS)
         repeat(FOCUS_TRIES) {
-            if (tabs.isEmpty() || wordFocused || TvFocus.lastArrowAt > since) return@LaunchedEffect
+            if (wordFocused || TvFocus.lastArrowAt > since) return@LaunchedEffect
             val at = pager.currentPage.coerceIn(0, tabs.size - 1)
             runCatching { focus[at].requestFocus() }
             delay(FOCUS_RETRY_MILLIS)
