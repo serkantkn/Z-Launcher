@@ -126,6 +126,37 @@ private fun thumbnailOf(context: Context, uri: Uri, size: Size): ImageBitmap? = 
     bitmap?.asImageBitmap()
 }.getOrNull()
 
+/** The TV's pictures, newest first: what the screensaver shows and the "picture" theme is chosen from. */
+internal fun tvPhotos(context: Context, limit: Int): List<Uri> {
+    if (!canRead(context, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_EXTERNAL_STORAGE)) return emptyList()
+    return runCatching {
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.Images.Media._ID),
+            null,
+            null,
+            "${MediaStore.Images.Media.DATE_ADDED} DESC"
+        )?.use { cursor ->
+            buildList {
+                while (cursor.moveToNext() && size < limit) add(ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cursor.getLong(0)))
+            }
+        }.orEmpty()
+    }.onFailure { ZuneLog.w(TAG, "the pictures could not be listed", it) }.getOrDefault(emptyList())
+}
+
+/** A picture read at no more than [maxSide] pixels a side: large enough for the screen, small enough for a TV's memory. */
+internal fun tvPicture(context: Context, uri: Uri, maxSide: Int): ImageBitmap? = runCatching {
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
+    val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+    context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, options) }?.asImageBitmap()
+}.onFailure { ZuneLog.w(TAG, "a picture could not be read", it) }.getOrNull()
+
+/** A small picture of a photo, for choosing among them. */
+internal fun tvPhotoThumb(context: Context, uri: Uri): ImageBitmap? = thumbnailOf(context, uri, PHOTO_THUMB) ?: tvPicture(context, uri, PHOTO_THUMB.width)
+
 private fun canRead(context: Context, permission: String): Boolean =
     ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 

@@ -201,7 +201,12 @@ tasarımdan biri seçilir, ana ekran ve bütün hub'lar onunla değişir:
   arama durur: televizyonun uygulamaları, hub'lar ve televizyondaki şarkılar, albümler, videolar. Kart sayfalarının
   üstünde "göster" ve "sırala" seçicileri (ada, yüklenme tarihine, son kullanıma göre). Gamepad'in Ⓧ'i ya da
   kumandanın mavi tuşu ayrıntıları, Ⓨ ya da sarı tuş sabitlemeyi açar. Sabitleme, yeni yüklenen ve güncellenen
-  uygulamalar Xbox'un alttan çıkan bildirimiyle haber verilir.
+  uygulamalar Xbox'un alttan çıkan bildirimiyle haber verilir. Sağ üstte profil: televizyonun adı ve eşlenen
+  telefon. Ayarlar bölümündeki "sistem ayarları" konsolun beyaz listesi gibi: tema (gri, gece mavisi, mor, turuncu,
+  siyah ya da televizyondaki bir resim), ekran koruyucu (karartma ya da resimler, 5–30 dakika), görselleştirici,
+  uyku zamanlayıcısı ve televizyonun görüntü, ses, ağ, kumanda, tarih, depolama ayarlarına kısayollar. Müzik
+  çalarken kumandaya iki dakika dokunulmazsa şarkı ekranı doldurur: kapağı, adı, ilerlemesi ve arkada kayan dev
+  sanatçı adı; rehberden de açılır.
 - **Media Center.** Windows Vista'nın Media Center'ı, videosundan kare kare kopyalandı: solda soluk "başlat" yazısı,
   alt alta dönen kategoriler (Resimler + Videolar, Müzik, TV + Filmler, Uygulamalar, Bilgiler, Görevler), yerinden
   oynamayan cam bir kutu ve içinden kayan öğeler; program kitaplığı ve kapat penceresi. Kitaplıklarda ad sağ üstte

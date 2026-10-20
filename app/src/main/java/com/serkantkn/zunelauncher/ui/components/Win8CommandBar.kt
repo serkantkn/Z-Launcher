@@ -114,7 +114,7 @@ fun Win8CommandBar(
                             listOf(Color.Transparent, com.serkantkn.zunelauncher.ui.tv.MediaCenter.Strip.copy(alpha = 0.92f))
                         )
                     )
-                    else if (tv) Modifier.background(com.serkantkn.zunelauncher.ui.tv.Xbox.Panel.copy(alpha = 0.94f))
+                    else if (tv) Modifier.background(com.serkantkn.zunelauncher.ui.tv.xboxPane(0.94f))
                     else Modifier.background(if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFEDEDED))
                 )
                 // The bar takes its own taps so they do not fall through to the page.
@@ -214,7 +214,7 @@ private fun CommandButton(command: Win8Command, fg: Color, onAnyCommand: () -> U
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
                 containerColor = if (tv && vista) com.serkantkn.zunelauncher.ui.tv.MediaCenter.Top
-                else if (tv) com.serkantkn.zunelauncher.ui.tv.Xbox.Panel
+                else if (tv) com.serkantkn.zunelauncher.ui.tv.xboxPane(1f)
                 else if (zuneColors.isDark) Color(0xFF2B2B2B) else Color.White,
                 shape = RectangleShape
             ) {

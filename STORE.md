@@ -50,6 +50,7 @@ Android TV ve Google TV'de Z Launcher, Xbox 360 panosu ya da Windows Media Cente
 • Kumandayla çalışan hub'lar: müzik, videolar, resimler, hava durumu, haberler, saat, dosyalar
 • Yarıda kalan filme devam et, televizyonun uygulamaları kendi afişleriyle
 • Xbox rehberi, arama, ana sayfaya sabitleme ve son kullanılanlar; gamepad ya da kumandanın renkli tuşlarıyla kısayollar
+• Temalar, müzik görselleştirici, ekran koruyucu ve uyku zamanlayıcısı
 • Telefon bağlantısı: telefonuna gelen aramalar ve mesajlar televizyonun köşesinde. Aynı Wi-Fi, 6 haneli kodla eşleme, şifreli, sunucusuz; mesaj metni sen istemedikçe gitmez
 
 AYRICA
@@ -121,6 +122,7 @@ On Android TV and Google TV, Z Launcher becomes the Xbox 360 dashboard or Window
 • Hubs worked with the remote: music, videos, pictures, weather, news, clock, files
 • Continue the film you left, the TV's apps by their own banners
 • The Xbox guide, search, pins on home and recent; shortcuts on a gamepad or the remote's coloured keys
+• Themes, a music visualizer, a screensaver and a sleep timer
 • Phone link: calls and messages to your phone in the corner of the TV. Same Wi-Fi, paired by a six-digit code, encrypted, no server; the message text stays on the phone unless you allow it
 
 ALSO

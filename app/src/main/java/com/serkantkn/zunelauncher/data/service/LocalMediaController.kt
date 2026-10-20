@@ -261,8 +261,10 @@ class LocalMediaController(private val context: Context) {
 
     private fun publish() {
         val player = controller
+        LauncherPlayback.controller = this
         if (player == null || player.mediaItemCount == 0) {
             _state.value = LocalPlaybackState()
+            LauncherPlayback.state.value = _state.value
             return
         }
         val metadata = player.mediaMetadata
@@ -282,6 +284,7 @@ class LocalMediaController(private val context: Context) {
             queue = queueOf(player),
             currentIndex = player.currentMediaItemIndex
         )
+        LauncherPlayback.state.value = _state.value
     }
 
     private fun queueOf(player: Player): List<QueueEntry> {
@@ -320,5 +323,25 @@ class LocalMediaController(private val context: Context) {
         const val TAG = "LocalMediaController"
         const val TICK_MS = 500L
         const val RESTART_THRESHOLD_MS = 3_000L
+    }
+}
+
+/**
+ * What the launcher's own player is doing, for what stands outside the music hub - a TV's guide and
+ * its visualizer - and a way to press it. The system's list of what plays needs notification
+ * access, which a TV is seldom given; this does not.
+ */
+object LauncherPlayback {
+    val state = MutableStateFlow(LocalPlaybackState())
+
+    @Volatile
+    internal var controller: LocalMediaController? = null
+
+    fun playPause() {
+        controller?.playPause()
+    }
+
+    fun skipToNext() {
+        controller?.skipToNext()
     }
 }

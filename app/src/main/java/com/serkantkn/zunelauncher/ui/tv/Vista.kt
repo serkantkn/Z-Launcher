@@ -91,6 +91,22 @@ object TvDesign {
     private val _sounds = MutableStateFlow(true)
     val sounds: StateFlow<Boolean> = _sounds.asStateFlow()
 
+    /** The Xbox's ground ([XboxTheme] by name), and the picture for its "picture" theme. */
+    private val _theme = MutableStateFlow(XboxTheme.GREY.name)
+    val theme: StateFlow<String> = _theme.asStateFlow()
+    private val _themePhoto = MutableStateFlow<String?>(null)
+    val themePhoto: StateFlow<String?> = _themePhoto.asStateFlow()
+
+    /** What the screen does when the remote is left alone ([TvSaver] by name), and after how long. */
+    private val _saver = MutableStateFlow(TvSaver.DIM.name)
+    val saver: StateFlow<String> = _saver.asStateFlow()
+    private val _saverMinutes = MutableStateFlow(DEFAULT_SAVER_MINUTES)
+    val saverMinutes: StateFlow<Int> = _saverMinutes.asStateFlow()
+
+    /** The music's own screen, come up by itself while something plays and the remote rests. */
+    private val _visualizer = MutableStateFlow(true)
+    val visualizer: StateFlow<Boolean> = _visualizer.asStateFlow()
+
     /** True once attached on a television; everything here is a TV's alone. */
     @Volatile
     var onTv = false
@@ -114,6 +130,32 @@ object TvDesign {
         prefs = p
         _vista.value = p.getBoolean(KEY_VISTA, false)
         _sounds.value = p.getBoolean(KEY_SOUNDS, true)
+        _theme.value = p.getString(KEY_THEME, null) ?: XboxTheme.GREY.name
+        _themePhoto.value = p.getString(KEY_THEME_PHOTO, null)
+        _saver.value = p.getString(KEY_SAVER, null) ?: TvSaver.DIM.name
+        _saverMinutes.value = p.getInt(KEY_SAVER_MINUTES, DEFAULT_SAVER_MINUTES)
+        _visualizer.value = p.getBoolean(KEY_VISUALIZER, true)
+    }
+
+    fun setTheme(theme: XboxTheme, photo: String? = _themePhoto.value) {
+        _theme.value = theme.name
+        _themePhoto.value = photo
+        prefs?.edit()?.putString(KEY_THEME, theme.name)?.putString(KEY_THEME_PHOTO, photo)?.apply()
+    }
+
+    fun setSaver(saver: TvSaver) {
+        _saver.value = saver.name
+        prefs?.edit()?.putString(KEY_SAVER, saver.name)?.apply()
+    }
+
+    fun setSaverMinutes(minutes: Int) {
+        _saverMinutes.value = minutes
+        prefs?.edit()?.putInt(KEY_SAVER_MINUTES, minutes)?.apply()
+    }
+
+    fun setVisualizer(on: Boolean) {
+        _visualizer.value = on
+        prefs?.edit()?.putBoolean(KEY_VISUALIZER, on)?.apply()
     }
 
     fun setVista(on: Boolean) {
@@ -129,6 +171,12 @@ object TvDesign {
     private const val PREFS = "tv_design"
     private const val KEY_VISTA = "vista"
     private const val KEY_SOUNDS = "sounds"
+    private const val KEY_THEME = "xbox_theme"
+    private const val KEY_THEME_PHOTO = "xbox_theme_photo"
+    private const val KEY_SAVER = "saver"
+    private const val KEY_SAVER_MINUTES = "saver_minutes"
+    private const val KEY_VISUALIZER = "visualizer"
+    private const val DEFAULT_SAVER_MINUTES = 10
 }
 
 /** True on a TV wearing Vista's Media Center. */

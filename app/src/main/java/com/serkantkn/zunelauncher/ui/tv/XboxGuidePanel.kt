@@ -96,8 +96,11 @@ internal fun XboxGuidePanel(
         stringResource(R.string.xbox_guide_settings)
     )
     val nothing = stringResource(R.string.xbox_nothing_playing)
-    val playingLine = media.title.takeIf { it.isNotBlank() }?.let {
-        stringResource(R.string.xbox_now_playing, listOf(media.title, media.artist).filter(String::isNotBlank).joinToString(" · "))
+    // The launcher's own music first: it is seen without notification access.
+    val song = rememberTvSong(media)
+    val ownMusic = com.serkantkn.zunelauncher.data.service.LauncherPlayback.state.collectAsState().value.let { it.hasQueue && it.title == song?.title }
+    val playingLine = song?.let {
+        stringResource(R.string.xbox_now_playing, listOf(it.title, it.artist).filter(String::isNotBlank).joinToString(" · "))
     } ?: nothing
     val lines: List<GuideLine> = when (tab) {
         0 -> buildList {
@@ -110,15 +113,29 @@ internal fun XboxGuidePanel(
         1 -> buildList {
             add(GuideLine(playingLine, null, header = true))
             val controls = media.controller?.transportControls
-            add(GuideLine(stringResource(R.string.xbox_play_pause), controls?.let { c ->
-                { if (media.isPlaying) c.pause() else c.play() }
-            }))
-            add(GuideLine(stringResource(R.string.xbox_next), controls?.let { c -> { c.skipToNext() } }))
+            val playPause: (() -> Unit)? = when {
+                ownMusic -> { { com.serkantkn.zunelauncher.data.service.LauncherPlayback.playPause() } }
+                controls != null -> { { if (media.isPlaying) controls.pause() else controls.play() } }
+                else -> null
+            }
+            val next: (() -> Unit)? = when {
+                ownMusic -> { { com.serkantkn.zunelauncher.data.service.LauncherPlayback.skipToNext() } }
+                controls != null -> { { controls.skipToNext() } }
+                else -> null
+            }
+            add(GuideLine(stringResource(R.string.xbox_play_pause), playPause))
+            add(GuideLine(stringResource(R.string.xbox_next), next))
+            // The music's own screen, at once, while there is a song.
+            add(GuideLine(stringResource(R.string.xbox_visualizer), if (song != null) go { TvIdle.show(TvIdle.Shown.MUSIC) } else null))
             add(GuideLine(stringResource(R.string.zune_row_music), go { onOpenHub(HubType.MUSIC) }))
             items["hub:videos"]?.let { v -> add(GuideLine(v.label, go { v.open() })) }
             add(GuideLine(stringResource(HubType.PICTURES.titleRes), go { onOpenHub(HubType.PICTURES) }))
         }
         else -> buildList {
+            add(GuideLine(stringResource(R.string.xbox_system_settings), go {
+                if (hubOpen) com.serkantkn.zunelauncher.data.repository.HomeKeyBridge.press()
+                XboxShelf.pendingSystem.value = true
+            }))
             add(GuideLine(stringResource(R.string.xbox_launcher_settings_full), go { onOpenHub(HubType.SETTINGS) }))
             items["hub:android_settings"]?.let { s -> add(GuideLine(s.label, go { s.open() })) }
             add(GuideLine(stringResource(R.string.vista_sleep), go { shutdownAction(context, 2) }))

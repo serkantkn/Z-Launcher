@@ -116,6 +116,8 @@ fun PhotoViewer(
         var showControls by remember { mutableStateOf(true) }
         var showDetails by remember { mutableStateOf(false) }
         var slideshow by remember { mutableStateOf(startSlideshow) }
+        // A slide show is a TV's screensaver of its own: the other one keeps away while it runs.
+        com.serkantkn.zunelauncher.ui.tv.TvIdleHold(slideshow)
 
         val currentPhoto = photos.getOrNull(pagerState.currentPage) ?: photos[0]
         // Marked now by a key that survives a rescan, marked once by a plain id: both count.

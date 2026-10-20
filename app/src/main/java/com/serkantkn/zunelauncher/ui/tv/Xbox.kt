@@ -48,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -140,34 +141,80 @@ object Xbox {
     )
 }
 
+/**
+ * The dashboard's themes: its own greys, a few grounds of one colour as the dashboard's colour
+ * themes were, and a picture of the user's own under a veil. All but grey are dark, so the
+ * launcher's words on them turn white ([dark]).
+ */
+enum class XboxTheme(val dark: Boolean, internal val stops: Array<Pair<Float, Color>>?) {
+    GREY(false, Xbox.groundStops),
+    NIGHT(true, arrayOf(0f to Color(0xFF0B1A2E), 0.35f to Color(0xFF173A63), 0.62f to Color(0xFF2A5A8E), 0.75f to Color(0xFF2F6299), 1f to Color(0xFF1C4170))),
+    PURPLE(true, arrayOf(0f to Color(0xFF1E0F31), 0.35f to Color(0xFF412468), 0.62f to Color(0xFF5C3990), 0.75f to Color(0xFF633F99), 1f to Color(0xFF452A6C))),
+    ORANGE(true, arrayOf(0f to Color(0xFF3A1606), 0.35f to Color(0xFF7A300E), 0.62f to Color(0xFFB04A16), 0.75f to Color(0xFFBC531B), 1f to Color(0xFF853810))),
+    BLACK(true, arrayOf(0f to Color(0xFF050505), 0.45f to Color(0xFF1E2021), 0.72f to Color(0xFF26292A), 1f to Color(0xFF141515))),
+    PICTURE(true, null);
+
+    companion object {
+        fun of(name: String): XboxTheme = entries.firstOrNull { it.name == name } ?: GREY
+    }
+}
+
+/** A hub's pane: the dashboard's white, or on a dark theme a dark glass, so the words on it read. */
+@Composable
+internal fun xboxPane(alpha: Float): Color =
+    if (com.serkantkn.zunelauncher.ui.theme.LocalZuneColors.current.isDark) Color(0xFF16191A).copy(alpha = alpha * 0.85f)
+    else Xbox.Panel.copy(alpha = alpha)
+
 /** Words written on the ground's dark top: white, with the faint shadow the dashboard gave them. */
 internal val xboxShadow = Shadow(Color.Black.copy(alpha = 0.35f), Offset(0f, 1.5f), 3f)
 
 // ── The ground ─────────────────────────────────────────────────────────────────────────────
 
-/** The dashboard's greys, drawn once into a picture (a slow TV cannot afford them every frame). */
+/**
+ * The dashboard's ground in the theme chosen: its greys, or one colour, drawn once into a picture
+ * (a slow TV cannot afford them every frame); or the user's own picture under a veil.
+ */
 @Composable
 fun XboxBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit = {}) {
-    val ground by produceState(initialValue = XboxGroundCache.bitmap) {
-        if (value == null) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { XboxGroundCache.draw() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val theme = XboxTheme.of(TvDesign.theme.collectAsState().value)
+    val photo by TvDesign.themePhoto.collectAsState()
+    val ground by produceState(initialValue = XboxGroundCache.cached(theme, photo), theme, photo) {
+        value = XboxGroundCache.cached(theme, photo)
+            ?: kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { XboxGroundCache.draw(context, theme, photo) }
     }
-    Box(modifier = modifier.fillMaxSize().background(Color(0xFF9A9A9A))) {
+    Box(modifier = modifier.fillMaxSize().background(if (theme == XboxTheme.GREY) Color(0xFF9A9A9A) else Color(0xFF151617))) {
         val picture = ground
         if (picture != null) {
-            Image(picture, null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
-        } else {
-            Canvas(modifier = Modifier.fillMaxSize()) { drawXboxGround() }
+            Image(
+                picture, null,
+                contentScale = if (theme == XboxTheme.PICTURE) ContentScale.Crop else ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize()
+            )
+            // The picture is dimmed most at the top, where the words stand, and at the foot, where the buttons are told.
+            if (theme == XboxTheme.PICTURE) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawRect(
+                        Brush.verticalGradient(
+                            0f to Color.Black.copy(alpha = 0.62f), 0.45f to Color.Black.copy(alpha = 0.32f),
+                            0.8f to Color.Black.copy(alpha = 0.38f), 1f to Color.Black.copy(alpha = 0.6f)
+                        )
+                    )
+                }
+            }
+        } else if (theme != XboxTheme.PICTURE) {
+            Canvas(modifier = Modifier.fillMaxSize()) { drawXboxGround(theme) }
         }
         content()
     }
 }
 
-private fun DrawScope.drawXboxGround() {
-    drawRect(Brush.verticalGradient(colorStops = Xbox.groundStops))
+private fun DrawScope.drawXboxGround(theme: XboxTheme) {
+    drawRect(Brush.verticalGradient(colorStops = theme.stops ?: Xbox.groundStops))
     // A soft light across the middle, brightest a little below the centre.
     drawRect(
         Brush.radialGradient(
-            listOf(Color.White.copy(alpha = 0.10f), Color.Transparent),
+            listOf(Color.White.copy(alpha = if (theme.dark) 0.07f else 0.10f), Color.Transparent),
             center = Offset(size.width * 0.5f, size.height * 0.68f),
             radius = size.width * 0.6f
         )
@@ -175,20 +222,35 @@ private fun DrawScope.drawXboxGround() {
 }
 
 private object XboxGroundCache {
+    private var key: String? = null
     @Volatile
-    var bitmap: ImageBitmap? = null
+    private var bitmap: ImageBitmap? = null
 
-    fun draw(): ImageBitmap {
-        bitmap?.let { return it }
-        val out = ImageBitmap(960, 540)
-        androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
-            androidx.compose.ui.unit.Density(1f),
-            androidx.compose.ui.unit.LayoutDirection.Ltr,
-            androidx.compose.ui.graphics.Canvas(out),
-            Size(960f, 540f)
-        ) { drawXboxGround() }
-        return out.also { bitmap = it }
+    private fun keyOf(theme: XboxTheme, photo: String?) = if (theme == XboxTheme.PICTURE) "picture:$photo" else theme.name
+
+    fun cached(theme: XboxTheme, photo: String?): ImageBitmap? = bitmap?.takeIf { key == keyOf(theme, photo) }
+
+    @Synchronized
+    fun draw(context: android.content.Context, theme: XboxTheme, photo: String?): ImageBitmap? {
+        cached(theme, photo)?.let { return it }
+        val out = if (theme == XboxTheme.PICTURE) {
+            photo?.let { tvPicture(context, android.net.Uri.parse(it), PICTURE_SIDE) } ?: return null
+        } else {
+            ImageBitmap(960, 540).also { picture ->
+                androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
+                    androidx.compose.ui.unit.Density(1f),
+                    androidx.compose.ui.unit.LayoutDirection.Ltr,
+                    androidx.compose.ui.graphics.Canvas(picture),
+                    Size(960f, 540f)
+                ) { drawXboxGround(theme) }
+            }
+        }
+        key = keyOf(theme, photo)
+        bitmap = out
+        return out
     }
+
+    private const val PICTURE_SIDE = 1920
 }
 
 // ── The legend ─────────────────────────────────────────────────────────────────────────────
@@ -366,7 +428,7 @@ fun XboxHub(
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(bottom = bottomRoom)
-                    .background(Xbox.Panel.copy(alpha = 0.62f))
+                    .background(xboxPane(0.62f))
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 if (navExtra != null) {
@@ -477,7 +539,7 @@ fun XboxPage(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .background(Xbox.Panel.copy(alpha = 0.94f))
+                    .background(xboxPane(0.94f))
                     .padding(horizontal = 18.dp, vertical = 12.dp),
                 content = content
             )
@@ -534,7 +596,8 @@ fun XboxPanel(title: String, onDismiss: () -> Unit, content: @Composable () -> U
                 .background(Color.Black.copy(alpha = 0.40f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
         )
-        XboxPanelBody(title, shown.value, focus, maxWidth, maxHeight, null, dark = false) { content() }
+        // On a dark theme the launcher's words are white: the panel goes dark under them.
+        XboxPanelBody(title, shown.value, focus, maxWidth, maxHeight, null, dark = com.serkantkn.zunelauncher.ui.theme.LocalZuneColors.current.isDark) { content() }
     }
 }
 

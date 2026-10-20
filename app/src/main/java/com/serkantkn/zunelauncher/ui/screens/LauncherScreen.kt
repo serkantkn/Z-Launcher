@@ -1239,6 +1239,11 @@ fun LauncherScreen(
                         }
                     }
                 }
+                // The screensaver and the music's own screen, under a phone's call or message.
+                if (isTv) {
+                    val idleMedia by homeHubViewModel.nowPlaying.collectAsState()
+                    com.serkantkn.zunelauncher.ui.tv.TvIdleScreen(idleMedia, modifier = Modifier.fillMaxSize().zIndex(BANNER_Z - 0.5f))
+                }
                 // The Xbox's guide, over Start or any hub (ui/tv/XboxGuidePanel).
                 if (isTv && !com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
                     val guideOpen by com.serkantkn.zunelauncher.ui.tv.XboxGuide.open.collectAsState()

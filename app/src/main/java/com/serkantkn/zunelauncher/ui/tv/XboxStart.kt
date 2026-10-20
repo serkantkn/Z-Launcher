@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Slideshow
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.filled.WbSunny
@@ -134,7 +135,8 @@ internal class XboxSection(val key: String, val title: String, val tiles: List<X
 internal class XboxActions(
     val openCards: (XboxCards) -> Unit,
     val openShutdown: () -> Unit,
-    val openGuide: () -> Unit
+    val openGuide: () -> Unit,
+    val openSystem: () -> Unit
 )
 
 /** Everything the Xbox design can open now, by key: the hubs, the TV's apps, the film left part way. */
@@ -261,10 +263,7 @@ internal fun xboxSections(
     val settingsSection = buildList {
         add(item("hub:android_settings", 0f, 0f, Q, Q, newKey = "s_system"))
         add(item("hub:settings", Q1, 0f, Q, Q, label = stringResource(R.string.xbox_launcher_settings), newKey = "s_launcher"))
-        add(action("s_look", stringResource(R.string.xbox_look), Q2, 0f, Q, Q, Icons.Default.Palette) {
-            com.serkantkn.zunelauncher.data.repository.SettingsBridge.open("LOOK")
-            onOpenHub(HubType.SETTINGS)
-        })
+        add(action("s_console", stringResource(R.string.xbox_system_settings), Q2, 0f, Q, Q, Icons.Default.Tune, actions.openSystem))
         add(action("s_guide", stringResource(R.string.xbox_guide), Q3, 0f, Q, Q, Icons.Default.Menu, actions.openGuide))
         add(item("hub:clock", 0f, QR, Q, Q, newKey = "s_clock"))
         add(action("s_exit", stringResource(R.string.xbox_exit), Q1, QR, Q, Q, Icons.AutoMirrored.Filled.ExitToApp) {
@@ -289,6 +288,7 @@ private sealed interface XboxPage {
     data class Detail(val item: XboxItem) : XboxPage
     data object Shutdown : XboxPage
     data object Search : XboxPage
+    data object System : XboxPage
 }
 
 /** A "show me" or "sort" choice of a page of cards. */
@@ -370,16 +370,22 @@ internal fun XboxStart(
         )
     }
 
+    val system = remember { XboxSystemState() }
+    val systemLines = xboxSystemLines()
+
     val actions = XboxActions(
         openCards = { kind -> cardAt = 0; showAt = 0; sortAt = 0; chooser = null; dropdown = false; push(XboxPage.Cards(kind)) },
         openShutdown = { offAt = 0; push(XboxPage.Shutdown) },
-        openGuide = { XboxGuide.show() }
+        openGuide = { XboxGuide.show() },
+        openSystem = { system.reset(); push(XboxPage.System) }
     )
     val sections = xboxSections(items, apps, recent, onOpenHub, actions)
 
     var section by remember { mutableIntStateOf(0) }
     var tile by remember { mutableIntStateOf(0) }
     var onWords by remember { mutableStateOf(false) }
+    // Up from the section words: the profile in the top right.
+    var onProfile by remember { mutableStateOf(false) }
     var held by remember { mutableStateOf(false) }
     var backHeld by remember { mutableStateOf(false) }
     val slide = remember { Animatable(0f) }
@@ -405,6 +411,14 @@ internal fun XboxStart(
         if (kind == XboxCards.SEARCH) openSearch() else actions.openCards(kind)
         XboxShelf.consumePage()
     }
+    val pendingSystem by XboxShelf.pendingSystem.collectAsState()
+    LaunchedEffect(pendingSystem) {
+        if (!pendingSystem) return@LaunchedEffect
+        delay(PENDING_DELAY_MILLIS)
+        pages = emptyList()
+        actions.openSystem()
+        XboxShelf.pendingSystem.value = false
+    }
 
     // Where each section starts along the strip of sections.
     val starts = remember(sections.map { it.width }) {
@@ -423,6 +437,7 @@ internal fun XboxStart(
     fun toTop() {
         pages = emptyList()
         onWords = false
+        onProfile = false
         goTo(0, 0)
     }
     var homeSeen by remember { mutableIntStateOf(homeResetSignal) }
@@ -566,7 +581,11 @@ internal fun XboxStart(
 
     fun choose() {
         when (val p = page) {
-            null -> if (!onWords) sections[sectionNow].tiles.getOrNull(tile)?.shown(turn)?.open?.invoke()
+            null -> if (onProfile) {
+                    // The profile: the TV and the phone paired with it, in the launcher's settings.
+                    com.serkantkn.zunelauncher.data.repository.SettingsBridge.open("CONNECTIVITY")
+                    onOpenHub(HubType.SETTINGS)
+                } else if (!onWords) sections[sectionNow].tiles.getOrNull(tile)?.shown(turn)?.open?.invoke()
                 else {
                     onWords = false
                     val tiles = sections[sectionNow].tiles
@@ -585,6 +604,7 @@ internal fun XboxStart(
                 else -> cards(p.kind).getOrNull(cardAt)?.open()
             }
             XboxPage.Search -> found.getOrNull(searchAt)?.open()
+            XboxPage.System -> system.choose(systemLines)
             is XboxPage.Detail -> commands(p.item).getOrNull(commandAt)?.run?.invoke()
             XboxPage.Shutdown -> {
                 pop()
@@ -637,6 +657,7 @@ internal fun XboxStart(
                     }
                 }
             }
+            XboxPage.System -> system.move(key, systemLines)
             XboxPage.Search -> when (key) {
                 Key.DirectionLeft -> searchAt = (searchAt - 1).coerceAtLeast(0)
                 Key.DirectionRight -> searchAt = (searchAt + 1).coerceAtMost(found.lastIndex.coerceAtLeast(0))
@@ -653,8 +674,11 @@ internal fun XboxStart(
                     else -> commandAt
                 }
             }
-            null -> if (onWords) {
+            null -> if (onProfile) {
+                if (key == Key.DirectionDown || key == Key.DirectionLeft) onProfile = false
+            } else if (onWords) {
                 when (key) {
+                    Key.DirectionUp -> onProfile = true
                     Key.DirectionLeft -> if (sectionNow > 0) goTo(sectionNow - 1, 0)
                     Key.DirectionRight -> if (sectionNow < sections.lastIndex) goTo(sectionNow + 1, 0)
                     Key.DirectionDown -> choose()
@@ -716,10 +740,11 @@ internal fun XboxStart(
             Key.Back -> {
                 if (down) {
                     backHeld = when {
+                        page == XboxPage.System && system.back() -> true
                         dropdown -> { dropdown = false; true }
                         chooser != null -> { chooser = null; true }
                         page != null -> { pop(); true }
-                        onWords || sectionNow != 0 || tile != 0 -> { toTop(); true }
+                        onWords || onProfile || sectionNow != 0 || tile != 0 -> { toTop(); true }
                         else -> false
                     }
                     backHeld
@@ -760,7 +785,7 @@ internal fun XboxStart(
     ) {
         val u = maxWidth / REFERENCE_WIDTH
         val density = LocalDensity.current
-        val overBoard = page is XboxPage.Cards || page is XboxPage.Detail || page == XboxPage.Search
+        val overBoard = page is XboxPage.Cards || page is XboxPage.Detail || page == XboxPage.Search || page == XboxPage.System
         val pageShown by animateFloatAsState(if (overBoard) 1f else 0f, tween(PAGE_MILLIS, easing = FastOutSlowInEasing), label = "xboxPage")
         Box(
             modifier = Modifier
@@ -805,7 +830,7 @@ internal fun XboxStart(
                     if (sx > 1300f || sx + s.width < -300f) return@forEachIndexed
                     val faint = if (i == sectionNow) 1f else 0.45f
                     s.tiles.forEachIndexed { ti, t ->
-                        val focused = i == sectionNow && ti == tile && !onWords && page == null
+                        val focused = i == sectionNow && ti == tile && !onWords && !onProfile && page == null
                         XboxTileView(
                             tile = t,
                             turn = turn,
@@ -831,9 +856,9 @@ internal fun XboxStart(
                 }
             }
             XboxLegend(back = false, hold = true, pin = stringResource(R.string.xbox_pin_short), guide = true, modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f))
-            XboxClock(modifier = Modifier.align(Alignment.TopEnd).padding(top = u * 42f, end = u * 90f))
+            XboxProfile(lit = onProfile && page == null, u = u, modifier = Modifier.align(Alignment.TopEnd).padding(top = u * 30f, end = u * 90f))
         }
-        val shownPage = pages.lastOrNull { it is XboxPage.Cards || it is XboxPage.Detail || it == XboxPage.Search }
+        val shownPage = pages.lastOrNull { it is XboxPage.Cards || it is XboxPage.Detail || it == XboxPage.Search || it == XboxPage.System }
         if (pageShown > 0f && shownPage != null) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
@@ -874,6 +899,7 @@ internal fun XboxStart(
                         u = u
                     )
                     is XboxPage.Detail -> XboxDetailPage(shownPage.item, commands(shownPage.item), commandAt, u)
+                    XboxPage.System -> XboxSystemPage(systemLines, system, u)
                     else -> {}
                 }
             }

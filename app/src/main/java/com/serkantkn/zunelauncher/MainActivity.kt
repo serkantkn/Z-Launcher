@@ -333,15 +333,19 @@ class MainActivity : FragmentActivity() {
         com.serkantkn.zunelauncher.data.service.CallManager.setScreenVisible(true)
         com.serkantkn.zunelauncher.data.service.WpToastOverlay.hide()
         com.serkantkn.zunelauncher.data.service.WpVolumeOverlay.hide()
+        com.serkantkn.zunelauncher.ui.tv.TvIdle.onResume()
     }
 
     override fun onPause() {
         com.serkantkn.zunelauncher.data.repository.SocialRepository.isLauncherForeground = false
         com.serkantkn.zunelauncher.data.service.CallManager.setScreenVisible(false)
+        com.serkantkn.zunelauncher.ui.tv.TvIdle.onPause()
         super.onPause()
     }
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        // A TV's screensaver: the key that wakes the screen does nothing else.
+        if (com.serkantkn.zunelauncher.ui.tv.TvIdle.onKey(event)) return true
         // The TV's focus frame follows closely while the remote is in use.
         if (com.serkantkn.zunelauncher.ui.tv.TvFocus.onKey(window?.decorView?.findFocus(), event)) return true
         // A hub that handles a hardware keyboard (the files hub) gets the keys first.

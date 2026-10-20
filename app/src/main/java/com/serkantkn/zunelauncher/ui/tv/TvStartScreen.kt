@@ -264,7 +264,11 @@ private fun tvPlaces(viewModel: HomeHubViewModel, live: TvLive, onOpenHub: (HubT
     val news by viewModel.newsStories.collectAsState()
     val alarms by viewModel.enabledAlarms.collectAsState()
     val playing = nowPlaying.takeIf { it.isPlaying && it.title.isNotBlank() }
-    val playingLine = playing?.let { listOf(it.title, it.artist).filter(String::isNotBlank).joinToString(" · ") }
+    // The launcher's own music too, which is seen without notification access.
+    val own by com.serkantkn.zunelauncher.data.service.LauncherPlayback.state.collectAsState()
+    val ownPlaying = own.takeIf { it.isPlaying && it.title.isNotBlank() }
+    val playingLine = (ownPlaying?.let { listOf(it.title, it.artist) } ?: playing?.let { listOf(it.title, it.artist) })
+        ?.filter(String::isNotBlank)?.joinToString(" · ")
     val weatherLine = weather?.let { "${it.now.temperature.roundToInt()}° ${it.place.name}" }
     val nextAlarm = remember(alarms) {
         val now = System.currentTimeMillis()

@@ -1572,4 +1572,27 @@ private fun TvDesignGroup() {
             onCheckedChange = { com.serkantkn.zunelauncher.ui.tv.TvDesign.setSounds(it) }
         )
     }
+    // The screensaver and the music's own screen, in either design.
+    val saver by com.serkantkn.zunelauncher.ui.tv.TvDesign.saver.collectAsState()
+    val visualizer by com.serkantkn.zunelauncher.ui.tv.TvDesign.visualizer.collectAsState()
+    SettingGroup(title = stringResource(R.string.tv_design_saver)) {
+        listOf(
+            com.serkantkn.zunelauncher.ui.tv.TvSaver.OFF to R.string.xbox_saver_off,
+            com.serkantkn.zunelauncher.ui.tv.TvSaver.DIM to R.string.xbox_saver_dim,
+            com.serkantkn.zunelauncher.ui.tv.TvSaver.PHOTOS to R.string.xbox_saver_photos
+        ).forEach { (mode, label) ->
+            SettingChoiceRow(
+                title = stringResource(label),
+                subtitle = if (mode == com.serkantkn.zunelauncher.ui.tv.TvSaver.DIM) stringResource(R.string.tv_design_saver_sub) else "",
+                selected = saver == mode.name,
+                onClick = { com.serkantkn.zunelauncher.ui.tv.TvDesign.setSaver(mode) }
+            )
+        }
+        SettingSwitchRow(
+            title = stringResource(R.string.tv_design_visualizer),
+            subtitle = stringResource(R.string.tv_design_visualizer_sub),
+            checked = visualizer,
+            onCheckedChange = { com.serkantkn.zunelauncher.ui.tv.TvDesign.setVisualizer(it) }
+        )
+    }
 }

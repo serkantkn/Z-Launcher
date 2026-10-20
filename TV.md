@@ -304,6 +304,41 @@ frame by frame from two videos (IGN's 2012 tour, a 10-minute walkthrough).
   three pages, Ⓧ and Ⓨ by key 186 / 185, the pin notice and an install notice. Not tried: a real
   gamepad.
 
+## Xbox: visualizer, themes, screensaver, profile, system settings (2026-10-21)
+
+- `ui/tv/TvIdle.kt`: `TvIdle` sees every key first (`MainActivity.dispatchKeyEvent`); while the
+  launcher is resumed `TvIdleScreen` (in `LauncherScreen`, under a phone's notice) puts up, after
+  the remote rests, the music's own screen (two minutes, while a song plays) or the screensaver
+  (`TvSaver`: off / dim with a wandering clock / the TV's pictures, 5-30 minutes). The key that
+  wakes it does nothing else; media and volume keys pass. `TvIdleHold` keeps it away (the photo
+  viewer's slide show). `TvSleep`: the sleep timer - pause by media key, sleep through the
+  accessibility service.
+- The visualizer: the cover large and bobbing, the song, the artist and how far in, the cover
+  blurred behind (scaled to 12 px and drawn large: no RenderEffect needed) and the artist's name
+  huge and faint drifting across. Also from the guide's media tab.
+- `LauncherPlayback` (data/service/LocalMediaController.kt): the launcher's own player's state for
+  those outside the music hub. The system's session list needs notification access, which a TV
+  is seldom given, so the guide, the visualizer and Start's music tile showed nothing of the
+  launcher's own music before.
+- `XboxTheme` (Xbox.kt): grey, night blue, purple, orange, black, or a picture under a veil. All
+  but grey are dark: `Theme.kt` turns the words white, and `xboxPane` makes hubs' panes, the
+  Windows 8 bar and menus dark glass to match.
+- `ui/tv/XboxSystem.kt`: the system settings page (settings section, and the guide's settings tab)
+  - a white list, a grey pane with the choices; theme (with a grid of the TV's pictures),
+  screensaver, its delay, visualizer, sleep timer, and the TV's display, sound, network,
+  accessories, date, storage, about pages. And `XboxProfile`: the TV's name and the paired phone
+  beside a square picture in the top right, reached by Up from the section words; it opens the
+  phone link settings.
+- The launcher's settings (TV design group) also choose the screensaver and the visualizer, for
+  Media Center.
+- Tried on the TV emulator: every theme line, the picture grid, hubs on a dark theme (music,
+  settings, pictures, news, files), the visualizer from the guide with the launcher's music, the
+  pictures and dim screensavers (delay set to a minute through the prefs), the woken key swallowed,
+  the sleep timer, Display & Sound opened from "display". Not tried: a cover's blur (no covers on
+  the emulator), a real TV.
+- Found while testing: the emulator's keyboard, left up when the app was stopped with the search
+  box open, kept eating the arrows until it was stopped. An emulator state, not the launcher's.
+
 ## Still to do
 
 1. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.

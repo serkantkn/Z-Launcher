@@ -175,7 +175,11 @@ fun ZuneLauncherTheme(
     } else false
     // A TV has its own colours whatever the phone is set to: Media Center's blue and white words,
     // or the Xbox's light grey with dark words on its panels.
-    val isDarkTheme = if (isTv) vista else when (themeMode) {
+    // The Xbox's coloured and picture themes are dark grounds: its words turn white on them.
+    val xboxDark = isTv && !vista && com.serkantkn.zunelauncher.ui.tv.XboxTheme.of(
+        com.serkantkn.zunelauncher.ui.tv.TvDesign.theme.collectAsState().value
+    ).dark
+    val isDarkTheme = if (isTv) vista || xboxDark else when (themeMode) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
         ThemeMode.SYSTEM -> isSystemInDarkTheme()

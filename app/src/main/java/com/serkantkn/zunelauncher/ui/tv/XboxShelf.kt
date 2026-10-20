@@ -103,6 +103,9 @@ internal object XboxShelf {
         _pendingPage.value = null
     }
 
+    /** The system settings asked for from the guide; Start opens them and clears this. */
+    val pendingSystem = MutableStateFlow(false)
+
     private fun save() {
         prefs?.edit()
             ?.putString(KEY_PINS, _pins.value.joinToString("\n"))
