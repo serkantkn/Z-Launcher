@@ -879,13 +879,28 @@ internal fun lookPageSummary(page: LookPage, viewModel: SettingsViewModel): Stri
     }
 }
 
-/** Accent swatches carry no labels of their own, so the two that are not colours get names. */
+/** The accent's name in the summary, in the phone's language. */
 @Composable
-private fun accentName(accentColor: AccentColor): String = when (accentColor) {
-    AccentColor.CUSTOM -> stringResource(R.string.settings_accent_custom)
-    AccentColor.DYNAMIC -> stringResource(R.string.settings_accent_dynamic)
-    else -> accentColor.name.lowercase()
-}
+private fun accentName(accentColor: AccentColor): String = stringResource(
+    when (accentColor) {
+        AccentColor.DYNAMIC -> R.string.settings_accent_dynamic
+        AccentColor.MAGENTA -> R.string.settings_accent_magenta
+        AccentColor.PINK -> R.string.settings_accent_pink
+        AccentColor.ORANGE -> R.string.settings_accent_orange
+        AccentColor.PURPLE -> R.string.settings_accent_purple
+        AccentColor.BLUE -> R.string.settings_accent_blue
+        AccentColor.GREEN -> R.string.settings_accent_green
+        AccentColor.TEAL -> R.string.settings_accent_teal
+        AccentColor.RED -> R.string.settings_accent_red
+        AccentColor.YELLOW -> R.string.settings_accent_yellow
+        AccentColor.LIME -> R.string.settings_accent_lime
+        AccentColor.CRIMSON -> R.string.settings_accent_crimson
+        AccentColor.COBALT -> R.string.settings_accent_cobalt
+        AccentColor.AMBER -> R.string.settings_accent_amber
+        AccentColor.BROWN -> R.string.settings_accent_brown
+        AccentColor.CUSTOM -> R.string.settings_accent_custom
+    }
+)
 
 /** The line of explanation under each entry, saying what the page is for. */
 internal val LookPage.summaryRes: Int
