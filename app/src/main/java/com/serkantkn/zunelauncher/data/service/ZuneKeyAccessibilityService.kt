@@ -223,6 +223,16 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
             .onFailure { ZuneLog.e(TAG, "Home could not be brought up", it) }
     }
 
+    /** The launcher brought forward with its guide up. */
+    private fun openGuide() {
+        val intent = Intent(Intent.ACTION_MAIN)
+            .setClassName(packageName, "com.serkantkn.zunelauncher.MainActivity")
+            .putExtra(com.serkantkn.zunelauncher.MainActivity.EXTRA_OPEN_GUIDE, true)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        runCatching { startActivity(intent) }
+            .onFailure { ZuneLog.e(TAG, "the guide could not be brought up", it) }
+    }
+
     override fun onInterrupt() {
         // Nothing to interrupt.
     }
@@ -232,7 +242,12 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         // which Android will not let another launcher replace there. Both halves of the press
         // are kept, so the system never sees one and opens its own.
         if (isTv && event.keyCode == KeyEvent.KEYCODE_HOME) {
-            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) goHome()
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) {
+                // Held, in the Xbox design, it is the guide button: the guide over whatever is on.
+                com.serkantkn.zunelauncher.ui.tv.TvDesign.attach(this)
+                val held = event.eventTime - event.downTime >= HOME_HELD_MILLIS
+                if (held && !com.serkantkn.zunelauncher.ui.tv.TvDesign.vista.value) openGuide() else goHome()
+            }
             return true
         }
         // Back puts the action center away, whatever app is underneath it.
@@ -280,6 +295,8 @@ class ZuneKeyAccessibilityService : AccessibilityService() {
         private const val SYSTEM_UI = "com.android.systemui"
         private const val SHADE_BURST_MILLIS = 1_500L
         private const val UNLOCK_GRACE_MILLIS = 2_000L
+        /** How long Home is held to mean the guide rather than home. */
+        private const val HOME_HELD_MILLIS = 500L
         private val SHADE_PUSH_MILLIS = longArrayOf(0L, 120L, 300L, 600L, 1_000L, 1_500L)
 
         /**

@@ -2,11 +2,17 @@ package com.serkantkn.zunelauncher.ui.tv
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -24,33 +30,41 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.outlined.Bedtime
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,13 +86,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zunelauncher.R
 import com.serkantkn.zunelauncher.data.model.HubType
 import com.serkantkn.zunelauncher.ui.theme.findActivity
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import java.text.DateFormat
+import java.util.Date
 import kotlin.math.abs
 
 /** One of the dashboard's tiles: where it stands in its section, in 1280 × 720 pixels, and what it is. */
@@ -93,10 +109,17 @@ internal class XboxTile(
     val image: ImageBitmap? = null,
     /** Shown large in place of a sign: the temperature, say. */
     val big: String? = null,
-    val open: () -> Unit
+    /** What it stands for, for its details on a held press; null for an action of the dashboard's own. */
+    val item: XboxItem? = null,
+    /** The large tile's turns, shown one after another in its place, as the dashboard's spotlight did. */
+    val slides: List<XboxTile> = emptyList(),
+    val open: () -> Unit = { item?.open() }
 ) {
     val cx get() = x + w / 2
     val cy get() = y + h / 2
+
+    /** What the tile shows at [turn]: itself, or one of its slides. */
+    fun shown(turn: Int): XboxTile = if (slides.isEmpty()) this else slides[turn.mod(slides.size)]
 }
 
 /** A section of the dashboard: its word along the top and its block of tiles. */
@@ -104,138 +127,148 @@ internal class XboxSection(val key: String, val title: String, val tiles: List<X
     val width: Float get() = tiles.maxOf { it.x + it.w }
 }
 
-/** The things on the dashboard a section's tiles open, beyond the hubs. */
+/** The things on the dashboard a section's tiles open, beyond the hubs and apps. */
 internal class XboxActions(
-    val openApps: () -> Unit,
-    val openShutdown: () -> Unit
+    val openCards: (XboxCards) -> Unit,
+    val openShutdown: () -> Unit,
+    val openGuide: () -> Unit
 )
 
+/** Everything the Xbox design can open now, by key: the hubs, the TV's apps, the film left part way. */
+@Composable
+internal fun xboxItems(places: List<TvPlace>, apps: List<TvApp>, live: TvLive): Map<String, XboxItem> {
+    val context = LocalContext.current
+    val icons = mapOf(
+        "pictures" to Icons.Default.Photo, "videos" to Icons.Default.Movie, "music" to Icons.Default.MusicNote,
+        "weather" to Icons.Default.WbSunny, "news" to Icons.Default.Article, "clock" to Icons.Default.Alarm,
+        "files" to Icons.Default.Folder, "settings" to Icons.Default.Settings, "android_settings" to Icons.Default.Tv
+    )
+    return buildMap {
+        places.forEach { p ->
+            if (p.key == "continue") {
+                put(
+                    "film:continue",
+                    XboxItem("film:continue", p.line ?: p.title, p.title, Icons.Default.PlayArrow, p.image, false,
+                        XboxItem.Kind.FILM, film = live.continueWatching, progress = p.progress, run = p.open)
+                )
+            } else {
+                put("hub:${p.key}", XboxItem("hub:${p.key}", p.title, p.line, icons[p.key], p.image, false, XboxItem.Kind.HUB, run = p.open))
+            }
+        }
+        apps.forEach { a ->
+            put(
+                "app:${a.packageName}",
+                XboxItem("app:${a.packageName}", a.label, null, Icons.Default.Apps, a.banner ?: a.icon, a.banner != null,
+                    XboxItem.Kind.APP, packageName = a.packageName) {
+                    runCatching { context.startActivity(a.launch) }
+                }
+            )
+        }
+    }
+}
+
 /**
- * The sections, laid out as the dashboard laid its own: home with three tiles down its left, a
- * large one in the middle, two at its right and three along its foot; the others two-by-two
- * beside a large one; settings in two rows of four.
+ * The sections, laid out as the dashboard laid its own: home with my pins, recent and pictures down
+ * its left, the spotlight in the middle turning through what is new, two tiles at its right and
+ * the last things opened along its foot; the others two-by-two beside a large one; settings in
+ * two rows of four.
  */
 @Composable
 internal fun xboxSections(
-    places: List<TvPlace>,
+    items: Map<String, XboxItem>,
     apps: List<TvApp>,
+    recent: List<String>,
     onOpenHub: (HubType) -> Unit,
     actions: XboxActions
 ): List<XboxSection> {
     val context = LocalContext.current
-    val byKey = places.associateBy { it.key }
-    fun tile(key: String, label: String, x: Float, y: Float, w: Float, h: Float, icon: ImageVector?, image: ImageBitmap? = null, big: String? = null, open: () -> Unit) =
-        XboxTile(key, label, x, y, w, h, icon, image, big, open)
-    fun place(key: String, label: String, x: Float, y: Float, w: Float, h: Float, icon: ImageVector, image: Boolean = false, big: String? = null): XboxTile? =
-        byKey[key]?.let { tile(key, label, x, y, w, h, icon, if (image) it.image else null, big, it.open) }
-    fun app(app: TvApp, key: String, x: Float, y: Float, w: Float, h: Float) =
-        tile(key, app.label, x, y, w, h, Icons.Default.Apps, app.banner ?: app.icon) {
-            runCatching { context.startActivity(app.launch) }
-        }
+    fun item(key: String, x: Float, y: Float, w: Float, h: Float, label: String? = null, icon: ImageVector? = null, image: Boolean = false, big: String? = null, newKey: String = key): XboxTile? =
+        items[key]?.let { XboxTile(newKey, label ?: it.label, x, y, w, h, icon ?: it.icon, if (image || it.kind == XboxItem.Kind.APP) it.image else null, big, it) }
+    fun action(key: String, label: String, x: Float, y: Float, w: Float, h: Float, icon: ImageVector, open: () -> Unit) =
+        XboxTile(key, label, x, y, w, h, icon, open = open)
 
-    val pictures = stringResource(HubType.PICTURES.titleRes)
-    val music = stringResource(R.string.zune_row_music)
-    val videos = stringResource(R.string.music_tab_videos)
-    val weather = stringResource(HubType.WEATHER.titleRes)
-    val news = stringResource(HubType.NEWS.titleRes)
-    val clock = stringResource(HubType.CLOCK.titleRes)
-    val files = stringResource(HubType.FILES.titleRes)
+    val shuffle = stringResource(R.string.xbox_shuffle)
     val myApps = stringResource(R.string.xbox_my_apps)
     val continueLabel = stringResource(R.string.tv_continue)
-    val shuffle = stringResource(R.string.xbox_shuffle)
-    val slideShow = stringResource(R.string.xbox_slide_show)
-    val androidSettings = stringResource(R.string.tv_android_settings)
-    val launcherSettings = stringResource(R.string.xbox_launcher_settings)
-    val look = stringResource(R.string.xbox_look)
-    val sleep = stringResource(R.string.vista_sleep)
-    val turnOff = stringResource(R.string.xbox_turn_off)
-    val weatherBig = byKey["weather"]?.line?.substringBefore(' ')
-
-    val left = byKey["continue"]
-    val playing = byKey["music"]?.let { it.image }
+    val shuffleAll = {
+        com.serkantkn.zunelauncher.data.repository.MusicBridge.shuffleAll()
+        onOpenHub(HubType.MUSIC)
+    }
+    val weatherLine = items["hub:weather"]?.line
+    val weatherBig = weatherLine?.substringBefore(' ')
 
     // ── home ──
+    val spotlight = buildList {
+        items["film:continue"]?.let { add(XboxTile("spot_film", "$continueLabel: ${it.label}", C2, 0f, BIG_W, BIG_H, it.icon, it.image, item = it)) }
+        items["hub:music"]?.takeIf { it.line != null }?.let { add(XboxTile("spot_music", it.line!!, C2, 0f, BIG_W, BIG_H, it.icon, it.image, item = it)) }
+        items["hub:pictures"]?.takeIf { it.image != null }?.let { add(XboxTile("spot_pictures", it.label, C2, 0f, BIG_W, BIG_H, it.icon, it.image, item = it)) }
+        items["hub:weather"]?.takeIf { weatherLine != null }?.let { add(XboxTile("spot_weather", weatherLine!!.substringAfter(' ', it.label), C2, 0f, BIG_W, BIG_H, it.icon, big = weatherBig, item = it)) }
+        items["hub:news"]?.takeIf { it.line != null }?.let { add(XboxTile("spot_news", it.line!!, C2, 0f, BIG_W, BIG_H, it.icon, item = it)) }
+        if (size < 2) add(action("spot_shuffle", shuffle, C2, 0f, BIG_W, BIG_H, Icons.Default.Shuffle, shuffleAll))
+    }
+    // Along the foot, the last two things opened that home does not show already.
+    val onHome = setOf("hub:pictures", "hub:weather", "hub:news", "hub:clock")
+    val lately = recent.filter { it !in onHome && items.containsKey(it) }.take(2)
     val home = buildList {
-        add(place("pictures", pictures, 0f, 0f, S, H, Icons.Default.Photo))
-        add(place("music", music, 0f, R2, S, H, Icons.Default.MusicNote))
-        add(place("videos", videos, 0f, R3, S, H, Icons.Default.Movie))
-        add(
-            when {
-                left != null -> tile("home_big", "$continueLabel: ${left.line.orEmpty()}", C2, 0f, BIG_W, BIG_H, Icons.Default.PlayArrow, left.image, open = left.open)
-                byKey["pictures"]?.image != null -> place("pictures", pictures, C2, 0f, BIG_W, BIG_H, Icons.Default.Photo, image = true)?.let {
-                    tile("home_big", it.label, it.x, it.y, it.w, it.h, it.icon, it.image, open = it.open)
-                }
-                else -> tile("home_big", shuffle, C2, 0f, BIG_W, BIG_H, Icons.Default.Shuffle) {
-                    com.serkantkn.zunelauncher.data.repository.MusicBridge.shuffleAll()
-                    onOpenHub(HubType.MUSIC)
-                }
-            }
-        )
-        add(place("weather", weather, C4, 0f, S, H, Icons.Default.WbSunny, big = weatherBig))
-        add(place("news", news, C4, R2, S, H, Icons.Default.Article))
-        add(tile("home_apps", myApps, C2, R3, M, H, Icons.Default.Apps, open = actions.openApps))
-        add(
-            apps.firstOrNull()?.let { app(it, "home_app", C3, R3, M, H) }
-                ?: place("android_settings", androidSettings, C3, R3, M, H, Icons.Default.Tv)
-        )
-        add(place("clock", clock, C4, R3, S, H, Icons.Default.Alarm))
+        add(action("home_pins", stringResource(R.string.xbox_pins), 0f, 0f, S, H, Icons.Default.PushPin) { actions.openCards(XboxCards.PINS) })
+        add(action("home_recent", stringResource(R.string.xbox_recent), 0f, R2, S, H, Icons.Default.History) { actions.openCards(XboxCards.RECENT) })
+        add(item("hub:pictures", 0f, R3, S, H))
+        add(XboxTile("home_big", spotlight.first().label, C2, 0f, BIG_W, BIG_H, slides = spotlight) {})
+        add(item("hub:weather", C4, 0f, S, H, big = weatherBig))
+        add(item("hub:news", C4, R2, S, H))
+        add(lately.getOrNull(0)?.let { item(it, C2, R3, M, H, newKey = "home_r0") } ?: action("home_apps", myApps, C2, R3, M, H, Icons.Default.Apps) { actions.openCards(XboxCards.APPS) })
+        add(lately.getOrNull(1)?.let { item(it, C3, R3, M, H, newKey = "home_r1") } ?: item("hub:music", C3, R3, M, H, image = true, newKey = "home_r1"))
+        add(item("hub:clock", C4, R3, S, H))
     }.filterNotNull()
 
     // ── tv + movies ──
     val movies = buildList {
-        add(place("videos", videos, 0f, 0f, S, H, Icons.Default.Movie)?.renamed("tv_videos"))
-        add(place("pictures", pictures, D2, 0f, S, H, Icons.Default.Photo)?.renamed("tv_pictures"))
-        add(tile("tv_slides", slideShow, 0f, R2, S, H, Icons.Default.Slideshow) {
+        add(item("hub:videos", 0f, 0f, S, H, newKey = "tv_videos"))
+        add(item("hub:pictures", D2, 0f, S, H, newKey = "tv_pictures"))
+        add(action("tv_slides", stringResource(R.string.xbox_slide_show), 0f, R2, S, H, Icons.Default.Slideshow) {
             com.serkantkn.zunelauncher.data.repository.PicturesBridge.playAll()
             onOpenHub(HubType.PICTURES)
         })
-        add(place("files", files, D2, R2, S, H, Icons.Default.Folder)?.renamed("tv_files"))
+        add(item("hub:files", D2, R2, S, H, newKey = "tv_files"))
         add(
-            if (left != null) tile("tv_big", "$continueLabel: ${left.line.orEmpty()}", D3, 0f, WIDE_W, BIG_H, Icons.Default.PlayArrow, left.image, open = left.open)
-            else place("videos", videos, D3, 0f, WIDE_W, BIG_H, Icons.Default.Movie)?.renamed("tv_big")
+            items["film:continue"]?.let { XboxTile("tv_big", "$continueLabel: ${it.label}", D3, 0f, WIDE_W, BIG_H, it.icon, it.image, item = it) }
+                ?: item("hub:videos", D3, 0f, WIDE_W, BIG_H, newKey = "tv_big")
         )
     }.filterNotNull()
 
     // ── music ──
     val musicSection = buildList {
-        add(place("music", music, 0f, 0f, S, H, Icons.Default.MusicNote)?.renamed("m_music"))
-        add(tile("m_shuffle", shuffle, D2, 0f, S, H, Icons.Default.Shuffle) {
-            com.serkantkn.zunelauncher.data.repository.MusicBridge.shuffleAll()
-            onOpenHub(HubType.MUSIC)
-        })
-        add(place("videos", videos, 0f, R2, S, H, Icons.Default.Movie)?.renamed("m_videos"))
-        add(place("files", files, D2, R2, S, H, Icons.Default.Folder)?.renamed("m_files"))
-        add(
-            byKey["music"]?.let { m ->
-                tile("m_big", m.line ?: music, D3, 0f, WIDE_W, BIG_H, Icons.Default.MusicNote, playing, open = m.open)
-            }
-        )
+        add(item("hub:music", 0f, 0f, S, H, newKey = "m_music"))
+        add(action("m_shuffle", shuffle, D2, 0f, S, H, Icons.Default.Shuffle, shuffleAll))
+        add(item("hub:videos", 0f, R2, S, H, newKey = "m_videos"))
+        add(item("hub:files", D2, R2, S, H, newKey = "m_files"))
+        add(items["hub:music"]?.let { XboxTile("m_big", it.line ?: it.label, D3, 0f, WIDE_W, BIG_H, it.icon, it.image, item = it) })
     }.filterNotNull()
 
     // ── apps ──
     val appsSection = buildList {
-        add(tile("a_mine", myApps, 0f, 0f, S, H, Icons.Default.Apps, open = actions.openApps))
-        apps.getOrNull(1)?.let { add(app(it, "a_1", D2, 0f, S, H)) }
-        apps.getOrNull(2)?.let { add(app(it, "a_2", 0f, R2, S, H)) }
-        apps.getOrNull(3)?.let { add(app(it, "a_3", D2, R2, S, H)) }
-        apps.getOrNull(0)?.let { add(app(it, "a_0", D3, 0f, WIDE_W, BIG_H)) }
-    }
+        add(action("a_mine", myApps, 0f, 0f, S, H, Icons.Default.Apps) { actions.openCards(XboxCards.APPS) })
+        apps.getOrNull(1)?.let { add(item("app:${it.packageName}", D2, 0f, S, H, newKey = "a_1")) }
+        apps.getOrNull(2)?.let { add(item("app:${it.packageName}", 0f, R2, S, H, newKey = "a_2")) }
+        apps.getOrNull(3)?.let { add(item("app:${it.packageName}", D2, R2, S, H, newKey = "a_3")) }
+        apps.getOrNull(0)?.let { add(item("app:${it.packageName}", D3, 0f, WIDE_W, BIG_H, newKey = "a_0")) }
+    }.filterNotNull()
 
     // ── settings ──
     val settingsSection = buildList {
-        add(place("android_settings", androidSettings, 0f, 0f, Q, Q, Icons.Default.Tv)?.renamed("s_system"))
-        add(place("settings", launcherSettings, Q1, 0f, Q, Q, Icons.Default.Settings)?.renamed("s_launcher"))
-        add(tile("s_look", look, Q2, 0f, Q, Q, Icons.Default.Palette) {
+        add(item("hub:android_settings", 0f, 0f, Q, Q, newKey = "s_system"))
+        add(item("hub:settings", Q1, 0f, Q, Q, label = stringResource(R.string.xbox_launcher_settings), newKey = "s_launcher"))
+        add(action("s_look", stringResource(R.string.xbox_look), Q2, 0f, Q, Q, Icons.Default.Palette) {
             com.serkantkn.zunelauncher.data.repository.SettingsBridge.open("LOOK")
             onOpenHub(HubType.SETTINGS)
         })
-        add(place("files", files, Q3, 0f, Q, Q, Icons.Default.Folder)?.renamed("s_files"))
-        add(place("clock", clock, 0f, QR, Q, Q, Icons.Default.Alarm)?.renamed("s_clock"))
-        add(tile("s_exit", stringResource(R.string.xbox_exit), Q1, QR, Q, Q, Icons.AutoMirrored.Filled.ExitToApp) {
+        add(action("s_guide", stringResource(R.string.xbox_guide), Q3, 0f, Q, Q, Icons.Default.Menu, actions.openGuide))
+        add(item("hub:clock", 0f, QR, Q, Q, newKey = "s_clock"))
+        add(action("s_exit", stringResource(R.string.xbox_exit), Q1, QR, Q, Q, Icons.AutoMirrored.Filled.ExitToApp) {
             context.findActivity()?.moveTaskToBack(true)
         })
-        add(tile("s_sleep", sleep, Q2, QR, Q, Q, Icons.Outlined.Bedtime) { shutdownAction(context, 2) })
-        add(tile("s_off", turnOff, Q3, QR, Q, Q, Icons.Default.PowerSettingsNew, open = actions.openShutdown))
+        add(action("s_sleep", stringResource(R.string.vista_sleep), Q2, QR, Q, Q, Icons.Outlined.Bedtime) { shutdownAction(context, 2) })
+        add(action("s_off", stringResource(R.string.xbox_turn_off), Q3, QR, Q, Q, Icons.Default.PowerSettingsNew, actions.openShutdown))
     }.filterNotNull()
 
     return listOf(
@@ -247,41 +280,84 @@ internal fun xboxSections(
     ).filter { it.tiles.isNotEmpty() }
 }
 
-private fun XboxTile.renamed(key: String) = XboxTile(key, label, x, y, w, h, icon, image, big, open)
+/** A page over the dashboard: a row of cards, a thing's details, or turning off. */
+private sealed interface XboxPage {
+    data class Cards(val kind: XboxCards) : XboxPage
+    data class Detail(val item: XboxItem) : XboxPage
+    data object Shutdown : XboxPage
+}
+
+/** One of a details page's green command tiles. */
+private class XboxCommand(val label: String, val icon: ImageVector, val run: () -> Unit)
 
 /**
  * The Xbox 360's dashboard as Start: the section words along the top, the chosen section's tiles
  * in the middle and its neighbours peeking in at the edges. Left and right walk the tiles and on
  * past a section's edge into the next, the words following; up from the top tiles goes onto the
- * words. Like Vista's, it takes the remote whole and draws its own focus: a tile lifted and lit.
+ * words. A press opens; a held press opens a thing's details, where it is pinned to home. Like
+ * Media Center's, it takes the remote whole and draws its own focus: a tile lifted and lit.
  */
 @Composable
 internal fun XboxStart(
-    sections: List<XboxSection>,
+    items: Map<String, XboxItem>,
     apps: List<TvApp>,
     hubOpen: Boolean,
     homeResetSignal: Int,
-    appsOpen: Boolean,
-    onAppsOpen: (Boolean) -> Unit,
-    shutdownOpen: Boolean,
-    onShutdownOpen: (Boolean) -> Unit,
+    onOpenHub: (HubType) -> Unit,
     focusModifier: Modifier,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val pins by XboxShelf.pins.collectAsState()
+    val recent by XboxShelf.recent.collectAsState()
+    var pages by remember { mutableStateOf(listOf<XboxPage>()) }
+    val page = pages.lastOrNull()
+    fun push(next: XboxPage) {
+        pages = pages + next
+    }
+    fun pop() {
+        pages = pages.dropLast(1)
+    }
+    var cardAt by remember { mutableIntStateOf(0) }
+    var commandAt by remember { mutableIntStateOf(0) }
+    var offAt by remember { mutableIntStateOf(0) }
+
+    val actions = XboxActions(
+        openCards = { kind -> cardAt = 0; push(XboxPage.Cards(kind)) },
+        openShutdown = { offAt = 0; push(XboxPage.Shutdown) },
+        openGuide = { XboxGuide.show() }
+    )
+    val sections = xboxSections(items, apps, recent, onOpenHub, actions)
+
     var section by remember { mutableIntStateOf(0) }
     var tile by remember { mutableIntStateOf(0) }
     var onWords by remember { mutableStateOf(false) }
-    var appAt by remember { mutableIntStateOf(0) }
-    var offAt by remember { mutableIntStateOf(0) }
+    var held by remember { mutableStateOf(false) }
     var backHeld by remember { mutableStateOf(false) }
     val slide = remember { Animatable(0f) }
     val intro = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
-        while (!TvDesign.splashShown) kotlinx.coroutines.delay(50)
+        while (!TvDesign.splashShown) delay(50)
         intro.animateTo(1f, tween(INTRO_MILLIS, easing = FastOutSlowInEasing))
     }
+    // The spotlight turns while the dashboard is what is on the screen.
+    var turn by remember { mutableIntStateOf(0) }
+    LaunchedEffect(hubOpen, page == null) {
+        while (!hubOpen && page == null) {
+            delay(SPOTLIGHT_MILLIS)
+            turn++
+        }
+    }
+    // A page of cards asked for by the guide.
+    val pending by XboxShelf.pendingPage.collectAsState()
+    LaunchedEffect(pending) {
+        val kind = pending ?: return@LaunchedEffect
+        delay(PENDING_DELAY_MILLIS)
+        cardAt = 0
+        pages = listOf(XboxPage.Cards(kind))
+        XboxShelf.consumePage()
+    }
+
     // Where each section starts along the strip of sections.
     val starts = remember(sections.map { it.width }) {
         var x = 0f
@@ -297,8 +373,7 @@ internal fun XboxStart(
         tile = newTile
     }
     fun toTop() {
-        onShutdownOpen(false)
-        onAppsOpen(false)
+        pages = emptyList()
         onWords = false
         goTo(0, 0)
     }
@@ -310,7 +385,62 @@ internal fun XboxStart(
         }
     }
 
-    /** The tile in [dir] from the one the remote is on: the nearest whose middle lies that way. */
+    fun cards(kind: XboxCards): List<XboxItem> = when (kind) {
+        XboxCards.APPS -> apps.mapNotNull { items["app:${it.packageName}"] }
+        XboxCards.PINS -> pins.mapNotNull { items[it] }
+        XboxCards.RECENT -> recent.mapNotNull { items[it] }
+    }
+
+    val texts = XboxCommandTexts(
+        open = stringResource(R.string.xbox_open),
+        resume = stringResource(R.string.xbox_resume),
+        fromStart = stringResource(R.string.xbox_from_start),
+        pin = stringResource(R.string.xbox_pin),
+        unpin = stringResource(R.string.xbox_unpin),
+        front = stringResource(R.string.xbox_move_front),
+        info = stringResource(R.string.xbox_app_info),
+        uninstall = stringResource(R.string.xbox_uninstall),
+        videos = stringResource(R.string.vista_video_library)
+    )
+    fun commands(item: XboxItem): List<XboxCommand> = buildList {
+        when (item.kind) {
+            XboxItem.Kind.FILM -> {
+                add(XboxCommand(texts.resume, Icons.Default.PlayArrow) { item.open() })
+                item.film?.let { film ->
+                    add(XboxCommand(texts.fromStart, Icons.Default.Replay) {
+                        com.serkantkn.zunelauncher.ui.screens.video.VideoResumeStore(context)
+                            .remember(com.serkantkn.zunelauncher.ui.screens.video.VideoResumeStore.keyOf(film.uri), 0L, 0L)
+                        com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, film.uri, film.title)
+                    })
+                }
+                items["hub:videos"]?.let { v -> add(XboxCommand(texts.videos, Icons.Default.Movie) { v.open() }) }
+            }
+            else -> {
+                add(XboxCommand(texts.open, item.icon ?: Icons.Default.PlayArrow) { item.open() })
+                // Read from the state, so the tile turns from "pin" to "unpin" as it is pressed.
+                if (item.key in pins) {
+                    add(XboxCommand(texts.unpin, Icons.Outlined.PushPin) { XboxShelf.unpin(item.key) })
+                    if (pins.firstOrNull() != item.key) add(XboxCommand(texts.front, Icons.Default.VerticalAlignTop) { XboxShelf.moveToFront(item.key) })
+                } else {
+                    add(XboxCommand(texts.pin, Icons.Default.PushPin) { XboxShelf.pin(item.key) })
+                }
+                item.packageName?.let { pkg ->
+                    add(XboxCommand(texts.info, Icons.Default.Info) {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    })
+                    add(XboxCommand(texts.uninstall, Icons.Default.Delete) {
+                        runCatching { context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$pkg")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    })
+                }
+            }
+        }
+    }
+
+    /** The tile in the way of travel: only one in line with this one, the nearest. */
     fun neighbour(tiles: List<XboxTile>, from: XboxTile, dx: Int, dy: Int): Int? {
         var best: Int? = null
         var bestScore = Float.MAX_VALUE
@@ -333,11 +463,88 @@ internal fun XboxStart(
         }
         return best
     }
-    /** Over a section's edge: the tile at that edge of [next] nearest in height to [from]. */
+    /** Over a section's edge: the tile at that edge of [next] nearest in height to [fromY]. */
     fun enter(next: XboxSection, fromY: Float, fromLeft: Boolean): Int {
         val edge = if (fromLeft) next.tiles.minOf { it.x } else next.tiles.maxOf { it.x + it.w }
         val candidates = next.tiles.withIndex().filter { (_, t) -> if (fromLeft) t.x <= edge + 1 else t.x + t.w >= edge - 1 }
         return candidates.minByOrNull { (_, t) -> abs(t.cy - fromY) }?.index ?: 0
+    }
+
+    fun choose() {
+        when (val p = page) {
+            null -> if (!onWords) sections[sectionNow].tiles.getOrNull(tile)?.shown(turn)?.open?.invoke()
+                else {
+                    onWords = false
+                    val tiles = sections[sectionNow].tiles
+                    tile = tiles.indices.minByOrNull { tiles[it].y * 4 + tiles[it].x } ?: 0
+                }
+            is XboxPage.Cards -> cards(p.kind).getOrNull(cardAt)?.open()
+            is XboxPage.Detail -> commands(p.item).getOrNull(commandAt)?.run?.invoke()
+            XboxPage.Shutdown -> {
+                pop()
+                when (offAt) {
+                    0 -> shutdownAction(context, 1)
+                    1 -> shutdownAction(context, 2)
+                    2 -> shutdownAction(context, 0)
+                }
+            }
+        }
+    }
+    fun hold() {
+        val item = when (val p = page) {
+            null -> if (onWords) null else sections[sectionNow].tiles.getOrNull(tile)?.shown(turn)?.item
+            is XboxPage.Cards -> cards(p.kind).getOrNull(cardAt)
+            else -> null
+        } ?: return
+        commandAt = 0
+        push(XboxPage.Detail(item))
+    }
+    fun move(key: Key) {
+        when (val p = page) {
+            XboxPage.Shutdown -> when (key) {
+                Key.DirectionUp -> offAt = (offAt - 1).coerceAtLeast(0)
+                Key.DirectionDown -> offAt = (offAt + 1).coerceAtMost(SHUTDOWN_LINES - 1)
+                else -> {}
+            }
+            is XboxPage.Cards -> {
+                val last = cards(p.kind).lastIndex
+                when (key) {
+                    Key.DirectionLeft -> cardAt = (cardAt - 1).coerceAtLeast(0)
+                    Key.DirectionRight -> cardAt = (cardAt + 1).coerceAtMost(last.coerceAtLeast(0))
+                    else -> {}
+                }
+            }
+            is XboxPage.Detail -> {
+                val count = commands(p.item).size
+                commandAt = when (key) {
+                    Key.DirectionLeft -> if (commandAt % 2 == 1) commandAt - 1 else commandAt
+                    Key.DirectionRight -> if (commandAt % 2 == 0 && commandAt + 1 < count) commandAt + 1 else commandAt
+                    Key.DirectionUp -> if (commandAt >= 2) commandAt - 2 else commandAt
+                    Key.DirectionDown -> if (commandAt + 2 < count) commandAt + 2 else commandAt
+                    else -> commandAt
+                }
+            }
+            null -> if (onWords) {
+                when (key) {
+                    Key.DirectionLeft -> if (sectionNow > 0) goTo(sectionNow - 1, 0)
+                    Key.DirectionRight -> if (sectionNow < sections.lastIndex) goTo(sectionNow + 1, 0)
+                    Key.DirectionDown -> choose()
+                    else -> {}
+                }
+            } else {
+                val current = sections[sectionNow]
+                val from = current.tiles.getOrNull(tile) ?: current.tiles.first()
+                when (key) {
+                    Key.DirectionLeft -> neighbour(current.tiles, from, -1, 0)?.let { tile = it }
+                        ?: if (sectionNow > 0) goTo(sectionNow - 1, enter(sections[sectionNow - 1], from.cy, fromLeft = false)) else Unit
+                    Key.DirectionRight -> neighbour(current.tiles, from, 1, 0)?.let { tile = it }
+                        ?: if (sectionNow < sections.lastIndex) goTo(sectionNow + 1, enter(sections[sectionNow + 1], from.cy, fromLeft = true)) else Unit
+                    Key.DirectionUp -> neighbour(current.tiles, from, 0, -1)?.let { tile = it } ?: run { onWords = true }
+                    Key.DirectionDown -> neighbour(current.tiles, from, 0, 1)?.let { tile = it }
+                    else -> {}
+                }
+            }
+        }
     }
 
     val keys = Modifier.onPreviewKeyEvent { event ->
@@ -347,66 +554,31 @@ internal fun XboxStart(
             Key.Back -> {
                 if (down) {
                     backHeld = when {
-                        shutdownOpen -> { onShutdownOpen(false); true }
-                        appsOpen -> { onAppsOpen(false); true }
+                        page != null -> { pop(); true }
                         onWords || sectionNow != 0 || tile != 0 -> { toTop(); true }
                         else -> false
                     }
                     backHeld
                 } else {
-                    val held = backHeld
+                    val was = backHeld
                     backHeld = false
-                    held
+                    was
                 }
             }
-            Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight,
             Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
-                if (!down) return@onPreviewKeyEvent true
-                val choose = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
-                when {
-                    shutdownOpen -> when {
-                        event.key == Key.DirectionUp -> offAt = (offAt - 1).coerceAtLeast(0)
-                        event.key == Key.DirectionDown -> offAt = (offAt + 1).coerceAtMost(SHUTDOWN_LINES - 1)
-                        choose -> {
-                            onShutdownOpen(false)
-                            when (offAt) {
-                                0 -> shutdownAction(context, 1)
-                                1 -> shutdownAction(context, 2)
-                                2 -> shutdownAction(context, 0)
-                            }
-                        }
+                // A press acts when it is let go; held, it opens the details instead.
+                if (down) {
+                    if (event.nativeKeyEvent.repeatCount >= 1 && !held) {
+                        held = true
+                        hold()
                     }
-                    appsOpen -> if (apps.isNotEmpty()) when {
-                        event.key == Key.DirectionLeft -> appAt = (appAt - 1).coerceAtLeast(0)
-                        event.key == Key.DirectionRight -> appAt = (appAt + 1).coerceAtMost(apps.lastIndex)
-                        choose -> apps.getOrNull(appAt)?.let { runCatching { context.startActivity(it.launch) } }
-                    }
-                    onWords -> when {
-                        event.key == Key.DirectionLeft -> if (sectionNow > 0) goTo(sectionNow - 1, 0)
-                        event.key == Key.DirectionRight -> if (sectionNow < sections.lastIndex) goTo(sectionNow + 1, 0)
-                        event.key == Key.DirectionDown || choose -> {
-                            onWords = false
-                            val tiles = sections[sectionNow].tiles
-                            tile = tiles.indices.minByOrNull { tiles[it].y * 4 + tiles[it].x } ?: 0
-                        }
-                    }
-                    else -> {
-                        val current = sections[sectionNow]
-                        val from = current.tiles.getOrNull(tile) ?: current.tiles.first()
-                        when (event.key) {
-                            Key.DirectionLeft -> neighbour(current.tiles, from, -1, 0)?.let { tile = it }
-                                ?: if (sectionNow > 0) goTo(sectionNow - 1, enter(sections[sectionNow - 1], from.cy, fromLeft = false)) else Unit
-                            Key.DirectionRight -> neighbour(current.tiles, from, 1, 0)?.let { tile = it }
-                                ?: if (sectionNow < sections.lastIndex) goTo(sectionNow + 1, enter(sections[sectionNow + 1], from.cy, fromLeft = true)) else Unit
-                            Key.DirectionUp -> neighbour(current.tiles, from, 0, -1)?.let { tile = it } ?: run { onWords = true }
-                            Key.DirectionDown -> neighbour(current.tiles, from, 0, 1)?.let { tile = it }
-                            else -> {
-                                if (from.key == "s_off") offAt = 0
-                                from.open()
-                            }
-                        }
-                    }
+                } else {
+                    if (held) held = false else choose()
                 }
+                true
+            }
+            Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight -> {
+                if (down) move(event.key)
                 true
             }
             else -> false
@@ -423,7 +595,8 @@ internal fun XboxStart(
     ) {
         val u = maxWidth / REFERENCE_WIDTH
         val density = LocalDensity.current
-        val pageShown by animateFloatAsState(if (appsOpen) 1f else 0f, tween(PAGE_MILLIS, easing = FastOutSlowInEasing), label = "xboxApps")
+        val overBoard = page is XboxPage.Cards || page is XboxPage.Detail
+        val pageShown by animateFloatAsState(if (overBoard) 1f else 0f, tween(PAGE_MILLIS, easing = FastOutSlowInEasing), label = "xboxPage")
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -467,9 +640,10 @@ internal fun XboxStart(
                     if (sx > 1300f || sx + s.width < -300f) return@forEachIndexed
                     val faint = if (i == sectionNow) 1f else 0.45f
                     s.tiles.forEachIndexed { ti, t ->
-                        val focused = i == sectionNow && ti == tile && !onWords && !appsOpen && !shutdownOpen
+                        val focused = i == sectionNow && ti == tile && !onWords && page == null
                         XboxTileView(
                             tile = t,
+                            turn = turn,
                             focused = focused,
                             u = u,
                             modifier = Modifier
@@ -479,30 +653,38 @@ internal fun XboxStart(
                     }
                 }
             }
-            XboxLegend(back = false, modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f))
+            XboxLegend(back = false, hold = true, guide = true, modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f))
             XboxClock(modifier = Modifier.align(Alignment.TopEnd).padding(top = u * 42f, end = u * 90f))
         }
-        if (pageShown > 0f) {
-            XboxAppsPage(
-                apps = apps,
-                at = appAt,
-                u = u,
-                modifier = Modifier.graphicsLayer {
+        val shownPage = pages.lastOrNull { it is XboxPage.Cards || it is XboxPage.Detail }
+        if (pageShown > 0f && shownPage != null) {
+            Box(
+                modifier = Modifier.fillMaxSize().graphicsLayer {
                     val grow = 0.8f + 0.2f * pageShown
                     scaleX = grow
                     scaleY = grow
                     alpha = pageShown
                 }
-            )
+            ) {
+                when (shownPage) {
+                    is XboxPage.Cards -> XboxCardsPage(shownPage.kind, cards(shownPage.kind), cardAt, u)
+                    is XboxPage.Detail -> XboxDetailPage(shownPage.item, commands(shownPage.item), commandAt, u)
+                    else -> {}
+                }
+            }
         }
-        if (shutdownOpen) XboxShutdownPanel(offAt, u)
+        if (page == XboxPage.Shutdown) XboxShutdownPanel(offAt, u)
     }
 }
 
-/** A tile: Xbox green with its sign and its name, or a picture with its name on a dark band. */
+private class XboxCommandTexts(
+    val open: String, val resume: String, val fromStart: String, val pin: String, val unpin: String,
+    val front: String, val info: String, val uninstall: String, val videos: String
+)
+
+/** A tile: Xbox green with its sign and its name, or a picture with its name on a dark band; the spotlight turning. */
 @Composable
-private fun XboxTileView(tile: XboxTile, focused: Boolean, u: Dp, modifier: Modifier) {
-    val density = LocalDensity.current
+private fun XboxTileView(tile: XboxTile, turn: Int, focused: Boolean, u: Dp, modifier: Modifier) {
     val lift by animateFloatAsState(if (focused) 1.07f else 1f, tween(140), label = "xboxLift")
     Box(
         modifier = modifier
@@ -512,8 +694,24 @@ private fun XboxTileView(tile: XboxTile, focused: Boolean, u: Dp, modifier: Modi
                 scaleY = lift
                 shadowElevation = if (focused) 18f else 0f
             }
-            .background(if (focused && tile.image == null) Xbox.GreenLit else Xbox.Green)
     ) {
+        if (tile.slides.size > 1) {
+            AnimatedContent(
+                targetState = turn.mod(tile.slides.size),
+                transitionSpec = { (fadeIn(tween(600)) + slideInVertically(tween(600)) { it / 8 }) togetherWith fadeOut(tween(450)) },
+                label = "xboxSpotlight",
+                modifier = Modifier.fillMaxSize()
+            ) { i -> XboxTileFace(tile.slides[i], focused, u) }
+        } else {
+            XboxTileFace(tile.shown(turn), focused, u)
+        }
+    }
+}
+
+@Composable
+private fun XboxTileFace(tile: XboxTile, focused: Boolean, u: Dp) {
+    val density = LocalDensity.current
+    Box(modifier = Modifier.fillMaxSize().background(if (focused && tile.image == null) Xbox.GreenLit else Xbox.Green)) {
         val labelStyle = MaterialTheme.typography.titleMedium.copy(
             fontFamily = SelawikFamily,
             fontWeight = FontWeight.Normal,
@@ -530,11 +728,14 @@ private fun XboxTileView(tile: XboxTile, focused: Boolean, u: Dp, modifier: Modi
             ) {
                 Text(tile.label, style = labelStyle, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+            tile.item?.progress?.let { p ->
+                Box(modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(p).height(u * 4f).background(Xbox.GreenLit))
+            }
         } else {
             when {
                 tile.big != null -> Text(
                     tile.big,
-                    style = MaterialTheme.typography.displaySmall.copy(fontFamily = SelawikFamily, fontWeight = FontWeight.Light, fontSize = with(density) { (u * 46f).toSp() }),
+                    style = MaterialTheme.typography.displaySmall.copy(fontFamily = SelawikFamily, fontWeight = FontWeight.Light, fontSize = with(density) { (u * minOf(46f, tile.h * 0.4f)).toSp() }),
                     color = Color.White,
                     modifier = Modifier.align(Alignment.Center).padding(bottom = u * 16f)
                 )
@@ -547,7 +748,7 @@ private fun XboxTileView(tile: XboxTile, focused: Boolean, u: Dp, modifier: Modi
                 tile.label,
                 style = labelStyle,
                 color = Color.White,
-                maxLines = 1,
+                maxLines = if (tile.h > 200f) 2 else 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 10f, end = u * 8f, bottom = u * 8f)
             )
@@ -556,30 +757,51 @@ private fun XboxTileView(tile: XboxTile, focused: Boolean, u: Dp, modifier: Modi
 }
 
 /**
- * "my apps", as the dashboard showed "my pins": a row of tall white cards running off to the
+ * A page of cards, as the dashboard showed "my pins": a row of tall white cards running off to the
  * right, each a picture with its name under it and a small sign of what it is; the one the remote
  * is on lifted out of the row. Which of how many in the top right.
  */
 @Composable
-private fun XboxAppsPage(apps: List<TvApp>, at: Int, u: Dp, modifier: Modifier = Modifier) {
+private fun XboxCardsPage(kind: XboxCards, cards: List<XboxItem>, at: Int, u: Dp) {
     val density = LocalDensity.current
-    val shift by animateFloatAsState((at - 1).coerceAtLeast(0).toFloat(), tween(SLIDE_MILLIS, easing = FastOutSlowInEasing), label = "xboxAppsShift")
-    Box(modifier = modifier.fillMaxSize()) {
+    val shift by animateFloatAsState((at - 1).coerceAtLeast(0).toFloat(), tween(SLIDE_MILLIS, easing = FastOutSlowInEasing), label = "xboxCardsShift")
+    val title = stringResource(
+        when (kind) {
+            XboxCards.APPS -> R.string.xbox_my_apps
+            XboxCards.PINS -> R.string.xbox_pins
+            XboxCards.RECENT -> R.string.xbox_recent
+        }
+    )
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.offset(x = u * 104f, y = u * 80f)) {
             Text("⌄ " + stringResource(R.string.xbox_show_me), style = small(density, u, 18f), color = Color.White)
-            Text(stringResource(R.string.xbox_all_apps), style = small(density, u, 24f), color = Color.White.copy(alpha = 0.8f))
+            Text(
+                stringResource(if (kind == XboxCards.APPS) R.string.xbox_all_apps else R.string.xbox_all_media),
+                style = small(density, u, 24f), color = Color.White.copy(alpha = 0.8f)
+            )
         }
         Column(horizontalAlignment = Alignment.End, modifier = Modifier.align(Alignment.TopEnd).padding(top = u * 78f, end = u * 95f)) {
-            Text(stringResource(R.string.xbox_my_apps), style = small(density, u, 32f), color = Color.White)
-            if (apps.isNotEmpty()) {
-                Text(stringResource(R.string.xbox_n_of_m, at + 1, apps.size), style = small(density, u, 19f), color = Color.White)
+            Text(title, style = small(density, u, 32f), color = Color.White)
+            if (cards.isNotEmpty()) {
+                Text(stringResource(R.string.xbox_n_of_m, at.coerceAtMost(cards.lastIndex) + 1, cards.size), style = small(density, u, 19f), color = Color.White)
             }
         }
-        if (apps.isEmpty()) {
-            Text(stringResource(R.string.vista_no_apps), style = small(density, u, 22f), color = Color.White, modifier = Modifier.align(Alignment.Center))
+        if (cards.isEmpty()) {
+            Text(
+                stringResource(
+                    when (kind) {
+                        XboxCards.APPS -> R.string.vista_no_apps
+                        XboxCards.PINS -> R.string.xbox_no_pins
+                        XboxCards.RECENT -> R.string.xbox_no_recent
+                    }
+                ),
+                style = small(density, u, 22f),
+                color = Color.White,
+                modifier = Modifier.align(Alignment.Center).padding(horizontal = u * 200f)
+            )
         }
         Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
-            apps.forEachIndexed { i, app ->
+            cards.forEachIndexed { i, item ->
                 val x = 64f + (i - shift) * CARD_STEP
                 if (x < -CARD_W || x > 1300f) return@forEachIndexed
                 val chosen = i == at
@@ -598,30 +820,147 @@ private fun XboxAppsPage(apps: List<TvApp>, at: Int, u: Dp, modifier: Modifier =
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxWidth().height(u * 280f).background(Color(0xFFA9AEB0))
+                        modifier = Modifier.fillMaxWidth().height(u * 280f).background(if (item.image == null) Xbox.Green else Color(0xFFA9AEB0))
                     ) {
-                        val picture = app.banner ?: app.icon
-                        if (picture != null) {
-                            Image(
-                                picture, null,
-                                contentScale = if (app.banner != null) ContentScale.Fit else ContentScale.Inside,
-                                modifier = if (app.banner != null) Modifier.fillMaxWidth() else Modifier.size(u * 96f)
+                        when {
+                            item.image != null -> Image(
+                                item.image, null,
+                                contentScale = if (item.banner) ContentScale.Fit else if (item.kind == XboxItem.Kind.APP) ContentScale.Inside else ContentScale.Crop,
+                                modifier = if (item.banner) Modifier.fillMaxWidth() else if (item.kind == XboxItem.Kind.APP) Modifier.size(u * 96f) else Modifier.fillMaxSize()
                             )
+                            item.icon != null -> Icon(item.icon, null, tint = Color.White, modifier = Modifier.size(u * 72f))
                         }
                     }
                     Spacer(modifier = Modifier.height(u * 10f))
-                    Text(app.label, style = small(density, u, 19f), color = Xbox.Ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(item.label, style = small(density, u, 19f).copy(shadow = null), color = Xbox.Ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(modifier = Modifier.weight(1f))
-                    Icon(Icons.Default.Apps, null, tint = Xbox.InkDim, modifier = Modifier.align(Alignment.End).size(u * 18f))
+                    Icon(
+                        when (item.kind) {
+                            XboxItem.Kind.APP -> Icons.Default.Apps
+                            XboxItem.Kind.HUB -> item.icon ?: Icons.Default.Apps
+                            XboxItem.Kind.FILM -> Icons.Default.Movie
+                        },
+                        null, tint = Xbox.InkDim, modifier = Modifier.align(Alignment.End).size(u * 18f)
+                    )
                 }
+            }
+        }
+        XboxLegend(hold = true, modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f))
+    }
+}
+
+/**
+ * A thing's page, as the dashboard showed a game's: its name in the top right, "overview" at the
+ * left, its commands as green tiles two by two - play, pin to home - its picture beside them and
+ * what is known of it beyond.
+ */
+@Composable
+private fun XboxDetailPage(item: XboxItem, commands: List<XboxCommand>, at: Int, u: Dp) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val facts = remember(item.key, item.line) { detailFacts(context, item) }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Text(
+            item.label,
+            style = small(density, u, 34f),
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = u * 40f, end = u * 95f, start = u * 400f)
+        )
+        Text(
+            stringResource(R.string.xbox_overview),
+            style = small(density, u, 28f),
+            color = Color.White,
+            modifier = Modifier.offset(x = u * 104f, y = u * 88f)
+        )
+        commands.forEachIndexed { i, command ->
+            val col = i % 2
+            val row = i / 2
+            val chosen = i == at
+            val lift by animateFloatAsState(if (chosen) 1.06f else 1f, tween(140), label = "xboxCommand")
+            Box(
+                modifier = Modifier
+                    .offset(x = u * (104f + col * (CMD_W + G)), y = u * (150f + row * (CMD_H + G)))
+                    .size(u * CMD_W, u * CMD_H)
+                    .graphicsLayer {
+                        scaleX = lift
+                        scaleY = lift
+                        shadowElevation = if (chosen) 16f else 0f
+                    }
+                    .background(if (chosen) Xbox.GreenLit else Xbox.Green)
+            ) {
+                Icon(command.icon, null, tint = Color.White, modifier = Modifier.align(Alignment.TopStart).padding(start = u * 10f, top = u * 10f).size(u * 28f))
+                Text(
+                    command.label,
+                    style = small(density, u, 15f).copy(shadow = null, lineHeight = with(density) { (u * 17f).toSp() }),
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 8f, end = u * 6f, bottom = u * 6f)
+                )
+            }
+        }
+        val pictureX = 104f + 2 * (CMD_W + G) + 14f
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .offset(x = u * pictureX, y = u * 150f)
+                .size(u * PICTURE_W, u * (2 * CMD_H + G))
+                .background(if (item.image == null) Xbox.Green else Color(0xFF2B2F30))
+        ) {
+            when {
+                item.image != null -> Image(
+                    item.image, null,
+                    contentScale = if (item.kind == XboxItem.Kind.APP && !item.banner) ContentScale.Inside else ContentScale.Crop,
+                    modifier = if (item.kind == XboxItem.Kind.APP && !item.banner) Modifier.size(u * 120f) else Modifier.fillMaxSize()
+                )
+                item.icon != null -> Icon(item.icon, null, tint = Color.White, modifier = Modifier.size(u * 80f))
+            }
+            item.progress?.let { p ->
+                Box(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(p).height(u * 5f).background(Xbox.GreenLit))
+            }
+        }
+        Column(
+            modifier = Modifier
+                .offset(x = u * (pictureX + PICTURE_W + 24f), y = u * 150f)
+                .width(u * (1180f - pictureX - PICTURE_W - 24f)),
+            verticalArrangement = Arrangement.spacedBy(u * 6f)
+        ) {
+            facts.forEach { line ->
+                Text(line, style = small(density, u, 19f), color = Color.White, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
         }
         XboxLegend(modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f))
     }
 }
 
+/** What a details page says of a thing: an app's version and when it came, a film's place, a hub's line. */
+private fun detailFacts(context: Context, item: XboxItem): List<String> = buildList {
+    when (item.kind) {
+        XboxItem.Kind.APP -> item.packageName?.let { pkg ->
+            runCatching {
+                val info = context.packageManager.getPackageInfo(pkg, 0)
+                info.versionName?.let { add(context.getString(R.string.xbox_version, it)) }
+                add(context.getString(R.string.xbox_installed, DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(info.firstInstallTime))))
+            }
+            add(pkg)
+        }
+        XboxItem.Kind.FILM -> item.film?.let { film ->
+            add(film.title)
+            add("${clock(film.positionMs)} / ${clock(film.durationMs)}")
+        }
+        XboxItem.Kind.HUB -> item.line?.let { add(it) }
+    }
+}
+
+private fun clock(ms: Long): String {
+    val s = ms / 1000
+    return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s / 60 % 60, s % 60) else "%d:%02d".format(s / 60, s % 60)
+}
+
 @Composable
-private fun small(density: androidx.compose.ui.unit.Density, u: Dp, px: Float) =
+private fun small(density: Density, u: Dp, px: Float) =
     MaterialTheme.typography.titleMedium.copy(fontFamily = SelawikFamily, fontWeight = FontWeight.Normal, fontSize = with(density) { (u * px).toSp() }, shadow = xboxShadow)
 
 /**
@@ -707,7 +1046,14 @@ private const val Q3 = 3 * (Q + G)
 private const val QR = Q + G
 private const val CARD_W = 222f
 private const val CARD_STEP = 228f
+/** A details page: its command tiles and its picture. */
+private const val CMD_W = 176f
+private const val CMD_H = 96f
+private const val PICTURE_W = 320f
 private const val SHUTDOWN_LINES = 3
 private const val SLIDE_MILLIS = 260
 private const val PAGE_MILLIS = 340
 private const val INTRO_MILLIS = 500
+/** How long the spotlight shows each of its turns. */
+private const val SPOTLIGHT_MILLIS = 7_000L
+private const val PENDING_DELAY_MILLIS = 150L

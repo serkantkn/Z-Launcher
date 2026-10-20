@@ -69,6 +69,9 @@ class MainActivity : FragmentActivity() {
          * one opened from the TV's own app list.
          */
         const val EXTRA_HOME_KEY = "home_key"
+
+        /** The remote's Home held down on a TV in the Xbox design: the guide, over whatever was on. */
+        const val EXTRA_OPEN_GUIDE = "open_guide"
     }
 
     private var currentVolumeBarStyle = VolumeBarStyle.WINDOWS_PHONE
@@ -156,6 +159,11 @@ class MainActivity : FragmentActivity() {
         handleSettingsIntent(intent)
         handleMessageIntent(intent)
         handleHubIntent(intent)
+        // Started by a held Home on a TV: the guide comes up with the launcher.
+        if (intent?.getBooleanExtra(EXTRA_OPEN_GUIDE, false) == true) {
+            intent.removeExtra(EXTRA_OPEN_GUIDE)
+            com.serkantkn.zunelauncher.ui.tv.XboxGuide.show()
+        }
         handleDialIntent(intent)
         handleWebIntent(intent)
         handleCallIntent(intent)
@@ -267,6 +275,11 @@ class MainActivity : FragmentActivity() {
     private fun handleHomeKey(intent: Intent?) {
         val isHome = intent?.action == Intent.ACTION_MAIN &&
             (intent.hasCategory(Intent.CATEGORY_HOME) || intent.getBooleanExtra(EXTRA_HOME_KEY, false))
+        if (intent?.getBooleanExtra(EXTRA_OPEN_GUIDE, false) == true) {
+            intent.removeExtra(EXTRA_OPEN_GUIDE)
+            com.serkantkn.zunelauncher.ui.tv.XboxGuide.show()
+            return
+        }
         if (isHome) com.serkantkn.zunelauncher.data.repository.HomeKeyBridge.press()
         // Seen once; a configuration change must not press it again.
         intent?.removeExtra(EXTRA_HOME_KEY)

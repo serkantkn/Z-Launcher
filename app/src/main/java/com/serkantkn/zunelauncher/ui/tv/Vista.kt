@@ -91,6 +91,11 @@ object TvDesign {
     private val _sounds = MutableStateFlow(true)
     val sounds: StateFlow<Boolean> = _sounds.asStateFlow()
 
+    /** True once attached on a television; everything here is a TV's alone. */
+    @Volatile
+    var onTv = false
+        private set
+
     /** Shown once each time the launcher starts, as Media Center's logo was. */
     @Volatile
     var splashShown = false
@@ -102,6 +107,9 @@ object TvDesign {
      */
     fun attach(context: Context) {
         if (prefs != null) return
+        // A phone keeps none of this: its keyboard's arrows must not tick.
+        if (!com.serkantkn.zunelauncher.ui.theme.isTelevision(context)) return
+        onTv = true
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs = p
         _vista.value = p.getBoolean(KEY_VISTA, false)
@@ -425,7 +433,7 @@ object VistaSounds {
     }
 
     fun play(context: Context, kind: Kind) {
-        if (!TvDesign.sounds.value) return
+        if (!TvDesign.onTv || !TvDesign.sounds.value) return
         val set = if (TvDesign.vista.value) ids else xboxIds
         val id = set[kind] ?: run { ready(context); set[kind] } ?: return
         val volume = if (kind == Kind.START) 0.8f else 0.6f

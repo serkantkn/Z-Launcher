@@ -1239,6 +1239,33 @@ fun LauncherScreen(
                         }
                     }
                 }
+                // The Xbox's guide, over Start or any hub (ui/tv/XboxGuidePanel).
+                if (isTv && !com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+                    val guideOpen by com.serkantkn.zunelauncher.ui.tv.XboxGuide.open.collectAsState()
+                    if (guideOpen) {
+                        val media by homeHubViewModel.nowPlaying.collectAsState()
+                        val hubShowing = navState.currentHub != null
+                        Box(modifier = Modifier.fillMaxSize().zIndex(BANNER_Z + 1f)) {
+                            com.serkantkn.zunelauncher.ui.tv.XboxGuidePanel(
+                                media = media,
+                                hubOpen = hubShowing,
+                                onOpenHub = { hub -> if (hub != HubType.HOME) navState.openHub(hub) },
+                                onClose = { com.serkantkn.zunelauncher.ui.tv.XboxGuide.hide() }
+                            )
+                        }
+                    }
+                    // Put away, the guide hands the remote back to what is under it.
+                    var guideWasOpen by remember { mutableStateOf(false) }
+                    LaunchedEffect(guideOpen) {
+                        if (guideWasOpen && !guideOpen) {
+                            kotlinx.coroutines.delay(GUIDE_FOCUS_BACK_MILLIS)
+                            val rescue = if (navState.currentHub != null) com.serkantkn.zunelauncher.ui.tv.TvFocus.hubRescue
+                            else com.serkantkn.zunelauncher.ui.tv.TvFocus.startRescue
+                            rescue?.invoke()
+                        }
+                        guideWasOpen = guideOpen
+                    }
+                }
                 // Media Center and the Xbox both opened on their logo, once each time they started.
                 if (isTv) {
                     var splashDone by remember { mutableStateOf(com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown) }
@@ -1266,6 +1293,9 @@ fun LauncherScreen(
 private const val TABLET_PAGE_TURN = 0.15f
 
 private const val BANNER_Z = 20f
+
+/** How long after the guide is put away the remote is handed back, the guide's window gone. */
+private const val GUIDE_FOCUS_BACK_MILLIS = 120L
 
 /** Vista's page zoom: how far the page going grows past, and how small the one coming starts. */
 private const val VISTA_PAGE_MILLIS = 380

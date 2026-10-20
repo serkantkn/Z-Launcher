@@ -193,6 +193,11 @@ tasarımdan biri seçilir, ana ekran ve bütün hub'lar onunla değişir:
   bir grup; kumandanın üstündeki karo büyüyüp aydınlanır, komşu bölümler kenarlarda soluk görünür. Sol altta
   düğmelerin ne yaptığı (Ⓐ seç Ⓑ geri), uygulamalarım sayfası uzun beyaz kartlarla, kapat menüsü beyaz listede yeşil
   seçimle. Hub'lar Xbox Music gibi: adı sağ üstte, bölümleri altında, komutları sol alttaki düğme açıklamalarında.
+  Ana sayfada sabitlenenler ve son kullanılanlar karoları; büyük karo yarıda kalan filmi, çalan albümü, son
+  fotoğrafı, hava durumunu ve manşeti sırayla gösterir; alttaki karolar son açtığın iki şeydir. Bir karoya ya da
+  uygulamaya basılı tutunca ayrıntı sayfası açılır: aç, ana sayfaya sabitle, öne taşı, uygulama bilgisi, kaldır;
+  yarıda kalan filmde devam et ya da baştan başla. Kumandanın menü tuşu (ya da Home'a uzun basış) Xbox rehberini
+  açar: son kullanılanlar, çalan müziği duraklatma ve geçme, hub'lar, uyku ve kapatma.
 - **Media Center.** Windows Vista'nın Media Center'ı, videosundan kare kare kopyalandı: solda soluk "başlat" yazısı,
   alt alta dönen kategoriler (Resimler + Videolar, Müzik, TV + Filmler, Uygulamalar, Bilgiler, Görevler), yerinden
   oynamayan cam bir kutu ve içinden kayan öğeler; program kitaplığı ve kapat penceresi. Kitaplıklarda ad sağ üstte

@@ -108,6 +108,11 @@ object TvFocus {
     /** Called for every key the launcher's windows receive. */
     fun onKey(view: android.view.View?, event: android.view.KeyEvent): Boolean {
         lastKeyAt = android.os.SystemClock.uptimeMillis()
+        // The menu key is the Xbox's guide button: it brings the guide up, or puts it away.
+        if (event.keyCode == android.view.KeyEvent.KEYCODE_MENU && TvDesign.onTv && !TvDesign.vista.value) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) XboxGuide.toggle()
+            return true
+        }
         if (event.action == android.view.KeyEvent.ACTION_DOWN) view?.context?.let { vistaSound(it, event) }
         if (event.action != android.view.KeyEvent.ACTION_DOWN || event.repeatCount != 0) return false
         when (event.keyCode) {
@@ -139,7 +144,7 @@ object TvFocus {
 
     /** Vista's tick for a move, chime for a choice, and its note for back; a held key ticks as it repeats. */
     private fun vistaSound(context: android.content.Context, event: android.view.KeyEvent) {
-        if (!TvDesign.sounds.value) return
+        if (!TvDesign.onTv || !TvDesign.sounds.value) return
         val kind = when (event.keyCode) {
             android.view.KeyEvent.KEYCODE_DPAD_UP,
             android.view.KeyEvent.KEYCODE_DPAD_DOWN,

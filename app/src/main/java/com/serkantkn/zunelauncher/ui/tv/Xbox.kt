@@ -215,17 +215,19 @@ fun XboxButtonGlyph(letter: String, color: Color, size: Dp = 22.dp) {
 
 private fun lerpWhite(c: Color, t: Float) = androidx.compose.ui.graphics.lerp(c, Color.White, t)
 
-/** "Ⓐ select  Ⓑ back", along the bottom left. */
+/** "Ⓐ select  Ⓑ back", along the bottom left; [hold] and [guide] add what a held press and ≡ do. */
 @Composable
-fun XboxLegend(back: Boolean = true, modifier: Modifier = Modifier) {
+fun XboxLegend(back: Boolean = true, modifier: Modifier = Modifier, hold: Boolean = false, guide: Boolean = false) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
         XboxLegendItem("A", Xbox.ButtonA, stringResource(R.string.xbox_select))
         if (back) XboxLegendItem("B", Xbox.ButtonB, stringResource(R.string.xbox_back))
+        if (hold) XboxLegendItem("A", Xbox.ButtonA, stringResource(R.string.xbox_hold_details))
+        if (guide) XboxLegendItem("≡", Color(0xFF6E7476), stringResource(R.string.xbox_guide))
     }
 }
 
 @Composable
-private fun XboxLegendItem(letter: String, color: Color, label: String) {
+internal fun XboxLegendItem(letter: String, color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         XboxButtonGlyph(letter, color)
         Spacer(modifier = Modifier.width(8.dp))

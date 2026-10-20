@@ -181,24 +181,22 @@ fun TvStartScreen(
             // The library is a page of its own, with its name where the clock stands.
             if (!libraryOpen) VistaClock(modifier = Modifier.align(Alignment.TopEnd).padding(top = 22.dp, end = 40.dp))
         } else {
-            // The Xbox 360's dashboard.
-            var appsOpen by remember { mutableStateOf(false) }
-            var shutdownOpen by remember { mutableStateOf(false) }
-            val sections = xboxSections(places, apps, onOpenHub, XboxActions({ appsOpen = true }, { shutdownOpen = true }))
+            // The Xbox 360's dashboard. Everything it can open is known by key, for pins, recent
+            // and the guide; opening a hub through it counts it as recently used.
+            remember(context) { XboxShelf.attach(context) }
+            val items = xboxItems(places, apps, live)
+            androidx.compose.runtime.SideEffect { XboxShelf.items.value = items }
             LaunchedEffect(homeResetSignal) {
                 delay(FIRST_FOCUS_DELAY_MILLIS)
                 if (!hubOpen) memory.focus(VISTA_KEY)
             }
             androidx.compose.runtime.CompositionLocalProvider(LocalTvFocusMemory provides memory) {
                 XboxStart(
-                    sections = sections,
+                    items = items,
                     apps = apps,
                     hubOpen = hubOpen,
                     homeResetSignal = homeResetSignal,
-                    appsOpen = appsOpen,
-                    onAppsOpen = { appsOpen = it },
-                    shutdownOpen = shutdownOpen,
-                    onShutdownOpen = { shutdownOpen = it },
+                    onOpenHub = onOpenHub,
                     focusModifier = Modifier.remembered(VISTA_KEY)
                 )
             }

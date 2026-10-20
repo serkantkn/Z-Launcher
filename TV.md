@@ -263,6 +263,25 @@ frame by frame from two videos (IGN's 2012 tour, a 10-minute walkthrough).
   the first section word, not the page's. Over other apps the notice needs the Home key service,
   which was off on the TV: it showed only inside the launcher, as the settings say.
 
+## Xbox: the guide, pins, recent, the spotlight, details (2026-10-21)
+
+- `ui/tv/XboxShelf.kt`: `XboxItem` (an app, a hub or the film left part way, by key "app:<pkg>",
+  "hub:<place>", "film:continue"; opening one counts it as recent), `XboxShelf` (pins in the
+  user's order, recent newest first; SharedPreferences), `XboxGuide` (open or not).
+- Home: "my pins" and "recent" down the left with pictures; the large tile is a spotlight turning
+  every 7 s through the film left part way, the album playing, the newest photo, the weather and
+  the top headline; the foot holds the last two things opened. A press acts on release; held,
+  it opens the thing's details page: open, pin to home / unpin, move to front, app info,
+  uninstall - or resume and start over for a film.
+- `ui/tv/XboxGuidePanel.kt`: the guide - upright tabs (apps, media, settings), a white list with
+  the chosen line green. Menu key opens and closes it anywhere in the launcher; Home held for
+  half a second (the accessibility service) brings the launcher forward with the guide up.
+- TV sounds and settings are a TV's alone now (`TvDesign.onTv`): a phone's keyboard arrows could
+  have ticked.
+- Tried on the TV emulator: spotlight turns, recent fills, pin/unpin from details (the tile's
+  word follows), pins page, guide from Start and from a hub (to pins, to pictures), Home held
+  (gRPC key 102) and short. Not tried: the film details (no film on the emulator), a real remote.
+
 ## Still to do
 
 1. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.
