@@ -116,6 +116,8 @@ object Xbox {
     /** A menu: its list, and the grey pane beside it. */
     val Panel = Color(0xFFE6EAEA)
     val PanelSide = Color(0xFF9BA2A4)
+    /** A question put to the user: dark, as the guide's panels were. */
+    val Dialog = Color(0xF2303435)
 
     /** The pad's buttons, as the legend at the bottom draws them. */
     val ButtonA = Color(0xFF63B82E)
@@ -336,6 +338,11 @@ fun XboxHub(
                                 if (byArrow && pager.currentPage != index) {
                                     onSelected(index)
                                     scope.launch { pager.scrollToPage(index) }
+                                } else if (!byArrow && pager.currentPage != index) {
+                                    // The focus fell here on its own - the row it was on went with a
+                                    // dialog - and not onto the page showing: it goes to that page's word.
+                                    runCatching { focus[pager.currentPage.coerceIn(0, focus.lastIndex)].requestFocus() }
+                                    return@XboxPivotWord
                                 }
                                 scope.launch { rowState.animateScrollToItem((position - 1).coerceAtLeast(0)) }
                             },
@@ -500,7 +507,8 @@ fun XboxDialogPanel(
                     .background(Color.Black.copy(alpha = 0.40f * progress))
                     .pointerInput(Unit) { detectTapGestures { onDismiss() } }
             )
-            XboxPanelBody(title, progress, focus, maxWidth, maxHeight, buttons, content)
+            // Dark, as the Xbox's guide and its messages were: the launcher's dialogs write white.
+            XboxPanelBody(title, progress, focus, maxWidth, maxHeight, buttons, dark = true, content = content)
             TvFocusFrame(modifier = Modifier.matchParentSize())
         }
     }
@@ -522,7 +530,7 @@ fun XboxPanel(title: String, onDismiss: () -> Unit, content: @Composable () -> U
                 .background(Color.Black.copy(alpha = 0.40f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
         )
-        XboxPanelBody(title, shown.value, focus, maxWidth, maxHeight, null) { content() }
+        XboxPanelBody(title, shown.value, focus, maxWidth, maxHeight, null, dark = false) { content() }
     }
 }
 
@@ -534,6 +542,7 @@ private fun BoxScope.XboxPanelBody(
     maxWidth: Dp,
     maxHeight: Dp,
     buttons: (@Composable RowScope.() -> Unit)?,
+    dark: Boolean,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
@@ -553,7 +562,7 @@ private fun BoxScope.XboxPanelBody(
             .drawBehind {
                 drawRect(Color.Black.copy(alpha = 0.25f), topLeft = Offset(0f, 8f), size = size)
             }
-            .background(Xbox.Panel)
+            .background(if (dark) Xbox.Dialog else Xbox.Panel)
             .pointerInput(Unit) { detectTapGestures { } }
             .padding(vertical = 14.dp)
     ) {
@@ -561,7 +570,7 @@ private fun BoxScope.XboxPanelBody(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge.copy(fontFamily = SelawikFamily, fontWeight = FontWeight.SemiBold, fontSize = 21.sp),
-                color = Xbox.Ink,
+                color = if (dark) Color.White else Xbox.Ink,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
@@ -580,7 +589,7 @@ private fun BoxScope.XboxPanelBody(
     }
 }
 
-/** An answer in an Xbox panel: a grey block, its word dark; the remote's frame turns it green. */
+/** An answer in an Xbox panel: a grey block; the one the remote is on turns green. */
 @Composable
 fun XboxDialogButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val source = remember { MutableInteractionSource() }
@@ -591,11 +600,11 @@ fun XboxDialogButton(text: String, onClick: () -> Unit, modifier: Modifier = Mod
             .widthIn(min = 140.dp)
             .height(40.dp)
             .tvOwnFocus()
-            .background(if (focused) Xbox.Green else Color(0xFFCCD2D3))
+            .background(if (focused) Xbox.Green else Color(0xFF4C5254))
             .clickable(interactionSource = source, indication = null, onClick = onClick)
             .padding(horizontal = 18.dp)
     ) {
-        Text(text, style = MaterialTheme.typography.titleMedium.copy(fontFamily = SelawikFamily, fontSize = 17.sp), color = if (focused) Color.White else Xbox.Ink, maxLines = 1)
+        Text(text, style = MaterialTheme.typography.titleMedium.copy(fontFamily = SelawikFamily, fontSize = 17.sp), color = Color.White, maxLines = 1)
     }
 }
 

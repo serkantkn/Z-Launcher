@@ -254,7 +254,14 @@ frame by frame from two videos (IGN's 2012 tour, a 10-minute walkthrough).
   the bottom in the middle. Windows 7's Start, strips and glow were removed.
 - Tried on the Google TV emulator: every section, my apps, settings tiles, turn off, music,
   pictures (with its panel), clock, settings and its pages, switching to Media Center and back,
-  the phone notice (paired from a script speaking the link's protocol). The Mi TV was asleep.
+  the phone notice (paired from a script speaking the link's protocol).
+- Then on the Mi TV (woken over the network): Start, every section, my apps (11 apps), pictures,
+  files, settings, the notice. Frames while the remote moves: 10 ms at the median, none when idle.
+  Found and fixed: up from the large tile went to a small tile beside it instead of the section
+  words (only tiles in line count now); a dialog's words were white on the Xbox's white panel
+  (dialogs are dark now, as the guide's were); after a dialog took its row away the focus fell on
+  the first section word, not the page's. Over other apps the notice needs the Home key service,
+  which was off on the TV: it showed only inside the launcher, as the settings say.
 
 ## Still to do
 

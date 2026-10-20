@@ -320,10 +320,12 @@ internal fun XboxStart(
             val ddy = t.cy - from.cy
             val along = if (dx != 0) ddx * dx else ddy * dy
             if (along <= 4f) return@forEachIndexed
-            // Overlapping across the way of travel counts for much more than distance.
+            // Only a tile in line with this one, as on the dashboard: up from the large tile goes
+            // onto the section words, not off to a small tile beside it.
             val overlap = if (dx != 0) !(t.y + t.h <= from.y + 1 || t.y >= from.y + from.h - 1) else !(t.x + t.w <= from.x + 1 || t.x >= from.x + from.w - 1)
+            if (!overlap) return@forEachIndexed
             val across = if (dx != 0) abs(ddy) else abs(ddx)
-            val score = along + across * 2f + if (overlap) 0f else 10_000f
+            val score = along + across * 2f
             if (score < bestScore) {
                 bestScore = score
                 best = i

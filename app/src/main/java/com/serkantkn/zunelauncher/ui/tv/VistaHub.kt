@@ -142,6 +142,11 @@ fun VistaHub(
                                 if (byArrow && pager.currentPage != index) {
                                     onSelected(index)
                                     scope.launch { pager.scrollToPage(index) }
+                                } else if (!byArrow && pager.currentPage != index) {
+                                    // The focus fell here on its own - the row it was on went with a
+                                    // dialog - and not onto the page showing: it goes to that page's word.
+                                    runCatching { focus[pager.currentPage.coerceIn(0, focus.lastIndex)].requestFocus() }
+                                    return@VistaPivotWord
                                 }
                                 scope.launch { rowState.animateScrollToItem((position - 1).coerceAtLeast(0)) }
                             },
