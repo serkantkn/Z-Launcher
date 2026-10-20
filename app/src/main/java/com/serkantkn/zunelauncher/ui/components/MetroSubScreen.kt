@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -154,7 +155,9 @@ fun MetroTextField(
     keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
     keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
     /** A search box: on a television it takes the remote as it appears, and the keyboard opens. */
-    search: Boolean = false
+    search: Boolean = false,
+    /** The words typed: the page's own colour, or white inside a dialog, which is always dark. */
+    textColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified
 ) {
     val zuneColors = LocalZuneColors.current
     val takeFocus = search && com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
@@ -179,7 +182,7 @@ fun MetroTextField(
             onValueChange = onValueChange,
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge.copy(
-                color = MaterialTheme.colorScheme.onBackground
+                color = textColor.takeOrElse { MaterialTheme.colorScheme.onBackground }
             ),
             cursorBrush = SolidColor(zuneColors.accentColor),
             keyboardOptions = keyboardOptions,

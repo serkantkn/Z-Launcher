@@ -67,6 +67,13 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
         bindTimeText()
         rearmClock()
         sealLockedNotes()
+        // A TV listens for its paired phones from the start (data/link); a phone does nothing here.
+        if (com.serkantkn.zunelauncher.ui.theme.isTelevision(this)) {
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                runCatching { com.serkantkn.zunelauncher.data.link.TvLink.start(this@ZuneLauncherApp) }
+                    .onFailure { ZuneLog.w("ZuneLauncherApp", "the phone link could not start", it) }
+            }
+        }
     }
 
     /**

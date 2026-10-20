@@ -70,6 +70,9 @@
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <!-- The action center: Wi-Fi and Bluetooth state for its squares, brightness and rotation lock. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- The phone link finds a TV on the Wi-Fi by mDNS, which needs multicast. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <!-- Only for the names of the Bluetooth devices connected now, on the connections page; the
          launcher never scans, pairs or connects. -->
@@ -211,6 +214,23 @@
             <intent-filter>
                 <action android:name="com.serkantkn.zunelauncher.CALL_ANSWER" />
                 <action android:name="com.serkantkn.zunelauncher.CALL_DECLINE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- The phone link (data/link): who is calling or writing, told to a paired TV. -->
+        <receiver
+            android:name=".data.link.PhoneLinkCallReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PHONE_STATE" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".data.link.PhoneLinkSmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
 

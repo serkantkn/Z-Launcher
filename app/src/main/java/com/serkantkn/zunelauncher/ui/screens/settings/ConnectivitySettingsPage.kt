@@ -89,6 +89,11 @@ internal fun ConnectivitySettingsPage() {
     val open = { page: Page -> Connections.open(context, page) }
 
     SettingsLazyColumn {
+        // The phone link: on a TV, the phones that tell it of calls and messages; on a phone,
+        // the TVs it tells (data/link).
+        item(key = "link") {
+            if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) TvLinkGroup() else PhoneLinkGroup()
+        }
         item(key = "wireless") {
             SettingGroup(title = stringResource(R.string.settings_wireless)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

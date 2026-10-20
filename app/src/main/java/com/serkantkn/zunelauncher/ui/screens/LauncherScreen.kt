@@ -1227,6 +1227,17 @@ fun LauncherScreen(
                         modifier = Modifier.fillMaxSize().zIndex(TV_FOCUS_Z)
                     )
                 }
+                // A paired phone's call or message, when it cannot have a window of its own over
+                // other apps: Start shows it while it is on the screen (data/link).
+                if (isTv) {
+                    val linkShown by com.serkantkn.zunelauncher.data.link.TvLinkNotices.shown.collectAsState()
+                    val linkInWindow by com.serkantkn.zunelauncher.data.link.TvLinkNotices.inWindow.collectAsState()
+                    if (!linkInWindow && linkShown != null) {
+                        Box(modifier = Modifier.fillMaxSize().zIndex(BANNER_Z), contentAlignment = Alignment.BottomEnd) {
+                            com.serkantkn.zunelauncher.ui.tv.TvLinkNoticeCard(linkShown)
+                        }
+                    }
+                }
                 // Vista's Media Center opened on its logo, once each time it started.
                 if (isTv) {
                     var splashDone by remember { mutableStateOf(com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown || !vistaTv) }

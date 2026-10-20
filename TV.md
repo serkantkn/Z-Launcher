@@ -208,8 +208,29 @@ media center), copied from a video of Vista's own (youtu.be/PpDe5JZOYCo), Start 
 - The sounds play (the TV's audio service lists Z Launcher's SoundPool starting at each press).
   "Turn off TV" and "sleep" were not pressed: they would have turned the TV off.
 
+## The phone link (2026-10-20)
+
+A phone running Z Launcher tells a paired TV on the same Wi-Fi who is calling or writing; the TV
+shows it in its bottom right corner, over whatever is on. No server.
+
+- `data/link/`: `LinkProtocol` (length-prefixed JSON over one short TCP connection, the pairing
+  handshake, sealed notices), `LinkCrypto` (P-256 ECDH, HKDF with the 6-digit code mixed in, a
+  proof from each side, AES-GCM; keys at rest wrapped by the Android Keystore), `LinkStore`
+  (own id, peers, switches; SharedPreferences), `TvLink` (listens on 52741, advertised by NSD as
+  `_zlauncher._tcp`; one try per code; drops old or replayed notices), `PhoneLink` (finds TVs by
+  NSD or a typed address, pairs, announces to every paired TV), `PhoneLinkReceivers` (PHONE_STATE
+  for ringing/answered/missed, SMS_RECEIVED, and other apps' message notifications through the
+  existing notification listener), `TvLinkNotices` (the corner window: accessibility overlay or
+  "over other apps"; Start shows it when neither is possible).
+- Settings → connections: on a TV "phone link" (show notices, add a phone with a code, the phones
+  added); on a phone "TV link" (send or not; calls, SMS, other apps, the message text - off by
+  default; add a TV; the TVs added).
+- Tried with the phone emulator and the Mi TV: pairing by typed address (the emulator cannot see
+  the LAN's mDNS), a wrong code refused and the code spent, SMS without and with text, a call
+  ringing (gone when answered), a missed call, a notice over YouTube, removing the phone (its
+  next message not shown). Not tried: NSD discovery from a real phone, the Windows 7 look of the
+  card, other apps' messages (needs notification access on the phone).
+
 ## Still to do
 
-1. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs
-   "display over other apps" on the TV), the settings on both sides.
-2. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.
+1. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.

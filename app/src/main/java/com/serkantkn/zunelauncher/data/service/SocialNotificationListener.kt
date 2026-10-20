@@ -87,6 +87,8 @@ class SocialNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        // A message from another app, for a TV paired with this phone (data/link).
+        runCatching { com.serkantkn.zunelauncher.data.link.PhoneLinkAppMessages.onPosted(this, sbn) }
         if (com.serkantkn.zunelauncher.util.Pro.unlocked) {
             if (isSocialSource(sbn)) {
                 processAndAddNotification(sbn, announce = true)
