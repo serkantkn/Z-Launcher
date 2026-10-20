@@ -195,6 +195,19 @@ media center), copied from a video of Vista's own (youtu.be/PpDe5JZOYCo), Start 
 - Tried on the emulator (the TV was off): every strip, the program library, shutdown, settings and
   their pages, pictures with viewer and panel, music, weather, news, clock, files, switching both ways.
 
+### On the Mi TV (2026-10-20)
+
+- Every strip, the program library (11 apps, "8 | 11"), pictures, settings and switching work.
+- Speed: Start was 109 ms a frame while the remote moved - the ground's four full-screen
+  gradients, drawn again every frame (77 ms), and the rays' slow drift, which also kept the TV
+  drawing while nothing moved. The ground and rays are now one picture drawn once, and still:
+  Vista's Start 20 ms a frame at the median, nothing drawn while idle. Windows 7's ground had the
+  same fault; drawn once too, its Start went from 48 to 22 ms.
+- A library's first focus went to its first link (the launcher's fallback) when the word was
+  asked for while the hub was still zooming in; it is now asked for until a word has it.
+- The sounds play (the TV's audio service lists Z Launcher's SoundPool starting at each press).
+  "Turn off TV" and "sleep" were not pressed: they would have turned the TV off.
+
 ## Still to do
 
 1. **The phone link**: pairing, discovery (NSD), the encrypted channel, the corner notice (needs

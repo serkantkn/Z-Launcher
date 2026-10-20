@@ -92,32 +92,63 @@ fun MediaCenterBackground(modifier: Modifier = Modifier, content: @Composable Bo
         VistaBackground(modifier = modifier, content = content)
         return
     }
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(MediaCenter.Top, MediaCenter.Bottom)))
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            // The band: a wide, faint sweep of light from the left, as on Media Center's own.
-            drawRect(
-                brush = Brush.linearGradient(
-                    0f to Color.Transparent,
-                    0.45f to MediaCenter.Sheen.copy(alpha = 0.16f),
-                    0.55f to MediaCenter.Sheen.copy(alpha = 0.10f),
-                    1f to Color.Transparent,
-                    start = Offset(0f, size.height * 0.25f),
-                    end = Offset(size.width, size.height * 0.75f)
-                )
+    // Drawn once into a picture: full-screen gradients drawn again every frame cost a slow TV
+    // most of each frame while the remote moved (Vista's ground: 77 ms of 91 on the Mi TV).
+    val ground by androidx.compose.runtime.produceState(initialValue = MediaCenterGroundCache.bitmap) {
+        if (value == null) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { MediaCenterGroundCache.draw() }
+    }
+    Box(modifier = modifier.fillMaxSize().background(MediaCenter.Bottom)) {
+        val picture = ground
+        if (picture != null) {
+            androidx.compose.foundation.Image(
+                bitmap = picture,
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize()
             )
-            drawRect(
-                brush = Brush.radialGradient(
-                    listOf(MediaCenter.Sheen.copy(alpha = 0.18f), Color.Transparent),
-                    center = Offset(size.width * 0.15f, size.height * 0.1f),
-                    radius = size.width * 0.6f
-                )
-            )
+        } else {
+            Canvas(modifier = Modifier.fillMaxSize()) { drawMediaCenterGround() }
         }
         content()
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMediaCenterGround() {
+    drawRect(Brush.verticalGradient(listOf(MediaCenter.Top, MediaCenter.Bottom)))
+    // The band: a wide, faint sweep of light from the left, as on Media Center's own.
+    drawRect(
+        brush = Brush.linearGradient(
+            0f to Color.Transparent,
+            0.45f to MediaCenter.Sheen.copy(alpha = 0.16f),
+            0.55f to MediaCenter.Sheen.copy(alpha = 0.10f),
+            1f to Color.Transparent,
+            start = Offset(0f, size.height * 0.25f),
+            end = Offset(size.width, size.height * 0.75f)
+        )
+    )
+    drawRect(
+        brush = Brush.radialGradient(
+            listOf(MediaCenter.Sheen.copy(alpha = 0.18f), Color.Transparent),
+            center = Offset(size.width * 0.15f, size.height * 0.1f),
+            radius = size.width * 0.6f
+        )
+    )
+}
+
+private object MediaCenterGroundCache {
+    @Volatile
+    var bitmap: androidx.compose.ui.graphics.ImageBitmap? = null
+
+    fun draw(): androidx.compose.ui.graphics.ImageBitmap {
+        bitmap?.let { return it }
+        val out = androidx.compose.ui.graphics.ImageBitmap(960, 540)
+        androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
+            androidx.compose.ui.unit.Density(1f),
+            androidx.compose.ui.unit.LayoutDirection.Ltr,
+            androidx.compose.ui.graphics.Canvas(out),
+            androidx.compose.ui.geometry.Size(960f, 540f)
+        ) { drawMediaCenterGround() }
+        return out.also { bitmap = it }
     }
 }
 

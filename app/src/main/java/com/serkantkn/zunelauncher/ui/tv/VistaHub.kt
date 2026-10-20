@@ -44,6 +44,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -93,11 +96,17 @@ fun VistaHub(
     val focus = remember(tabs.size) { List(tabs.size) { FocusRequester() } }
     val rowState = rememberLazyListState()
 
+    // The remote starts on the word of the page showing. A request made while the hub is still
+    // zooming in can come to nothing, and the launcher then hands the hub's first stop - a link
+    // above the words - the focus; so this asks until a word really has it, or the remote moves.
+    var wordFocused by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
+        val since = android.os.SystemClock.uptimeMillis()
         delay(FIRST_FOCUS_MILLIS)
         repeat(FOCUS_TRIES) {
-            val at = pager.currentPage.coerceIn(0, (tabs.size - 1).coerceAtLeast(0))
-            if (tabs.isEmpty() || runCatching { focus[at].requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+            if (tabs.isEmpty() || wordFocused || TvFocus.lastArrowAt > since) return@LaunchedEffect
+            val at = pager.currentPage.coerceIn(0, tabs.size - 1)
+            runCatching { focus[at].requestFocus() }
             delay(FOCUS_RETRY_MILLIS)
         }
     }
@@ -122,7 +131,9 @@ fun VistaHub(
                         VistaPivotWord(
                             text = tabs[index],
                             chosen = pager.currentPage == index,
-                            modifier = Modifier.focusRequester(focus[index]),
+                            modifier = Modifier
+                                .focusRequester(focus[index])
+                                .onFocusChanged { if (it.isFocused) wordFocused = true },
                             onFocused = {
                                 val byArrow = android.os.SystemClock.uptimeMillis() - TvFocus.lastArrowAt < ARROW_RECENT_MILLIS
                                 if (byArrow && pager.currentPage != index) {
@@ -289,7 +300,7 @@ private val TOP = 68.dp
 private val LINK_ROW_HEIGHT = 30.dp
 private val NAV_WIDTH = 220.dp
 private const val FIRST_FOCUS_MILLIS = 250L
-private const val FOCUS_TRIES = 15
+private const val FOCUS_TRIES = 25
 private const val FOCUS_RETRY_MILLIS = 100L
 private const val ARROW_RECENT_MILLIS = 400L
 

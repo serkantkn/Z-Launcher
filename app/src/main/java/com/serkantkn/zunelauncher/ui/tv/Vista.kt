@@ -4,10 +4,6 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -160,34 +156,24 @@ fun vistaTypography(base: androidx.compose.material3.Typography): androidx.compo
 /**
  * Vista Media Center's ground: navy darkest in the top left, lit in the middle, the light pooling
  * low on the right, and soft rays sweeping up from the bottom left across it. The rays are drawn
- * once into a picture and only drift - a slow television cannot repaint blurred light every frame.
+ * once into a picture - a slow television cannot repaint blurred light every frame.
  */
 @Composable
 fun VistaBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit = {}) {
-    val drift = rememberInfiniteTransition(label = "vistaDrift")
-    val phase by drift.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(DRIFT_MILLIS, easing = LinearEasing), RepeatMode.Reverse),
-        label = "vistaPhase"
-    )
+    // Still, not drifting: a TV repainting the whole screen every frame for a slow sway of light
+    // had nothing left for the remote - Start ran at a frame every 109 ms on the Mi TV.
     Box(modifier = modifier.fillMaxSize().background(Vista.Top)) {
-        Canvas(modifier = Modifier.fillMaxSize()) { drawVistaGround() }
-        val rays = vistaRays()
+        // The ground and its rays are one picture, drawn once: four full-screen gradients drawn
+        // again each frame cost the Mi TV 77 ms of every one while the remote moved.
+        val ground = vistaRays()
+        if (ground == null) Canvas(modifier = Modifier.fillMaxSize()) { drawVistaGround() }
+        val rays = ground
         if (rays != null) {
             Image(
                 bitmap = rays,
                 contentDescription = null,
                 contentScale = ContentScale.FillBounds,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = (phase - 0.5f) * size.width * 0.04f
-                        translationY = (0.5f - phase) * size.height * 0.02f
-                        scaleX = 1.06f
-                        scaleY = 1.06f
-                        alpha = 0.85f + 0.15f * phase
-                    }
+                modifier = Modifier.fillMaxSize()
             )
         }
         content()
@@ -222,7 +208,7 @@ private fun DrawScope.drawVistaGround() {
     )
 }
 
-/** The rays, drawn once at half size, blurred, kept for the life of the process. */
+/** The ground and its rays, drawn once at half size, the rays blurred, kept for the life of the process. */
 @Composable
 private fun vistaRays(): ImageBitmap? {
     val bitmap by produceState<ImageBitmap?>(initialValue = VistaRaysCache.bitmap) {
@@ -243,6 +229,13 @@ private object VistaRaysCache {
         val h = 540
         val out = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
         val canvas = android.graphics.Canvas(out)
+        // The ground first, as drawVistaGround draws it.
+        androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
+            androidx.compose.ui.unit.Density(1f),
+            androidx.compose.ui.unit.LayoutDirection.Ltr,
+            androidx.compose.ui.graphics.Canvas(canvas),
+            Size(w.toFloat(), h.toFloat())
+        ) { drawVistaGround() }
         val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
         // Each ray: a long curved band from the bottom left up across to the right.
         class Ray(val x0: Float, val y0: Float, val cx: Float, val cy: Float, val x1: Float, val y1: Float, val width: Float, val alpha: Int, val blur: Float)
@@ -430,7 +423,6 @@ object VistaSounds {
     }
 }
 
-private const val DRIFT_MILLIS = 24_000
 
 // ── Settings' controls ─────────────────────────────────────────────────────────────────────
 
@@ -473,3 +465,4 @@ fun VistaCheck(checked: Boolean, modifier: Modifier = Modifier) {
         }
     }
 }
+
