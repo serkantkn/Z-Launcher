@@ -1,6 +1,7 @@
 package com.serkantkn.zunelauncher.ui.components
 
 import androidx.compose.foundation.focusGroup
+import com.serkantkn.zunelauncher.ui.tv.tvIdleKeys
 import androidx.compose.ui.focus.focusRequester
 import com.serkantkn.zunelauncher.ui.tv.tvTake
 import com.serkantkn.zunelauncher.ui.tv.vistaGlass
@@ -139,7 +140,7 @@ fun ZuneFlipDialog(
             dismissOnClickOutside = true
         )
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().tvIdleKeys()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -252,7 +253,7 @@ private fun VistaDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true, dismissOnClickOutside = true)
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().tvIdleKeys()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()

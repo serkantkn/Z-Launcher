@@ -499,6 +499,12 @@ internal fun XboxStart(
         else -> null
     }
 
+    // A page's list can shrink under the remote - "move to front" goes once the thing is first,
+    // a card goes when it is unpinned - and the remote must stay on something.
+    val pageNow = page
+    val cardCount = (pageNow as? XboxPage.Cards)?.let { cards(it.kind).size }
+    LaunchedEffect(cardCount) { cardCount?.let { cardAt = cardAt.coerceIn(0, (it - 1).coerceAtLeast(0)) } }
+
     val texts = XboxCommandTexts(
         open = stringResource(R.string.xbox_open),
         resume = stringResource(R.string.xbox_resume),
@@ -548,6 +554,9 @@ internal fun XboxStart(
             }
         }
     }
+
+    val commandCount = (pageNow as? XboxPage.Detail)?.let { commands(it.item).size }
+    LaunchedEffect(commandCount) { commandCount?.let { commandAt = commandAt.coerceIn(0, (it - 1).coerceAtLeast(0)) } }
 
     /** The tile in the way of travel: only one in line with this one, the nearest. */
     fun neighbour(tiles: List<XboxTile>, from: XboxTile, dx: Int, dy: Int): Int? {
@@ -616,10 +625,12 @@ internal fun XboxStart(
             }
         }
     }
-    fun hold() {
-        val item = current() ?: return
+    /** Opens the details of what the remote is on; false where there are none, so the press still counts. */
+    fun hold(): Boolean {
+        val item = current() ?: return false
         commandAt = 0
         push(XboxPage.Detail(item))
+        return true
     }
     /** Ⓨ: on my pins, move to front; anywhere else, pin or unpin. */
     fun yButton() {
@@ -757,10 +768,9 @@ internal fun XboxStart(
             Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
                 // A press acts when it is let go; held, it opens the details instead.
                 if (down) {
-                    if (event.nativeKeyEvent.repeatCount >= 1 && !held) {
-                        held = true
-                        hold()
-                    }
+                    // Held on something with no details (an action of the dashboard's own), the
+                    // press stays a press and acts when let go.
+                    if (event.nativeKeyEvent.repeatCount >= 1 && !held && hold()) held = true
                 } else {
                     if (held) held = false else choose()
                 }

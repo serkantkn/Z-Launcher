@@ -339,6 +339,27 @@ frame by frame from two videos (IGN's 2012 tour, a 10-minute walkthrough).
 - Found while testing: the emulator's keyboard, left up when the app was stopped with the search
   box open, kept eating the arrows until it was stopped. An emulator state, not the launcher's.
 
+## An outside review (Gemini, 2026-10-21)
+
+Gemini 4 Argon read the TV / Xbox diff (Antigravity CLI, plan mode, read only) and reported 14
+findings. Checked one by one against the code, four were real and are fixed:
+
+- A held centre press on a tile with no details (pins, recent, shuffle, the settings actions, the
+  profile) was eaten: `hold()` now says whether it opened anything, and the press stays a press.
+- A details page whose "move to front" went once the thing was first, and a page of cards
+  shrinking under the remote, left the remote on nothing: `commandAt` / `cardAt` are kept in range.
+- The guide key in the video player opened the guide unseen in the launcher behind it: it now
+  counts only while the launcher is resumed.
+- A dialog is a window of its own and its keys never passed `MainActivity`: `tvIdleKeys()` lets
+  them count as the remote in use and wake the screen.
+
+The rest did not hold: code that does not exist (a UDP socket in the phone link, an RSS reader in
+`TvAppNews`, visualizer bars), the woken key's release said to slip through (it is swallowed), the
+screensaver said to run behind other apps (it waits for `TvIdle.resumed`), a hard-coded channel
+name that is not there. Two were left as debatable: the music hub not turning to "albums" when an
+album is opened from search on a TV, and a slide show asked for before the pictures can be read
+waiting until they can.
+
 ## Still to do
 
 1. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.

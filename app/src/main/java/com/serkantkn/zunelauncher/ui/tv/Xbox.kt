@@ -566,7 +566,7 @@ fun XboxDialogPanel(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true, dismissOnClickOutside = true)
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().tvIdleKeys()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()

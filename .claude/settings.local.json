@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(agy:*)",
+      "Bash(cd /Users/serkan/AndroidStudioProjects/ZuneLauncher-audit && agy:*)"
+    ]
+  }
+}

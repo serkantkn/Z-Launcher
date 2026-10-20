@@ -111,7 +111,9 @@ object TvFocus {
         // The menu key is the Xbox's guide button: it brings the guide up, or puts it away.
         // So is a gamepad's own guide button.
         val guideKey = event.keyCode == android.view.KeyEvent.KEYCODE_MENU || event.keyCode == android.view.KeyEvent.KEYCODE_BUTTON_MODE
-        if (guideKey && TvDesign.onTv && !TvDesign.vista.value) {
+        // Only while the launcher is on the screen: in the video player the guide would open
+        // unseen behind it.
+        if (guideKey && TvDesign.onTv && !TvDesign.vista.value && TvIdle.resumed) {
             if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) XboxGuide.toggle()
             return true
         }

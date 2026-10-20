@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -151,6 +152,14 @@ internal object TvIdle {
     private fun passesThrough(code: Int) = KeyEvent.isMediaSessionKey(code) ||
         code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN || code == KeyEvent.KEYCODE_VOLUME_MUTE
 }
+
+/**
+ * For a dialog, which is a window of its own and whose keys never pass the activity: they still
+ * count as the remote in use, and still wake the screen.
+ */
+fun Modifier.tvIdleKeys(): Modifier = this.then(
+    Modifier.onPreviewKeyEvent { TvIdle.onKey(it.nativeKeyEvent) }
+)
 
 /** Keeps the screensaver away while [active]: a slide show is a screensaver of its own. */
 @Composable
