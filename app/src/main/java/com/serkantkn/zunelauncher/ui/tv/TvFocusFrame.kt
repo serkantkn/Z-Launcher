@@ -28,7 +28,8 @@ import kotlinx.coroutines.delay
  *
  * The hubs were made for fingers: a row is pressed, not pointed at, and most of them deliberately
  * draw nothing when touched (Metro leans instead). On a television the focus is the only pointer
- * there is, so this draws the Xbox's white frame round whatever holds it - every row, heading,
+ * there is, so this marks whatever holds it - Vista's pane of glass, or the Xbox's lift and green
+ * edge - - every row, heading,
  * bar command and tile - without each of them having to learn to. Android tells where the focused
  * thing is ([android.view.View.getFocusedRect]); the frame follows it frame by frame while the
  * remote is in use (lists scroll after a press), and checks a few times a second otherwise.
@@ -72,34 +73,21 @@ fun TvFocusFrame(modifier: Modifier = Modifier) {
             )
             return@Canvas
         }
-        // Media Center's highlight: a soft blue glow round the thing, a bright edge and a faint
-        // wash of light over it, the corners a little rounded.
-        val out = FRAME_OUTSET.toPx()
-        val radius = androidx.compose.ui.geometry.CornerRadius(CORNER.toPx())
-        val glowSteps = 5
-        for (step in glowSteps downTo 1) {
-            val spread = out + step * GLOW_STEP.toPx()
-            drawRoundRect(
-                color = MediaCenter.Glow.copy(alpha = 0.06f * (glowSteps - step + 1)),
-                topLeft = Offset(box.left - spread, box.top - spread),
-                size = Size(box.width + spread * 2, box.height + spread * 2),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius.x + step * GLOW_STEP.toPx()),
-                style = Stroke(width = GLOW_STEP.toPx() * 1.5f)
+        // The Xbox's: whatever the remote is on stands out of the page on a shadow, edged in its
+        // green and a little lighter.
+        val outX = XBOX_OUTSET.toPx()
+        val tl = Offset(box.left - outX, box.top - outX)
+        val sz = Size(box.width + outX * 2, box.height + outX * 2)
+        for (step in 1..4) {
+            val spread = step * 2.dp.toPx()
+            drawRect(
+                Color.Black.copy(alpha = 0.06f),
+                topLeft = tl + Offset(-spread / 2, spread),
+                size = Size(sz.width + spread, sz.height + spread / 2)
             )
         }
-        drawRoundRect(
-            color = Color.White.copy(alpha = 0.10f),
-            topLeft = Offset(box.left - out, box.top - out),
-            size = Size(box.width + out * 2, box.height + out * 2),
-            cornerRadius = radius
-        )
-        drawRoundRect(
-            color = MediaCenter.Glow,
-            topLeft = Offset(box.left - out, box.top - out),
-            size = Size(box.width + out * 2, box.height + out * 2),
-            cornerRadius = radius,
-            style = Stroke(width = FRAME_WIDTH.toPx())
-        )
+        drawRect(Color.White.copy(alpha = 0.10f), topLeft = tl, size = sz)
+        drawRect(Xbox.GreenLit, topLeft = tl, size = sz, style = Stroke(width = XBOX_EDGE.toPx()))
     }
 }
 
@@ -151,7 +139,7 @@ object TvFocus {
 
     /** Vista's tick for a move, chime for a choice, and its note for back; a held key ticks as it repeats. */
     private fun vistaSound(context: android.content.Context, event: android.view.KeyEvent) {
-        if (!TvDesign.vista.value || !TvDesign.sounds.value) return
+        if (!TvDesign.sounds.value) return
         val kind = when (event.keyCode) {
             android.view.KeyEvent.KEYCODE_DPAD_UP,
             android.view.KeyEvent.KEYCODE_DPAD_DOWN,
@@ -211,12 +199,10 @@ fun Modifier.tvOwnFocus(): Modifier = composed {
     }
 }
 
-private val FRAME_WIDTH = 2.dp
 private val VISTA_OUTSET = 3.dp
+private val XBOX_OUTSET = 3.dp
+private val XBOX_EDGE = 3.dp
 private val LARGE_FOCUS = 120.dp
-private val FRAME_OUTSET = 4.dp
-private val CORNER = 6.dp
-private val GLOW_STEP = 3.dp
 private const val BUSY_MILLIS = 900L
 private const val IDLE_MILLIS = 120L
 

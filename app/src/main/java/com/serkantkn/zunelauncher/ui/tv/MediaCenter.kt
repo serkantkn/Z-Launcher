@@ -60,13 +60,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Windows Media Center, as every hub stands on a television.
+ * How every hub stands on a television: the doors the rest of the launcher goes through, each
+ * opening onto the design chosen in settings - Media Center (Windows Vista's, [Vista]) or the
+ * Xbox 360's dashboard ([Xbox]).
  *
- * Media Center was Windows' ten-foot interface: deep blue, a library's name small in the corner,
- * its ways in (albums, artists, genres...) as one row of words across the top that the remote
- * runs along, and what the chosen one holds filling the rest. Whatever the remote is on glows.
- * The commands a phone keeps in its bar stand in a strip along the foot, words beside their
- * icons, the way Media Center's own transport and task strips read.
+ * These colours are what is left of Windows 7's Media Center, which the Xbox replaced; a few
+ * places still read them for a blue that goes with either design.
  */
 object MediaCenter {
     /** The blue it was known by, top and bottom of its gradient. */
@@ -82,81 +81,20 @@ object MediaCenter {
     val Strip = Color(0xFF06204A)
 }
 
-/**
- * Media Center's ground: the deep blue, darker towards the foot, with the soft band of light
- * that ran across it.
- */
+/** A TV's ground: Media Center's blue with its rays, or the Xbox's greys. */
 @Composable
 fun MediaCenterBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit = {}) {
     if (LocalVista.current) {
         VistaBackground(modifier = modifier, content = content)
         return
     }
-    // Drawn once into a picture: full-screen gradients drawn again every frame cost a slow TV
-    // most of each frame while the remote moved (Vista's ground: 77 ms of 91 on the Mi TV).
-    val ground by androidx.compose.runtime.produceState(initialValue = MediaCenterGroundCache.bitmap) {
-        if (value == null) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { MediaCenterGroundCache.draw() }
-    }
-    Box(modifier = modifier.fillMaxSize().background(MediaCenter.Bottom)) {
-        val picture = ground
-        if (picture != null) {
-            androidx.compose.foundation.Image(
-                bitmap = picture,
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Canvas(modifier = Modifier.fillMaxSize()) { drawMediaCenterGround() }
-        }
-        content()
-    }
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMediaCenterGround() {
-    drawRect(Brush.verticalGradient(listOf(MediaCenter.Top, MediaCenter.Bottom)))
-    // The band: a wide, faint sweep of light from the left, as on Media Center's own.
-    drawRect(
-        brush = Brush.linearGradient(
-            0f to Color.Transparent,
-            0.45f to MediaCenter.Sheen.copy(alpha = 0.16f),
-            0.55f to MediaCenter.Sheen.copy(alpha = 0.10f),
-            1f to Color.Transparent,
-            start = Offset(0f, size.height * 0.25f),
-            end = Offset(size.width, size.height * 0.75f)
-        )
-    )
-    drawRect(
-        brush = Brush.radialGradient(
-            listOf(MediaCenter.Sheen.copy(alpha = 0.18f), Color.Transparent),
-            center = Offset(size.width * 0.15f, size.height * 0.1f),
-            radius = size.width * 0.6f
-        )
-    )
-}
-
-private object MediaCenterGroundCache {
-    @Volatile
-    var bitmap: androidx.compose.ui.graphics.ImageBitmap? = null
-
-    fun draw(): androidx.compose.ui.graphics.ImageBitmap {
-        bitmap?.let { return it }
-        val out = androidx.compose.ui.graphics.ImageBitmap(960, 540)
-        androidx.compose.ui.graphics.drawscope.CanvasDrawScope().draw(
-            androidx.compose.ui.unit.Density(1f),
-            androidx.compose.ui.unit.LayoutDirection.Ltr,
-            androidx.compose.ui.graphics.Canvas(out),
-            androidx.compose.ui.geometry.Size(960f, 540f)
-        ) { drawMediaCenterGround() }
-        return out.also { bitmap = it }
-    }
+    XboxBackground(modifier = modifier, content = content)
 }
 
 /**
- * A hub as a Media Center library: [title] small at the top left, [tabs] in one row under it,
- * the chosen page below. Moving along the row turns the page as the remote passes, without a
- * press; down goes into the page. [navExtra] (a hub's folders, albums) stands down the left of
- * the page, [sidePane] down its right, and [pane] beside it when something is open.
+ * A hub on a TV: [tabs] in one row the remote runs along (moving along turns the page), the page
+ * below; [navExtra] (a hub's folders, albums) down the left of the page, [sidePane] down its
+ * right, and [pane] beside it when something is open. Laid out by [VistaHub] or [XboxHub].
  */
 @Composable
 fun MediaCenterHub(
@@ -184,98 +122,14 @@ fun MediaCenterHub(
         )
         return
     }
-    val scope = rememberCoroutineScope()
-    val shown = tabs.indices.filter { it !in hiddenTabs }
-    val focus = remember(tabs.size) { List(tabs.size) { FocusRequester() } }
-    val rowState = rememberLazyListState()
-
-    // The remote starts on the word of the page showing, read when the hub has settled on it.
-    LaunchedEffect(tabs.isEmpty()) {
-        if (tabs.isEmpty()) return@LaunchedEffect
-        delay(FIRST_FOCUS_MILLIS)
-        repeat(FOCUS_TRIES) {
-            val at = pager.currentPage.coerceIn(0, tabs.size - 1)
-            if (runCatching { focus[at].requestFocus() }.getOrDefault(false)) return@LaunchedEffect
-            delay(FOCUS_RETRY_MILLIS)
-        }
-    }
-
-    Column(modifier = modifier.fillMaxSize().padding(start = SIDE, end = SIDE, top = TOP)) {
-        Text(
-            text = title.lowercase(),
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal, fontSize = 22.sp),
-            color = MediaCenter.Dim,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        if (shown.isNotEmpty()) {
-            LazyRow(
-                state = rowState,
-                horizontalArrangement = Arrangement.spacedBy(36.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp, horizontal = 4.dp),
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                itemsIndexed(shown) { position, index ->
-                    MediaCenterWord(
-                        text = tabs[index],
-                        chosen = pager.currentPage == index,
-                        modifier = Modifier.focusRequester(focus[index]),
-                        onFocused = {
-                            // Only a move of the remote turns the page; focus handed back does not.
-                            val byArrow = android.os.SystemClock.uptimeMillis() - TvFocus.lastArrowAt < ARROW_RECENT_MILLIS
-                            if (byArrow && pager.currentPage != index) {
-                                onSelected(index)
-                                scope.launch { pager.scrollToPage(index) }
-                            }
-                            scope.launch { rowState.animateScrollToItem((position - 1).coerceAtLeast(0)) }
-                        },
-                        onClick = {
-                            onSelected(index)
-                            scope.launch { pager.scrollToPage(index) }
-                        }
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(18.dp))
-        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (navExtra != null) {
-                Column(
-                    modifier = Modifier
-                        .width(NAV_WIDTH)
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
-                        .padding(end = 24.dp, bottom = bottomRoom),
-                    content = navExtra
-                )
-            }
-            Box(modifier = Modifier.weight(1f).fillMaxHeight().padding(bottom = bottomRoom)) {
-                // The hub's own pager, still: it is what turns the pages, only no swipe moves it.
-                com.serkantkn.zunelauncher.ui.components.ZuneLoopingPager(
-                    state = pager,
-                    modifier = Modifier.fillMaxSize(),
-                    beyondViewportPageCount = 0,
-                    userScrollEnabled = false
-                ) { index -> page(index) }
-            }
-            if (sidePane != null) {
-                Box(modifier = Modifier.width(sidePaneWidth).fillMaxHeight().padding(start = 24.dp, bottom = bottomRoom)) { sidePane() }
-            }
-            if (pane != null) {
-                Box(modifier = Modifier.weight(1f).fillMaxHeight().padding(start = 32.dp)) {
-                    AnimatedContent(
-                        targetState = paneKey,
-                        transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(90)) },
-                        label = "media_center_pane",
-                        modifier = Modifier.fillMaxSize()
-                    ) { pane() }
-                }
-            }
-        }
-    }
+    XboxHub(
+        title = title, tabs = tabs, pager = pager, modifier = modifier, hiddenTabs = hiddenTabs,
+        onSelected = onSelected, navExtra = navExtra, sidePaneWidth = sidePaneWidth,
+        sidePane = sidePane, pane = pane, paneKey = paneKey, bottomRoom = bottomRoom, page = page
+    )
 }
 
-/** One word of a Media Center row: white when chosen, pale blue when not, a little larger with the remote on it. */
+/** One word of a hub's row of ways in, as Vista or the Xbox writes it. */
 @Composable
 fun MediaCenterWord(
     text: String,
@@ -289,31 +143,12 @@ fun MediaCenterWord(
         VistaPivotWord(text = text, chosen = chosen, modifier = modifier, onFocused = onFocused, onClick = onClick)
         return
     }
-    val source = remember { MutableInteractionSource() }
-    val focused by source.collectIsFocusedAsState()
-    LaunchedEffect(focused) { if (focused) onFocused() }
-    val scale by animateFloatAsState(if (focused) 1.08f else 1f, tween(160), label = "mcWord")
-    Text(
-        text = text,
-        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = size),
-        color = when {
-            focused || chosen -> Color.White
-            else -> MediaCenter.Dim.copy(alpha = 0.75f)
-        },
-        maxLines = 1,
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
-            }
-            .clickable(interactionSource = source, indication = null, onClick = onClick)
-    )
+    XboxPivotWord(text = text, chosen = chosen, modifier = modifier, onFocused = onFocused, onClick = onClick)
 }
 
 /**
- * The strip along the foot in place of a phone's bar: the same commands, each its icon with its
- * name beside it, the menu's lines after them, on a band of dark blue that fades into the page.
+ * A phone's bar on a TV: the same commands as Vista's links along the foot, or along the Xbox's
+ * legend of buttons at the bottom left.
  */
 @Composable
 fun MediaCenterCommandStrip(
@@ -330,45 +165,7 @@ fun MediaCenterCommandStrip(
         )
         return
     }
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(height)
-            .background(Brush.verticalGradient(listOf(Color.Transparent, MediaCenter.Strip.copy(alpha = 0.92f))))
-    ) {
-        Row(
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = SIDE),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            actions.forEach { action ->
-                MediaCenterCommand(label = action.label, onClick = action.onClick) {
-                    Icon(action.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                }
-            }
-            menuItems.forEach { item -> MediaCenterCommand(label = item.text, onClick = item.onClick) }
-        }
-    }
-}
-
-@Composable
-private fun MediaCenterCommand(label: String, onClick: () -> Unit, icon: (@Composable () -> Unit)? = null) {
-    val source = remember { MutableInteractionSource() }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .clickable(interactionSource = source, indication = null, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        icon?.invoke()
-        Text(
-            text = label.lowercase(),
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.White.copy(alpha = 0.92f),
-            maxLines = 1
-        )
-    }
+    XboxCommandLegend(actions, menuItems, height, modifier)
 }
 
 /** How a hub's content is laid out on a TV: Media Center's margins, inside the 5% a TV may crop. */

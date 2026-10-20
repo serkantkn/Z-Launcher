@@ -101,17 +101,20 @@ fun Win8CommandBar(
         exit = slideOutVertically(tween(180)) { it } + fadeOut(tween(180)),
         modifier = modifier
     ) {
-        // A television draws the same commands on Media Center's strip (ui/tv/MediaCenter).
+        // A television draws the same commands on Media Center's dark strip, or on the Xbox's
+        // light panel (its dark words read there).
         val tv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+        val vista = com.serkantkn.zunelauncher.ui.tv.LocalVista.current
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(
-                    if (tv) Modifier.background(
+                    if (tv && vista) Modifier.background(
                         androidx.compose.ui.graphics.Brush.verticalGradient(
                             listOf(Color.Transparent, com.serkantkn.zunelauncher.ui.tv.MediaCenter.Strip.copy(alpha = 0.92f))
                         )
                     )
+                    else if (tv) Modifier.background(com.serkantkn.zunelauncher.ui.tv.Xbox.Panel.copy(alpha = 0.94f))
                     else Modifier.background(if (zuneColors.isDark) Color(0xFF1F1F1F) else Color(0xFFEDEDED))
                 )
                 // The bar takes its own taps so they do not fall through to the page.
@@ -150,6 +153,7 @@ private fun CommandButton(command: Win8Command, fg: Color, onAnyCommand: () -> U
     var menuOpen by remember { mutableStateOf(false) }
     val tint = if (command.enabled) fg else fg.copy(alpha = 0.35f)
     val tv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current
+    val vista = com.serkantkn.zunelauncher.ui.tv.LocalVista.current
     Box {
       if (tv) {
         // Media Center's command: the icon with its name beside it, no ring.
@@ -209,7 +213,8 @@ private fun CommandButton(command: Win8Command, fg: Color, onAnyCommand: () -> U
             DropdownMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                containerColor = if (tv) com.serkantkn.zunelauncher.ui.tv.MediaCenter.Top
+                containerColor = if (tv && vista) com.serkantkn.zunelauncher.ui.tv.MediaCenter.Top
+                else if (tv) com.serkantkn.zunelauncher.ui.tv.Xbox.Panel
                 else if (zuneColors.isDark) Color(0xFF2B2B2B) else Color.White,
                 shape = RectangleShape
             ) {

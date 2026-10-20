@@ -115,9 +115,9 @@ fun LauncherScreen(
     // pager stops at Start there, or a sideways drag on the empty band above or below the tiles
     // turned up the phone's app list instead.
     val tabletStart = LocalIsWideScreen.current && homeScreenLayout == HomeScreenLayout.WINDOWS_PHONE
-    // A TV in Vista's Media Center: its pages zoom - the one going grows past and fades, the one
-    // coming grows into place - instead of turning or fading.
-    val vistaTv = navState.television && com.serkantkn.zunelauncher.ui.tv.LocalVista.current
+    // A TV - Media Center or the Xbox alike: its pages zoom - the one going grows past and fades,
+    // the one coming grows into place - instead of turning or fading.
+    val vistaTv = navState.television
     val pagerState = rememberPagerState(
         initialPage = 1,
         pageCount = {
@@ -1233,21 +1233,26 @@ fun LauncherScreen(
                     val linkShown by com.serkantkn.zunelauncher.data.link.TvLinkNotices.shown.collectAsState()
                     val linkInWindow by com.serkantkn.zunelauncher.data.link.TvLinkNotices.inWindow.collectAsState()
                     if (!linkInWindow && linkShown != null) {
-                        Box(modifier = Modifier.fillMaxSize().zIndex(BANNER_Z), contentAlignment = Alignment.BottomEnd) {
+                        val noticeCorner = if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) Alignment.BottomEnd else Alignment.BottomCenter
+                        Box(modifier = Modifier.fillMaxSize().zIndex(BANNER_Z), contentAlignment = noticeCorner) {
                             com.serkantkn.zunelauncher.ui.tv.TvLinkNoticeCard(linkShown)
                         }
                     }
                 }
-                // Vista's Media Center opened on its logo, once each time it started.
+                // Media Center and the Xbox both opened on their logo, once each time they started.
                 if (isTv) {
-                    var splashDone by remember { mutableStateOf(com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown || !vistaTv) }
-                    LaunchedEffect(Unit) { if (!vistaTv) com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown = true }
+                    var splashDone by remember { mutableStateOf(com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown) }
                     if (!splashDone) {
+                        val finish = {
+                            com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown = true
+                            splashDone = true
+                        }
                         Box(modifier = Modifier.fillMaxSize().zIndex(FIRST_RUN_Z + 1f)) {
-                            com.serkantkn.zunelauncher.ui.tv.VistaSplash(onDone = {
-                                com.serkantkn.zunelauncher.ui.tv.TvDesign.splashShown = true
-                                splashDone = true
-                            })
+                            if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+                                com.serkantkn.zunelauncher.ui.tv.VistaSplash(onDone = finish)
+                            } else {
+                                com.serkantkn.zunelauncher.ui.tv.XboxSplash(onDone = finish)
+                            }
                         }
                     }
                 }

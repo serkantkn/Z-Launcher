@@ -173,9 +173,9 @@ fun ZuneLauncherTheme(
         remember(context) { com.serkantkn.zunelauncher.ui.tv.TvDesign.attach(context) }
         com.serkantkn.zunelauncher.ui.tv.TvDesign.vista.collectAsState().value
     } else false
-    // Media Center - Windows 7's and Vista's - was blue and white whatever Windows was set to: a
-    // light theme put dark words on its blue, where nobody could read them.
-    val isDarkTheme = isTv || when (themeMode) {
+    // A TV has its own colours whatever the phone is set to: Media Center's blue and white words,
+    // or the Xbox's light grey with dark words on its panels.
+    val isDarkTheme = if (isTv) vista else when (themeMode) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -202,7 +202,11 @@ fun ZuneLauncherTheme(
             accentColor.toColor()
         }
     }
-    val resolvedAccentColor = if (vista) com.serkantkn.zunelauncher.ui.tv.Vista.Link else chosenAccentColor
+    val resolvedAccentColor = when {
+        vista -> com.serkantkn.zunelauncher.ui.tv.Vista.Link
+        isTv -> com.serkantkn.zunelauncher.ui.tv.Xbox.Green
+        else -> chosenAccentColor
+    }
 
     val colorScheme = if (isDarkTheme) {
         if (solidBackgroundEnabled) {
@@ -229,8 +233,10 @@ fun ZuneLauncherTheme(
         )
     } else {
         ZuneExtendedColors(
-            textMuted = if (solidBackgroundEnabled) Color(0xFF4A4A4A) else ZuneColors.LightTextMuted,
-            textDim = if (solidBackgroundEnabled) Color(0xFF7A7A7A) else Color(0xFF999999),
+            // The Xbox's ground is mid grey in the middle: its small print is darker than a phone's.
+            textMuted = if (isTv) com.serkantkn.zunelauncher.ui.tv.Xbox.InkDim
+            else if (solidBackgroundEnabled) Color(0xFF4A4A4A) else ZuneColors.LightTextMuted,
+            textDim = if (isTv) Color(0xFF6A7072) else if (solidBackgroundEnabled) Color(0xFF7A7A7A) else Color(0xFF999999),
             overlay = Color(0x1A000000),
             darkOverlay = Color(0xCCFFFFFF),
             isDark = false,
@@ -275,7 +281,8 @@ fun ZuneLauncherTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = if (vista) remember { com.serkantkn.zunelauncher.ui.tv.vistaTypography(ZuneTypography) } else ZuneTypography,
+            // Both of a TV's designs speak Segoe UI, through Selawik.
+            typography = if (isTv) remember { com.serkantkn.zunelauncher.ui.tv.vistaTypography(ZuneTypography) } else ZuneTypography,
             content = content
         )
     }

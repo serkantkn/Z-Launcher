@@ -86,8 +86,8 @@ internal fun LookSettingsPage(
     val tvLeftOut = if (isTv) setOf(
         LookPage.WALLPAPER, LookPage.HUB_BACKGROUND, LookPage.START_SCREEN, LookPage.TILES, LookPage.ICONS
     ) else emptySet()
-    // Vista has its own blue and white: the theme and the accent colour change nothing there.
-    val vistaLeftOut = if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) setOf(LookPage.THEME) else emptySet()
+    // A TV's two designs have their own colours: the theme and the accent colour change nothing there.
+    val vistaLeftOut = if (isTv) setOf(LookPage.THEME) else emptySet()
 
     SettingsLazyColumn {
         if (!isTv) item(key = "preview") {
@@ -1547,15 +1547,15 @@ private fun openAppSettings(context: android.content.Context) {
     }
 }
 
-/** A TV's two Media Centers - Windows 7's and Vista's - and Vista's sounds. */
+/** A TV's two designs - the Xbox 360's dashboard and Media Center - and their sounds. */
 @Composable
 private fun TvDesignGroup() {
     val vista by com.serkantkn.zunelauncher.ui.tv.TvDesign.vista.collectAsState()
     val sounds by com.serkantkn.zunelauncher.ui.tv.TvDesign.sounds.collectAsState()
     SettingGroup(title = stringResource(R.string.tv_design_group)) {
         SettingChoiceRow(
-            title = stringResource(R.string.tv_design_seven),
-            subtitle = stringResource(R.string.tv_design_seven_sub),
+            title = stringResource(R.string.tv_design_xbox),
+            subtitle = stringResource(R.string.tv_design_xbox_sub),
             selected = !vista,
             onClick = { com.serkantkn.zunelauncher.ui.tv.TvDesign.setVista(false) }
         )
@@ -1565,13 +1565,11 @@ private fun TvDesignGroup() {
             selected = vista,
             onClick = { com.serkantkn.zunelauncher.ui.tv.TvDesign.setVista(true) }
         )
-        if (vista) {
-            SettingSwitchRow(
-                title = stringResource(R.string.tv_design_sounds),
-                subtitle = stringResource(R.string.tv_design_sounds_sub),
-                checked = sounds,
-                onCheckedChange = { com.serkantkn.zunelauncher.ui.tv.TvDesign.setSounds(it) }
-            )
-        }
+        SettingSwitchRow(
+            title = stringResource(R.string.tv_design_sounds),
+            subtitle = stringResource(R.string.tv_design_sounds_sub),
+            checked = sounds,
+            onCheckedChange = { com.serkantkn.zunelauncher.ui.tv.TvDesign.setSounds(it) }
+        )
     }
 }

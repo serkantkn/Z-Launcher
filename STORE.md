@@ -45,8 +45,8 @@ HUB'LAR
 • Saat, Takvim, Hava Durumu, Hesap Makinesi, Dosyalar, Kamera
 
 TELEVİZYON
-Android TV ve Google TV'de Z Launcher, Windows Media Center olur:
-• İki tasarım: Windows Vista (dönen kategoriler, cam kutu, açılış logosu ve sesleri) ya da Windows 7 (yan yana şeritler)
+Android TV ve Google TV'de Z Launcher, Xbox 360 panosu ya da Windows Media Center olur:
+• İki tasarım: Xbox 360 panosu (gri zemin, yeşil karolar, üstte bölümler) ya da Windows Media Center (dönen kategoriler, cam kutu); ikisinde de açılış logosu ve gezinme sesleri
 • Kumandayla çalışan hub'lar: müzik, videolar, resimler, hava durumu, haberler, saat, dosyalar
 • Yarıda kalan filme devam et, televizyonun uygulamaları kendi afişleriyle
 • Telefon bağlantısı: telefonuna gelen aramalar ve mesajlar televizyonun köşesinde. Aynı Wi-Fi, 6 haneli kodla eşleme, şifreli, sunucusuz; mesaj metni sen istemedikçe gitmez
@@ -64,6 +64,9 @@ fotoğrafların telefonunda kalır; telefon bağlantısı yalnızca eşlediğin 
 içinden konuşur. Hava durumu, haberler, şarkı sözü ve arama önerisi dışında
 hiçbir şey dışarı çıkmaz — onlar da yalnızca o özelliği kullandığında ve kimliğin eklenmeden.
 E-posta şifreleri ve kilitli notlar cihazda şifrelenir.
+
+Windows Phone, Zune, Metro, Xbox 360 ve Windows Media Center Microsoft'un markalarıdır; Z Launcher
+bunlardan esinlenen bağımsız bir uygulamadır, Microsoft'la ilgisi yoktur.
 
 Gizlilik politikası: <gizlilik politikası adresini buraya yaz>
 ```
@@ -112,8 +115,8 @@ HUBS
 • Clock, Calendar, Weather, Calculator, Files, Camera
 
 TELEVISION
-On Android TV and Google TV, Z Launcher becomes Windows Media Center:
-• Two designs: Windows Vista (turning categories, a pane of glass, the logo and sounds) or Windows 7 (strips side by side)
+On Android TV and Google TV, Z Launcher becomes the Xbox 360 dashboard or Windows Media Center:
+• Two designs: the Xbox 360 dashboard (a grey ground, green tiles, sections along the top) or Windows Media Center (turning categories, a pane of glass); both with a logo at launch and navigation sounds
 • Hubs worked with the remote: music, videos, pictures, weather, news, clock, files
 • Continue the film you left, the TV's apps by their own banners
 • Phone link: calls and messages to your phone in the corner of the TV. Same Wi-Fi, paired by a six-digit code, encrypted, no server; the message text stays on the phone unless you allow it
@@ -131,6 +134,9 @@ stay on your phone; the phone link talks only to the TV you paired, inside your 
 and those only when you use that feature, with nothing identifying attached. Email passwords
 and locked notes are encrypted on the device.
 
+Windows Phone, Zune, Metro, Xbox 360 and Windows Media Center are Microsoft's trademarks; Z Launcher
+is an independent app inspired by them and is not affiliated with Microsoft.
+
 Privacy policy: <put the privacy policy address here>
 ```
 *(≈1900 characters)*
@@ -147,7 +153,7 @@ Privacy policy: <put the privacy policy address here>
 | 7" tablet | isteğe bağlı | yok |
 | 10" tablet | isteğe bağlı | yok |
 | **TV afişi** | 1280 × 720 PNG/JPEG | `store/tv-banner.png` hazır |
-| **TV ekran görüntüsü** | 1920 × 1080, en az 1, en fazla 8 | `store/screenshots-tv/` hazır (8 adet, gerçek Mi TV'den) |
+| **TV ekran görüntüsü** | 1920 × 1080, en az 1, en fazla 8 | `store/screenshots-tv/` hazır (8 adet: 4 Xbox, 4 Media Center) |
 
 TV afişi ve TV ekran görüntüleri yalnızca Play Console'da Android TV form faktörü eklendikten sonra
 istenir (bkz. `PLAY.md`, bölüm 6). Mağaza metinleri telefonla ortaktır; yukarıdaki "TELEVİZYON"

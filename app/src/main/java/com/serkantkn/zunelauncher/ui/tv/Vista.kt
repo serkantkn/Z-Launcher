@@ -382,12 +382,16 @@ private fun vistaTime(context: Context): String = android.text.format.DateFormat
 
 // ── Sounds ─────────────────────────────────────────────────────────────────────────────────
 
-/** Vista's ticks and chimes, made here (Microsoft's own are theirs): a move, a choice, back, a page. */
+/**
+ * The TV's ticks and chimes, made here (Microsoft's own are theirs): a move, a choice, back, a page
+ * and the logo - Media Center's glassy set, or the Xbox's shorter, woodier one.
+ */
 object VistaSounds {
     enum class Kind { MOVE, SELECT, BACK, PAGE, START }
 
     private var pool: SoundPool? = null
     private val ids = mutableMapOf<Kind, Int>()
+    private val xboxIds = mutableMapOf<Kind, Int>()
 
     private fun ready(context: Context): SoundPool {
         pool?.let { return it }
@@ -406,6 +410,11 @@ object VistaSounds {
         ids[Kind.BACK] = p.load(app, R.raw.vista_back, 1)
         ids[Kind.PAGE] = p.load(app, R.raw.vista_page, 1)
         ids[Kind.START] = p.load(app, R.raw.vista_start, 1)
+        xboxIds[Kind.MOVE] = p.load(app, R.raw.xbox_move, 1)
+        xboxIds[Kind.SELECT] = p.load(app, R.raw.xbox_select, 1)
+        xboxIds[Kind.BACK] = p.load(app, R.raw.xbox_back, 1)
+        xboxIds[Kind.PAGE] = p.load(app, R.raw.xbox_page, 1)
+        xboxIds[Kind.START] = p.load(app, R.raw.xbox_start, 1)
         pool = p
         return p
     }
@@ -416,8 +425,9 @@ object VistaSounds {
     }
 
     fun play(context: Context, kind: Kind) {
-        if (!TvDesign.vista.value || !TvDesign.sounds.value) return
-        val id = ids[kind] ?: run { ready(context); ids[kind] } ?: return
+        if (!TvDesign.sounds.value) return
+        val set = if (TvDesign.vista.value) ids else xboxIds
+        val id = set[kind] ?: run { ready(context); set[kind] } ?: return
         val volume = if (kind == Kind.START) 0.8f else 0.6f
         ready(context).play(id, volume, volume, 1, 0, 1f)
     }

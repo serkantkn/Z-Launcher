@@ -183,21 +183,25 @@ Hub'lar da Windows 8 düzenindedir: başlıklar solda, açılan şey yanındaki 
 
 ## Televizyon
 
-Android TV ve Google TV'de Z Launcher **Windows Media Center** olur; kumandayla kullanılır. Televizyonda işe yarayan
+Android TV ve Google TV'de Z Launcher kumandayla kullanılır. Televizyonda işe yarayan
 hub'lar oradadır: müzik + videolar (oynatıcısıyla), fotoğraflar, hava durumu, haberler, saat, dosyalar ve ayarlar;
-telefon, mesajlar, kişiler, kamera gibi telefona özgü olanlar gösterilmez. Ayarlar → görünüm → media center'dan iki tasarımdan biri seçilir:
+telefon, mesajlar, kişiler, kamera gibi telefona özgü olanlar gösterilmez. Ayarlar → görünüm → TV tasarımı'ndan iki
+tasarımdan biri seçilir, ana ekran ve bütün hub'lar onunla değişir:
 
-- **Windows Vista.** Videosundan kare kare kopyalandı: solda soluk "başlat" yazısı, alt alta dönen
-  kategoriler (Resimler + Videolar, Müzik, TV + Filmler, Uygulamalar, Bilgiler, Görevler), yerinden
-  oynamayan cam bir kutu ve içinden kayan öğeler. Açılışta Media Center logosu, sayfalar arasında Vista'nın
-  yakınlaşması, Segoe UI'ın açık ikizi Selawik ve gezinme sesleri (kapatılabilir). "Program kitaplığı"
-  televizyondaki uygulamaları gösterir; "kapat" penceresi Z Launcher'ı kapatır, televizyonu kapatır ya da
-  uyutur. Kitaplıklarda ad sağ üstte büyük ve soluk, komutlar sol üstte bağlantı, seçili yol ‹ › arasında.
-- **Windows 7.** Şeritler yan yana: devam et, resimler + videolar, müzik, uygulamalar, bilgiler, görevler;
-  odaktaki şerit parlak ve büyük, diğerleri soluk.
+- **Xbox 360.** 2011–2013'teki Metro panosu, videolarından kare kare kopyalandı: koyudan açığa inen gri zemin,
+  üstte küçük harfli bölümler (ana sayfa, tv + filmler, müzik, uygulamalar, ayarlar), her bölümde yeşil karolardan
+  bir grup; kumandanın üstündeki karo büyüyüp aydınlanır, komşu bölümler kenarlarda soluk görünür. Sol altta
+  düğmelerin ne yaptığı (Ⓐ seç Ⓑ geri), uygulamalarım sayfası uzun beyaz kartlarla, kapat menüsü beyaz listede yeşil
+  seçimle. Hub'lar Xbox Music gibi: adı sağ üstte, bölümleri altında, komutları sol alttaki düğme açıklamalarında.
+- **Media Center.** Windows Vista'nın Media Center'ı, videosundan kare kare kopyalandı: solda soluk "başlat" yazısı,
+  alt alta dönen kategoriler (Resimler + Videolar, Müzik, TV + Filmler, Uygulamalar, Bilgiler, Görevler), yerinden
+  oynamayan cam bir kutu ve içinden kayan öğeler; program kitaplığı ve kapat penceresi. Kitaplıklarda ad sağ üstte
+  büyük ve soluk, komutlar sol üstte bağlantı, seçili yol ‹ › arasında.
 
-Her ikisinde de yarıda bırakılan film "devam et"te, televizyonun uygulamaları kendi afişleriyle durur.
-Kumandanın Home tuşu, erişilebilirlik servisi açıksa Google TV'nin ana ekranı yerine Z Launcher'ı açar.
+İkisinde de açılışta logo, sayfalar arasında yakınlaşma, Segoe UI'ın açık ikizi Selawik ve kapatılabilir gezinme
+sesleri var (Microsoft'un logoları ve sesleri değil, kendi çizdiklerim ve ürettiklerim). Yarıda bırakılan film
+"devam et"te, televizyonun uygulamaları kendi afişleriyle durur. Kumandanın Home tuşu, erişilebilirlik servisi
+açıksa Google TV'nin ana ekranı yerine Z Launcher'ı açar.
 
 **Telefon bağlantısı.** Telefonunda Z Launcher kullanıyorsan onu aynı Wi-Fi'daki televizyonla eşleyebilirsin
 (televizyonda ayarlar → bağlantılar → telefon ekle, telefonda TV ekle, 6 haneli kod). Sonra telefona gelen
@@ -205,16 +209,16 @@ aramalar, cevapsız aramalar ve mesajlar televizyonun köşesinde, açık olan h
 metni varsayılan olarak gitmez; telefonda açılabilir. Sunucu yoktur, her şey ev ağında ve şifreli gider.
 
 <p align="center">
-  <img src="docs/img/tv-vista-baslat.jpg" width="400" alt="Televizyonda Vista Media Center başlangıcı">
-  <img src="docs/img/tv-vista-bildirim.jpg" width="400" alt="Telefondan gelen mesaj televizyonun köşesinde">
+  <img src="docs/img/tv-xbox-ana-sayfa.jpg" width="400" alt="Televizyonda Xbox 360 panosu">
+  <img src="docs/img/tv-xbox-bildirim.jpg" width="400" alt="Xbox tasarımında telefondan gelen mesaj">
 </p>
 <p align="center">
-  <img src="docs/img/tv-vista-muzik.jpg" width="400" alt="Vista tasarımında müzik kitaplığı">
-  <img src="docs/img/tv-vista-kapat.jpg" width="400" alt="Görevler: kapat penceresi">
+  <img src="docs/img/tv-xbox-uygulamalarim.jpg" width="400" alt="Xbox tasarımında uygulamalarım">
+  <img src="docs/img/tv-xbox-kapat.jpg" width="400" alt="Xbox tasarımında kapat menüsü">
 </p>
 <p align="center">
-  <img src="docs/img/tv-windows7-baslat.jpg" width="400" alt="Windows 7 Media Center başlangıcı">
-  <img src="docs/img/tv-windows7-bildirim.jpg" width="400" alt="Windows 7 tasarımında gelen arama">
+  <img src="docs/img/tv-vista-baslat.jpg" width="400" alt="Televizyonda Media Center başlangıcı">
+  <img src="docs/img/tv-vista-bildirim.jpg" width="400" alt="Media Center'da telefondan gelen mesaj">
 </p>
 <p align="center">
   <img src="docs/img/telefon-tv-baglantisi.png" width="200" alt="Telefonda TV bağlantısı ayarları">
@@ -333,13 +337,14 @@ television it becomes Windows Media Center.
 - **Tablet.** Windows 8's Start, full screen and grouped; a swipe up slides it off while the app list rises from
   below — apps under their letters in columns, scrolling sideways, ordered by name, install date or use, with
   the Windows 8 app bar on a hold. Pulling the board past its first group opens the social hub.
-- **Television.** On Android TV and Google TV the launcher is Windows Media Center, worked with the remote, with
-  the hubs that make sense on a TV: music + videos with the player, pictures, weather, news, clock, files and
-  settings. Two designs, chosen in settings → look → media center: **Windows Vista**, copied frame
-  by frame — "start" faint at the left, the categories turning one above another through a fixed pane of glass,
-  the logo at launch, Vista's zoom between pages, Selawik (Segoe UI's open twin) and navigation sounds that
-  can be turned off, a program library of the TV's apps and the shutdown panel; or **Windows 7**, its strips
-  side by side. A film left part way waits under "continue"; the remote's Home button opens Z Launcher
+- **Television.** On Android TV and Google TV the launcher is worked with the remote, with the hubs that make
+  sense on a TV: music + videos with the player, pictures, weather, news, clock, files and settings. Two designs,
+  chosen in settings → look → TV design, Start and every hub with them: **Xbox 360**, the 2011–2013 Metro
+  dashboard copied frame by frame from videos of it - a grey ground, lower-case sections along the top, blocks of
+  green tiles, the one the remote is on lifted, the neighbours peeking in at the edges, the button legend at the
+  bottom left - or **Media Center**, Windows Vista's, its categories turning through a fixed pane of glass. Both
+  have a logo at launch, a zoom between pages, Selawik (Segoe UI's open twin) and navigation sounds made here
+  that can be turned off. A film left part way waits under "continue"; the remote's Home button opens Z Launcher
   through an accessibility service. **The phone link** pairs a phone running Z Launcher with a TV on the same
   Wi-Fi by a six-digit code; calls, missed calls and messages then show in the TV's corner over whatever is
   on. The message text stays on the phone unless you allow it; no server, encrypted, on your own network.

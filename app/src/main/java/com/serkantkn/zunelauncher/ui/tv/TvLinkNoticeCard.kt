@@ -41,9 +41,9 @@ import com.serkantkn.zunelauncher.data.link.LinkNotice
 import com.serkantkn.zunelauncher.data.link.ShownNotice
 
 /**
- * A call or a message from a paired phone, in the TV's bottom right corner: who, what, and which
- * phone - Media Center's blue card in Windows 7's design, a pane of Vista's glass in Vista's. It
- * slides in from the edge, and a new one replaces the one before.
+ * A call or a message from a paired phone: who, what, and which phone - a pane of Vista's glass
+ * in the bottom right corner, or the Xbox's dark notice rising at the bottom in the middle. A new
+ * one replaces the one before.
  */
 @Composable
 internal fun TvLinkNoticeCard(shown: ShownNotice?) {
@@ -66,7 +66,11 @@ internal fun TvLinkNoticeCard(shown: ShownNotice?) {
         LinkNotice.Kind.SMS -> Icons.Default.Sms
         else -> Icons.Default.Chat
     }
-    val shape = RoundedCornerShape(if (vista) 3.dp else 8.dp)
+    if (!vista) {
+        XboxNotice(shown, line, icon, slide.value)
+        return
+    }
+    val shape = RoundedCornerShape(3.dp)
     Box(
         modifier = Modifier
             .padding(end = 44.dp, bottom = 40.dp)
@@ -77,10 +81,9 @@ internal fun TvLinkNoticeCard(shown: ShownNotice?) {
             }
             .clip(shape)
             .background(
-                if (vista) Brush.verticalGradient(listOf(Vista.PanelTop.copy(alpha = 0.97f), Vista.PanelBottom.copy(alpha = 0.97f)))
-                else Brush.verticalGradient(listOf(MediaCenter.Top.copy(alpha = 0.97f), MediaCenter.Strip.copy(alpha = 0.97f)))
+                Brush.verticalGradient(listOf(Vista.PanelTop.copy(alpha = 0.97f), Vista.PanelBottom.copy(alpha = 0.97f)))
             )
-            .then(if (vista) Modifier.vistaGlass(strength = 0.5f) else Modifier.border(1.5.dp, MediaCenter.Glow.copy(alpha = 0.7f), shape))
+            .vistaGlass(strength = 0.5f)
             .padding(horizontal = 18.dp, vertical = 16.dp)
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -89,8 +92,7 @@ internal fun TvLinkNoticeCard(shown: ShownNotice?) {
                 modifier = Modifier
                     .size(52.dp)
                     .background(
-                        if (notice.kind == LinkNotice.Kind.MISSED_CALL) Color(0xFFB8322E)
-                        else if (vista) Color.White.copy(alpha = 0.18f) else MediaCenter.Glow.copy(alpha = 0.35f),
+                        if (notice.kind == LinkNotice.Kind.MISSED_CALL) Color(0xFFB8322E) else Color.White.copy(alpha = 0.18f),
                         CircleShape
                     )
             ) {
@@ -100,14 +102,14 @@ internal fun TvLinkNoticeCard(shown: ShownNotice?) {
                 Text(
                     text = line,
                     style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp),
-                    color = if (vista) Color(0xFFDCEBFA) else MediaCenter.Dim,
+                    color = Color(0xFFDCEBFA),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = notice.name,
                     style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = if (vista) FontWeight.SemiBold else FontWeight.Light,
+                        fontWeight = FontWeight.SemiBold,
                         fontSize = 26.sp
                     ),
                     color = Color.White,
@@ -127,7 +129,7 @@ internal fun TvLinkNoticeCard(shown: ShownNotice?) {
                 Text(
                     text = shown.phone,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                    color = if (vista) Color(0xFFC4DAF2) else MediaCenter.Dim.copy(alpha = 0.85f),
+                    color = Color(0xFFC4DAF2),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 6.dp)
@@ -138,3 +140,59 @@ internal fun TvLinkNoticeCard(shown: ShownNotice?) {
 }
 
 private const val SLIDE_MILLIS = 320
+
+/**
+ * The Xbox's notice, as its achievements and messages came up: a dark band at the bottom in the
+ * middle of the screen, a green disc with the sign at its left, two lines beside it.
+ */
+@Composable
+private fun XboxNotice(shown: ShownNotice, line: String, icon: androidx.compose.ui.graphics.vector.ImageVector, slide: Float) {
+    val notice = shown.notice
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier
+            .padding(bottom = 14.dp)
+            .width(500.dp)
+            .graphicsLayer {
+                translationY = slide * (size.height + 48.dp.toPx())
+                alpha = 1f - slide * 0.7f
+            }
+            .clip(RoundedCornerShape(4.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xF2404546), Color(0xF2222526))))
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(48.dp)
+                .background(if (notice.kind == LinkNotice.Kind.MISSED_CALL) Color(0xFFB8322E) else Xbox.Green, CircleShape)
+        ) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = notice.name,
+                style = MaterialTheme.typography.titleLarge.copy(fontFamily = SelawikFamily, fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = notice.text ?: line,
+                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = SelawikFamily, fontSize = 16.sp),
+                color = Color.White.copy(alpha = 0.85f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = if (notice.text != null) "$line · ${shown.phone}" else shown.phone,
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = SelawikFamily, fontSize = 13.sp),
+                color = Xbox.GreenLit,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+

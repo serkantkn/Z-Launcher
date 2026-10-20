@@ -101,7 +101,11 @@ internal object TvLinkNotices {
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.BOTTOM or Gravity.END }
+        ).apply {
+            // Media Center's in the bottom right corner; the Xbox's along the bottom, in the middle.
+            gravity = if (com.serkantkn.zunelauncher.ui.tv.TvDesign.vista.value) Gravity.BOTTOM or Gravity.END
+            else Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        }
         val compose = ComposeView(app.localized()).apply {
             setViewTreeLifecycleOwner(lifecycle)
             setViewTreeViewModelStoreOwner(lifecycle)

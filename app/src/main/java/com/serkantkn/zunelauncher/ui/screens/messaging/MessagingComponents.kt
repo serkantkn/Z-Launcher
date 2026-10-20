@@ -370,6 +370,11 @@ internal fun MessagingSheet(
         com.serkantkn.zunelauncher.ui.tv.VistaPanel(title = title, onDismiss = onDismiss, content = content)
         return
     }
+    // The Xbox on a white panel in the middle.
+    if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
+        com.serkantkn.zunelauncher.ui.tv.XboxPanel(title = title, onDismiss = onDismiss, content = content)
+        return
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()

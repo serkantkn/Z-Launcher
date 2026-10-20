@@ -611,7 +611,7 @@ private fun VistaShutdownPanel(at: Int, u: Dp) {
 }
 
 /** Close, turn off, sleep: what each of the panel's buttons does on a TV. */
-private fun shutdownAction(context: Context, at: Int) {
+internal fun shutdownAction(context: Context, at: Int) {
     val service = com.serkantkn.zunelauncher.data.service.ZuneKeyAccessibilityService.current
     when (at) {
         // Close: Media Center goes, and what was under it - Google TV's own home - comes back.

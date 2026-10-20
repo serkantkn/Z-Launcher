@@ -87,9 +87,10 @@ kullanılmalı.
 
 ## TV ekran görüntüleri hakkında
 
-`screenshots-tv/` içindekiler gerçek bir Xiaomi Mi TV'de (Google TV, 1080p) alındı: Vista
-başlangıcı, telefon bildirimi, müzik ve fotoğraf kitaplıkları, kapat penceresi, Vista ayarları,
-Windows 7 başlangıcı ve gelen arama. İçerik test içeriğidir (renk çubuklu deneme videosu, uydurma
+`screenshots-tv/` içinde iki tasarımdan dörder kare var: Xbox 360 panosu (ana sayfa, telefon
+bildirimi, uygulamalarım, ayarlar bölümü; Google TV emülatöründe alındı) ve Media Center
+(başlangıç, telefon bildirimi, müzik, kapat penceresi; gerçek bir Xiaomi Mi TV'de alındı).
+Xbox karelerini de gerçek televizyonda yeniden çekmek iyi olur. İçerik test içeriğidir (renk çubuklu deneme videosu, uydurma
 albümler, rehberdeki örnek kişiler); telefonun adı "Telefonum". Kişisel bilgi yok — hava durumu
 bilerek çekilmedi, gerçek konumu gösteriyordu. Kendi televizyonunda kendi film ve müziğinle
 yeniden çekersen mağaza sayfası daha iyi görünür; dosya adları sıralamayı belirler.

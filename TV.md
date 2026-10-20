@@ -6,8 +6,9 @@ it was kept on a branch of its own (`tv`), out of every release.
 
 ## Decided
 
-- **Windows Media Center, two of them.** (2026-10-19: the A board and C list of the draft are
-  gone; 2026-10-20: Vista's added beside Windows 7's, chosen in settings.) Start and every hub are Media Center's; the phone's Start setting, wallpaper, hub
+- **Two designs, chosen in settings.** (2026-10-19: the A board and C list of the draft gone,
+  Windows 7's Media Center only; 2026-10-20: Vista's added; later that day Windows 7's replaced
+  by the Xbox 360's dashboard and Vista's renamed "Media Center".) Start and every hub are Media Center's; the phone's Start setting, wallpaper, hub
   background, tiles and icons are not offered on a TV, only the accent colour (no light theme: Media Center is blue and white) and type and motion.
 - **Worked with a remote.** Every tile and word takes focus; the focused one grows a little and
   gains a white frame. The edges keep the 5% a TV may crop (48 × 27 dp).
@@ -230,6 +231,30 @@ shows it in its bottom right corner, over whatever is on. No server.
   ringing (gone when answered), a missed call, a notice over YouTube, removing the phone (its
   next message not shown). Not tried: NSD discovery from a real phone, the Windows 7 look of the
   card, other apps' messages (needs notification access on the phone).
+
+## The Xbox 360 dashboard in place of Windows 7 (2026-10-20)
+
+The user asked to rebuild the Windows 7 design as the Xbox 360's, Start and hubs, "exactly as it
+was", and to call Vista's "Media Center". Chosen era: the Metro dashboard of 2011-2013, studied
+frame by frame from two videos (IGN's 2012 tour, a 10-minute walkthrough).
+
+- `ui/tv/Xbox.kt`: the ground (measured greys, dark top to light middle, drawn once), the green
+  (#009A00, lit #2FB22F), the button legend (Ⓐ select Ⓑ back, commands as further buttons),
+  `XboxHub` (name top right, ways in under it at the left, the page on a light panel - the ground
+  is darkest where pages begin), `XboxPage` (settings pages: name white top left, page on white),
+  `XboxDialogPanel`/`XboxPanel` (white panel in the middle), `XboxSplash` (ribbon and sphere -
+  no X, no "XBOX 360": Microsoft's), `XboxClock`.
+- `ui/tv/XboxStart.kt`: Start - sections home, tv + movies, music, apps, settings along the top;
+  tile blocks laid out in the dashboard's own pixels (home: three down the left, a large one,
+  two at the right, three along the foot); neighbours faint at the edges; spatial navigation,
+  over the edge into the next section, up onto the words; "my apps" as tall white cards (the
+  dashboard's "my pins"); "turn off" as a white menu with a grey pane.
+- The Xbox design uses the light theme (dark words), Selawik and its own sounds (`xbox_*.wav`,
+  made here). The focus frame is a lift: shadow, green edge. The phone notice is a dark band at
+  the bottom in the middle. Windows 7's Start, strips and glow were removed.
+- Tried on the Google TV emulator: every section, my apps, settings tiles, turn off, music,
+  pictures (with its panel), clock, settings and its pages, switching to Media Center and back,
+  the phone notice (paired from a script speaking the link's protocol). The Mi TV was asleep.
 
 ## Still to do
 

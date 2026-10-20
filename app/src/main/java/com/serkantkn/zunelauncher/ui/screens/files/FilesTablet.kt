@@ -270,27 +270,22 @@ internal fun FilesTabletLayout(
         }
         val firstWord = remember { androidx.compose.ui.focus.FocusRequester() }
         LaunchedEffect(Unit) { firstWord.tvTake() }
-        // Vista: the library's name huge and faint in the corner, its places as its ways in.
+        // The library's name in the top right corner (huge and faint in Vista's), its places as its ways in.
         val vista = com.serkantkn.zunelauncher.ui.tv.LocalVista.current
-        if (vista) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                com.serkantkn.zunelauncher.ui.tv.VistaLibraryTitle(stringResource(R.string.hub_files), modifier = Modifier.align(Alignment.TopEnd))
-            }
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (vista) com.serkantkn.zunelauncher.ui.tv.VistaLibraryTitle(stringResource(R.string.hub_files), modifier = Modifier.align(Alignment.TopEnd))
+            else com.serkantkn.zunelauncher.ui.tv.XboxHubTitle(stringResource(R.string.hub_files), modifier = Modifier.align(Alignment.TopEnd))
         }
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(
-                    start = if (vista) 110.dp else com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE,
+                    start = 110.dp,
                     end = com.serkantkn.zunelauncher.ui.tv.MEDIA_CENTER_SIDE,
-                    top = if (vista) 98.dp else 28.dp
+                    top = if (vista) 98.dp else com.serkantkn.zunelauncher.ui.tv.XBOX_TOP
                 )
         ) {
-            if (!vista) Text(
-                text = stringResource(R.string.hub_files),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal, fontSize = 22.sp),
-                color = com.serkantkn.zunelauncher.ui.tv.MediaCenter.Dim
-            )
+
             androidx.compose.foundation.lazy.LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(36.dp),
                 contentPadding = PaddingValues(vertical = 6.dp, horizontal = 4.dp),

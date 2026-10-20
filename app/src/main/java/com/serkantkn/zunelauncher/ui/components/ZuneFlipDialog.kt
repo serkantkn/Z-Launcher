@@ -114,6 +114,22 @@ fun ZuneFlipDialog(
         ) { scope.content() }
         return
     }
+    // The Xbox put its questions on a white panel in the middle of the dimmed screen.
+    if (isTv) {
+        com.serkantkn.zunelauncher.ui.tv.XboxDialogPanel(
+            title = title,
+            progress = flipAnim.value,
+            focus = dialogFocus,
+            onDismiss = { scope.dismissWithAnim() },
+            buttons = if (confirmButton != null || dismissButton != null) {
+                {
+                    if (confirmButton != null) scope.confirmButton()
+                    if (dismissButton != null) scope.dismissButton()
+                }
+            } else null
+        ) { scope.content() }
+        return
+    }
 
     Dialog(
         onDismissRequest = { scope.dismissWithAnim() },
@@ -323,6 +339,10 @@ fun ZuneDialogButton(
         ) {
             Text(text = text, style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp), color = Color.White, maxLines = 1)
         }
+        return
+    }
+    if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
+        com.serkantkn.zunelauncher.ui.tv.XboxDialogButton(text = text, onClick = onClick, modifier = modifier)
         return
     }
     OutlinedButton(

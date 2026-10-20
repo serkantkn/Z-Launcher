@@ -206,13 +206,19 @@ kaydı gerekmez. Manifest Android TV'nin şartlarını karşılıyor:
 |---|---|
 | Uygulama TV'nin kendi başlatıcısında afişiyle görünür | Var (`LEANBACK_LAUNCHER`, `tv_banner`) |
 | Her ekran yalnızca kumandayla (yön tuşları, seç, geri) kullanılabilir; dokunmatik gerektiren yer yok | Bütün hub'lar, diyaloglar, ayarlar ve oynatıcı kumandayla denendi |
-| Odaklanan öğe her zaman belli | Windows 7'de ışıltılı çerçeve, Vista'da cam kutu |
+| Odaklanan öğe her zaman belli | Xbox'ta büyüyen karo ve yeşil kenar, Media Center'da cam kutu |
 | Geri tuşu bir önceki ekrana döner, ana ekranda uygulamadan çıkmaz | Ana ekranda Geri en başa döner |
 | Kenarlardan %5 güvenli alan | 48 × 27 dp kenar payı |
 | Telefona özgü özellikler (kamera, telefon, SMS) TV'de istenmez | Kamera, telefon, mesajlar, kişiler hub'ları televizyonda gösterilmez |
 | Metinler TV mesafesinden okunur | TV'de yazılar bir boy büyük |
 
 **Riskler:**
+
+- **Marka.** TV tasarımlarının adı "Xbox 360" ve "Media Center"; ikisi de Microsoft'un. Uygulama
+  Microsoft'un logolarını (X küresi, "XBOX 360" yazısı, Media Center küresi) ve seslerini kullanmıyor,
+  yazı tipi açık lisanslı Selawik. Mağaza metninde "esinlenen, Microsoft'la ilgisi yok" notu var.
+  Play yine de marka şikâyeti gelirse ayardaki adları "Konsol" / "Medya merkezi" gibi genel adlara
+  çevirmek yeter; tasarım kalır.
 
 - **Erişilebilirlik servisi ile Home tuşu.** İncelemeci servisin Home tuşunu yakaladığını
   görecek. Beyan (bölüm 1) ve açıklama kutusu bunu açıkça söylüyor; servis isteğe bağlı ve

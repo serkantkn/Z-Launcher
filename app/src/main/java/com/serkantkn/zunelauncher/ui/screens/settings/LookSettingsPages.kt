@@ -70,9 +70,8 @@ internal fun LookSubSettingsScreen(
 ) {
     val zuneColors = LocalZuneColors.current
 
-    // Vista sets it as one of its settings' pages: the path faint at the left, the page's name
-    // in small capitals, the page under it.
-    if (com.serkantkn.zunelauncher.ui.tv.LocalVista.current) {
+    // A TV sets it as one of its settings' pages, in Media Center's way or the Xbox's.
+    if (com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current) {
         com.serkantkn.zunelauncher.ui.components.MetroSubScreen(
             breadcrumb = stringResource(R.string.settings_hub),
             title = stringResource(page.titleRes),

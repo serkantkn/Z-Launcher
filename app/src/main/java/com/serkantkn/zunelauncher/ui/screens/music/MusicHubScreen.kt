@@ -183,7 +183,9 @@ fun MusicHubScreen(
             // The cover behind the hub is whatever the hub is playing — its own track first, as
             // the rest of the screen already does — and the scrim over it matches the theme: a
             // black one under black titles made the light theme unreadable.
-            val hasCover = playback.externalArt != null || playback.artworkUri != null
+            // Xbox Music on the dashboard's greys had no cover behind it, nor a word: just the hub.
+            val xboxTv = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current && !com.serkantkn.zunelauncher.ui.tv.LocalVista.current
+            val hasCover = !xboxTv && (playback.externalArt != null || playback.artworkUri != null)
             val backgroundColor = when {
                 !hasCover -> Color.Transparent
                 currentZuneColors.isDark -> Color.Black.copy(alpha = 0.8f)
@@ -191,13 +193,14 @@ fun MusicHubScreen(
             }
             Box(modifier = Modifier.fillMaxSize().background(backgroundColor)) {
                 // The Zune HD's own signature: the artist's name, enormous and faint, behind the hub.
-                if (playback.artist.isNotBlank()) {
+                if (playback.artist.isNotBlank() && !xboxTv) {
                     ZuneArtistBackdrop(
                         artist = playback.artist,
                         modifier = Modifier.padding(top = 120.dp)
                     )
                 }
                 when {
+                    xboxTv -> Unit
                     playback.externalArt != null -> Image(
                         bitmap = playback.externalArt!!.asImageBitmap(),
                         contentDescription = null,
@@ -826,10 +829,13 @@ private fun MusicPage(
 fun NowPlayingPage(viewModel: MusicHubViewModel) {
     val playback by viewModel.playback.collectAsState()
     val accent = LocalZuneColors.current.accentColor
+    // Its words are white: on the Xbox's light grey it stands on the dark of Xbox Music's player.
+    val xbox = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current && !com.serkantkn.zunelauncher.ui.tv.LocalVista.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .then(if (xbox) Modifier.background(Color(0xF0262A2B)) else Modifier)
             .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
