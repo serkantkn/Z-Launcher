@@ -21,6 +21,10 @@ A hub supplies its title, headings, pages, bar commands and, on a tablet, what o
   `openPage`/`closePage`, and give the page a `ZuneHubFlightTitle` with the same key. A hub opts in with `ZuneHub(zuneTitleKey = ...)`;
   the people hub then has no panorama and opens on "all".
 
+- **TV:** Android TV and Google TV are Windows Media Center (`ui/tv/`, notes in `TV.md`); `ZuneHub`
+  draws `MediaCenterHub`, which is Windows 7's or, with Vista chosen (`LocalVista`), `VistaHub`.
+  Only the hubs marked `HubType.onTelevision` are offered there, and everything works by remote.
+
 When writing a hub:
 
 - Do not call `ZunePivotTabs`, `ZuneWideNavHub`, `ZuneLoopingPager`, `ZuneWidePanorama` or

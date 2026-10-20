@@ -3,7 +3,7 @@
 </p>
 
 <p align="center"><strong>Metro arayüzü, yeniden.</strong><br>
-Windows Phone'u özleyenler için sıfırdan yazılmış bir Android başlatıcı: canlı karolar, hub'lar, turnike animasyonları ve Zune'un o ince yazısı.</p>
+Windows Phone'u özleyenler için sıfırdan yazılmış bir Android başlatıcı: canlı karolar, hub'lar, turnike animasyonları ve Zune'un o ince yazısı. Televizyonda Windows Media Center olur.</p>
 
 <p align="center">
   <a href="https://serkantkn.github.io/Z-Launcher/">tanıtım sitesi</a> · <a href="#english">English below</a>
@@ -11,6 +11,7 @@ Windows Phone'u özleyenler için sıfırdan yazılmış bir Android başlatıc�
 
 <p align="center">
   <img alt="Android 9+" src="https://img.shields.io/badge/Android-9%2B-3DDC84?logo=android&logoColor=white">
+  <img alt="Android TV" src="https://img.shields.io/badge/Android%20TV-Media%20Center-0E3A78?logo=androidtv&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/Jetpack%20Compose-UI-4285F4?logo=jetpackcompose&logoColor=white">
   <img alt="Sunucu yok" src="https://img.shields.io/badge/sunucu-yok-1F1F1F">
@@ -180,6 +181,45 @@ Hub'lar da Windows 8 düzenindedir: başlıklar solda, açılan şey yanındaki 
   <img src="docs/img/tablet-tarih.jpg" width="320" alt="Yüklenme tarihine göre">
 </p>
 
+## Televizyon
+
+Android TV ve Google TV'de Z Launcher **Windows Media Center** olur; kumandayla kullanılır. Televizyonda işe yarayan
+hub'lar oradadır: müzik + videolar (oynatıcısıyla), fotoğraflar, hava durumu, haberler, saat, dosyalar ve ayarlar;
+telefon, mesajlar, kişiler, kamera gibi telefona özgü olanlar gösterilmez. Ayarlar → görünüm → media center'dan iki tasarımdan biri seçilir:
+
+- **Windows Vista.** Videosundan kare kare kopyalandı: solda soluk "başlat" yazısı, alt alta dönen
+  kategoriler (Resimler + Videolar, Müzik, TV + Filmler, Uygulamalar, Bilgiler, Görevler), yerinden
+  oynamayan cam bir kutu ve içinden kayan öğeler. Açılışta Media Center logosu, sayfalar arasında Vista'nın
+  yakınlaşması, Segoe UI'ın açık ikizi Selawik ve gezinme sesleri (kapatılabilir). "Program kitaplığı"
+  televizyondaki uygulamaları gösterir; "kapat" penceresi Z Launcher'ı kapatır, televizyonu kapatır ya da
+  uyutur. Kitaplıklarda ad sağ üstte büyük ve soluk, komutlar sol üstte bağlantı, seçili yol ‹ › arasında.
+- **Windows 7.** Şeritler yan yana: devam et, resimler + videolar, müzik, uygulamalar, bilgiler, görevler;
+  odaktaki şerit parlak ve büyük, diğerleri soluk.
+
+Her ikisinde de yarıda bırakılan film "devam et"te, televizyonun uygulamaları kendi afişleriyle durur.
+Kumandanın Home tuşu, erişilebilirlik servisi açıksa Google TV'nin ana ekranı yerine Z Launcher'ı açar.
+
+**Telefon bağlantısı.** Telefonunda Z Launcher kullanıyorsan onu aynı Wi-Fi'daki televizyonla eşleyebilirsin
+(televizyonda ayarlar → bağlantılar → telefon ekle, telefonda TV ekle, 6 haneli kod). Sonra telefona gelen
+aramalar, cevapsız aramalar ve mesajlar televizyonun köşesinde, açık olan her şeyin üstünde görünür. Mesajın
+metni varsayılan olarak gitmez; telefonda açılabilir. Sunucu yoktur, her şey ev ağında ve şifreli gider.
+
+<p align="center">
+  <img src="docs/img/tv-vista-baslat.jpg" width="400" alt="Televizyonda Vista Media Center başlangıcı">
+  <img src="docs/img/tv-vista-bildirim.jpg" width="400" alt="Telefondan gelen mesaj televizyonun köşesinde">
+</p>
+<p align="center">
+  <img src="docs/img/tv-vista-muzik.jpg" width="400" alt="Vista tasarımında müzik kitaplığı">
+  <img src="docs/img/tv-vista-kapat.jpg" width="400" alt="Görevler: kapat penceresi">
+</p>
+<p align="center">
+  <img src="docs/img/tv-windows7-baslat.jpg" width="400" alt="Windows 7 Media Center başlangıcı">
+  <img src="docs/img/tv-windows7-bildirim.jpg" width="400" alt="Windows 7 tasarımında gelen arama">
+</p>
+<p align="center">
+  <img src="docs/img/telefon-tv-baglantisi.png" width="200" alt="Telefonda TV bağlantısı ayarları">
+</p>
+
 ## Ayarlar
 
 Windows Phone'un ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli anahtarlar.
@@ -202,8 +242,8 @@ Windows Phone'un ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli
 
 ## Ücretsiz ve Pro
 
-Başlangıç ekranı, bütün hub'lar, eylem merkezi, tablet düzeni ve varsayılan uygulama rolleri ücretsiz
-sürümde tamdır. **Pro, uygulamanın içinden tek seferlik bir satın almayla açılır** (Google Play üzerinden;
+Başlangıç ekranı, bütün hub'lar, eylem merkezi, tablet düzeni, televizyon arayüzü (iki Media Center tasarımı ve
+telefon bağlantısı dahil) ve varsayılan uygulama rolleri ücretsiz sürümde tamdır. **Pro, uygulamanın içinden tek seferlik bir satın almayla açılır** (Google Play üzerinden;
 ayarlar → hakkında → Z Launcher Pro, ya da kilitli herhangi bir şeye dokunarak). Bir kez alınır, aynı Google
 hesabıyla her telefonda geçerlidir; ayarların yerinde kalır. Pro şunları ekler:
 
@@ -228,6 +268,8 @@ engelleme açıksa haftada bir engelleme listesi de indirilir) — o da o özell
 İki izin isteğe bağlıdır ve tek bir iş içindir: hassas konum yalnızca bağlı Wi-Fi ağının adını göstermek için
 (hava durumu yuvarlanmış, yaklaşık konumu kullanır), yakındaki cihazlar yalnızca bağlı Bluetooth cihazlarının
 adları için.
+Telefon bağlantısı açıksa aramalar ve mesajlar yalnızca eşlediğin televizyona, ev ağının içinden ve şifreli
+gider; mesaj metni sen açmadıkça gitmez.
 Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md) · [web](https://serkantkn.github.io/Z-Launcher/gizlilik.html).
 
 ## Derlemek
@@ -254,7 +296,7 @@ altında `data` (model, DataStore, depolar), `ui/screens/<hub>` (her hub kendi e
 ## Mağaza ve yayın
 
 `STORE.md` mağaza metinlerini, `store/` görselleri ve tanıtım videosunu, `PLAY.md` Play Console beyanlarını,
-`KEYSTORE.md` imzalama anahtarını anlatır. Gizlilik politikası GitHub Pages'ten yayımlanır: [`docs/`](docs/).
+`KEYSTORE.md` imzalama anahtarını, `TV.md` televizyon arayüzünün nasıl yapıldığını anlatır. Gizlilik politikası GitHub Pages'ten yayımlanır: [`docs/`](docs/).
 
 ## Lisans
 
@@ -274,7 +316,8 @@ Karo glifleri Microsoft'un [Fluent UI System Icons](https://github.com/microsoft
 ## English
 
 **Metro, again.** A launcher written from scratch for anyone who misses Windows Phone: live tiles, hubs,
-turnstile animations and Zune's thin type, running on today's Android — and sending nothing anywhere.
+turnstile animations and Zune's thin type, running on today's Android — and sending nothing anywhere. On a
+television it becomes Windows Media Center.
 
 - **Start screen.** Small, medium, wide and large tiles; live tiles that turn by themselves; folders; pin apps,
   people, conversations, albums, records, notes and web pages. Every live tile is laid out for every size, its
@@ -290,6 +333,16 @@ turnstile animations and Zune's thin type, running on today's Android — and se
 - **Tablet.** Windows 8's Start, full screen and grouped; a swipe up slides it off while the app list rises from
   below — apps under their letters in columns, scrolling sideways, ordered by name, install date or use, with
   the Windows 8 app bar on a hold. Pulling the board past its first group opens the social hub.
+- **Television.** On Android TV and Google TV the launcher is Windows Media Center, worked with the remote, with
+  the hubs that make sense on a TV: music + videos with the player, pictures, weather, news, clock, files and
+  settings. Two designs, chosen in settings → look → media center: **Windows Vista**, copied frame
+  by frame — "start" faint at the left, the categories turning one above another through a fixed pane of glass,
+  the logo at launch, Vista's zoom between pages, Selawik (Segoe UI's open twin) and navigation sounds that
+  can be turned off, a program library of the TV's apps and the shutdown panel; or **Windows 7**, its strips
+  side by side. A film left part way waits under "continue"; the remote's Home button opens Z Launcher
+  through an accessibility service. **The phone link** pairs a phone running Z Launcher with a TV on the same
+  Wi-Fi by a six-digit code; calls, missed calls and messages then show in the TV's corner over whatever is
+  on. The message text stays on the phone unless you allow it; no server, encrypted, on your own network.
 - **Action center.** A pull from the status bar brings down Windows 10 Mobile's action center instead of
   Android's shade: quick actions, a thin brightness slider, the music playing, and notifications grouped by
   app — the launcher's own by hub — to open, swipe away or answer in place. On a tablet it is a column from
@@ -316,8 +369,8 @@ turnstile animations and Zune's thin type, running on today's Android — and se
   Android's own switch for each; about lists this device.
 - **Looks.** Fourteen accent colours and a custom one, dark and light themes, tile transparency and frost,
   corner style and spacing. The Windows Phone keyboard *(Pro)*.
-- **Free and Pro.** Start, every hub, the action center, the tablet layout and the default-app roles are whole
-  in the free edition. Pro is one purchase inside the app, through Google Play (settings → about → Z Launcher
+- **Free and Pro.** Start, every hub, the action center, the tablet layout, the TV interface (both Media
+  Center designs and the phone link) and the default-app roles are whole in the free edition. Pro is one purchase inside the app, through Google Play (settings → about → Z Launcher
   Pro, or touch anything locked); bought once, it holds on every phone signed in to the same Google account.
   Pro adds all accent colours, custom wallpaper, frosted tiles, each tile's own look,
   the hubs' background settings, the video player's subtitles, sound tracks, speed, fill, next episode and

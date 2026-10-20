@@ -6,6 +6,8 @@
 | `feature-graphic-en.png` | Aynısı, İngilizce alt satır | Hazır |
 | `screenshots/*.png` | Telefon ekran görüntüleri, 1080 × 2400 | **Taslak** |
 | `play_store_icon.png` | Uygulama ikonu, 512 × 512 | Hazır |
+| `tv-banner.png` | Android TV afişi, 1280 × 720 | Hazır |
+| `screenshots-tv/*.png` | TV ekran görüntüleri, 1920 × 1080 | Hazır (gerçek Mi TV, örnek içerik) |
 | `tanitim-videosu.mp4` | Tanıtım videosu, 1920 × 1080 (16:9), 2 dk 24 sn | Hazır (emülatör çekimi, Pro sürüm) |
 
 Metinler (uygulama adı, kısa ve tam açıklama, iki dilde) `../STORE.md` dosyasında.
@@ -82,3 +84,15 @@ zaman damgasına göre kesince ffmpeg bir sonraki kareye atlıyor ve yanlış an
 Her kaydı kesmeden önce sabit 30 fps'e çevirmek gerekiyor. Ayrıca başlangıç ekranında aşağı
 doğru sürükleme bildirim gölgesini açıyor; kayıt sırasında yalnızca yukarı doğru kaydırma
 kullanılmalı.
+
+## TV ekran görüntüleri hakkında
+
+`screenshots-tv/` içindekiler gerçek bir Xiaomi Mi TV'de (Google TV, 1080p) alındı: Vista
+başlangıcı, telefon bildirimi, müzik ve fotoğraf kitaplıkları, kapat penceresi, Vista ayarları,
+Windows 7 başlangıcı ve gelen arama. İçerik test içeriğidir (renk çubuklu deneme videosu, uydurma
+albümler, rehberdeki örnek kişiler); telefonun adı "Telefonum". Kişisel bilgi yok — hava durumu
+bilerek çekilmedi, gerçek konumu gösteriyordu. Kendi televizyonunda kendi film ve müziğinle
+yeniden çekersen mağaza sayfası daha iyi görünür; dosya adları sıralamayı belirler.
+
+Tanıtım videosu şu an yalnızca telefonu gösteriyor. TV'yi de göstersin istersen sonuna bir
+televizyon bölümü eklenebilir; kayıt gerçek televizyondan alınmalı.

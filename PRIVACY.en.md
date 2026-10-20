@@ -1,6 +1,6 @@
 # Z Launcher — Privacy Policy
 
-Last updated: 17 October 2026 · Version 1.3
+Last updated: 20 October 2026 · Version 1.4
 
 ## In short
 
@@ -71,6 +71,37 @@ If blocking is on in the browser, Steven Black's open blocklist is downloaded on
 **The browser**
 Sites you visit are between you and them. The app does not sit in the middle and does not
 report anywhere. With blocking on, the requests pages make to advertising and tracking servers are stopped on the phone. The icons on the start page's site tiles are asked of Google's icon service by the site's name. "Translate page" opens the page through Google Translate.
+
+## Between your phone and your TV (the phone link)
+
+Z Launcher also runs on a television. If you pair your phone with a TV on the same Wi-Fi
+network, the phone tells that TV about incoming calls and messages, and the TV shows them in a
+corner of the screen. Nothing is sent unless you pair the two.
+
+- **What goes:** the caller's or sender's name (as in your contacts, or the number), the kind
+  of notice (call, missed call, message), the name of the app a message came from and your
+  phone's name. **The text of a message is not sent by default**; only if you turn on "send
+  the message text too" on the phone do its first 300 characters go.
+- **Where it goes:** only to the TV you paired, directly over your local network. There is no
+  server in between; it does not go out to the internet and never reaches us.
+- **How it is protected:** pairing uses a one-time six-digit code shown on the TV; every notice
+  is encrypted (AES-GCM) with a key only those two devices hold, protected by the Android
+  Keystore.
+- **How it is read:** while Z Launcher is your default phone and SMS app it sees calls and texts
+  itself; otherwise it reads them from your phone and messaging apps' notifications (this needs
+  notification access). Messages from other apps such as WhatsApp are, if you choose, read from
+  their notifications too.
+- **On the TV:** a notice is only shown, disappears after a few seconds and is not stored. The
+  TV keeps only the names and keys of the phones paired with it.
+- **Turning it off:** on the phone, settings → connections → TV link turns each kind off, or all
+  of it; a paired device can be removed from either side.
+
+## On a television
+
+If you turn on the accessibility service on a TV, it is used for three things only: catching the
+remote's Home button, opening the TV's power menu or putting it to sleep when you choose that in
+Media Center's shutdown panel, and showing a paired phone's notice over other apps. Nothing on
+the screen is read, and nothing is recorded or sent.
 
 ## Where it is kept
 

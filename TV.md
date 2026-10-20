@@ -1,14 +1,14 @@
 # Z Launcher on Android TV
 
-This branch (`tv`) only. Nothing here goes into the GitHub beta or the Play release until it is
-decided otherwise; releases are built from `main`, and `main` is merged into this branch, not the
-other way round.
+Part of the app on `main` since 2026-10-20, when the user put the TV interface into the Play plans:
+the same package goes to phones, tablets and Android TV (Play: `PLAY.md`, section 6). Until then
+it was kept on a branch of its own (`tv`), out of every release.
 
 ## Decided
 
 - **Windows Media Center, two of them.** (2026-10-19: the A board and C list of the draft are
   gone; 2026-10-20: Vista's added beside Windows 7's, chosen in settings.) Start and every hub are Media Center's; the phone's Start setting, wallpaper, hub
-  background, tiles and icons are not offered on a TV, only the theme and type and motion.
+  background, tiles and icons are not offered on a TV, only the accent colour (no light theme: Media Center is blue and white) and type and motion.
 - **Worked with a remote.** Every tile and word takes focus; the focused one grows a little and
   gains a white frame. The edges keep the 5% a TV may crop (48 × 27 dp).
 - **Phone and messages through the phone.** A phone running Z Launcher can tell a paired TV on the
@@ -234,3 +234,20 @@ shows it in its bottom right corner, over whatever is on. No server.
 ## Still to do
 
 1. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.
+
+## Into Play (2026-10-20)
+
+- `tv` merged into `main`; the manifest's TV entries (leanback and touchscreen not required,
+  `LEANBACK_LAUNCHER`, banner) now ship to everyone.
+- The phone link no longer asks for the call log or SMS: Play allows them only to the default
+  phone and SMS apps. Without those roles it reads calls and texts from the phone and SMS apps'
+  notifications (`PhoneLinkCalls`, `PhoneLinkAppMessages`), asking only for phone state, contacts
+  and notification access. Tried on the emulator with both permissions revoked: an SMS came through
+  with its sender's name; a call with a name only when the phone app posts an incoming-call
+  notification (Google's and Samsung's do; the old Z Launcher dialer on the emulator does not).
+- The TV's accessibility description and disclosure name all three of its uses (Home key, the
+  shutdown panel's power menu and sleep, the phone notice over other apps).
+- A hub whose words come late (Pictures) now gets the remote on them, not on its first link.
+- Store: `store/tv-banner.png`, `store/screenshots-tv/`, TV text in `STORE.md`; README, site and
+  privacy policy (1.4) describe the TV and the phone link.
+

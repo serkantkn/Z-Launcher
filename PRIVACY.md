@@ -1,6 +1,6 @@
 # Z Launcher — Gizlilik Politikası
 
-Son güncelleme: 17 Ekim 2026 · Sürüm 1.3
+Son güncelleme: 20 Ekim 2026 · Sürüm 1.4
 
 ## Kısaca
 
@@ -74,6 +74,37 @@ Tarayıcıda engelleme açıksa, Steven Black'in açık engelleme listesi bir ke
 **Tarayıcı**
 Ziyaret ettiğiniz siteler doğrudan sizinle o site arasındadır; uygulama araya girmez, bir
 yere bildirmez. Engelleme açıksa, sayfaların reklam ve izleyici sunucularına yaptığı istekler telefonda durdurulur. Başlangıç sayfasındaki site karolarının simgeleri Google'ın simge servisinden site adıyla istenir. "Sayfayı çevir" seçildiğinde sayfa Google Çeviri üzerinden açılır.
+
+## Telefon ile televizyon arasında (telefon bağlantısı)
+
+Z Launcher televizyonda da çalışır. Telefonunuzu aynı Wi-Fi ağındaki bir televizyonla
+eşlerseniz, telefon gelen aramaları ve mesajları o televizyona bildirir; televizyon bunları
+ekranın köşesinde gösterir. Bu özellik siz eşleştirme yapmadıkça hiçbir şey göndermez.
+
+- **Ne gider:** arayanın ya da mesaj gönderenin adı (rehberdeki adı, yoksa numarası),
+  bildirimin türü (arama, cevapsız arama, mesaj), mesajın geldiği uygulamanın adı ve
+  telefonunuzun adı. **Mesajın metni varsayılan olarak gönderilmez**; ancak telefonda
+  "mesajın metnini de gönder"i açarsanız ilk 300 karakteri gider.
+- **Nereye gider:** yalnızca eşlediğiniz televizyona, doğrudan yerel ağınız üzerinden. Arada
+  bir sunucu yoktur, internete çıkmaz, bize ulaşmaz.
+- **Nasıl korunur:** eşleştirme televizyonda gösterilen tek kullanımlık 6 haneli kodla yapılır;
+  her bildirim yalnızca o iki cihazın bildiği bir anahtarla (AES-GCM) şifrelenir. Anahtarlar
+  Android Keystore ile korunur.
+- **Nasıl okunur:** Z Launcher varsayılan telefon ve SMS uygulamasıysa aramaları ve mesajları
+  kendisi görür; değilse telefon ve mesaj uygulamalarınızın bildirimlerinden okur (bunun için
+  bildirim erişimi gerekir). WhatsApp gibi diğer uygulamaların mesajları da isteğe bağlı olarak
+  bildirimlerden okunur.
+- **Televizyonda:** gelen bildirim yalnızca ekranda gösterilir ve birkaç saniye sonra kaybolur;
+  kaydedilmez. Televizyon yalnızca eşlediği telefonların adını ve anahtarını saklar.
+- **Kapatmak:** telefonda ayarlar → bağlantılar → TV bağlantısı'ndan her tür ayrı ayrı ya da
+  tamamen kapatılır; eşlenen cihaz her iki taraftan da kaldırılabilir.
+
+## Televizyonda
+
+Televizyonda erişilebilirlik servisi açılırsa yalnızca üç iş için kullanılır: kumandanın Home
+tuşunu yakalamak, Media Center'ın "kapat" penceresinde seçtiğinizde televizyonu kapatma
+menüsünü açmak ya da uyutmak ve eşlediğiniz telefonun bildirimini diğer uygulamaların üstünde
+göstermek. Ekrandaki yazılar okunmaz, hiçbir şey kaydedilmez ve gönderilmez.
 
 ## Nerede ve nasıl saklanır
 
