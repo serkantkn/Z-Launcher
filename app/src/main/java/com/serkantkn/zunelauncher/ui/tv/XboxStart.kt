@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Slideshow
@@ -80,6 +81,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -285,7 +288,11 @@ private sealed interface XboxPage {
     data class Cards(val kind: XboxCards) : XboxPage
     data class Detail(val item: XboxItem) : XboxPage
     data object Shutdown : XboxPage
+    data object Search : XboxPage
 }
+
+/** A "show me" or "sort" choice of a page of cards. */
+private class XboxChoice(val label: String, val keep: (XboxItem) -> Boolean = { true }, val order: (List<XboxItem>) -> List<XboxItem> = { it })
 
 /** One of a details page's green command tiles. */
 private class XboxCommand(val label: String, val icon: ImageVector, val run: () -> Unit)
@@ -321,9 +328,50 @@ internal fun XboxStart(
     var cardAt by remember { mutableIntStateOf(0) }
     var commandAt by remember { mutableIntStateOf(0) }
     var offAt by remember { mutableIntStateOf(0) }
+    // A page of cards: what it shows and in what order, and the remote on its two choosers.
+    var showAt by remember { mutableIntStateOf(0) }
+    var sortAt by remember { mutableIntStateOf(0) }
+    var chooser by remember { mutableStateOf<Int?>(null) }
+    var dropdown by remember { mutableStateOf(false) }
+    var dropAt by remember { mutableIntStateOf(0) }
+    // Search: the box, what is typed, what is found.
+    val boardFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val boxFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    var searchText by remember { mutableStateOf("") }
+    var searchAt by remember { mutableIntStateOf(0) }
+    var onBox by remember { mutableStateOf(true) }
+    val found by androidx.compose.runtime.produceState(emptyList<XboxItem>(), searchText, items) {
+        delay(SEARCH_SETTLE_MILLIS)
+        val text = searchText
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { XboxSearch.find(context, text, items, onOpenHub) }
+        searchAt = 0
+    }
+    fun openSearch() {
+        onBox = true
+        push(XboxPage.Search)
+    }
+    LaunchedEffect(page == XboxPage.Search, onBox) {
+        if (page == XboxPage.Search && onBox) {
+            delay(BOX_FOCUS_DELAY_MILLIS)
+            runCatching { boxFocus.requestFocus() }
+        }
+    }
+    val pinnedText = stringResource(R.string.xbox_pinned)
+    val unpinnedText = stringResource(R.string.xbox_unpinned)
+    val homeText = stringResource(R.string.xbox_home)
+    /** Pins or unpins, and says so in the corner, as the dashboard did. */
+    fun togglePin(item: XboxItem) {
+        if (!item.pinnable) return
+        val pinned = item.key !in XboxShelf.pins.value
+        if (pinned) XboxShelf.pin(item.key) else XboxShelf.unpin(item.key)
+        com.serkantkn.zunelauncher.data.link.TvLinkNotices.showSystem(
+            context, item.label, if (pinned) pinnedText else unpinnedText, homeText,
+            if (pinned) Icons.Default.PushPin else Icons.Outlined.PushPin
+        )
+    }
 
     val actions = XboxActions(
-        openCards = { kind -> cardAt = 0; push(XboxPage.Cards(kind)) },
+        openCards = { kind -> cardAt = 0; showAt = 0; sortAt = 0; chooser = null; dropdown = false; push(XboxPage.Cards(kind)) },
         openShutdown = { offAt = 0; push(XboxPage.Shutdown) },
         openGuide = { XboxGuide.show() }
     )
@@ -353,8 +401,8 @@ internal fun XboxStart(
     LaunchedEffect(pending) {
         val kind = pending ?: return@LaunchedEffect
         delay(PENDING_DELAY_MILLIS)
-        cardAt = 0
-        pages = listOf(XboxPage.Cards(kind))
+        pages = emptyList()
+        if (kind == XboxCards.SEARCH) openSearch() else actions.openCards(kind)
         XboxShelf.consumePage()
     }
 
@@ -385,10 +433,55 @@ internal fun XboxStart(
         }
     }
 
-    fun cards(kind: XboxCards): List<XboxItem> = when (kind) {
-        XboxCards.APPS -> apps.mapNotNull { items["app:${it.packageName}"] }
-        XboxCards.PINS -> pins.mapNotNull { items[it] }
-        XboxCards.RECENT -> recent.mapNotNull { items[it] }
+    val choiceAll = stringResource(R.string.xbox_all_media)
+    val choiceApps = stringResource(R.string.xbox_apps)
+    val choiceHubs = stringResource(R.string.xbox_show_hubs)
+    val choicePinned = stringResource(R.string.xbox_pins)
+    val byName = stringResource(R.string.vista_by_name)
+    val byInstall = stringResource(R.string.xbox_sort_installed)
+    val byUse = stringResource(R.string.xbox_sort_used)
+    val yourOrder = stringResource(R.string.xbox_sort_yours)
+    val newest = stringResource(R.string.xbox_sort_newest)
+    val installedAt = remember(apps) {
+        apps.associate { a -> a.packageName to runCatching { context.packageManager.getPackageInfo(a.packageName, 0).firstInstallTime }.getOrDefault(0L) }
+    }
+    val nameOrder: (List<XboxItem>) -> List<XboxItem> = { list -> list.sortedBy { it.label.lowercase() } }
+    fun shows(kind: XboxCards): List<XboxChoice> = when (kind) {
+        XboxCards.APPS -> listOf(XboxChoice(choiceAll), XboxChoice(choicePinned, { it.key in pins }))
+        XboxCards.PINS, XboxCards.RECENT -> listOf(
+            XboxChoice(choiceAll),
+            XboxChoice(choiceApps, { it.kind == XboxItem.Kind.APP }),
+            XboxChoice(choiceHubs, { it.kind == XboxItem.Kind.HUB })
+        )
+        XboxCards.SEARCH -> emptyList()
+    }
+    fun sorts(kind: XboxCards): List<XboxChoice> = when (kind) {
+        XboxCards.APPS -> listOf(
+            XboxChoice(byName, order = nameOrder),
+            XboxChoice(byInstall, order = { list -> list.sortedByDescending { installedAt[it.packageName] ?: 0L } }),
+            XboxChoice(byUse, order = { list -> list.sortedBy { recent.indexOf(it.key).let { i -> if (i < 0) Int.MAX_VALUE else i } } })
+        )
+        XboxCards.PINS -> listOf(XboxChoice(yourOrder), XboxChoice(byName, order = nameOrder))
+        XboxCards.RECENT -> listOf(XboxChoice(newest), XboxChoice(byName, order = nameOrder))
+        XboxCards.SEARCH -> emptyList()
+    }
+    fun cards(kind: XboxCards): List<XboxItem> {
+        val all = when (kind) {
+            XboxCards.APPS -> apps.mapNotNull { items["app:${it.packageName}"] }
+            XboxCards.PINS -> pins.mapNotNull { items[it] }
+            XboxCards.RECENT -> recent.mapNotNull { items[it] }
+            XboxCards.SEARCH -> found
+        }
+        val show = shows(kind).getOrNull(showAt)
+        val sort = sorts(kind).getOrNull(sortAt)
+        return (sort?.order ?: { it })(all.filter { show?.keep?.invoke(it) ?: true })
+    }
+    /** The thing the remote is on, whatever page it is on. */
+    fun current(): XboxItem? = when (val p = page) {
+        null -> if (onWords) null else sections[sectionNow].tiles.getOrNull(tile)?.shown(turn)?.item
+        is XboxPage.Cards -> if (chooser == null) cards(p.kind).getOrNull(cardAt) else null
+        XboxPage.Search -> if (onBox) null else found.getOrNull(searchAt)
+        else -> null
     }
 
     val texts = XboxCommandTexts(
@@ -404,6 +497,7 @@ internal fun XboxStart(
     )
     fun commands(item: XboxItem): List<XboxCommand> = buildList {
         when (item.kind) {
+            XboxItem.Kind.MEDIA -> add(XboxCommand(texts.open, item.icon ?: Icons.Default.PlayArrow) { item.open() })
             XboxItem.Kind.FILM -> {
                 add(XboxCommand(texts.resume, Icons.Default.PlayArrow) { item.open() })
                 item.film?.let { film ->
@@ -419,10 +513,10 @@ internal fun XboxStart(
                 add(XboxCommand(texts.open, item.icon ?: Icons.Default.PlayArrow) { item.open() })
                 // Read from the state, so the tile turns from "pin" to "unpin" as it is pressed.
                 if (item.key in pins) {
-                    add(XboxCommand(texts.unpin, Icons.Outlined.PushPin) { XboxShelf.unpin(item.key) })
+                    add(XboxCommand(texts.unpin, Icons.Outlined.PushPin) { togglePin(item) })
                     if (pins.firstOrNull() != item.key) add(XboxCommand(texts.front, Icons.Default.VerticalAlignTop) { XboxShelf.moveToFront(item.key) })
                 } else {
-                    add(XboxCommand(texts.pin, Icons.Default.PushPin) { XboxShelf.pin(item.key) })
+                    add(XboxCommand(texts.pin, Icons.Default.PushPin) { togglePin(item) })
                 }
                 item.packageName?.let { pkg ->
                     add(XboxCommand(texts.info, Icons.Default.Info) {
@@ -478,7 +572,19 @@ internal fun XboxStart(
                     val tiles = sections[sectionNow].tiles
                     tile = tiles.indices.minByOrNull { tiles[it].y * 4 + tiles[it].x } ?: 0
                 }
-            is XboxPage.Cards -> cards(p.kind).getOrNull(cardAt)?.open()
+            is XboxPage.Cards -> when {
+                dropdown -> {
+                    if (chooser == 0) showAt = dropAt else sortAt = dropAt
+                    dropdown = false
+                    cardAt = 0
+                }
+                chooser != null -> {
+                    dropAt = if (chooser == 0) showAt else sortAt
+                    dropdown = true
+                }
+                else -> cards(p.kind).getOrNull(cardAt)?.open()
+            }
+            XboxPage.Search -> found.getOrNull(searchAt)?.open()
             is XboxPage.Detail -> commands(p.item).getOrNull(commandAt)?.run?.invoke()
             XboxPage.Shutdown -> {
                 pop()
@@ -491,13 +597,15 @@ internal fun XboxStart(
         }
     }
     fun hold() {
-        val item = when (val p = page) {
-            null -> if (onWords) null else sections[sectionNow].tiles.getOrNull(tile)?.shown(turn)?.item
-            is XboxPage.Cards -> cards(p.kind).getOrNull(cardAt)
-            else -> null
-        } ?: return
+        val item = current() ?: return
         commandAt = 0
         push(XboxPage.Detail(item))
+    }
+    /** Ⓨ: on my pins, move to front; anywhere else, pin or unpin. */
+    fun yButton() {
+        val item = current() ?: return
+        val p = page
+        if (p is XboxPage.Cards && p.kind == XboxCards.PINS) XboxShelf.moveToFront(item.key) else togglePin(item)
     }
     fun move(key: Key) {
         when (val p = page) {
@@ -508,11 +616,32 @@ internal fun XboxStart(
             }
             is XboxPage.Cards -> {
                 val last = cards(p.kind).lastIndex
-                when (key) {
-                    Key.DirectionLeft -> cardAt = (cardAt - 1).coerceAtLeast(0)
-                    Key.DirectionRight -> cardAt = (cardAt + 1).coerceAtMost(last.coerceAtLeast(0))
-                    else -> {}
+                val options = if (chooser == 0) shows(p.kind) else sorts(p.kind)
+                when {
+                    dropdown -> when (key) {
+                        Key.DirectionUp -> dropAt = (dropAt - 1).coerceAtLeast(0)
+                        Key.DirectionDown -> dropAt = (dropAt + 1).coerceAtMost(options.lastIndex)
+                        else -> {}
+                    }
+                    chooser != null -> when (key) {
+                        Key.DirectionLeft -> chooser = 0
+                        Key.DirectionRight -> if (sorts(p.kind).isNotEmpty()) chooser = 1
+                        Key.DirectionDown -> chooser = null
+                        else -> {}
+                    }
+                    else -> when (key) {
+                        Key.DirectionLeft -> cardAt = (cardAt - 1).coerceAtLeast(0)
+                        Key.DirectionRight -> cardAt = (cardAt + 1).coerceAtMost(last.coerceAtLeast(0))
+                        Key.DirectionUp -> chooser = if (shows(p.kind).size > 1) 0 else 1
+                        else -> {}
+                    }
                 }
+            }
+            XboxPage.Search -> when (key) {
+                Key.DirectionLeft -> searchAt = (searchAt - 1).coerceAtLeast(0)
+                Key.DirectionRight -> searchAt = (searchAt + 1).coerceAtMost(found.lastIndex.coerceAtLeast(0))
+                Key.DirectionUp -> onBox = true
+                else -> {}
             }
             is XboxPage.Detail -> {
                 val count = commands(p.item).size
@@ -535,8 +664,9 @@ internal fun XboxStart(
                 val current = sections[sectionNow]
                 val from = current.tiles.getOrNull(tile) ?: current.tiles.first()
                 when (key) {
+                    // Off home's left edge is the search, as on the dashboard.
                     Key.DirectionLeft -> neighbour(current.tiles, from, -1, 0)?.let { tile = it }
-                        ?: if (sectionNow > 0) goTo(sectionNow - 1, enter(sections[sectionNow - 1], from.cy, fromLeft = false)) else Unit
+                        ?: if (sectionNow > 0) goTo(sectionNow - 1, enter(sections[sectionNow - 1], from.cy, fromLeft = false)) else openSearch()
                     Key.DirectionRight -> neighbour(current.tiles, from, 1, 0)?.let { tile = it }
                         ?: if (sectionNow < sections.lastIndex) goTo(sectionNow + 1, enter(sections[sectionNow + 1], from.cy, fromLeft = true)) else Unit
                     Key.DirectionUp -> neighbour(current.tiles, from, 0, -1)?.let { tile = it } ?: run { onWords = true }
@@ -550,10 +680,44 @@ internal fun XboxStart(
     val keys = Modifier.onPreviewKeyEvent { event ->
         if (hubOpen) return@onPreviewKeyEvent false
         val down = event.type == KeyEventType.KeyDown
+        // In the search box the keys are the box's: typing, the TV's keyboard. Down leaves for the
+        // cards, Back for the dashboard.
+        if (page == XboxPage.Search && onBox) {
+            when (event.key) {
+                Key.DirectionDown -> {
+                    if (down && found.isNotEmpty()) {
+                        onBox = false
+                        searchAt = 0
+                        runCatching { boardFocus.requestFocus() }
+                    }
+                    return@onPreviewKeyEvent true
+                }
+                Key.Back -> {
+                    if (down) backHeld = true
+                    else if (backHeld) {
+                        backHeld = false
+                        pop()
+                        runCatching { boardFocus.requestFocus() }
+                    }
+                    return@onPreviewKeyEvent true
+                }
+                else -> return@onPreviewKeyEvent false
+            }
+        }
         when (event.key) {
+            Key.ButtonX, Key(android.view.KeyEvent.KEYCODE_PROG_BLUE) -> {
+                if (down && event.nativeKeyEvent.repeatCount == 0) hold()
+                true
+            }
+            Key.ButtonY, Key(android.view.KeyEvent.KEYCODE_PROG_YELLOW) -> {
+                if (down && event.nativeKeyEvent.repeatCount == 0) yButton()
+                true
+            }
             Key.Back -> {
                 if (down) {
                     backHeld = when {
+                        dropdown -> { dropdown = false; true }
+                        chooser != null -> { chooser = null; true }
                         page != null -> { pop(); true }
                         onWords || sectionNow != 0 || tile != 0 -> { toTop(); true }
                         else -> false
@@ -589,13 +753,14 @@ internal fun XboxStart(
         modifier = modifier
             .fillMaxSize()
             .then(focusModifier)
+            .focusRequester(boardFocus)
             .tvOwnFocus()
             .then(keys)
             .focusable()
     ) {
         val u = maxWidth / REFERENCE_WIDTH
         val density = LocalDensity.current
-        val overBoard = page is XboxPage.Cards || page is XboxPage.Detail
+        val overBoard = page is XboxPage.Cards || page is XboxPage.Detail || page == XboxPage.Search
         val pageShown by animateFloatAsState(if (overBoard) 1f else 0f, tween(PAGE_MILLIS, easing = FastOutSlowInEasing), label = "xboxPage")
         Box(
             modifier = Modifier
@@ -653,10 +818,22 @@ internal fun XboxStart(
                     }
                 }
             }
-            XboxLegend(back = false, hold = true, guide = true, modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f))
+            // The search, waiting behind home's left edge.
+            if (sectionNow == 0) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .offset(x = u * 0f, y = u * 300f)
+                        .size(u * 85f, u * 64f)
+                        .background(Color(0xFF6E7476).copy(alpha = 0.75f))
+                ) {
+                    Icon(Icons.Default.Search, null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(u * 30f))
+                }
+            }
+            XboxLegend(back = false, hold = true, pin = stringResource(R.string.xbox_pin_short), guide = true, modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f))
             XboxClock(modifier = Modifier.align(Alignment.TopEnd).padding(top = u * 42f, end = u * 90f))
         }
-        val shownPage = pages.lastOrNull { it is XboxPage.Cards || it is XboxPage.Detail }
+        val shownPage = pages.lastOrNull { it is XboxPage.Cards || it is XboxPage.Detail || it == XboxPage.Search }
         if (pageShown > 0f && shownPage != null) {
             Box(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
@@ -667,7 +844,35 @@ internal fun XboxStart(
                 }
             ) {
                 when (shownPage) {
-                    is XboxPage.Cards -> XboxCardsPage(shownPage.kind, cards(shownPage.kind), cardAt, u)
+                    is XboxPage.Cards -> XboxCardsPage(
+                        kind = shownPage.kind,
+                        cards = cards(shownPage.kind),
+                        at = cardAt,
+                        u = u,
+                        shows = shows(shownPage.kind).map { it.label },
+                        showAt = showAt,
+                        sorts = sorts(shownPage.kind).map { it.label },
+                        sortAt = sortAt,
+                        chooser = chooser,
+                        dropdown = dropdown,
+                        dropAt = dropAt
+                    )
+                    XboxPage.Search -> XboxSearchPage(
+                        text = searchText,
+                        onText = { searchText = it },
+                        onDone = {
+                            if (found.isNotEmpty()) {
+                                onBox = false
+                                searchAt = 0
+                                runCatching { boardFocus.requestFocus() }
+                            }
+                        },
+                        results = found,
+                        at = searchAt,
+                        onBox = onBox,
+                        boxFocus = boxFocus,
+                        u = u
+                    )
                     is XboxPage.Detail -> XboxDetailPage(shownPage.item, commands(shownPage.item), commandAt, u)
                     else -> {}
                 }
@@ -762,7 +967,19 @@ private fun XboxTileFace(tile: XboxTile, focused: Boolean, u: Dp) {
  * is on lifted out of the row. Which of how many in the top right.
  */
 @Composable
-private fun XboxCardsPage(kind: XboxCards, cards: List<XboxItem>, at: Int, u: Dp) {
+private fun XboxCardsPage(
+    kind: XboxCards,
+    cards: List<XboxItem>,
+    at: Int,
+    u: Dp,
+    shows: List<String>,
+    showAt: Int,
+    sorts: List<String>,
+    sortAt: Int,
+    chooser: Int?,
+    dropdown: Boolean,
+    dropAt: Int
+) {
     val density = LocalDensity.current
     val shift by animateFloatAsState((at - 1).coerceAtLeast(0).toFloat(), tween(SLIDE_MILLIS, easing = FastOutSlowInEasing), label = "xboxCardsShift")
     val title = stringResource(
@@ -770,15 +987,47 @@ private fun XboxCardsPage(kind: XboxCards, cards: List<XboxItem>, at: Int, u: Dp
             XboxCards.APPS -> R.string.xbox_my_apps
             XboxCards.PINS -> R.string.xbox_pins
             XboxCards.RECENT -> R.string.xbox_recent
+            XboxCards.SEARCH -> R.string.xbox_search
         }
     )
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.offset(x = u * 104f, y = u * 80f)) {
-            Text("⌄ " + stringResource(R.string.xbox_show_me), style = small(density, u, 18f), color = Color.White)
-            Text(
-                stringResource(if (kind == XboxCards.APPS) R.string.xbox_all_apps else R.string.xbox_all_media),
-                style = small(density, u, 24f), color = Color.White.copy(alpha = 0.8f)
-            )
+        // "show me" and "sort", as the dashboard set them over its rows of cards; up goes onto them.
+        Row(modifier = Modifier.zIndex(1f).offset(x = u * 104f, y = u * 76f), horizontalArrangement = Arrangement.spacedBy(u * 40f)) {
+            listOf(
+                Triple(stringResource(R.string.xbox_show_me), shows, showAt),
+                Triple(stringResource(R.string.xbox_sort), sorts, sortAt)
+            ).forEachIndexed { i, (name, options, chosen) ->
+                if (options.isEmpty()) return@forEachIndexed
+                val on = chooser == i
+                Column(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            val grow = if (on) 1.06f else 1f
+                            scaleX = grow
+                            scaleY = grow
+                        }
+                        .background(if (on && !dropdown) Xbox.Green else Color.Transparent)
+                        .padding(horizontal = u * 8f, vertical = u * 4f)
+                ) {
+                    Text("⌄ $name", style = small(density, u, 18f), color = Color.White)
+                    Text(options.getOrElse(chosen) { "" }, style = small(density, u, 24f), color = Color.White.copy(alpha = if (on) 1f else 0.8f))
+                    if (on && dropdown) {
+                        Column(modifier = Modifier.padding(top = u * 6f).background(Xbox.Panel).width(u * 260f)) {
+                            options.forEachIndexed { j, option ->
+                                Text(
+                                    option,
+                                    style = small(density, u, 20f).copy(shadow = null),
+                                    color = if (j == dropAt) Color.White else Xbox.Ink,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(if (j == dropAt) Xbox.Green else Color.Transparent)
+                                        .padding(horizontal = u * 14f, vertical = u * 7f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
         Column(horizontalAlignment = Alignment.End, modifier = Modifier.align(Alignment.TopEnd).padding(top = u * 78f, end = u * 95f)) {
             Text(title, style = small(density, u, 32f), color = Color.White)
@@ -789,10 +1038,15 @@ private fun XboxCardsPage(kind: XboxCards, cards: List<XboxItem>, at: Int, u: Dp
         if (cards.isEmpty()) {
             Text(
                 stringResource(
-                    when (kind) {
-                        XboxCards.APPS -> R.string.vista_no_apps
-                        XboxCards.PINS -> R.string.xbox_no_pins
-                        XboxCards.RECENT -> R.string.xbox_no_recent
+                    when {
+                        // Something is there, only not under what is shown.
+                        showAt != 0 -> R.string.xbox_none_shown
+                        else -> when (kind) {
+                            XboxCards.APPS -> R.string.vista_no_apps
+                            XboxCards.PINS -> R.string.xbox_no_pins
+                            XboxCards.RECENT -> R.string.xbox_no_recent
+                            XboxCards.SEARCH -> R.string.xbox_search_none
+                        }
                     }
                 ),
                 style = small(density, u, 22f),
@@ -804,7 +1058,7 @@ private fun XboxCardsPage(kind: XboxCards, cards: List<XboxItem>, at: Int, u: Dp
             cards.forEachIndexed { i, item ->
                 val x = 64f + (i - shift) * CARD_STEP
                 if (x < -CARD_W || x > 1300f) return@forEachIndexed
-                val chosen = i == at
+                val chosen = i == at && chooser == null
                 val lift by animateFloatAsState(if (chosen) 1.07f else 1f, tween(140), label = "xboxCard")
                 Column(
                     modifier = Modifier
@@ -839,13 +1093,18 @@ private fun XboxCardsPage(kind: XboxCards, cards: List<XboxItem>, at: Int, u: Dp
                             XboxItem.Kind.APP -> Icons.Default.Apps
                             XboxItem.Kind.HUB -> item.icon ?: Icons.Default.Apps
                             XboxItem.Kind.FILM -> Icons.Default.Movie
+                            XboxItem.Kind.MEDIA -> item.icon ?: Icons.Default.Movie
                         },
                         null, tint = Xbox.InkDim, modifier = Modifier.align(Alignment.End).size(u * 18f)
                     )
                 }
             }
         }
-        XboxLegend(hold = true, modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f))
+        XboxLegend(
+            hold = true,
+            pin = stringResource(if (kind == XboxCards.PINS) R.string.xbox_move_front else R.string.xbox_pin_short),
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f)
+        )
     }
 }
 
@@ -950,7 +1209,7 @@ private fun detailFacts(context: Context, item: XboxItem): List<String> = buildL
             add(film.title)
             add("${clock(film.positionMs)} / ${clock(film.durationMs)}")
         }
-        XboxItem.Kind.HUB -> item.line?.let { add(it) }
+        XboxItem.Kind.HUB, XboxItem.Kind.MEDIA -> item.line?.let { add(it) }
     }
 }
 
@@ -1057,3 +1316,5 @@ private const val INTRO_MILLIS = 500
 /** How long the spotlight shows each of its turns. */
 private const val SPOTLIGHT_MILLIS = 7_000L
 private const val PENDING_DELAY_MILLIS = 150L
+private const val SEARCH_SETTLE_MILLIS = 250L
+private const val BOX_FOCUS_DELAY_MILLIS = 120L

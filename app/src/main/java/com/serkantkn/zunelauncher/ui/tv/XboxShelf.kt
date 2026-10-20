@@ -26,19 +26,20 @@ internal class XboxItem(
     val progress: Float? = null,
     private val run: () -> Unit
 ) {
-    enum class Kind { APP, HUB, FILM }
+    /** [MEDIA] is something found by search - a song, an album, a video - opened but not kept. */
+    enum class Kind { APP, HUB, FILM, MEDIA }
 
-    /** Opens it, and remembers it among the recent - but a film left part way is "continue" already. */
+    /** Opens it, and remembers it among the recent - but only an app or a hub, which can be found again. */
     fun open() {
-        if (kind != Kind.FILM) XboxShelf.used(key)
+        if (pinnable) XboxShelf.used(key)
         run()
     }
 
-    val pinnable: Boolean get() = kind != Kind.FILM
+    val pinnable: Boolean get() = kind == Kind.APP || kind == Kind.HUB
 }
 
 /** The pages of cards the dashboard keeps: every app, the pinned, the recent. */
-internal enum class XboxCards { APPS, PINS, RECENT }
+internal enum class XboxCards { APPS, PINS, RECENT, SEARCH }
 
 /**
  * What the Xbox design keeps: the things pinned to home ("my pins", in the order the user put them)

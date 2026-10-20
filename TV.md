@@ -282,6 +282,28 @@ frame by frame from two videos (IGN's 2012 tour, a 10-minute walkthrough).
   word follows), pins page, guide from Start and from a hub (to pins, to pictures), Home held
   (gRPC key 102) and short. Not tried: the film details (no film on the emulator), a real remote.
 
+## Xbox: search, notices, show / sort, Ⓧ and Ⓨ (2026-10-21)
+
+- `ui/tv/XboxSearch.kt`: search, kept behind home's left edge (a grey tab peeks out; Left from
+  the first section, or "search" at the top of the guide). The TV's keyboard types into a white
+  box; 250 ms after the last letter it finds apps and hubs by name (those starting with it
+  first), then MediaStore albums, songs and videos (12 of each, 40 in all; left out without
+  permission). Down goes to the result cards, Up back to the box.
+- Cards pages (my apps, my pins, recent) have "⌄ show" and "⌄ sort" at the top, as the
+  dashboard's pages did: Up from the cards onto them, a white dropdown with the chosen line green.
+  Apps: all / pinned; by name, install date, last used. Pins: all / apps / hubs; your order or by
+  name. Recent: all / apps / hubs; newest or by name. Reset each time a page opens; an empty
+  result under a filter says so rather than "nothing pinned".
+- Ⓧ (gamepad X, the remote's blue key) opens the details of the card or tile the remote is on;
+  Ⓨ (gamepad Y, yellow) pins or unpins, and on the pins page moves to front. The legends say so.
+- Notices: `LinkNotice.Kind.SYSTEM` and `TvLinkNotices.showSystem` carry the TV's own news through
+  the phone-link notice window, with its own icon: pinned / unpinned, and (`TvAppNews`) a TV
+  app installed or updated.
+- The guide also opens on a gamepad's guide button (BUTTON_MODE).
+- Tried on the TV emulator: search (keyboard, a song opening the music hub), sort and show on all
+  three pages, Ⓧ and Ⓨ by key 186 / 185, the pin notice and an install notice. Not tried: a real
+  gamepad.
+
 ## Still to do
 
 1. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.

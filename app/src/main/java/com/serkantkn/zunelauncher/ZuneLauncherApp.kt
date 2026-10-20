@@ -72,6 +72,8 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
             CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                 runCatching { com.serkantkn.zunelauncher.data.link.TvLink.start(this@ZuneLauncherApp) }
                     .onFailure { ZuneLog.w("ZuneLauncherApp", "the phone link could not start", it) }
+                runCatching { com.serkantkn.zunelauncher.ui.tv.TvAppNews.start(this@ZuneLauncherApp) }
+                    .onFailure { ZuneLog.w("ZuneLauncherApp", "app news could not start", it) }
             }
         }
     }

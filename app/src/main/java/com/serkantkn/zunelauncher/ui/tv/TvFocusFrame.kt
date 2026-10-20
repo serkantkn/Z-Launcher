@@ -109,7 +109,9 @@ object TvFocus {
     fun onKey(view: android.view.View?, event: android.view.KeyEvent): Boolean {
         lastKeyAt = android.os.SystemClock.uptimeMillis()
         // The menu key is the Xbox's guide button: it brings the guide up, or puts it away.
-        if (event.keyCode == android.view.KeyEvent.KEYCODE_MENU && TvDesign.onTv && !TvDesign.vista.value) {
+        // So is a gamepad's own guide button.
+        val guideKey = event.keyCode == android.view.KeyEvent.KEYCODE_MENU || event.keyCode == android.view.KeyEvent.KEYCODE_BUTTON_MODE
+        if (guideKey && TvDesign.onTv && !TvDesign.vista.value) {
             if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) XboxGuide.toggle()
             return true
         }

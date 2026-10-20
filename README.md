@@ -197,7 +197,11 @@ tasarımdan biri seçilir, ana ekran ve bütün hub'lar onunla değişir:
   fotoğrafı, hava durumunu ve manşeti sırayla gösterir; alttaki karolar son açtığın iki şeydir. Bir karoya ya da
   uygulamaya basılı tutunca ayrıntı sayfası açılır: aç, ana sayfaya sabitle, öne taşı, uygulama bilgisi, kaldır;
   yarıda kalan filmde devam et ya da baştan başla. Kumandanın menü tuşu (ya da Home'a uzun basış) Xbox rehberini
-  açar: son kullanılanlar, çalan müziği duraklatma ve geçme, hub'lar, uyku ve kapatma.
+  açar: son kullanılanlar, çalan müziği duraklatma ve geçme, hub'lar, uyku ve kapatma. Ana sayfanın sol kenarında
+  arama durur: televizyonun uygulamaları, hub'lar ve televizyondaki şarkılar, albümler, videolar. Kart sayfalarının
+  üstünde "göster" ve "sırala" seçicileri (ada, yüklenme tarihine, son kullanıma göre). Gamepad'in Ⓧ'i ya da
+  kumandanın mavi tuşu ayrıntıları, Ⓨ ya da sarı tuş sabitlemeyi açar. Sabitleme, yeni yüklenen ve güncellenen
+  uygulamalar Xbox'un alttan çıkan bildirimiyle haber verilir.
 - **Media Center.** Windows Vista'nın Media Center'ı, videosundan kare kare kopyalandı: solda soluk "başlat" yazısı,
   alt alta dönen kategoriler (Resimler + Videolar, Müzik, TV + Filmler, Uygulamalar, Bilgiler, Görevler), yerinden
   oynamayan cam bir kutu ve içinden kayan öğeler; program kitaplığı ve kapat penceresi. Kitaplıklarda ad sağ üstte

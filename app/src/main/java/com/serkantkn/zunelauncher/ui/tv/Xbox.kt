@@ -215,13 +215,15 @@ fun XboxButtonGlyph(letter: String, color: Color, size: Dp = 22.dp) {
 
 private fun lerpWhite(c: Color, t: Float) = androidx.compose.ui.graphics.lerp(c, Color.White, t)
 
-/** "Ⓐ select  Ⓑ back", along the bottom left; [hold] and [guide] add what a held press and ≡ do. */
+/** "Ⓐ select  Ⓑ back", along the bottom left; [hold], [pin] and [guide] add what Ⓧ, Ⓨ and ≡ do. */
 @Composable
-fun XboxLegend(back: Boolean = true, modifier: Modifier = Modifier, hold: Boolean = false, guide: Boolean = false) {
+fun XboxLegend(back: Boolean = true, modifier: Modifier = Modifier, hold: Boolean = false, pin: String? = null, guide: Boolean = false) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
         XboxLegendItem("A", Xbox.ButtonA, stringResource(R.string.xbox_select))
         if (back) XboxLegendItem("B", Xbox.ButtonB, stringResource(R.string.xbox_back))
-        if (hold) XboxLegendItem("A", Xbox.ButtonA, stringResource(R.string.xbox_hold_details))
+        // Ⓧ and Ⓨ: a gamepad's, or the remote's blue and yellow keys; details also come with a held Ⓐ.
+        if (hold) XboxLegendItem("X", Xbox.ButtonX, stringResource(R.string.xbox_hold_details))
+        if (pin != null) XboxLegendItem("Y", Xbox.ButtonY, pin)
         if (guide) XboxLegendItem("≡", Color(0xFF6E7476), stringResource(R.string.xbox_guide))
     }
 }

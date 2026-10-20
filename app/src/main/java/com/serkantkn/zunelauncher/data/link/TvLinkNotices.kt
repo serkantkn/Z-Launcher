@@ -30,7 +30,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** A notice on the TV: what the phone said, and which phone said it. */
-internal data class ShownNotice(val notice: LinkNotice, val phone: String, val shownAt: Long = System.currentTimeMillis())
+internal data class ShownNotice(
+    val notice: LinkNotice,
+    val phone: String,
+    val shownAt: Long = System.currentTimeMillis(),
+    /** A sign of its own, for the TV's own news; a phone's notices are signed by their kind. */
+    val icon: androidx.compose.ui.graphics.vector.ImageVector? = null
+)
 
 /**
  * The corner of the TV where a paired phone's calls and messages show, over whatever is on: a
@@ -60,7 +66,15 @@ internal object TvLinkNotices {
         main.post { showNow(context, notice, phone) }
     }
 
-    private fun showNow(context: Context, notice: LinkNotice, phone: String) {
+    /**
+     * The TV's own news in the same corner, as the Xbox told of an achievement: [title] large,
+     * [text] under it, [header] above (Media Center) or after it (Xbox).
+     */
+    fun showSystem(context: Context, title: String, text: String, header: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+        main.post { showNow(context, LinkNotice(LinkNotice.Kind.SYSTEM, title, text = text, app = header), "", icon) }
+    }
+
+    private fun showNow(context: Context, notice: LinkNotice, phone: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
         val app = context.applicationContext
         when (notice.kind) {
             // The call was answered: the notice goes.
@@ -68,7 +82,7 @@ internal object TvLinkNotices {
                 if (_shown.value?.notice?.kind == LinkNotice.Kind.CALL) hideNow()
                 return
             }
-            else -> _shown.value = ShownNotice(notice, phone)
+            else -> _shown.value = ShownNotice(notice, phone, icon = icon)
         }
         main.removeCallbacks(hideLater)
         main.postDelayed(hideLater, if (notice.kind == LinkNotice.Kind.CALL) CALL_MILLIS else MESSAGE_MILLIS)

@@ -59,8 +59,9 @@ internal fun TvLinkNoticeCard(shown: ShownNotice?) {
         LinkNotice.Kind.SMS -> stringResource(R.string.tv_link_message)
         LinkNotice.Kind.APP_MESSAGE -> stringResource(R.string.tv_link_app_message, notice.app.orEmpty())
         LinkNotice.Kind.CALL_ENDED -> ""
+        LinkNotice.Kind.SYSTEM -> notice.app.orEmpty()
     }
-    val icon = when (notice.kind) {
+    val icon = shown.icon ?: when (notice.kind) {
         LinkNotice.Kind.CALL -> Icons.Default.Call
         LinkNotice.Kind.MISSED_CALL -> Icons.Default.CallMissed
         LinkNotice.Kind.SMS -> Icons.Default.Sms
@@ -126,7 +127,7 @@ internal fun TvLinkNoticeCard(shown: ShownNotice?) {
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
-                Text(
+                if (shown.phone.isNotBlank()) Text(
                     text = shown.phone,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                     color = Color(0xFFC4DAF2),
@@ -185,8 +186,9 @@ private fun XboxNotice(shown: ShownNotice, line: String, icon: androidx.compose.
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = if (notice.text != null) "$line · ${shown.phone}" else shown.phone,
+            val foot = listOf(if (notice.text != null) line else "", shown.phone).filter { it.isNotBlank() }.joinToString(" · ")
+            if (foot.isNotBlank()) Text(
+                text = foot,
                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = SelawikFamily, fontSize = 13.sp),
                 color = Xbox.GreenLit,
                 maxLines = 1,

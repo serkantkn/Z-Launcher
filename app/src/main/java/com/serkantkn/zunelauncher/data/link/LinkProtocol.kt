@@ -113,7 +113,8 @@ internal data class LinkNotice(
     val app: String? = null,
     val at: Long = System.currentTimeMillis()
 ) {
-    enum class Kind { CALL, CALL_ENDED, MISSED_CALL, SMS, APP_MESSAGE }
+    /** [SYSTEM] is the TV's own news (an app put on, a thing pinned): never sent between devices. */
+    enum class Kind { CALL, CALL_ENDED, MISSED_CALL, SMS, APP_MESSAGE, SYSTEM }
 
     fun toJson(): JSONObject = JSONObject()
         .put("k", kind.name)

@@ -101,6 +101,7 @@ internal fun XboxGuidePanel(
     } ?: nothing
     val lines: List<GuideLine> = when (tab) {
         0 -> buildList {
+            add(GuideLine(stringResource(R.string.xbox_search), cards(XboxCards.SEARCH)))
             recent.mapNotNull { items[it] }.take(RECENT_LINES).forEach { add(GuideLine(it.label, go { it.open() })) }
             add(GuideLine(stringResource(R.string.xbox_pins), cards(XboxCards.PINS)))
             add(GuideLine(stringResource(R.string.xbox_recent), cards(XboxCards.RECENT)))
