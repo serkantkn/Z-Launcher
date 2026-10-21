@@ -1,6 +1,6 @@
 # Tanıtım videosu: kaynaklar
 
-`store/z-launcher-tanitim.mp4` (1920×1080, 96 sn) emülatör kayıtlarından kurgulandı: her arayüz kendi
+`store/z-launcher-tanitim.mp4` (1920×1080, 60 kare/sn, 96 sn) emülatör kayıtlarından kurgulandı: her arayüz kendi
 cihazının çerçevesinde (telefon, tablet, televizyon), sade ve yavaşça dönen bir zeminde, aşağıdaki müzikle. Arayüz görüntülerinin hepsi Z Launcher'ın kendisi.
 
 ## Görseller — Pexels (Pexels Lisansı: ücretsiz, ticari kullanım serbest, atıf gerekmez)
@@ -23,9 +23,11 @@ Selawik (SIL Open Font License), uygulamanın kendi yazı tipi.
 ## Yeniden kurmak
 
 1. `./fetch_stock.sh` — görselleri ve müziği `work/stock` altına indirir.
-2. Emülatörde `rec.sh SERIAL start|stop NAME` ile kayıtlar alınır (`ui.sh` ekrandaki yazılara dokunur,
-   `sheet.sh` bir kaydın kare sayfasını çıkarır). Kayıtlar 30 kareye çevrilir (`cfr_NAME.mp4`) ve
-   `python3 clips.py body` iyi kısımlarını keser.
+2. Emülatörler donanım hızlandırmasıyla açılır (`emulator -avd ... -gpu host`) ve `rec.sh SERIAL start NAME WxH`
+   / `rec.sh SERIAL stop NAME` ile kaydedilir: emülatörün kendi kaydı, bilgisayar tarafında, 60 kare/sn.
+   (Cihazın içindeki `screenrecord` saniyede ~6 kare alıyordu; arayüz kasıyormuş gibi görünüyordu.)
+   `ui.sh` ekrandaki yazılara dokunur, `sheet.sh` bir kaydın kare sayfasını çıkarır.
+   `python3 clips.py body` kayıtların iyi kısımlarını keser.
 3. `python3 build.py` — çerçeveli bölümleri ve son videoyu üretir (ffmpeg 8; tek adım için ör. `build.py v2_xbox final`).
 
 Microsoft'un logoları ve sesleri kullanılmadı; videonun sonunda "Microsoft ile ilişkili değildir" notu var.

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Cuts the emulator recordings (work/promo/clips/cfr_*.mp4) into the bodies build.py frames.
+"""Cuts the emulator recordings (work/promo/hq/cfr_*.mp4, from rec.sh) into the bodies build.py frames.
 Run with "body"; the scene steps below were the first cut's and are kept for reference only."""
 import subprocess, sys, os
 from PIL import Image, ImageDraw, ImageFilter
 
 S = os.environ.get('PROMO_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'work'))
-P = f'{S}/promo'; C = f'{P}/clips'; W = f'{P}/work'; os.makedirs(W, exist_ok=True)
+P = f'{S}/promo'; C = f'{P}/hq'; W = f'{P}/work'; os.makedirs(W, exist_ok=True)
 F = '/Users/serkan/AndroidStudioProjects/ZuneLauncher/app/src/main/res/font'
 LIGHT = f'{F}/selawik_light.ttf'; REG = f'{F}/selawik_semilight.ttf'; BOLD = f'{F}/selawik_semibold.ttf'
 HI = f'{S}/stock/hi'; GAL = f'{S}/stock/gallery'
 MUSIC = f'{S}/stock/music/stylish.mp3'
-FPS = 30
+FPS = 60
 ONLY = sys.argv[1:]  # build only these steps when given
 
 
@@ -44,12 +44,14 @@ def body(name, parts, size):
     fl.append(''.join(f'[v{i}]' for i in range(len(parts))) + f'concat=n={len(parts)}:v=1:a=0[out]')
     ff(ins + ['-filter_complex', ';'.join(fl), '-map', '[out]', '-c:v', 'libx264', '-crf', '14', '-preset', 'fast', '-pix_fmt', 'yuv420p', f'{W}/body_{name}.mp4'], f'body_{name}')
 
-body('zune_phone', [('zune_phone', 1.0, 4.6, 1.3), ('zune_phone', 9.3, 14.3, 1), ('zune_phone', 20.8, 23.6, 1)], '1080:2400')
-body('wp_phone', [('wp_phone', 0.0, 3.2, 1), ('wp_phone', 10.8, 16.2, 1), ('wp_phone', 4.4, 8.4, 1.3)], '1080:2400')
-body('zune_tablet', [('zune_tablet', 0.0, 2.4, 1), ('zune_tablet', 8.8, 14.6, 1), ('zune_tablet', 26.6, 29.2, 1)], '2560:1600')
-body('win8_tablet', [('win8_tablet', 0.0, 2.0, 1), ('win8_tablet', 3.6, 5.6, 1), ('win8_tablet', 9.8, 10.9, 1), ('win8_tablet', 11.2, 14.2, 1), ('win8_tablet', 16.0, 16.5, 1), ('win8_tablet', 17.9, 18.3, 1), ('win8_tablet', 18.9, 22.2, 1)], '2560:1600')
-body('xbox', [('xbox_tv', 4.5, 13.5, 1.4), ('xbox_music', 9.6, 12.6, 1), ('xbox_music', 13.2, 17.8, 1), ('xbox_music', 37.6, 42.4, 1)], '1920:1080')
-body('mc', [('mc_tv', 2.0, 4.6, 1), ('mc_tv', 5.0, 17.0, 1.6), ('mc_pics', 0.8, 4.2, 1)], '1920:1080')
+body('zune_phone', [('zune_phone', 1.8, 5.4, 1.3), ('zune_phone', 6.4, 13.0, 1.2), ('zune_phone', 14.6, 18.2, 1)], '1080:2400')
+body('wp_phone', [('wp_phone', 2.6, 4.6, 1), ('wp_phone', 4.6, 10.4, 1.4), ('wp_phone', 11.4, 15.4, 1.2), ('wp_phone', 21.3, 23.4, 1)], '1080:2400')
+body('zune_tablet', [('zune_tablet', 3.6, 5.6, 1.3), ('zune_tablet', 8.4, 14.4, 1.15), ('zune_tablet', 15.9, 17.6, 1), ('zune_tablet', 20.8, 23.0, 1)], '2560:1600')
+body('win8_tablet', [('win8_tablet', 0.3, 3.6, 1), ('win8_tablet', 3.9, 5.2, 1), ('win8_tablet', 9.0, 9.75, 1), ('win8_tablet', 10.1, 11.6, 1),
+                     ('win8_tablet', 13.0, 14.0, 1), ('win8_tablet', 14.9, 15.35, 1), ('win8_tablet', 15.7, 18.6, 1),
+                     ('win8_tablet', 20.9, 21.35, 1), ('win8_tablet', 21.7, 22.5, 1)], '2560:1600')
+body('xbox', [('xbox_tv', 4.6, 15.0, 1.5), ('xbox_music', 8.8, 12.8, 1), ('xbox_music', 13.6, 17.6, 1), ('xbox_music', 36.6, 41.0, 1)], '1920:1080')
+body('mc', [('mc_tv', 1.6, 4.4, 1), ('mc_tv', 4.4, 16.4, 1.6), ('mc_pics', 0.6, 3.6, 1)], '1920:1080')
 
 
 # ── text helpers ───────────────────────────────────────────────────────────────────────────────

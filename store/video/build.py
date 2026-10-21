@@ -8,7 +8,7 @@ P = f'{S}/promo'; W = f'{P}/work'; FR = f'{S}/frames'  # fetch_stock.sh copies A
 F = '/Users/serkan/AndroidStudioProjects/ZuneLauncher/app/src/main/res/font'
 LIGHT = f'{F}/selawik_light.ttf'; REG = f'{F}/selawik_semilight.ttf'; BOLD = f'{F}/selawik_semibold.ttf'
 MUSIC = f'{S}/stock/music/stylish.mp3'
-FPS = 30
+FPS = 60
 ONLY = sys.argv[1:]
 
 # The device frames (Android Studio's device art): frame size, where the screen sits, the screen size.
@@ -83,7 +83,7 @@ def frame_inputs(kind, dur):
             '-loop', '1', '-framerate', str(FPS), '-t', str(dur), '-i', second]
 
 
-def place(base, dev, out, x, y, t0=0.0, from_dx=0, from_dy=260, dur=0.9, float_px=7, shadow=True):
+def place(base, dev, out, x, y, t0=0.0, from_dx=0, from_dy=260, dur=0.9, float_px=0, shadow=True):
     """Shadow and device over [base]: slides in from (from_dx, from_dy) easing out, then floats gently."""
     e = ease(t0, dur)
     fl = f'{float_px}*sin(2*PI*(t-{t0})/5.5)'
@@ -149,7 +149,7 @@ def lineup(name, dur, lines, outro=False):
         x, y = specs[k][3], specs[k][4]
         if outro:
             y -= 120
-        fl += place(base, f'd{k}', f'L{n}', x, y, t0=t0, from_dx=dx, from_dy=dy, float_px=5)
+        fl += place(base, f'd{k}', f'L{n}', x, y, t0=t0, from_dx=dx, from_dy=dy, float_px=0)
         base = f'L{n}'
     fl.append(f'[{base}]' + ','.join(lines) + ',fade=t=in:d=0.6' + (f',fade=t=out:st={dur - 1.4}:d=1.4' if outro else '') + '[out]')
     encode(ins, fl, 'out', dur, name)
