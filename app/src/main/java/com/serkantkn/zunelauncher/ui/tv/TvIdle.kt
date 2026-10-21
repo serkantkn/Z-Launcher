@@ -361,7 +361,7 @@ internal fun rememberTvSong(media: ActiveMediaState): TvSong? {
     val context = LocalContext.current
     val local by com.serkantkn.zunelauncher.data.service.LauncherPlayback.state.collectAsState()
     val localArt by produceState<ImageBitmap?>(null, local.artworkUri) {
-        value = local.artworkUri?.let { uri -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { tvPicture(context, uri, ART_SIDE) } }
+        value = local.artworkUri?.let { uri -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { tvArtwork(context, uri, ART_SIDE) } }
     }
     val mediaArt = remember(media.albumArt) { media.albumArt?.asImageBitmap() }
     return when {

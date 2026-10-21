@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -832,27 +835,19 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
     // Its words are white: on the Xbox's light grey it stands on the dark of Xbox Music's player.
     val xbox = com.serkantkn.zunelauncher.ui.theme.LocalIsTv.current && !com.serkantkn.zunelauncher.ui.tv.LocalVista.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (xbox) Modifier.background(Color(0xF0262A2B)) else Modifier)
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
     val lyrics by viewModel.lyrics.collectAsState()
     val lyricsLoading by viewModel.lyricsLoading.collectAsState()
     val onlineAllowed by viewModel.onlineExtrasEnabled.collectAsState()
     var showLyrics by remember { mutableStateOf(false) }
 
-        Spacer(modifier = Modifier.weight(1f))
-
+    val coverBlock: @Composable (androidx.compose.ui.unit.Dp) -> Unit = { coverSize ->
         // ── The cover, or the words in its place ──
         if (showLyrics) {
             // The words get the whole width; a square would wrap every other line.
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
+                    .then(if (xbox) Modifier.width(coverSize * 1.6f) else Modifier.fillMaxWidth())
+                    .height(coverSize + 40.dp)
                     .clickable { showLyrics = false },
                 contentAlignment = Alignment.Center
             ) {
@@ -868,7 +863,7 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
         } else {
         Box(
             modifier = Modifier
-                .size(260.dp)
+                .size(coverSize)
                 .background(Color.White.copy(alpha = 0.08f))
                 .clickable { showLyrics = !showLyrics },
             contentAlignment = Alignment.Center
@@ -898,7 +893,8 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
         }
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+    }
+    val details: @Composable ColumnScope.() -> Unit = {
 
         if (!playback.hasSomething) {
             Text(
@@ -1011,6 +1007,37 @@ fun NowPlayingPage(viewModel: MusicHubViewModel) {
             modifier = Modifier.padding(top = 4.dp)
         )
 
+    }
+
+    if (xbox) {
+        // A TV's pane is wide and low: the cover at the left as tall as it allows, the song and
+        // its buttons beside it, as Xbox Music set its player.
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xF0262A2B))
+                .padding(horizontal = 32.dp, vertical = 20.dp)
+        ) {
+            val coverSize = minOf(maxHeight, 260.dp)
+            Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                coverBlock(coverSize)
+                Spacer(modifier = Modifier.width(36.dp))
+                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) { details() }
+            }
+        }
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+        coverBlock(260.dp)
+        Spacer(modifier = Modifier.height(28.dp))
+        details()
         Spacer(modifier = Modifier.weight(1f))
     }
 }

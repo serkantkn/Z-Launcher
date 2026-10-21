@@ -360,6 +360,25 @@ name that is not there. Two were left as debatable: the music hub not turning to
 album is opened from search on a TV, and a slide show asked for before the pictures can be read
 waiting until they can.
 
+### Second round: Gemini on the emulator (2026-10-21)
+
+Gemini drove the TV emulator through eleven scenarios, through `emu.sh` alone (the emulator only,
+a few keys, screenshots, the app's log; Home and Power refused), allowed in
+`~/.gemini/antigravity-cli/settings.json`. The long run lost its Google token every hour and was
+resumed by `--conversation`. What it found and what came of it:
+
+- Fixed: search now folds Turkish letters and other marks ("parca" finds "Parça"; the media store's
+  LIKE cannot, so rows are matched in Kotlin - `XboxSearchFoldTest`); the music hub's "now playing"
+  on a TV stands cover beside details, as it did not fit the pane's height; the files hub's
+  permission title was black on a dark theme and its button under the bar; the cover was read as a
+  stream, which newer media stores refuse - `tvArtwork` asks for the album's thumbnail; home showed
+  "music" twice; the guide said "playing" over paused music; Ⓧ and Ⓨ are told only where they act
+  and Ⓨ says "unpin" on a pinned thing; search opens empty.
+- Left: the hubs' command legends overflow on the right and show their menu commands as blank
+  grey discs; a news card's source line and the clock's fourth city are cut at the pane's foot
+  (the list scrolls); the pictures hub has two "select"s; media3's notification logs the same
+  cover error; a handled wallpaper permission warning in the log.
+
 ## Still to do
 
 1. **A TV tour**, settings for the TV, and the TV quality checklist Play applies.

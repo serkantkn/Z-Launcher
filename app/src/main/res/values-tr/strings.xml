@@ -59,6 +59,7 @@
     <string name="tv_design_saver_sub">Kumandaya dokunulmayınca (Xbox\'ın sistem ayarlarında değiştirilmedikçe 10 dakika)</string>
     <string name="tv_design_visualizer">Görselleştirici</string>
     <string name="tv_design_visualizer_sub">Müzik çalarken kumandaya dokunulmazsa şarkı ekranı doldurur</string>
+    <string name="xbox_paused_line">duraklatıldı: %1$s</string>
     <string name="xbox_none_shown">burada gösterilecek bir şey yok - hepsini görmek için “tümü”nü seç</string>
     <string name="xbox_search_none">bulunamadı</string>
     <string name="xbox_sort">sırala</string>

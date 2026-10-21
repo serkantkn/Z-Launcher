@@ -100,7 +100,10 @@ internal fun XboxGuidePanel(
     val song = rememberTvSong(media)
     val ownMusic = com.serkantkn.zunelauncher.data.service.LauncherPlayback.state.collectAsState().value.let { it.hasQueue && it.title == song?.title }
     val playingLine = song?.let {
-        stringResource(R.string.xbox_now_playing, listOf(it.title, it.artist).filter(String::isNotBlank).joinToString(" · "))
+        stringResource(
+            if (it.playing) R.string.xbox_now_playing else R.string.xbox_paused_line,
+            listOf(it.title, it.artist).filter(String::isNotBlank).joinToString(" · ")
+        )
     } ?: nothing
     val lines: List<GuideLine> = when (tab) {
         0 -> buildList {

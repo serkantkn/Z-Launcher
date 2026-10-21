@@ -59,11 +59,11 @@ import java.util.Locale
  */
 internal object XboxSearch {
     fun find(context: Context, query: String, items: Map<String, XboxItem>, onOpenHub: (HubType) -> Unit): List<XboxItem> {
-        val q = query.trim().lowercase(Locale.getDefault())
+        val q = fold(query)
         if (q.isEmpty()) return emptyList()
         val found = items.values
-            .filter { it.kind != XboxItem.Kind.FILM && it.label.lowercase(Locale.getDefault()).contains(q) }
-            .sortedBy { if (it.label.lowercase(Locale.getDefault()).startsWith(q)) 0 else 1 }
+            .filter { it.kind != XboxItem.Kind.FILM && fold(it.label).contains(q) }
+            .sortedBy { if (fold(it.label).startsWith(q)) 0 else 1 }
             .toMutableList()
         found += runCatching { albums(context, q, onOpenHub) }.getOrDefault(emptyList())
         found += runCatching { songs(context, q, onOpenHub) }.getOrDefault(emptyList())
@@ -71,18 +71,32 @@ internal object XboxSearch {
         return found.take(MAX_RESULTS)
     }
 
+    /**
+     * Folded for matching: lower case, Turkish letters to their plain ones and any other marks
+     * dropped, so "parca" finds "Parça" - a TV's keyboard is often typed without them.
+     */
+    internal fun fold(text: String): String {
+        val lower = text.trim().lowercase(Locale.ROOT)
+            .replace('ı', 'i').replace('ç', 'c').replace('ğ', 'g').replace('ö', 'o').replace('ş', 's').replace('ü', 'u')
+        return java.text.Normalizer.normalize(lower, java.text.Normalizer.Form.NFD).replace(MARKS, "")
+    }
+
+    // The media store's LIKE knows nothing of these letters, so every row is read (a TV's library
+    // is small, and only three columns) and matched here.
     private fun albums(context: Context, q: String, onOpenHub: (HubType) -> Unit): List<XboxItem> =
         context.contentResolver.query(
             MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI,
             arrayOf(MediaStore.Audio.Albums._ID, MediaStore.Audio.Albums.ALBUM, MediaStore.Audio.Albums.ARTIST),
-            "${MediaStore.Audio.Albums.ALBUM} LIKE ? OR ${MediaStore.Audio.Albums.ARTIST} LIKE ?",
-            arrayOf("%$q%", "%$q%"),
+            null, null,
             "${MediaStore.Audio.Albums.ALBUM} ASC"
         )?.use { c ->
             buildList {
                 while (c.moveToNext() && size < PER_KIND) {
+                    val title = c.getString(1).orEmpty()
+                    val artist = c.getString(2)
+                    if (!fold(title).contains(q) && !fold(artist.orEmpty()).contains(q)) continue
                     val id = c.getLong(0)
-                    add(XboxItem("album:$id", c.getString(1).orEmpty(), c.getString(2), Icons.Default.Album, null, false, XboxItem.Kind.MEDIA) {
+                    add(XboxItem("album:$id", title, artist, Icons.Default.Album, null, false, XboxItem.Kind.MEDIA) {
                         MusicBridge.playAlbum(id)
                         onOpenHub(HubType.MUSIC)
                     })
@@ -94,14 +108,17 @@ internal object XboxSearch {
         context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.ARTIST),
-            "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND (${MediaStore.Audio.Media.TITLE} LIKE ? OR ${MediaStore.Audio.Media.ARTIST} LIKE ?)",
-            arrayOf("%$q%", "%$q%"),
+            "${MediaStore.Audio.Media.IS_MUSIC} != 0",
+            null,
             "${MediaStore.Audio.Media.TITLE} ASC"
         )?.use { c ->
             buildList {
                 while (c.moveToNext() && size < PER_KIND) {
+                    val title = c.getString(1).orEmpty()
+                    val artist = c.getString(2)
+                    if (!fold(title).contains(q) && !fold(artist.orEmpty()).contains(q)) continue
                     val id = c.getLong(0)
-                    add(XboxItem("song:$id", c.getString(1).orEmpty(), c.getString(2), Icons.Default.MusicNote, null, false, XboxItem.Kind.MEDIA) {
+                    add(XboxItem("song:$id", title, artist, Icons.Default.MusicNote, null, false, XboxItem.Kind.MEDIA) {
                         MusicBridge.playTrack(MusicBridge.Track.FromLibrary(id))
                         onOpenHub(HubType.MUSIC)
                     })
@@ -113,14 +130,14 @@ internal object XboxSearch {
         context.contentResolver.query(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
             arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.TITLE, MediaStore.Video.Media.DISPLAY_NAME),
-            "${MediaStore.Video.Media.TITLE} LIKE ? OR ${MediaStore.Video.Media.DISPLAY_NAME} LIKE ?",
-            arrayOf("%$q%", "%$q%"),
+            null, null,
             "${MediaStore.Video.Media.DATE_ADDED} DESC"
         )?.use { c ->
             buildList {
                 while (c.moveToNext() && size < PER_KIND) {
-                    val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, c.getLong(0))
                     val title = c.getString(1)?.takeIf { it.isNotBlank() } ?: c.getString(2).orEmpty()
+                    if (!fold(title).contains(q)) continue
+                    val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, c.getLong(0))
                     add(XboxItem("video:${c.getLong(0)}", title, null, Icons.Default.Movie, null, false, XboxItem.Kind.MEDIA) {
                         com.serkantkn.zunelauncher.ui.screens.video.VideoPlayer.open(context, uri, title)
                     })
@@ -128,6 +145,7 @@ internal object XboxSearch {
             }
         }.orEmpty()
 
+    private val MARKS = Regex("\\p{Mn}+")
     private const val MAX_RESULTS = 40
     private const val PER_KIND = 12
 }

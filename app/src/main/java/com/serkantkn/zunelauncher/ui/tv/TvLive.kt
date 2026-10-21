@@ -154,6 +154,19 @@ internal fun tvPicture(context: Context, uri: Uri, maxSide: Int): ImageBitmap? =
     context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, options) }?.asImageBitmap()
 }.onFailure { ZuneLog.w(TAG, "a picture could not be read", it) }.getOrNull()
 
+/**
+ * A song's cover. From Android 10 the album row serves it as a thumbnail - read as a plain stream it
+ * fails on newer media stores - and before that the stream is the way. Quiet when there is none.
+ */
+internal fun tvArtwork(context: Context, uri: Uri, side: Int): ImageBitmap? {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        runCatching { context.contentResolver.loadThumbnail(uri, Size(side, side), null) }.getOrNull()?.let { return it.asImageBitmap() }
+    }
+    return runCatching {
+        context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }?.asImageBitmap()
+    }.getOrNull()
+}
+
 /** A small picture of a photo, for choosing among them. */
 internal fun tvPhotoThumb(context: Context, uri: Uri): ImageBitmap? = thumbnailOf(context, uri, PHOTO_THUMB) ?: tvPicture(context, uri, PHOTO_THUMB.width)
 

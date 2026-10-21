@@ -59,6 +59,7 @@
     <string name="tv_design_saver_sub">When the remote is left alone (10 minutes unless set otherwise in the Xbox\'s system settings)</string>
     <string name="tv_design_visualizer">Visualizer</string>
     <string name="tv_design_visualizer_sub">The song fills the screen while music plays and the remote rests</string>
+    <string name="xbox_paused_line">paused: %1$s</string>
     <string name="xbox_none_shown">nothing here is shown - choose “all” to see everything</string>
     <string name="xbox_search_none">nothing found</string>
     <string name="xbox_sort">sort</string>

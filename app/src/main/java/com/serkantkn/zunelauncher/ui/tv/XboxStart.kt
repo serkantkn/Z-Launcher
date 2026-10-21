@@ -222,7 +222,9 @@ internal fun xboxSections(
         add(item("hub:weather", C4, 0f, S, H, big = weatherBig))
         add(item("hub:news", C4, R2, S, H))
         add(lately.getOrNull(0)?.let { item(it, C2, R3, M, H, newKey = "home_r0") } ?: action("home_apps", myApps, C2, R3, M, H, Icons.Default.Apps) { actions.openCards(XboxCards.APPS) })
-        add(lately.getOrNull(1)?.let { item(it, C3, R3, M, H, newKey = "home_r1") } ?: item("hub:music", C3, R3, M, H, image = true, newKey = "home_r1"))
+        // With fewer than two things opened lately, a hub fills the place - one not shown beside it.
+        val spare = listOf("hub:music", "hub:videos", "hub:files").firstOrNull { it !in lately && items.containsKey(it) }
+        add(lately.getOrNull(1)?.let { item(it, C3, R3, M, H, newKey = "home_r1") } ?: spare?.let { item(it, C3, R3, M, H, image = it == "hub:music", newKey = "home_r1") })
         add(item("hub:clock", C4, R3, S, H))
     }.filterNotNull()
 
@@ -347,6 +349,7 @@ internal fun XboxStart(
         searchAt = 0
     }
     fun openSearch() {
+        searchText = ""
         onBox = true
         push(XboxPage.Search)
     }
@@ -865,7 +868,15 @@ internal fun XboxStart(
                     Icon(Icons.Default.Search, null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(u * 30f))
                 }
             }
-            XboxLegend(back = false, hold = true, pin = stringResource(R.string.xbox_pin_short), guide = true, modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f))
+            // Ⓧ and Ⓨ are told only where they do something, and Ⓨ says which way it goes.
+            val here = if (page == null) current() else null
+            XboxLegend(
+                back = false,
+                hold = here != null,
+                pin = here?.takeIf { it.pinnable }?.let { stringResource(if (it.key in pins) R.string.xbox_unpin else R.string.xbox_pin_short) },
+                guide = true,
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f)
+            )
             XboxProfile(lit = onProfile && page == null, u = u, modifier = Modifier.align(Alignment.TopEnd).padding(top = u * 30f, end = u * 90f))
         }
         val shownPage = pages.lastOrNull { it is XboxPage.Cards || it is XboxPage.Detail || it == XboxPage.Search || it == XboxPage.System }
@@ -890,7 +901,8 @@ internal fun XboxStart(
                         sortAt = sortAt,
                         chooser = chooser,
                         dropdown = dropdown,
-                        dropAt = dropAt
+                        dropAt = dropAt,
+                        pins = pins
                     )
                     XboxPage.Search -> XboxSearchPage(
                         text = searchText,
@@ -1014,7 +1026,8 @@ private fun XboxCardsPage(
     sortAt: Int,
     chooser: Int?,
     dropdown: Boolean,
-    dropAt: Int
+    dropAt: Int,
+    pins: List<String>
 ) {
     val density = LocalDensity.current
     val shift by animateFloatAsState((at - 1).coerceAtLeast(0).toFloat(), tween(SLIDE_MILLIS, easing = FastOutSlowInEasing), label = "xboxCardsShift")
@@ -1136,9 +1149,18 @@ private fun XboxCardsPage(
                 }
             }
         }
+        val here = if (chooser == null) cards.getOrNull(at) else null
         XboxLegend(
-            hold = true,
-            pin = stringResource(if (kind == XboxCards.PINS) R.string.xbox_move_front else R.string.xbox_pin_short),
+            hold = here != null,
+            pin = here?.takeIf { it.pinnable }?.let {
+                stringResource(
+                    when {
+                        kind == XboxCards.PINS -> R.string.xbox_move_front
+                        it.key in pins -> R.string.xbox_unpin
+                        else -> R.string.xbox_pin_short
+                    }
+                )
+            },
             modifier = Modifier.align(Alignment.BottomStart).padding(start = u * 95f, bottom = u * 48f)
         )
     }

@@ -85,7 +85,8 @@ fun ZunePermissionRequest(
 
         ZunePermissionRequestStyle.Centered -> {
             Box(
-                modifier = modifier.fillMaxSize().padding(24.dp),
+                // Clear of the bar a hub lays over its foot, so the button is not under it.
+                modifier = modifier.fillMaxSize().padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 24.dp + bottomBarHeight()),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -100,7 +101,9 @@ fun ZunePermissionRequest(
                     }
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        // Said outright: left to the surroundings it came out black on a dark ground.
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
