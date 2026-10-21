@@ -117,7 +117,26 @@ DESIGNS = [
 def square(i, name, kind, shot, cols, sub, tag):
     W = H = 1080
     img = ground(W, H, *cols)
-    if kind == 'phone':
+    if name == 'aura':
+        # Two phones: home in front on the right; the music hub behind it on the left, a little dimmer,
+        # its menu - set against the left edge - showing past the front phone.
+        front = device('phone', 'aura_home.png', 380)
+        fx, fy = W - 70 - front.width, 205
+        back = device('phone', 'aura_music.png', 340)
+        shade = Image.new('RGBA', back.size, (0, 0, 0, 0))
+        shade.putalpha(back.split()[3].point(lambda v: int(v * 0.22)))
+        back.alpha_composite(shade)
+        place(img, back, fx - back.width * 0.62, 70)
+        place(img, front, fx, fy, shadow=0.7)
+        text(img, (90, 300), name, LIGHT, 130)
+        y = 470
+        for line in wrap(sub, SEMI, 40, 300):
+            text(img, (96, y), line, SEMI, 40); y += 52
+        y += 10
+        for line in wrap(tag, SEMI, 34, 330):
+            text(img, (96, y), line, SEMI, 34, fill=(255, 255, 255, 215)); y += 46
+        brand(img, 96, H - 75, 40, soon_fill=(255, 255, 255, 255))
+    elif kind == 'phone':
         dev = device(kind, shot, 410)
         place(img, dev, W - 110 - dev.width, (H - dev.height) / 2 - 10)
         text(img, (90, 330), name, LIGHT, 150)

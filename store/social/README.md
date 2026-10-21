@@ -10,5 +10,5 @@
 
 Her arayüz kendi cihazının çerçevesinde (Android Studio'nun cihaz çizimleri), tanıtım videosunun
 renklerinde. Ekran görüntüleri emülatörden; televizyonun adı çekim için "Salon TV" yapıldı, galerideki
-fotoğraflar Pexels'ten (bkz. `../video/CREDITS.md`). Yeniden üretmek: ekran görüntülerini `work/` içine
-koyup (`aura1`, `moz1`, `pan1`, `taura1`, `k_home`, `s_home`) `python3 social.py` (numpy, Pillow).
+fotoğraflar Pexels'ten. Aura görseli koyu tema ve Aura ışıltısıyla, iki telefon: önde ana ekran, arkada müzik hub'ı (bkz. `../video/CREDITS.md`). Yeniden üretmek: ekran görüntülerini `work/` içine
+koyup (`aura_home`, `aura_music`, `moz1`, `pan1`, `taura1`, `k_home`, `s_home`) `python3 social.py` (numpy, Pillow).
