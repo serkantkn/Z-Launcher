@@ -15,7 +15,7 @@
     <string name="action_center_expand">expand</string>
     <string name="action_center_collapse">collapse</string>
     <string name="action_center_brightness_auto">auto</string>
-    <string name="action_center_brightness_permission">allow Z Launcher to change brightness</string>
+    <string name="action_center_brightness_permission">allow Zeta to change brightness</string>
     <string name="action_center_reply">reply</string>
     <string name="action_center_reply_hint">type a reply</string>
     <string name="action_center_reply_send">send</string>
@@ -26,12 +26,12 @@
     <string name="action_center_no_access">the action center needs notification access to show notifications</string>
     <string name="action_center_grant">allow</string>
     <string name="ac_settings_group">action center</string>
-    <string name="ac_settings_switch">Z Launcher action center</string>
+    <string name="ac_settings_switch">Zeta action center</string>
     <string name="ac_settings_switch_on">a pull from the status bar opens the action center instead of Android\'s shade</string>
     <string name="ac_settings_switch_off">Android\'s own notification shade is used</string>
     <string name="ac_settings_needs">the action center needs these to work fully. A green dot means done.</string>
     <string name="ac_perm_service">accessibility service</string>
-    <string name="ac_perm_service_sub">required: turn on the Z Launcher service in accessibility settings</string>
+    <string name="ac_perm_service_sub">required: turn on the Zeta service in accessibility settings</string>
     <string name="ac_perm_restricted">if the switch is greyed out or will not turn on</string>
     <string name="ac_perm_restricted_sub">app info → ⋮ at the top right → allow restricted settings, then turn the service on again</string>
     <string name="ac_perm_notifications">notification access</string>
@@ -42,6 +42,6 @@
     <string name="ac_perm_dnd">do not disturb access</string>
     <string name="ac_perm_dnd_sub">for the quiet hours square</string>
     <string name="ac_perm_battery">no battery restriction</string>
-    <string name="ac_perm_battery_sub">phones such as Samsung may put the service to sleep; set Z Launcher to \"unrestricted\"</string>
+    <string name="ac_perm_battery_sub">phones such as Samsung may put the service to sleep; set Zeta to \"unrestricted\"</string>
     <string name="ac_settings_lock_info">on the lock screen Android\'s own shade opens, so notifications stay private while locked.</string>
 </resources>

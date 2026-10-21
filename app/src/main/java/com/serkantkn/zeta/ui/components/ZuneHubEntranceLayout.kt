@@ -1,0 +1,224 @@
+package com.serkantkn.zeta.ui.components
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import com.serkantkn.zeta.ui.animation.LocalZuneMotion
+import com.serkantkn.zeta.ui.animation.ZUNE_HUB_ENTER_MILLIS
+import com.serkantkn.zeta.ui.animation.ZUNE_PAGE_SLIDE
+import com.serkantkn.zeta.ui.theme.LocalAnimationsEnabled
+
+/** Default entrance curve: ultra slow-motion decelerating landing onto the left screen edge. */
+val ZuneHubEntranceEasing: Easing = CubicBezierEasing(0.05f, 0.95f, 0.08f, 1.0f)
+
+/** Default entrance duration in milliseconds. */
+const val ZuneHubEntranceDurationMillis = 780
+
+/** Default delay-slide duration of the bottom application bar, in milliseconds. */
+const val ZuneHubBottomBarDurationMillis = 350
+
+/**
+ * Progress of a hub's signature entrance: [progress] runs 0 -> 1 while the hub swings in, then
+ * [bottomBarSlide] runs 1 -> 0 while the bottom application bar slides up. Created with
+ * [rememberZuneHubEntranceState]; the animation is started where the state is remembered, so a
+ * hub whose layout is conditionally composed (e.g. hidden behind a detail hinge) still plays its
+ * entrance exactly once, at screen start.
+ */
+@Stable
+class ZuneHubEntranceState internal constructor(
+    internal val entranceAnim: Animatable<Float, AnimationVector1D>,
+    internal val bottomBarSlideAnim: Animatable<Float, AnimationVector1D>
+) {
+    /** Entrance progress, 0f (off-screen left) .. 1f (latched flat on the left edge). */
+    val progress: Float get() = entranceAnim.value
+
+    /** Bottom bar slide fraction, 1f (hidden below) .. 0f (in place). */
+    val bottomBarSlide: Float get() = bottomBarSlideAnim.value
+}
+
+/**
+ * Remembers a [ZuneHubEntranceState] and plays the entrance once at first composition:
+ * entrance tween ([entranceDurationMillis], [entranceEasing]) followed by the bottom bar tween
+ * ([bottomBarDurationMillis], [bottomBarEasing]). In the Zune layout the hub settles in its
+ * layers instead of swinging, and sooner.
+ */
+@Composable
+fun rememberZuneHubEntranceState(
+    entranceDurationMillis: Int = if (LocalZuneMotion.current) ZUNE_HUB_ENTER_MILLIS else ZuneHubEntranceDurationMillis,
+    entranceEasing: Easing = if (LocalZuneMotion.current) LinearEasing else ZuneHubEntranceEasing,
+    bottomBarDurationMillis: Int = ZuneHubBottomBarDurationMillis,
+    bottomBarEasing: Easing = FastOutSlowInEasing
+): ZuneHubEntranceState {
+    val animationsEnabled = LocalAnimationsEnabled.current
+    val state = remember {
+        ZuneHubEntranceState(
+            entranceAnim = Animatable(0f),
+            bottomBarSlideAnim = Animatable(1f)
+        )
+    }
+    LaunchedEffect(animationsEnabled) {
+        if (!animationsEnabled) {
+            // Motion is switched off: the hub is simply already here.
+            state.entranceAnim.snapTo(1f)
+            state.bottomBarSlideAnim.snapTo(0f)
+            return@LaunchedEffect
+        }
+        state.entranceAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = entranceDurationMillis,
+                easing = entranceEasing
+            )
+        )
+        state.bottomBarSlideAnim.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(
+                durationMillis = bottomBarDurationMillis,
+                easing = bottomBarEasing
+            )
+        )
+    }
+    return state
+}
+
+/**
+ * Encapsulates the authentic Windows Phone signature 3D entrance animation:
+ * - Entry starts from the left (-140dp), rotated -48 degrees and scaled to 82%, hinged on the
+ *   screen-left edge (TransformOrigin(0f, 0.5f)) like the Start turnstile
+ * - Ultra slow-motion decelerating landing to latch flat onto the left screen edge
+ * - Provides a delayed bottomBarModifier to slide up bottom application bars when entrance completes
+ * - Optimized with CompositingStrategy.Offscreen for 100% GPU hardware acceleration on 120Hz displays
+ *
+ * @param state Entrance progress; defaults to a state that plays the standard curve at first
+ * composition. Hoist it with [rememberZuneHubEntranceState] to customise timing or to keep the
+ * entrance running while the layout itself is temporarily out of composition.
+ * @param progressScale Extra multiplier applied to the entrance progress on every frame, e.g. a
+ * hub hinge value that folds the whole hub back out when a detail screen opens.
+ * @param offscreenCompositing Force offscreen compositing while the entrance is in flight.
+ */
+@Composable
+fun ZuneHubEntranceLayout(
+    modifier: Modifier = Modifier,
+    state: ZuneHubEntranceState = rememberZuneHubEntranceState(),
+    progressScale: () -> Float = { 1f },
+    offscreenCompositing: Boolean = true,
+    /**
+     * False for a hub that fades in where it stands instead of swinging in from the left (the
+     * people hub, which then glides between its sections). The swing is still how the hub folds
+     * away behind a card, through [progressScale].
+     */
+    swingIn: Boolean = true,
+    /** For a hub that does not swing in: how far it has faded in, 0-1. */
+    fadeIn: () -> Float = { state.entranceAnim.value },
+    content: @Composable (bottomBarModifier: Modifier) -> Unit
+) {
+    val density = LocalDensity.current
+
+    val leftStartPx = with(density) { (-140).dp.toPx() }
+    val bottomBarOffsetPx = with(density) { 90.dp.toPx() }
+    // The Zune layout: no swing. The hub's name, headings and page slide in as layers of their
+    // own (zuneHubLayer, in ZuneHub), and a hub folding away behind a card slides off flat.
+    val zune = LocalZuneMotion.current
+    val awayPx = with(density) { ZUNE_PAGE_SLIDE.toPx() } * 1.5f
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                if (zune) {
+                    val scale = progressScale()
+                    translationX = -awayPx * (1f - scale)
+                    alpha = (if (swingIn) 1f else (fadeIn() * 25f).coerceAtMost(1f)) *
+                        // Faded over the whole slide: the page that takes its place comes in
+                        // only once it has gone (the people hub), and must not find it already
+                        // gone.
+                        scale.coerceIn(0f, 1f)
+                    return@graphicsLayer
+                }
+                val entered = state.entranceAnim.value
+                val p = (if (swingIn) entered else 1f) * progressScale()
+                val inv = 1f - p
+                // Straight approach from the left/front, never drifting past x = 0
+                rotationY = -48f * inv * inv
+                translationX = leftStartPx * inv * inv
+                scaleX = 0.82f + (0.18f * p)
+                scaleY = 0.82f + (0.18f * p)
+
+                // Hinged on the screen-left edge, same axis as the Start turnstile
+                transformOrigin = TransformOrigin(0f, 0.5f)
+                cameraDistance = 32f * density.density
+                alpha = (p * 3f).coerceIn(0f, 1f) * (if (swingIn) 1f else (fadeIn() * 25f).coerceAtMost(1f))
+
+                // Force GPU RenderNode Offscreen compositing during active entrance for 120Hz liquid smoothness
+                if (offscreenCompositing) {
+                    compositingStrategy = if (p < 1f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+                }
+            }
+    ) {
+        val bottomBarModifier = Modifier.graphicsLayer {
+            translationY = state.bottomBarSlideAnim.value * bottomBarOffsetPx
+            alpha = 1f - state.bottomBarSlideAnim.value
+        }
+        if (swingIn || zune) {
+            content(bottomBarModifier)
+        } else {
+            // A hub that does not swing in flies in: from far off to the right, turned with its
+            // right side further still, it comes nearer and round flat while sliding left - nothing
+            // pinned to the screen's edge - and the hub's own glide carries the same slide on, as
+            // the Windows Phone 7 people hub came in. Its own layer, with the camera close: the
+            // swing's camera is far enough off that a turn under it reads as a squeeze, not depth.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val away = 1f - fadeIn()
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        translationX = size.width * ARRIVAL_FROM_RIGHT * away
+                        val nearness = 1f - (1f - ARRIVAL_FAR_SCALE) * away
+                        scaleX = nearness
+                        scaleY = nearness
+                        rotationY = ARRIVAL_TURN_DEGREES * away
+                        cameraDistance = ARRIVAL_CAMERA_DISTANCE
+                    }
+            ) {
+                content(bottomBarModifier)
+            }
+        }
+    }
+}
+
+/**
+ * How far round a hub that does not swing in starts, its right side away: read off a Windows
+ * Phone 7 people hub, whose right-hand tiles were two thirds the width of its left-hand ones in
+ * the frame they appeared - shown at full strength at once, so the depth is seen.
+ */
+internal const val ARRIVAL_TURN_DEGREES = 40f
+
+/** How far right of its place a flying hub starts, as a share of its width. */
+private const val ARRIVAL_FROM_RIGHT = 0.6f
+
+/** How small a flying hub starts - how far off - as a share of its size. */
+private const val ARRIVAL_FAR_SCALE = 0.62f
+
+/**
+ * The camera for that turn, in Compose's own unit (it is multiplied by the screen's dpi): close
+ * enough that the far side shrinks into the distance - in the first frame shown the third column
+ * of tiles two thirds the width of the first, as on the phone - without the near side ballooning.
+ */
+private const val ARRIVAL_CAMERA_DISTANCE = 26f

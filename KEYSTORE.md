@@ -43,7 +43,7 @@ unsigned". Check your own the same way the first time.
 
 ## What goes to Play
 
-- **Free**: `app/build/outputs/bundle/freeRelease/app-free-release.aab` (`com.serkantkn.zunelauncher`, the app on Play; Pro is bought inside it)
+- **Free**: `app/build/outputs/bundle/freeRelease/app-free-release.aab` (`com.serkantkn.zeta`, the app on Play; Pro is bought inside it)
 
-There is one listing. The `premium` flavour (`…zunelauncher.dev`) is a development build that is
+There is one listing. The `premium` flavour (`…zeta.dev`) is a development build that is
 always Pro; it never goes to Play.

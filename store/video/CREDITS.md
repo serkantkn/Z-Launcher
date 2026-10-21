@@ -1,7 +1,7 @@
 # Tanıtım videosu: kaynaklar
 
-`store/z-launcher-tanitim.mp4` (1920×1080, 60 kare/sn, 96 sn) emülatör kayıtlarından kurgulandı: her arayüz kendi
-cihazının çerçevesinde (telefon, tablet, televizyon), sade ve yavaşça dönen bir zeminde, aşağıdaki müzikle. Arayüz görüntülerinin hepsi Z Launcher'ın kendisi.
+`store/zeta-tanitim.mp4` (1920×1080, 60 kare/sn, 96 sn) emülatör kayıtlarından kurgulandı; açılışta ve sonda Zeta adıyla: her arayüz kendi
+cihazının çerçevesinde (telefon, tablet, televizyon), sade ve yavaşça dönen bir zeminde, aşağıdaki müzikle. Arayüz görüntülerinin hepsi Zeta'nın kendisi.
 
 ## Görseller — Pexels (Pexels Lisansı: ücretsiz, ticari kullanım serbest, atıf gerekmez)
 

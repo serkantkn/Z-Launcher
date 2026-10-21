@@ -1,4 +1,4 @@
-# Z Launcher on Android TV
+# Zeta on Android TV
 
 Part of the app on `main` since 2026-10-20, when the user put the TV interface into the Play plans:
 the same package goes to phones, tablets and Android TV (Play: `PLAY.md`, section 6). Until then
@@ -12,7 +12,7 @@ it was kept on a branch of its own (`tv`), out of every release.
   background, tiles and icons are not offered on a TV, only the accent colour (no light theme: Media Center is blue and white) and type and motion.
 - **Worked with a remote.** Every tile and word takes focus; the focused one grows a little and
   gains a white frame. The edges keep the 5% a TV may crop (48 × 27 dp).
-- **Phone and messages through the phone.** A phone running Z Launcher can tell a paired TV on the
+- **Phone and messages through the phone.** A phone running Zeta can tell a paired TV on the
   same Wi-Fi who is calling or writing; the TV shows it in a corner. Off and on in settings on
   both; message text hidden on the TV by default. No server: pairing by a code, then the local
   network, encrypted.
@@ -74,11 +74,11 @@ it was kept on a branch of its own (`tv`), out of every release.
 ## Being Home (done)
 
 - Google TV keeps the Home button for its own launcher whatever Android's default is (tried:
-  the home role given to Z Launcher, Home still opened `launcherx`).
-- So on a TV the accessibility service catches the remote's Home and opens Z Launcher with the
+  the home role given to Zeta, Home still opened `launcherx`).
+- So on a TV the accessibility service catches the remote's Home and opens Zeta with the
   Home intent: from another app it comes forward, inside it a hub is put away. Both halves of
-  the press are kept, so a long press opens Z Launcher too, not Google TV's panel.
-- On a TV the service is listed as "Z Launcher Home button" with its own description
+  the press are kept, so a long press opens Zeta too, not Google TV's panel.
+- On a TV the service is listed as "Zeta Home button" with its own description
   (`values-television`, `values-tr-television`), and never covers a status bar.
 - Settings > system on a TV: "home screen" - the service (with its own disclosure, and the
   restricted-settings row for sideloaded installs) and Android's default home screen for older
@@ -101,7 +101,7 @@ Xiaomi Mi TV (MiTV_MZTU0, Google TV, Android 14, MediaTek, 1.8 GB, 32-bit, UI at
     a TV's Start does not use, is not offered there;
   - the board leaves no hole when there is no film to continue.
 - Speed (release build, warmed): moving along Start 48 ms per frame at the median; Google TV's own
-  launcher, same keys, 61 ms. The TV is slow; Z Launcher is a little quicker than its own home.
+  launcher, same keys, 61 ms. The TV is slow; Zeta is a little quicker than its own home.
 - Not tried on the TV: anything needing a permission (not granted on the user's devices), and
   the Home button service, which the user turns on.
 
@@ -163,7 +163,7 @@ The user asked for Start in Media Center's design too, and for no other design o
   press nowhere to go. All six are laid out now and slid into place.
 - Home on Start let go of the focus and gave it to nothing; Home and Back now go to the first
   strip's first tile, as Google TV's Start does.
-- The Home key made a second Z Launcher: a HOME intent to an app that is not the TV's home starts
+- The Home key made a second Zeta: a HOME intent to an app that is not the TV's home starts
   one of the home kind beside the one opened from the app list. The service now sends a plain
   intent marked `EXTRA_HOME_KEY`.
 - The first focus waited for nothing and went to pictures before "continue" was read.
@@ -206,19 +206,19 @@ media center), copied from a video of Vista's own (youtu.be/PpDe5JZOYCo), Start 
   same fault; drawn once too, its Start went from 48 to 22 ms.
 - A library's first focus went to its first link (the launcher's fallback) when the word was
   asked for while the hub was still zooming in; it is now asked for until a word has it.
-- The sounds play (the TV's audio service lists Z Launcher's SoundPool starting at each press).
+- The sounds play (the TV's audio service lists Zeta's SoundPool starting at each press).
   "Turn off TV" and "sleep" were not pressed: they would have turned the TV off.
 
 ## The phone link (2026-10-20)
 
-A phone running Z Launcher tells a paired TV on the same Wi-Fi who is calling or writing; the TV
+A phone running Zeta tells a paired TV on the same Wi-Fi who is calling or writing; the TV
 shows it in its bottom right corner, over whatever is on. No server.
 
 - `data/link/`: `LinkProtocol` (length-prefixed JSON over one short TCP connection, the pairing
   handshake, sealed notices), `LinkCrypto` (P-256 ECDH, HKDF with the 6-digit code mixed in, a
   proof from each side, AES-GCM; keys at rest wrapped by the Android Keystore), `LinkStore`
   (own id, peers, switches; SharedPreferences), `TvLink` (listens on 52741, advertised by NSD as
-  `_zlauncher._tcp`; one try per code; drops old or replayed notices), `PhoneLink` (finds TVs by
+  `_zeta._tcp`; one try per code; drops old or replayed notices), `PhoneLink` (finds TVs by
   NSD or a typed address, pairs, announces to every paired TV), `PhoneLinkReceivers` (PHONE_STATE
   for ringing/answered/missed, SMS_RECEIVED, and other apps' message notifications through the
   existing notification listener), `TvLinkNotices` (the corner window: accessibility overlay or
@@ -392,7 +392,7 @@ resumed by `--conversation`. What it found and what came of it:
   notifications (`PhoneLinkCalls`, `PhoneLinkAppMessages`), asking only for phone state, contacts
   and notification access. Tried on the emulator with both permissions revoked: an SMS came through
   with its sender's name; a call with a name only when the phone app posts an incoming-call
-  notification (Google's and Samsung's do; the old Z Launcher dialer on the emulator does not).
+  notification (Google's and Samsung's do; the old Zeta dialer on the emulator does not).
 - The TV's accessibility description and disclosure name all three of its uses (Home key, the
   shutdown panel's power menu and sleep, the phone notice over other apps).
 - A hub whose words come late (Pictures) now gets the remote on them, not on its first link.

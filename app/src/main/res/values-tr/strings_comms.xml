@@ -2,9 +2,9 @@
 <resources>
     <!-- Manifest labels -->
     <string name="label_notes_share">notlar</string>
-    <string name="label_key_service">Z Launcher ses çubuğu ve eylem merkezi</string>
-    <string name="label_social_listener">Z Launcher sosyal merkezi</string>
-    <string name="label_sms_compose">Z Launcher mesajlar</string>
+    <string name="label_key_service">Zeta ses çubuğu ve eylem merkezi</string>
+    <string name="label_social_listener">Zeta sosyal merkezi</string>
+    <string name="label_sms_compose">Zeta mesajlar</string>
 
     <!-- Call screen -->
     <string name="call_bluetooth">bluetooth</string>

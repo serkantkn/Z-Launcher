@@ -1,10 +1,10 @@
-# Z Launcher — Privacy Policy
+# Zeta — Privacy Policy
 
 Last updated: 20 October 2026 · Version 1.4
 
 ## In short
 
-Z Launcher has no server. None of your data reaches us, because there is nowhere for it to
+Zeta has no server. None of your data reaches us, because there is nowhere for it to
 go. There is no advertising network in the app, no analytics, no crash reporting and no
 account. Everything it reads — your contacts, your messages, your pictures, your notes —
 stays on your phone.
@@ -74,7 +74,7 @@ report anywhere. With blocking on, the requests pages make to advertising and tr
 
 ## Between your phone and your TV (the phone link)
 
-Z Launcher also runs on a television. If you pair your phone with a TV on the same Wi-Fi
+Zeta also runs on a television. If you pair your phone with a TV on the same Wi-Fi
 network, the phone tells that TV about incoming calls and messages, and the TV shows them in a
 corner of the screen. Nothing is sent unless you pair the two.
 
@@ -87,7 +87,7 @@ corner of the screen. Nothing is sent unless you pair the two.
 - **How it is protected:** pairing uses a one-time six-digit code shown on the TV; every notice
   is encrypted (AES-GCM) with a key only those two devices hold, protected by the Android
   Keystore.
-- **How it is read:** while Z Launcher is your default phone and SMS app it sees calls and texts
+- **How it is read:** while Zeta is your default phone and SMS app it sees calls and texts
   itself; otherwise it reads them from your phone and messaging apps' notifications (this needs
   notification access). Messages from other apps such as WhatsApp are, if you choose, read from
   their notifications too.
@@ -129,7 +129,7 @@ The app is not directed at children and collects no age information.
 ## Deleting your data
 
 Uninstalling removes everything the app kept. To clear it without uninstalling: Android
-Settings → Apps → Z Launcher → Storage → Clear data. There is no account or record of yours
+Settings → Apps → Zeta → Storage → Clear data. There is no account or record of yours
 on our side to delete, because none is ever created.
 
 ## Changes

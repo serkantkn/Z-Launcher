@@ -1,10 +1,10 @@
-# Z Launcher — Gizlilik Politikası
+# Zeta — Gizlilik Politikası
 
 Son güncelleme: 20 Ekim 2026 · Sürüm 1.4
 
 ## Kısaca
 
-Z Launcher'ın sunucusu yok. Hiçbir veriniz bize ulaşmıyor, çünkü ulaşabileceği bir yer yok.
+Zeta'nın sunucusu yok. Hiçbir veriniz bize ulaşmıyor, çünkü ulaşabileceği bir yer yok.
 Uygulamada reklam ağı, analiz aracı, çökme raporlama servisi veya kullanıcı hesabı
 bulunmuyor. Okuduğu her şey — kişileriniz, mesajlarınız, fotoğraflarınız, notlarınız —
 telefonunuzda kalır.
@@ -77,7 +77,7 @@ yere bildirmez. Engelleme açıksa, sayfaların reklam ve izleyici sunucularına
 
 ## Telefon ile televizyon arasında (telefon bağlantısı)
 
-Z Launcher televizyonda da çalışır. Telefonunuzu aynı Wi-Fi ağındaki bir televizyonla
+Zeta televizyonda da çalışır. Telefonunuzu aynı Wi-Fi ağındaki bir televizyonla
 eşlerseniz, telefon gelen aramaları ve mesajları o televizyona bildirir; televizyon bunları
 ekranın köşesinde gösterir. Bu özellik siz eşleştirme yapmadıkça hiçbir şey göndermez.
 
@@ -90,7 +90,7 @@ ekranın köşesinde gösterir. Bu özellik siz eşleştirme yapmadıkça hiçbi
 - **Nasıl korunur:** eşleştirme televizyonda gösterilen tek kullanımlık 6 haneli kodla yapılır;
   her bildirim yalnızca o iki cihazın bildiği bir anahtarla (AES-GCM) şifrelenir. Anahtarlar
   Android Keystore ile korunur.
-- **Nasıl okunur:** Z Launcher varsayılan telefon ve SMS uygulamasıysa aramaları ve mesajları
+- **Nasıl okunur:** Zeta varsayılan telefon ve SMS uygulamasıysa aramaları ve mesajları
   kendisi görür; değilse telefon ve mesaj uygulamalarınızın bildirimlerinden okur (bunun için
   bildirim erişimi gerekir). WhatsApp gibi diğer uygulamaların mesajları da isteğe bağlı olarak
   bildirimlerden okunur.
@@ -132,7 +132,7 @@ Uygulama çocuklara yönelik değildir ve yaş bilgisi toplamaz.
 ## Verilerinizi silmek
 
 Uygulamayı kaldırmak, sakladığı her şeyi siler. Kaldırmadan silmek isterseniz Android
-Ayarlar → Uygulamalar → Z Launcher → Depolama → Verileri temizle. Bizde silinecek bir hesap
+Ayarlar → Uygulamalar → Zeta → Depolama → Verileri temizle. Bizde silinecek bir hesap
 veya kayıt yoktur, çünkü hiçbir zaman oluşmaz.
 
 ## Değişiklikler

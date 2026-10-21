@@ -1,0 +1,381 @@
+package com.serkantkn.zeta.ui.screens.onboarding
+
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.serkantkn.zeta.R
+import com.serkantkn.zeta.ui.animation.HingeAnimation
+import androidx.compose.foundation.layout.widthIn
+import com.serkantkn.zeta.ui.components.ZuneWideHubStartPadding
+import com.serkantkn.zeta.ui.theme.LocalAnimationsEnabled
+import com.serkantkn.zeta.ui.theme.LocalIsWideScreen
+import com.serkantkn.zeta.ui.theme.LocalZuneColors
+import com.serkantkn.zeta.ui.theme.ZuneDimens
+import com.serkantkn.zeta.util.OnboardingStep
+
+/**
+ * The tour somebody is shown the first time the launcher opens.
+ *
+ * Windows Phone's own first run was one idea to a page, set in enormous light type against the
+ * accent, with a word at the bottom to go on. That is what this is. It sits over the launcher
+ * rather than beside it, so there is nothing to swipe past and nothing to get lost in, and it can
+ * always be left - a person who wants to see their phone should be allowed to.
+ */
+@Composable
+fun OnboardingScreen(
+    tour: FirstRunScreen.Tour,
+    viewModel: OnboardingViewModel,
+    onNext: () -> Unit,
+    onBack: () -> Unit,
+    onSkip: () -> Unit
+) {
+    val zuneColors = LocalZuneColors.current
+    val animate = LocalAnimationsEnabled.current
+    val isWide = LocalIsWideScreen.current
+    // A line of text the width of a tablet is a line nobody finishes. The tour keeps to a column
+    // of about the width it has on a phone, standing where a hub's title stands.
+    val sidePadding = if (isWide) ZuneWideHubStartPadding else ZuneDimens.ScreenPaddingHorizontal
+    val contentWidth = if (isWide) Modifier.widthIn(max = 620.dp) else Modifier.fillMaxWidth()
+
+    // Back walks the tour backwards rather than dropping out of it; only the first page lets go.
+    BackHandler { if (tour.isFirst) onSkip() else onBack() }
+
+    /**
+     * A finished lesson moves the tour on by itself, after a pause.
+     *
+     * Two seconds: long enough to watch the tick appear and understand what was just done, short
+     * enough that nobody sits wondering whether they are supposed to press something. Leaving the
+     * page by hand cancels it, since the wait is keyed to the page.
+     */
+    var lessonDone by remember(tour.index) { mutableStateOf(false) }
+    val onLessonDone: () -> Unit = { lessonDone = true }
+    LaunchedEffect(tour.index, lessonDone) {
+        if (!lessonDone) return@LaunchedEffect
+        kotlinx.coroutines.delay(LESSON_PAUSE_MS)
+        onNext()
+    }
+
+    // A tablet is shown Windows 8's first run instead: the same pages, its own frame.
+    if (isWide) {
+        TabletTour(tour = tour, onNext = onNext, onBack = onBack, onSkip = onSkip) { step ->
+            OnboardingStepContent(step, viewModel, onLessonDone)
+        }
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (zuneColors.isDark) Color(0xFF0A0A0A) else Color.White)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            // -- The step, and the way out --
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = sidePadding, vertical = 16.dp)
+            ) {
+                StepDots(count = tour.steps.size, current = tour.index, accent = zuneColors.accentColor)
+                Spacer(modifier = Modifier.weight(1f))
+                if (!tour.isLast) {
+                    Text(
+                        text = stringResource(R.string.onboarding_skip),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = zuneColors.textMuted,
+                        modifier = Modifier
+                            .clickable(onClick = onSkip)
+                            .padding(8.dp)
+                    )
+                }
+            }
+
+            // -- The page itself --
+            //
+            // Pages turn like the panels of a revolving door, on one post at the left edge. Going
+            // forward, the page on screen swings away from you and off to the left while the next
+            // one comes round from in front, nearer than the screen, and settles flat. Going back
+            // runs the same door the other way. The hinge never changes sides, which is what makes
+            // it read as one door rather than two.
+            var shownStep by remember { mutableStateOf(tour.step) }
+            var shownIndex by remember { mutableIntStateOf(tour.index) }
+
+            /** Where the panel is: 0 flat, -1 swung away behind, +1 swung round in front. */
+            val turn = remember { Animatable(0f) }
+            val halfTurn = remember(animate) {
+                tween<Float>(
+                    durationMillis = if (animate) HingeAnimation.DURATION_MS / 2 else 0,
+                    easing = HingeAnimation.EASING
+                )
+            }
+
+            LaunchedEffect(tour.step) {
+                if (tour.step == shownStep) return@LaunchedEffect
+                val forwards = tour.index >= shownIndex
+                // Away from you on the way out, towards you on the way in - or the reverse, when
+                // the door is being turned backwards.
+                turn.animateTo(if (forwards) -1f else 1f, halfTurn)
+                shownStep = tour.step
+                shownIndex = tour.index
+                turn.snapTo(if (forwards) 1f else -1f)
+                turn.animateTo(0f, halfTurn)
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    // Compose does not clip by default, and a full-size clone of the start screen
+                    // is taller than the space it is given: without this its last row of tiles
+                    // draws straight over the tour's own buttons.
+                    .clipToBounds()
+                    .graphicsLayer {
+                        rotationY = turn.value * HingeAnimation.MAX_ROTATION_DEGREES
+                        cameraDistance = HingeAnimation.CAMERA_DISTANCE_MULTIPLIER * density
+                        // The post is always the left edge, whichever way the door is going.
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                        alpha = (1f - kotlin.math.abs(turn.value) * 1.4f).coerceIn(0f, 1f)
+                    }
+            ) {
+                if (shownStep.isLesson) {
+                    // A lesson is the launcher at full size; the tour's own margins would shrink
+                    // the very thing being shown.
+                    OnboardingStepContent(shownStep, viewModel, onLessonDone)
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = sidePadding)
+                    ) {
+                        Column(modifier = contentWidth) {
+                            OnboardingStepContent(shownStep, viewModel, onLessonDone)
+                        }
+                    }
+                }
+            }
+
+            // -- On, or back --
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = sidePadding, vertical = 24.dp)
+            ) {
+                if (!tour.isFirst) {
+                    Text(
+                        text = stringResource(R.string.onboarding_back),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light),
+                        color = zuneColors.textMuted,
+                        modifier = Modifier
+                            .clickable(onClick = onBack)
+                            .padding(vertical = 8.dp, horizontal = 4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = stringResource(
+                        if (tour.isLast) R.string.onboarding_finish else R.string.onboarding_next
+                    ),
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Light,
+                        fontSize = 26.sp
+                    ),
+                    color = zuneColors.accentColor,
+                    modifier = Modifier
+                        .clickable(onClick = onNext)
+                        .padding(vertical = 8.dp, horizontal = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The body of one page.
+ *
+ * Every page is a heading and a line underneath, and most of them then have something to do. The
+ * doing parts arrive with their own rounds; for now each page says what it is for.
+ */
+@Composable
+private fun OnboardingStepContent(
+    step: OnboardingStep,
+    viewModel: OnboardingViewModel,
+    onLessonDone: () -> Unit
+) {
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+
+    when (step) {
+        OnboardingStep.LANGUAGE -> {
+            val language by viewModel.language.collectAsState()
+            LanguageStepPage(
+                current = language,
+                onSelect = { chosen ->
+                    // Pre-Android 13 the activity has to be rebuilt by hand for the new strings.
+                    if (viewModel.setLanguage(chosen)) activity?.recreate()
+                }
+            )
+        }
+
+        OnboardingStep.THEME -> {
+            val mode by viewModel.themeMode.collectAsState()
+            val accent by viewModel.accentColor.collectAsState()
+            ThemeStepPage(
+                themeMode = mode,
+                accent = accent,
+                onThemeMode = viewModel::setThemeMode,
+                onAccent = viewModel::setAccentColor
+            )
+        }
+
+        OnboardingStep.WELCOME -> {
+            val chrome = LocalTourChrome.current
+            if (chrome != null) TabletWelcomePage(chrome) else WelcomeStepPage()
+        }
+
+        OnboardingStep.DEFAULT_LAUNCHER -> {
+            // Coming back from the system's screen is the only way to learn the answer.
+            var checkedAt by remember { mutableIntStateOf(0) }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { checkedAt++ }
+            val isDefault = remember(checkedAt) { viewModel.isDefaultLauncher() }
+
+            val roleLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult()
+            ) { checkedAt++ }
+
+            DefaultLauncherStepPage(
+                isDefault = isDefault,
+                onMakeDefault = {
+                    val intent = viewModel.defaultLauncherIntent()
+                    if (intent != null) roleLauncher.launch(intent) else viewModel.openHomeSettings()
+                }
+            )
+        }
+
+        OnboardingStep.PERMISSIONS -> {
+            val granted by viewModel.grantedPermissions.collectAsState()
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshGrantedPermissions() }
+
+            val permissionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission()
+            ) { viewModel.refreshGrantedPermissions() }
+
+            PermissionsStepPage(
+                permissions = viewModel.askablePermissions,
+                granted = granted,
+                onRequest = { permission -> permissionLauncher.launch(permission.manifestName) }
+            )
+        }
+
+        // The tablet practises the tablet's own moves on the tablet's own Start.
+        OnboardingStep.GESTURE_SWIPE ->
+            if (LocalTourChrome.current != null) TabletStartLesson(onLessonDone) else SwipeLessonPage(onLessonDone)
+
+        OnboardingStep.GESTURE_TILE ->
+            if (LocalTourChrome.current != null) TabletTileLesson(onLessonDone) else TileLessonPage(onLessonDone)
+
+        OnboardingStep.GESTURE_PIVOT ->
+            if (LocalTourChrome.current != null) TabletHubLesson(onLessonDone) else PivotLessonPage(onLessonDone)
+
+        OnboardingStep.DONE -> OnboardingPage(
+            title = stringResource(R.string.onboarding_done_title),
+            line = stringResource(R.string.onboarding_done_line)
+        ) {
+            RecapList(tablet = LocalTourChrome.current != null)
+        }
+    }
+}
+
+/** A heading, a line, and room underneath for whatever the page asks somebody to do. */
+@Composable
+fun OnboardingPage(
+    title: String,
+    line: String,
+    content: @Composable () -> Unit = {}
+) {
+    LocalTourChrome.current?.let { chrome ->
+        TabletOnboardingPage(chrome = chrome, title = title, line = line, content = content)
+        return
+    }
+    val zuneColors = LocalZuneColors.current
+    Column(modifier = Modifier.fillMaxSize()) {
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.displaySmall.copy(
+                fontWeight = FontWeight.Light,
+                fontSize = 44.sp,
+                letterSpacing = (-1).sp
+            ),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        if (line.isNotBlank()) {
+            Text(
+                text = line,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Light),
+                color = zuneColors.textMuted,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(28.dp))
+        content()
+    }
+}
+
+/** Where in the tour somebody is: one square a page, the one they are on in the accent. */
+@Composable
+private fun StepDots(count: Int, current: Int, accent: Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        repeat(count) { index ->
+            Box(
+                modifier = Modifier
+                    .size(if (index == current) 10.dp else 6.dp)
+                    .background(if (index == current) accent else LocalZuneColors.current.textDim)
+            )
+        }
+    }
+}
+
+/** How long a finished lesson is left on screen before the tour moves on. */
+private const val LESSON_PAUSE_MS = 2_000L

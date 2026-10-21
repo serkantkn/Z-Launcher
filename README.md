@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="store/feature-graphic.png" width="720" alt="Z Launcher">
+  <img src="store/feature-graphic.png" width="720" alt="Zeta">
 </p>
 
 <p align="center"><strong>Canlı karolar, yeniden.</strong><br>
-Karoları ve hub'ları özleyenler için sıfırdan yazılmış bir Android başlatıcı: canlı karolar, hub'lar, turnike animasyonları ve ince, büyük yazılar. Televizyonda bir oturma odası arayüzü olur.</p>
+Telefon, tablet ve televizyon için sıfırdan yazılmış bir arayüz paketi: canlı karolar, hub'lar, turnike animasyonları ve ince, büyük yazılar. Başlangıç ekranından mesajlara, müzikten televizyona kadar hepsi aynı dilde; telefon bağlantısıyla cihazların birbirinden haberi olur.</p>
 
 <p align="center">
-  <a href="https://serkantkn.github.io/Z-Launcher/">tanıtım sitesi</a> · <a href="#english">English below</a>
+  <a href="https://serkantkn.github.io/Zeta/">tanıtım sitesi</a> · <a href="#english">English below</a>
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@ Karoları ve hub'ları özleyenler için sıfırdan yazılmış bir Android baş
 
 ## Neden
 
-Canlı karolu telefonlar gitti; onları seven bir avuç insan kaldı. Z Launcher o dili taklit etmiyor,
+Canlı karolu telefonlar gitti; onları seven bir avuç insan kaldı. Zeta o dili taklit etmiyor,
 **yeniden yapıyor**: karoların dönüşünden bir hub'a girerken karoların turnike gibi savrulmasına,
 klasör adının listeden kalkıp sayfanın başlığı olmasına kadar. Bugünün Android'inde, bugünün
 telefonlarında çalışıyor — ve hiçbir şeyi hiçbir yere göndermiyor.
@@ -132,7 +132,7 @@ beyaz bir çizgi menüye açılır.
 
 ## Varsayılan uygulama
 
-Z Launcher telefonun varsayılan uygulaması olabilir; bir şey açıldığında karşına yine aynı arayüz çıkar:
+Zeta telefonun varsayılan uygulaması olabilir; bir şey açıldığında karşına yine aynı arayüz çıkar:
 
 - **Ana ekran, telefon, SMS, tarayıcı** — Android'in varsayılan uygulama ayarlarından.
 - **Galeri** — galerideki bir fotoğraf albümünün içinde, ekler ve indirilenler fotoğraflar görüntüleyicisinde açılır.
@@ -183,7 +183,7 @@ Hub'lar da Panorama düzenindedir: başlıklar solda, açılan şey yanındaki b
 
 ## Televizyon
 
-Android TV ve Google TV'de Z Launcher kumandayla kullanılır. Televizyonda işe yarayan
+Android TV ve Google TV'de Zeta kumandayla kullanılır. Televizyonda işe yarayan
 hub'lar oradadır: müzik + videolar (oynatıcısıyla), fotoğraflar, hava durumu, haberler, saat, dosyalar ve ayarlar;
 telefon, mesajlar, kişiler, kamera gibi telefona özgü olanlar gösterilmez. Ayarlar → görünüm → TV tasarımı'ndan iki
 tasarımdan biri seçilir, ana ekran ve bütün hub'lar onunla değişir:
@@ -215,9 +215,9 @@ tasarımdan biri seçilir, ana ekran ve bütün hub'lar onunla değişir:
 İkisinde de açılışta logo, sayfalar arasında yakınlaşma, açık lisanslı Selawik yazı tipi ve kapatılabilir gezinme
 sesleri var; logolar ve sesler bu projede çizildi ve üretildi. Yarıda bırakılan film
 "devam et"te, televizyonun uygulamaları kendi afişleriyle durur. Kumandanın Home tuşu, erişilebilirlik servisi
-açıksa Google TV'nin ana ekranı yerine Z Launcher'ı açar.
+açıksa Google TV'nin ana ekranı yerine Zeta'yı açar.
 
-**Telefon bağlantısı.** Telefonunda Z Launcher kullanıyorsan onu aynı Wi-Fi'daki televizyonla eşleyebilirsin
+**Telefon bağlantısı.** Telefonunda Zeta kullanıyorsan onu aynı Wi-Fi'daki televizyonla eşleyebilirsin
 (televizyonda ayarlar → bağlantılar → telefon ekle, telefonda TV ekle, 6 haneli kod). Sonra telefona gelen
 aramalar, cevapsız aramalar ve mesajlar televizyonun köşesinde, açık olan her şeyin üstünde görünür. Mesajın
 metni varsayılan olarak gitmez; telefonda açılabilir. Sunucu yoktur, her şey ev ağında ve şifreli gider.
@@ -253,7 +253,7 @@ Mozaik'in ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli anahta
 
 ## Ayrıca
 
-- Z Launcher klavyesi ve tahmin çubuğu *(Pro)*
+- Zeta klavyesi ve tahmin çubuğu *(Pro)*
 - Ses çubuğundan bildirim şeridine kadar aynı arayüz *(Pro)*
 - Türkçe ve İngilizce
 - Bölünmüş ekran: tablette dört, telefonda iki parmakla
@@ -262,7 +262,7 @@ Mozaik'in ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli anahta
 
 Başlangıç ekranı, bütün hub'lar, eylem merkezi, tablet düzeni, televizyon arayüzü (iki tasarımı ve
 telefon bağlantısı dahil) ve varsayılan uygulama rolleri ücretsiz sürümde tamdır. **Pro, uygulamanın içinden tek seferlik bir satın almayla açılır** (Google Play üzerinden;
-ayarlar → hakkında → Z Launcher Pro, ya da kilitli herhangi bir şeye dokunarak). Bir kez alınır, aynı Google
+ayarlar → hakkında → Zeta Pro, ya da kilitli herhangi bir şeye dokunarak). Bir kez alınır, aynı Google
 hesabıyla her telefonda geçerlidir; ayarların yerinde kalır. Pro şunları ekler:
 
 - **Görünüm:** vurgu renklerinin tamamı, özel duvar kağıdı, buzlu karolar, karo başına renk, ad, simge,
@@ -272,7 +272,7 @@ hesabıyla her telefonda geçerlidir; ayarların yerinde kalır. Pro şunları e
 - **Hub'lar:** sosyal hub, kilitli notlar, haberlerde kendi RSS kaynakların, tarayıcıda okuma listesine
   ekleme, PDF olarak kaydetme, çeviri ve sık kullanılanlar; başlangıca 10'dan fazla uygulama, birden çok
   hava durumu şehri
-- **Sistem:** Z Launcher klavyesi, ses çubuğu ve bildirim şeridi
+- **Sistem:** Zeta klavyesi, ses çubuğu ve bildirim şeridi
 
 Satın alma yalnızca Google Play'den kurulan uygulamada yapılabilir; GitHub'daki APK ücretsiz sürümdür.
 Ücretsiz sürüm hiçbir verini Pro'ya kilitlemez: kilitli bir not yine açılır, okuma listesindekiler yine
@@ -288,7 +288,7 @@ engelleme açıksa haftada bir engelleme listesi de indirilir) — o da o özell
 adları için.
 Telefon bağlantısı açıksa aramalar ve mesajlar yalnızca eşlediğin televizyona, ev ağının içinden ve şifreli
 gider; mesaj metni sen açmadıkça gitmez.
-Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md) · [web](https://serkantkn.github.io/Z-Launcher/gizlilik.html).
+Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md) · [web](https://serkantkn.github.io/Zeta/gizlilik.html).
 
 ## Derlemek
 
@@ -307,7 +307,7 @@ Birim testleri:
 ./gradlew testFreeDebugUnitTest
 ```
 
-Proje, kullanıcı arayüzünün tamamı Jetpack Compose olacak şekilde Kotlin'le yazıldı; `app/src/main/java/com/serkantkn/zunelauncher`
+Proje, kullanıcı arayüzünün tamamı Jetpack Compose olacak şekilde Kotlin'le yazıldı; `app/src/main/java/com/serkantkn/zeta`
 altında `data` (model, DataStore, depolar), `ui/screens/<hub>` (her hub kendi ekranı ve ViewModel'iyle), `ui/components`
 (karolar, diyaloglar, pivot) ve `ui/animation` (turnike, menteşe, başlık zıplaması) klasörleri var.
 
@@ -333,9 +333,9 @@ Karo glifleri Microsoft'un [Fluent UI System Icons](https://github.com/microsoft
 <a name="english"></a>
 ## English
 
-**Live tiles, again.** A launcher written from scratch for anyone who misses tiles and hubs: live tiles, hubs,
-turnstile animations and thin, big type, running on today's Android — and sending nothing anywhere. On a
-television it becomes a living-room interface.
+**Live tiles, again.** An interface suite for phone, tablet and television, written from scratch: live tiles,
+hubs, turnstile animations and thin, big type, running on today's Android — and sending nothing anywhere.
+Start, messages, music and the TV all speak one language, and the phone link lets the devices know of each other.
 
 - **Start screen.** Small, medium, wide and large tiles; live tiles that turn by themselves; folders; pin apps,
   people, conversations, albums, records, notes and web pages. Every live tile is laid out for every size, its
@@ -358,8 +358,8 @@ television it becomes a living-room interface.
   green tiles, the one the remote is on lifted, the neighbours peeking in at the edges, the button legend at the
   bottom left - or **Lounge**, a living-room media interface, its categories turning through a fixed pane of glass. Both
   have a logo at launch, a zoom between pages, the open Selawik type and navigation sounds made here
-  that can be turned off. A film left part way waits under "continue"; the remote's Home button opens Z Launcher
-  through an accessibility service. **The phone link** pairs a phone running Z Launcher with a TV on the same
+  that can be turned off. A film left part way waits under "continue"; the remote's Home button opens Zeta
+  through an accessibility service. **The phone link** pairs a phone running Zeta with a TV on the same
   Wi-Fi by a six-digit code; calls, missed calls and messages then show in the TV's corner over whatever is
   on. The message text stays on the phone unless you allow it; no server, encrypted, on your own network.
 - **Action center.** A pull from the status bar brings down the action center instead of
@@ -387,14 +387,14 @@ television it becomes a living-room interface.
   Bluetooth, mobile data, roaming, data usage, hotspot, location, NFC, VPN and casting as they are and opens
   Android's own switch for each; about lists this device.
 - **Looks.** Fourteen accent colours and a custom one, dark and light themes, tile transparency and frost,
-  corner style and spacing. Z Launcher's own keyboard *(Pro)*.
+  corner style and spacing. Zeta's own keyboard *(Pro)*.
 - **Free and Pro.** Start, every hub, the action center, the tablet layout, the TV interface (both designs and
-  the phone link) and the default-app roles are whole in the free edition. Pro is one purchase inside the app, through Google Play (settings → about → Z Launcher
+  the phone link) and the default-app roles are whole in the free edition. Pro is one purchase inside the app, through Google Play (settings → about → Zeta
   Pro, or touch anything locked); bought once, it holds on every phone signed in to the same Google account.
   Pro adds all accent colours, custom wallpaper, frosted tiles, each tile's own look,
   the hubs' background settings, the video player's subtitles, sound tracks, speed, fill, next episode and
   small window, online lyrics and covers, the social hub, locked notes, the news hub's own RSS sources, the
-  browser's reading list, PDF, translation and favourites, Z Launcher's keyboard, volume bar and banners.
+  browser's reading list, PDF, translation and favourites, Zeta's keyboard, volume bar and banners.
   Nothing of yours is locked away: a locked note still opens, saved pages still read, and Pro's settings
   wait, untouched, for Pro.
 - **Privacy.** No server, no ads, no analytics, no account. Only weather, news, lyrics and search suggestions

@@ -1,0 +1,113 @@
+package com.serkantkn.zeta.di
+
+import android.content.Context
+import com.serkantkn.zeta.ZuneLauncherApp
+import com.serkantkn.zeta.data.datastore.AlarmDataStore
+import com.serkantkn.zeta.data.datastore.BrowsingDataStore
+import com.serkantkn.zeta.data.datastore.CalculatorDataStore
+import com.serkantkn.zeta.data.datastore.CalendarDataStore
+import com.serkantkn.zeta.data.datastore.ClockDataStore
+import com.serkantkn.zeta.data.datastore.EmailDataStore
+import com.serkantkn.zeta.data.datastore.FavoritePhotosDataStore
+import com.serkantkn.zeta.data.datastore.KeyboardDataStore
+import com.serkantkn.zeta.data.datastore.NotesDataStore
+import com.serkantkn.zeta.data.datastore.SettingsDataStore
+import com.serkantkn.zeta.data.datastore.CameraDataStore
+import com.serkantkn.zeta.data.datastore.PhoneDataStore
+import com.serkantkn.zeta.data.datastore.WeatherDataStore
+import com.serkantkn.zeta.data.repository.AppRepository
+import com.serkantkn.zeta.data.repository.IconPackRepository
+import com.serkantkn.zeta.data.repository.CalendarRepository
+import com.serkantkn.zeta.data.repository.CallLogRepository
+import com.serkantkn.zeta.data.repository.ContactRepository
+import com.serkantkn.zeta.data.repository.EmailCache
+import com.serkantkn.zeta.data.repository.EmailRepository
+import com.serkantkn.zeta.data.repository.MediaRepository
+import com.serkantkn.zeta.data.repository.MusicRepository
+import com.serkantkn.zeta.data.repository.WeatherRepository
+import com.serkantkn.zeta.data.service.AlarmScheduler
+import com.serkantkn.zeta.data.service.EmailSyncScheduler
+import com.serkantkn.zeta.data.service.EventReminderScheduler
+import com.serkantkn.zeta.data.service.TimerScheduler
+import com.serkantkn.zeta.util.SecretStore
+import com.serkantkn.zeta.util.TileIconFactory
+
+/**
+ * Process-wide, manually wired dependency container.
+ *
+ * Every repository / data store is created once and shared across all ViewModels and
+ * composables, so caches (e.g. [AppRepository]'s icon LRU) are not duplicated per screen.
+ * Everything is lazy: nothing is touched until a screen actually needs it.
+ *
+ * Obtain it via [Context.appContainer].
+ */
+class AppContainer(private val appContext: Context) {
+
+    // --- Data stores ---
+    val settingsDataStore: SettingsDataStore by lazy { SettingsDataStore(appContext) }
+    val favoritePhotosDataStore: FavoritePhotosDataStore by lazy { FavoritePhotosDataStore(appContext) }
+    val browsingDataStore: BrowsingDataStore by lazy { BrowsingDataStore(appContext, settingsDataStore) }
+    val alarmDataStore: AlarmDataStore by lazy { AlarmDataStore(appContext) }
+    val clockDataStore: ClockDataStore by lazy { ClockDataStore(appContext) }
+    val calendarDataStore: CalendarDataStore by lazy { CalendarDataStore(appContext) }
+    val notesDataStore: NotesDataStore by lazy { NotesDataStore(appContext) }
+    val emailDataStore: EmailDataStore by lazy { EmailDataStore(appContext) }
+    val calculatorDataStore: CalculatorDataStore by lazy { CalculatorDataStore(appContext) }
+    val keyboardDataStore: KeyboardDataStore by lazy { KeyboardDataStore(appContext) }
+    val weatherDataStore: WeatherDataStore by lazy { WeatherDataStore(appContext) }
+    val cameraDataStore: CameraDataStore by lazy { CameraDataStore(appContext) }
+    val phoneDataStore: PhoneDataStore by lazy { PhoneDataStore(appContext) }
+    val newsDataStore: com.serkantkn.zeta.data.datastore.NewsDataStore by lazy {
+        com.serkantkn.zeta.data.datastore.NewsDataStore(appContext)
+    }
+
+    // --- Repositories ---
+    val appRepository: AppRepository by lazy { AppRepository(appContext) }
+    val iconPackRepository: IconPackRepository by lazy {
+        IconPackRepository(appContext).also { packs ->
+            // A pack updated in place is read afresh, and the tiles drawn from it are redrawn.
+            packs.watchPackages(appRepository.packageChanges()) { tileIconFactory.invalidate() }
+        }
+    }
+    val mediaRepository: MediaRepository by lazy { MediaRepository(appContext) }
+    val contactRepository: ContactRepository by lazy { ContactRepository(appContext) }
+    val callLogRepository: CallLogRepository by lazy { CallLogRepository(appContext) }
+    val calendarRepository: CalendarRepository by lazy { CalendarRepository(appContext) }
+    val weatherRepository: WeatherRepository by lazy { WeatherRepository(appContext, weatherDataStore) }
+    val readingListRepository: com.serkantkn.zeta.data.repository.ReadingListRepository by lazy {
+        com.serkantkn.zeta.data.repository.ReadingListRepository(appContext)
+    }
+    val newsRepository: com.serkantkn.zeta.data.repository.NewsRepository by lazy {
+        com.serkantkn.zeta.data.repository.NewsRepository(appContext, newsDataStore)
+    }
+    val musicRepository: MusicRepository by lazy { MusicRepository(appContext) }
+    val lyricsRepository: com.serkantkn.zeta.data.repository.LyricsRepository by lazy {
+        com.serkantkn.zeta.data.repository.LyricsRepository(appContext)
+    }
+    val artworkRepository: com.serkantkn.zeta.data.repository.ArtworkRepository by lazy {
+        com.serkantkn.zeta.data.repository.ArtworkRepository(appContext)
+    }
+    val musicDataStore: com.serkantkn.zeta.data.datastore.MusicDataStore by lazy {
+        com.serkantkn.zeta.data.datastore.MusicDataStore(appContext)
+    }
+    val emailCache: EmailCache by lazy { EmailCache(appContext) }
+    val emailRepository: EmailRepository by lazy { EmailRepository(appContext, secretStore, emailCache) }
+
+    // --- Services ---
+    val alarmScheduler: AlarmScheduler by lazy { AlarmScheduler(appContext) }
+    val timerScheduler: TimerScheduler by lazy { TimerScheduler(appContext) }
+    val eventReminderScheduler: EventReminderScheduler by lazy { EventReminderScheduler(appContext) }
+    val emailSyncScheduler: EmailSyncScheduler by lazy { EmailSyncScheduler(appContext) }
+    val secretStore: SecretStore by lazy { SecretStore(appContext) }
+    val tileIconFactory: TileIconFactory by lazy {
+        TileIconFactory(appContext, appRepository, iconPackRepository)
+    }
+}
+
+/**
+ * Shared [AppContainer] for this process. Works from any Context (Activity, Application,
+ * Service, or a composable's LocalContext) because it always resolves through the
+ * application context.
+ */
+val Context.appContainer: AppContainer
+    get() = (applicationContext as ZuneLauncherApp).container

@@ -4,9 +4,9 @@
 <resources>
     <!-- Manifest labels: what the system shows in its own lists -->
     <string name="label_notes_share">notes</string>
-    <string name="label_key_service">Z Launcher volume bar and action center</string>
-    <string name="label_social_listener">Z Launcher social hub</string>
-    <string name="label_sms_compose">Z Launcher messages</string>
+    <string name="label_key_service">Zeta volume bar and action center</string>
+    <string name="label_social_listener">Zeta social hub</string>
+    <string name="label_sms_compose">Zeta messages</string>
 
     <!-- Call screen -->
     <string name="call_bluetooth">bluetooth</string>
@@ -31,7 +31,7 @@
     </plurals>
 
     <!-- Volume -->
-    <string name="volume_silent_needs_access">to silence the phone, allow Z Launcher in do not disturb access</string>
+    <string name="volume_silent_needs_access">to silence the phone, allow Zeta in do not disturb access</string>
 
     <!-- Messaging -->
     <string name="msg_mms_arrived">picture message arrived</string>

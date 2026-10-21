@@ -1,0 +1,1100 @@
+package com.serkantkn.zeta.data.datastore
+
+import kotlinx.coroutines.flow.combine
+import com.serkantkn.zeta.util.Pro
+import android.content.Context
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.serkantkn.zeta.data.model.AccentColor
+import com.serkantkn.zeta.data.model.HomeScreenLayout
+import com.serkantkn.zeta.data.model.HubType
+import com.serkantkn.zeta.data.model.HubBackgroundMode
+import com.serkantkn.zeta.data.model.NotificationStyle
+import com.serkantkn.zeta.data.model.SocialHubLayout
+import com.serkantkn.zeta.data.model.StartFolders
+import com.serkantkn.zeta.data.model.SearchEngine
+import com.serkantkn.zeta.data.model.StartTileItem
+import com.serkantkn.zeta.data.model.ThemeMode
+import com.serkantkn.zeta.data.model.TileIcon
+import com.serkantkn.zeta.data.model.TileIconStyle
+import com.serkantkn.zeta.data.model.TileAnimation
+import com.serkantkn.zeta.data.model.TileInk
+import com.serkantkn.zeta.data.model.TileLook
+import com.serkantkn.zeta.data.model.RecentAlbum
+import com.serkantkn.zeta.data.model.RECENT_ALBUMS_LIMIT
+import com.serkantkn.zeta.data.model.RECENT_APPS_LIMIT
+import com.serkantkn.zeta.data.model.mostRecentFirst
+import com.serkantkn.zeta.data.model.TileCornerStyle
+import com.serkantkn.zeta.data.model.looksLikeJsonArray
+import com.serkantkn.zeta.data.model.parseJsonObjectList
+import com.serkantkn.zeta.data.model.parseJsonStringList
+import com.serkantkn.zeta.data.model.toJsonArrayString
+import com.serkantkn.zeta.data.model.toJsonStringArray
+import com.serkantkn.zeta.settingsDataStore
+import com.serkantkn.zeta.util.ZuneLog
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlin.coroutines.cancellation.CancellationException
+
+/**
+ * Launcher-wide settings. List-valued preferences ([HUB_ORDER], [START_TILES],
+ * [DISABLED_NOTIFICATION_APPS]) are stored as JSON arrays; their pre-JSON comma-delimited
+ * values are still read as a fallback and rewritten as JSON the first time they are collected.
+ * The browser keys hold JSON arrays produced by the Browser* model serializers.
+ */
+class SettingsDataStore(private val context: Context) {
+
+    companion object {
+        private const val TAG = "SettingsDataStore"
+
+        /** Windows Phone 8.1's own translucency, and what a fresh install starts with. */
+        const val DEFAULT_TILE_OPACITY = 45
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val FONT_SCALE = floatPreferencesKey("font_scale")
+        val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
+        val ACCENT_COLOR = stringPreferencesKey("accent_color")
+        val DIRECT_CALL_ENABLED = booleanPreferencesKey("direct_call_enabled")
+        val SMS_DELIVERY_REPORTS = booleanPreferencesKey("sms_delivery_reports")
+        val SMS_DELIVERED_NOTICE = booleanPreferencesKey("sms_delivered_notice")
+        val MMS_AUTO_DOWNLOAD = booleanPreferencesKey("mms_auto_download")
+        val MMS_ASK_READ_REPORTS = booleanPreferencesKey("mms_ask_read_reports")
+        val MMS_SEND_READ_REPORTS = booleanPreferencesKey("mms_send_read_reports")
+        val HUB_ORDER = stringPreferencesKey("hub_order")
+        val REMOVED_HUBS = stringPreferencesKey("removed_hubs")
+        val START_TILES = stringPreferencesKey("start_tiles_v1")
+        val CUSTOM_WALLPAPER_PATH = stringPreferencesKey("custom_wallpaper_path")
+        val DYNAMIC_THEME_COLOR = intPreferencesKey("dynamic_theme_color")
+        val CUSTOM_THEME_COLOR = intPreferencesKey("custom_theme_color")
+        val SOLID_BACKGROUND_ENABLED = booleanPreferencesKey("solid_background_enabled")
+        val BROWSER_FAVORITES = stringPreferencesKey("browser_favorites")
+        val BROWSER_HISTORY = stringPreferencesKey("browser_history")
+        val SEARCH_ENGINE = stringPreferencesKey("browser_search_engine")
+        val SEARCH_SUGGESTIONS = booleanPreferencesKey("browser_search_suggestions")
+        val BROWSER_DOWNLOADS = stringPreferencesKey("browser_downloads")
+        val NOTIFICATION_STYLE = stringPreferencesKey("notification_style")
+        val VOLUME_BAR_STYLE = stringPreferencesKey("volume_bar_style")
+        val WP_ACTION_CENTER = booleanPreferencesKey("wp_action_center")
+        val SWITCHER_TIP_SHOWN = booleanPreferencesKey("switcher_tip_shown")
+        val DISABLED_NOTIFICATION_APPS = stringPreferencesKey("disabled_notification_apps")
+        val TIME_FORMAT = stringPreferencesKey("time_format")
+        val DATE_FORMAT = stringPreferencesKey("date_format")
+        val HUB_BACKGROUND_MODE = stringPreferencesKey("hub_background_mode")
+        val CUSTOM_HUB_WALLPAPER_PATH = stringPreferencesKey("custom_hub_wallpaper_path")
+        val HUB_BACKGROUND_OPACITY = floatPreferencesKey("hub_background_opacity")
+        val TILE_CORNER_STYLE = stringPreferencesKey("tile_corner_style")
+        val TILE_OPACITY = intPreferencesKey("tile_opacity")
+        val TILE_BLUR = intPreferencesKey("tile_blur")
+        val TILE_ANIMATION = stringPreferencesKey("tile_animation")
+        val TILE_INK = stringPreferencesKey("tile_ink")
+        val TILE_SPACING = intPreferencesKey("tile_spacing")
+        val HOME_SCREEN_LAYOUT = stringPreferencesKey("home_screen_layout")
+        val ZUNE_GLOW = stringPreferencesKey("zune_glow")
+        val TILE_ICON_STYLE = stringPreferencesKey("tile_icon_style")
+        val ICON_PACK_PACKAGE = stringPreferencesKey("icon_pack_package")
+        val TILE_ICON_OVERRIDES = stringPreferencesKey("tile_icon_overrides")
+        val TILE_LOOKS = stringPreferencesKey("tile_looks")
+        val HUB_TARGET_APPS = stringPreferencesKey("hub_target_apps")
+        val RECENT_APPS = stringPreferencesKey("recent_apps")
+        val RECENT_ALBUMS = stringPreferencesKey("recent_albums")
+        val QUICKPLAY_PINS = stringPreferencesKey("quickplay_pins")
+        val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
+        val SOCIAL_SOURCES = stringPreferencesKey("social_sources")
+        val SOCIAL_HUB_LAYOUT = stringPreferencesKey("social_hub_layout")
+        val ALARM_SNOOZE_MINUTES = intPreferencesKey("alarm_snooze_minutes")
+        val ALARM_AUTO_SILENCE_MINUTES = intPreferencesKey("alarm_auto_silence_minutes")
+        val CLOCK_SHOW_SECONDS = booleanPreferencesKey("clock_show_seconds")
+        val FILES_SORT = stringPreferencesKey("files_sort")
+        val FILES_SORT_ASCENDING = booleanPreferencesKey("files_sort_ascending")
+        val FILES_SHOW_HIDDEN = booleanPreferencesKey("files_show_hidden")
+        val FILES_VIEW = stringPreferencesKey("files_view")
+        val GALLERY_COLUMNS = intPreferencesKey("gallery_columns")
+        val MUSIC_ONLINE_EXTRAS = booleanPreferencesKey("music_online_extras")
+        val MUSIC_ONLINE_WIFI_ONLY = booleanPreferencesKey("music_online_wifi_only")
+        val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val LAST_SEEN_VERSION = intPreferencesKey("last_seen_version")
+        val ONBOARDING_STARTED = booleanPreferencesKey("onboarding_started")
+        val ONBOARDING_STEP = intPreferencesKey("onboarding_step")
+    }
+
+    /** Windows Phone tiles carried a white glyph and nothing else, so that is the default. */
+    val tileIconStyle: Flow<TileIconStyle> = context.settingsDataStore.data.map { prefs ->
+        try {
+            TileIconStyle.valueOf(prefs[TILE_ICON_STYLE] ?: TileIconStyle.WINDOWS_PHONE.name)
+        } catch (e: Exception) {
+            TileIconStyle.WINDOWS_PHONE
+        }
+    }
+
+    /** The installed icon pack tiles draw from, or null for none. */
+    val iconPackPackage: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[ICON_PACK_PACKAGE]?.takeIf { it.isNotBlank() }
+    }
+
+    /** Icons the user picked by hand, by package name. A tile's own icon is Pro's. */
+    val tileIconOverrides: Flow<Map<String, TileIcon>> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (pro) TileIcon.mapFromJson(prefs[TILE_ICON_OVERRIDES]) else emptyMap()
+    }
+
+    /**
+     * What single tiles have been told to look like, by tile id. Tiles left alone are absent.
+     *
+     * A tile's own look is Pro's, all but whether it shows notifications: the free build reads
+     * only that, and the rest of what was stored waits, untouched, for Pro.
+     */
+    val tileLooks: Flow<Map<String, TileLook>> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        TileLook.mapFromJson(prefs[TILE_LOOKS]).let { looks ->
+            if (pro) looks else freeLooks(looks)
+        }
+    }
+
+    /**
+     * Forgets a tile's look altogether, whatever build reads it - a tile that has gone takes its
+     * look with it - and hands back what it was, so its pictures can go too.
+     */
+    suspend fun dropTileLook(tileId: String): TileLook? {
+        var dropped: TileLook? = null
+        context.settingsDataStore.edit { prefs ->
+            val current = TileLook.mapFromJson(prefs[TILE_LOOKS]).toMutableMap()
+            dropped = current.remove(tileId)
+            if (dropped != null) prefs[TILE_LOOKS] = TileLook.mapToJson(current)
+        }
+        return dropped
+    }
+
+    /** Stores one tile's look; a default look drops the entry, which is what a reset is. */
+    suspend fun setTileLook(tileId: String, look: TileLook) {
+        context.settingsDataStore.edit { prefs ->
+            val current = TileLook.mapFromJson(prefs[TILE_LOOKS]).toMutableMap()
+            // The free build changes only what it may - the notifications - and keeps the rest of
+            // what was stored, which it never saw, as it was.
+            val stored = if (Pro.unlocked) look else freeChange(current[tileId], look)
+            if (stored.isDefault) current.remove(tileId) else current[tileId] = stored
+            prefs[TILE_LOOKS] = TileLook.mapToJson(current)
+        }
+    }
+
+    /**
+     * Hubs whose tile or title on the home screen opens another app instead — someone who would
+     * rather have Chrome than the browser hub, say. By hub, the app's package name.
+     */
+    val hubTargetApps: Flow<Map<HubType, String>> = context.settingsDataStore.data.map { prefs ->
+        readHubTargets(prefs[HUB_TARGET_APPS])
+    }
+
+    /** Points a hub's tap at [packageName], or back at the hub itself with null. */
+    suspend fun setHubTargetApp(hub: HubType, packageName: String?) {
+        context.settingsDataStore.edit { prefs ->
+            val current = readHubTargets(prefs[HUB_TARGET_APPS]).toMutableMap()
+            if (packageName.isNullOrBlank()) current.remove(hub) else current[hub] = packageName
+            prefs[HUB_TARGET_APPS] = org.json.JSONObject().apply {
+                current.forEach { (h, pkg) -> put(h.name, pkg) }
+            }.toString()
+        }
+    }
+
+    private fun readHubTargets(raw: String?): Map<HubType, String> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(raw)
+            buildMap {
+                obj.keys().forEach { key ->
+                    val hub = runCatching { HubType.valueOf(key) }.getOrNull() ?: return@forEach
+                    val pkg = obj.optString(key)
+                    if (pkg.isNotBlank()) put(hub, pkg)
+                }
+            }
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "hub targets could not be read", e)
+            emptyMap()
+        }
+    }
+
+    // ── Lately: what the Zune list's quickplay shows ──
+
+    /** Apps the launcher itself opened, newest first. Written here, so no usage permission is needed. */
+    val recentApps: Flow<List<String>> = context.settingsDataStore.data.map { prefs ->
+        val raw = prefs[RECENT_APPS]
+        if (raw.isNullOrBlank()) emptyList() else parseJsonStringList(raw, TAG).filter { it.isNotBlank() }
+    }
+
+    suspend fun noteAppLaunched(packageName: String) {
+        if (packageName.isBlank()) return
+        context.settingsDataStore.edit { prefs ->
+            val current = prefs[RECENT_APPS]?.takeIf { it.isNotBlank() }?.let { parseJsonStringList(it, TAG) } ?: emptyList()
+            prefs[RECENT_APPS] = mostRecentFirst(current, packageName, RECENT_APPS_LIMIT) { a, b -> a == b }.toJsonStringArray()
+        }
+    }
+
+    /** Records the music hub started, newest first. */
+    /** What has been pinned to quickplay, the latest first. */
+    val quickplayPins: Flow<List<com.serkantkn.zeta.data.model.QuickplayPin>> =
+        context.settingsDataStore.data.map { prefs ->
+            com.serkantkn.zeta.data.model.QuickplayPin.listFromJson(prefs[QUICKPLAY_PINS])
+        }
+
+    /** Pins [pin] to quickplay, or takes it off if it is there. */
+    suspend fun toggleQuickplayPin(pin: com.serkantkn.zeta.data.model.QuickplayPin) {
+        context.settingsDataStore.edit { prefs ->
+            val current = com.serkantkn.zeta.data.model.QuickplayPin.listFromJson(prefs[QUICKPLAY_PINS])
+            prefs[QUICKPLAY_PINS] = com.serkantkn.zeta.data.model.QuickplayPin.listToJson(
+                com.serkantkn.zeta.data.model.togglePin(current, pin)
+            )
+        }
+    }
+
+    val recentAlbums: Flow<List<RecentAlbum>> = context.settingsDataStore.data.map { prefs ->
+        RecentAlbum.listFromJson(prefs[RECENT_ALBUMS])
+    }
+
+    suspend fun noteAlbumPlayed(album: RecentAlbum) {
+        context.settingsDataStore.edit { prefs ->
+            val current = RecentAlbum.listFromJson(prefs[RECENT_ALBUMS])
+            prefs[RECENT_ALBUMS] = RecentAlbum.listToJson(
+                mostRecentFirst(current, album, RECENT_ALBUMS_LIMIT) { a, b -> a.id == b.id }
+            )
+        }
+    }
+
+    // ── The app list ──
+
+    /**
+     * Apps the user has taken out of the list. They are still installed and still launchable from
+     * anywhere else; the list simply stops offering them.
+     */
+    val hiddenApps: Flow<Set<String>> = context.settingsDataStore.data.map { prefs ->
+        val raw = prefs[HIDDEN_APPS]
+        if (raw.isNullOrBlank()) emptySet()
+        else LinkedHashSet(parseJsonStringList(raw, TAG).filter { it.isNotBlank() })
+    }
+
+    suspend fun setAppHidden(packageName: String, hidden: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            val current = prefs[HIDDEN_APPS]
+                ?.takeIf { it.isNotBlank() }
+                ?.let { LinkedHashSet(parseJsonStringList(it, TAG)) }
+                ?: LinkedHashSet()
+            if (hidden) current.add(packageName) else current.remove(packageName)
+            prefs[HIDDEN_APPS] = current.toList().toJsonStringArray()
+        }
+    }
+
+    suspend fun clearHiddenApps() {
+        context.settingsDataStore.edit { prefs -> prefs[HIDDEN_APPS] = emptyList<String>().toJsonStringArray() }
+    }
+
+    suspend fun setTileIconStyle(style: TileIconStyle) {
+        context.settingsDataStore.edit { prefs -> prefs[TILE_ICON_STYLE] = style.name }
+    }
+
+    suspend fun setIconPackPackage(packageName: String?) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[ICON_PACK_PACKAGE] = packageName?.takeIf { it.isNotBlank() } ?: ""
+        }
+    }
+
+    /** Sets one app's icon, or clears it back to the launcher's own choice with [TileIcon.Default]. */
+    suspend fun setTileIconOverride(packageName: String, icon: TileIcon) {
+        context.settingsDataStore.edit { prefs ->
+            val current = TileIcon.mapFromJson(prefs[TILE_ICON_OVERRIDES]).toMutableMap()
+            if (icon == TileIcon.Default) current.remove(packageName) else current[packageName] = icon
+            prefs[TILE_ICON_OVERRIDES] = TileIcon.mapToJson(current)
+        }
+    }
+
+    val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
+        try {
+            ThemeMode.valueOf(prefs[THEME_MODE] ?: ThemeMode.DARK.name)
+        } catch (e: Exception) {
+            ThemeMode.DARK
+        }
+    }
+
+    val fontScale: Flow<Float> = context.settingsDataStore.data.map { prefs ->
+        prefs[FONT_SCALE] ?: 1.0f
+    }
+
+    val animationsEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[ANIMATIONS_ENABLED] ?: true
+    }
+
+    val homeScreenLayout: Flow<HomeScreenLayout> = context.settingsDataStore.data.map { prefs ->
+        try {
+            HomeScreenLayout.valueOf(prefs[HOME_SCREEN_LAYOUT] ?: HomeScreenLayout.ZUNE.name)
+        } catch (e: Exception) {
+            HomeScreenLayout.ZUNE
+        }
+    }
+
+    /** The Zune layout's ground: the wallpaper, or a glow of colour. */
+    val zuneGlow: Flow<com.serkantkn.zeta.data.model.ZuneGlow> = context.settingsDataStore.data.map { prefs ->
+        runCatching { com.serkantkn.zeta.data.model.ZuneGlow.valueOf(prefs[ZUNE_GLOW] ?: "OFF") }
+            .getOrDefault(com.serkantkn.zeta.data.model.ZuneGlow.OFF)
+    }
+
+    val accentColor: Flow<AccentColor> = context.settingsDataStore.data.map { prefs ->
+        try {
+            AccentColor.valueOf(prefs[ACCENT_COLOR] ?: AccentColor.MAGENTA.name)
+        } catch (e: Exception) {
+            AccentColor.MAGENTA
+        }
+    }
+
+    val directCallEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[DIRECT_CALL_ENABLED] ?: false
+    }
+
+    // ── Messages ──
+    // Asking the network to say when a text arrived is what the phone always did, so it stays on;
+    // the rest are things a person chooses to have, and start off.
+
+    /** Whether a text asks the network for a delivery report. */
+    val smsDeliveryReports: Flow<Boolean> = context.settingsDataStore.data.map { it[SMS_DELIVERY_REPORTS] ?: true }
+
+    /** Whether a delivery report is announced, rather than only ticked on the message. */
+    val smsDeliveredNotice: Flow<Boolean> = context.settingsDataStore.data.map { it[SMS_DELIVERED_NOTICE] ?: false }
+
+    /** Whether a picture message is fetched as soon as it is announced. */
+    val mmsAutoDownload: Flow<Boolean> = context.settingsDataStore.data.map { it[MMS_AUTO_DOWNLOAD] ?: true }
+
+    /** Whether a picture message sent asks to be told when it has been read. */
+    val mmsAskReadReports: Flow<Boolean> = context.settingsDataStore.data.map { it[MMS_ASK_READ_REPORTS] ?: false }
+
+    /** Whether the sender of a picture message that asks is told it has been read. */
+    val mmsSendReadReports: Flow<Boolean> = context.settingsDataStore.data.map { it[MMS_SEND_READ_REPORTS] ?: false }
+
+    suspend fun setMessageSetting(key: Preferences.Key<Boolean>, on: Boolean) {
+        context.settingsDataStore.edit { it[key] = on }
+    }
+
+    /**
+     * The hubs the user has taken off the home screen.
+     *
+     * Both lists fill themselves in with any hub they are missing, so that a hub added in a new
+     * version turns up on a board that was saved before it existed. That back-fill is also what
+     * used to undo a removal on the very next read, which is why a removed hub has to be
+     * remembered by name rather than by its absence.
+     */
+    val removedHubs: Flow<Set<com.serkantkn.zeta.data.model.HubType>> =
+        context.settingsDataStore.data.map { prefs -> readRemovedHubs(prefs[REMOVED_HUBS]) }
+
+    private fun readRemovedHubs(saved: String?): Set<com.serkantkn.zeta.data.model.HubType> {
+        if (saved.isNullOrEmpty()) return emptySet()
+        val names = if (saved.looksLikeJsonArray()) parseJsonStringList(saved, TAG) else saved.split(",")
+        return names.mapNotNull { name ->
+            try {
+                com.serkantkn.zeta.data.model.HubType.valueOf(name)
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+        }.toSet()
+    }
+
+    val hubOrder: Flow<List<com.serkantkn.zeta.data.model.HubType>> = flow {
+        migrateLegacyListsIfNeeded()
+        emitAll(context.settingsDataStore.data.map { prefs ->
+            val removed = readRemovedHubs(prefs[REMOVED_HUBS])
+            readHubOrder(prefs[HUB_ORDER]).filterNot { it in removed }
+        })
+    }
+
+    /** JSON array of HubType names, or the legacy "A,B,C" string; unknown names are skipped. */
+    private fun readHubOrder(saved: String?): List<com.serkantkn.zeta.data.model.HubType> {
+        val defaultOrder = listOf(
+            com.serkantkn.zeta.data.model.HubType.PHONE,
+            com.serkantkn.zeta.data.model.HubType.MESSAGING,
+            com.serkantkn.zeta.data.model.HubType.PEOPLE,
+            com.serkantkn.zeta.data.model.HubType.INTERNET,
+            com.serkantkn.zeta.data.model.HubType.PICTURES,
+            com.serkantkn.zeta.data.model.HubType.CAMERA,
+            com.serkantkn.zeta.data.model.HubType.MUSIC,
+            com.serkantkn.zeta.data.model.HubType.FILES,
+            com.serkantkn.zeta.data.model.HubType.CLOCK,
+            com.serkantkn.zeta.data.model.HubType.CALENDAR,
+            com.serkantkn.zeta.data.model.HubType.NOTES,
+            com.serkantkn.zeta.data.model.HubType.EMAIL,
+            com.serkantkn.zeta.data.model.HubType.CALCULATOR,
+            com.serkantkn.zeta.data.model.HubType.WEATHER,
+            com.serkantkn.zeta.data.model.HubType.NEWS,
+            com.serkantkn.zeta.data.model.HubType.SETTINGS
+        )
+        if (saved.isNullOrEmpty()) return defaultOrder
+        val names = if (saved.looksLikeJsonArray()) parseJsonStringList(saved, TAG) else saved.split(",")
+        val savedList = names.mapNotNull { name ->
+            try {
+                com.serkantkn.zeta.data.model.HubType.valueOf(name)
+            } catch (e: IllegalArgumentException) {
+                ZuneLog.w(TAG, "skipping unknown hub in hub order: $name")
+                null
+            }
+        }
+        val missingHubs = defaultOrder.filter { it !in savedList && it != com.serkantkn.zeta.data.model.HubType.HOME }
+        return (savedList + missingHubs).ifEmpty { defaultOrder }
+    }
+
+    val defaultStartTiles = listOf(
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.PHONE, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.MESSAGING, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.PEOPLE, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.INTERNET, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.PICTURES, 4),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.CAMERA, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.MUSIC, 4),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.FILES, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.CLOCK, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.CALENDAR, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.NOTES, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.EMAIL, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.CALCULATOR, 2),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.WEATHER, 4),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.NEWS, 4),
+        StartTileItem.fromHub(com.serkantkn.zeta.data.model.HubType.SETTINGS, 2)
+    )
+
+    val startTiles: Flow<List<StartTileItem>> = flow {
+        migrateLegacyListsIfNeeded()
+        emitAll(context.settingsDataStore.data.map { prefs ->
+            readStartTiles(prefs[START_TILES], readRemovedHubs(prefs[REMOVED_HUBS]))
+        })
+    }
+
+    /** JSON array of [StartTileItem.toJson] objects, or the legacy "id#span,..." string. */
+    private fun readStartTiles(
+        saved: String?,
+        removed: Set<com.serkantkn.zeta.data.model.HubType> = emptySet()
+    ): List<StartTileItem> {
+        fun List<StartTileItem>.withoutRemovedHubs() =
+            filterNot { it.isHub && it.hubType in removed }
+        if (saved.isNullOrEmpty()) return defaultStartTiles.withoutRemovedHubs()
+        val list = if (saved.looksLikeJsonArray()) {
+            parseJsonObjectList(saved, TAG, StartTileItem::fromJson)
+        } else {
+            saved.split(",").mapNotNull { StartTileItem.fromLegacyString(it) }
+        }
+        // A hub the user has filed away in a folder is not missing, so folders are counted too.
+        val existingHubs = StartFolders.allTileIds(list)
+            .mapNotNull { StartTileItem(it).hubType }
+            .toSet()
+        val missingHubs = defaultStartTiles.filter {
+            it.isHub && it.hubType !in existingHubs && it.hubType !in removed
+        }
+        return (list.withoutRemovedHubs() + missingHubs)
+            .ifEmpty { defaultStartTiles.withoutRemovedHubs() }
+    }
+
+    val customWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[CUSTOM_WALLPAPER_PATH]
+    }
+
+    val customHubWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[CUSTOM_HUB_WALLPAPER_PATH]
+    }
+
+    /** Pro's: the free build's hubs stand on Start's own background. */
+    val hubBackgroundMode: Flow<HubBackgroundMode> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (!pro) return@combine HubBackgroundMode.MATCH_LAUNCHER
+        try {
+            HubBackgroundMode.valueOf(prefs[HUB_BACKGROUND_MODE] ?: HubBackgroundMode.MATCH_LAUNCHER.name)
+        } catch (e: Exception) {
+            HubBackgroundMode.MATCH_LAUNCHER
+        }
+    }
+
+    val hubBackgroundOpacity: Flow<Float> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (pro) prefs[HUB_BACKGROUND_OPACITY] ?: DEFAULT_HUB_OPACITY else DEFAULT_HUB_OPACITY
+    }
+
+    val tileCornerStyle: Flow<TileCornerStyle> = context.settingsDataStore.data.map { prefs ->
+        try {
+            TileCornerStyle.valueOf(prefs[TILE_CORNER_STYLE] ?: TileCornerStyle.ROUNDED.name)
+        } catch (e: Exception) {
+            TileCornerStyle.ROUNDED
+        }
+    }
+
+    val tileSpacing: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[TILE_SPACING] ?: 2
+    }
+
+    /**
+     * How solid the Start tiles are, 0-100. The wallpaper shows through everything below 100;
+     * the default matches the translucent look Windows Phone 8.1 tiles had.
+     */
+    val tileOpacity: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        (prefs[TILE_OPACITY] ?: DEFAULT_TILE_OPACITY).coerceIn(0, 100)
+    }
+
+    /**
+     * How frosted the wallpaper behind see-through tiles is, 0-100. Off by default: the tiles
+     * show the wallpaper sharp, as they always have.
+     */
+    /** Pro's: the free build's tiles are never frosted. */
+    val tileBlur: Flow<Int> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (pro) (prefs[TILE_BLUR] ?: 0).coerceIn(0, 100) else 0
+    }
+
+    /** Whether the tiles write in black, in white, or in whatever suits the theme. */
+    val tileInk: Flow<TileInk> = context.settingsDataStore.data.map { prefs ->
+        try {
+            TileInk.valueOf(prefs[TILE_INK] ?: TileInk.AUTO.name)
+        } catch (e: IllegalArgumentException) {
+            ZuneLog.w(TAG, "unknown tile ink, letting the theme decide", e)
+            TileInk.AUTO
+        }
+    }
+
+    /** Motion the live tiles use when they turn to their back face. */
+    val tileAnimation: Flow<TileAnimation> = context.settingsDataStore.data.map { prefs ->
+        try {
+            TileAnimation.valueOf(prefs[TILE_ANIMATION] ?: TileAnimation.SLIDE.name)
+        } catch (e: IllegalArgumentException) {
+            ZuneLog.w(TAG, "unknown tile animation, falling back to slide", e)
+            TileAnimation.SLIDE
+        }
+    }
+
+    val solidBackgroundEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[SOLID_BACKGROUND_ENABLED] ?: false
+    }
+
+    val dynamicThemeColor: Flow<Int?> = context.settingsDataStore.data.map { prefs ->
+        prefs[DYNAMIC_THEME_COLOR]
+    }
+
+    val customThemeColor: Flow<Int?> = context.settingsDataStore.data.map { prefs ->
+        prefs[CUSTOM_THEME_COLOR]
+    }
+
+    val browserFavorites: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[BROWSER_FAVORITES]
+    }
+
+    /**
+     * Where browsing history used to be kept. It lives in BrowsingDataStore now, out of the
+     * file that gets backed up; this is only here so what was written before can be moved.
+     */
+    val browserHistory: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[BROWSER_HISTORY]
+    }
+
+    /** Where a typed search goes, and whether the engine is asked for suggestions as you type. */
+    val searchEngine: Flow<SearchEngine> = context.settingsDataStore.data.map { prefs ->
+        SearchEngine.fromName(prefs[SEARCH_ENGINE])
+    }
+
+    val searchSuggestionsEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[SEARCH_SUGGESTIONS] ?: true
+    }
+
+    /** As [browserHistory]: kept only so what was written before the split can be moved. */
+    val browserDownloads: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[BROWSER_DOWNLOADS]
+    }
+
+    /** Windows Phone's banners are Pro's; the free build leaves notifications to Android. */
+    val notificationStyle: Flow<NotificationStyle> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (!pro) return@combine NotificationStyle.SYSTEM
+        try {
+            NotificationStyle.valueOf(prefs[NOTIFICATION_STYLE] ?: NotificationStyle.WINDOWS_PHONE.name)
+        } catch (e: Exception) {
+            NotificationStyle.WINDOWS_PHONE
+        }
+    }
+
+    /** Windows Phone's volume bar is Pro's; the free build leaves the keys to Android. */
+    val volumeBarStyle: Flow<com.serkantkn.zeta.data.model.VolumeBarStyle> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (!pro) return@combine com.serkantkn.zeta.data.model.VolumeBarStyle.SYSTEM
+        try {
+            com.serkantkn.zeta.data.model.VolumeBarStyle.valueOf(prefs[VOLUME_BAR_STYLE] ?: com.serkantkn.zeta.data.model.VolumeBarStyle.WINDOWS_PHONE.name)
+        } catch (e: Exception) {
+            com.serkantkn.zeta.data.model.VolumeBarStyle.WINDOWS_PHONE
+        }
+    }
+
+    // ── Pictures ────────────────────────────────────────────────────────────
+
+    /** How many pictures fit across the grid; zero means "work it out from how many there are". */
+    val galleryColumns: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[GALLERY_COLUMNS] ?: 0
+    }
+
+    suspend fun setGalleryColumns(columns: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[GALLERY_COLUMNS] = columns }
+    }
+
+    /**
+     * Whether the music hub may look up covers and lyrics it cannot find on the phone.
+     *
+     * Off by default. It sends what is playing to a service outside the phone, which is somebody's
+     * decision to make rather than something to switch on for them.
+     */
+    /** Lyrics and covers from the internet are Pro's. */
+    val musicOnlineExtras: Flow<Boolean> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        pro && (prefs[MUSIC_ONLINE_EXTRAS] ?: false)
+    }
+
+    suspend fun setMusicOnlineExtras(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[MUSIC_ONLINE_EXTRAS] = enabled }
+    }
+
+    /** Whether those lookups wait for Wi-Fi. On by default, since covers are not small. */
+    val musicOnlineWifiOnly: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[MUSIC_ONLINE_WIFI_ONLY] ?: true
+    }
+
+    suspend fun setMusicOnlineWifiOnly(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[MUSIC_ONLINE_WIFI_ONLY] = enabled }
+    }
+
+    // ── First run ───────────────────────────────────────────────────────────
+
+    /** Whether the tour has been taken. */
+    val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[ONBOARDING_COMPLETED] ?: false
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[ONBOARDING_COMPLETED] = completed }
+    }
+
+    /**
+     * Whether the tour has been begun but not finished.
+     *
+     * Making the launcher the default home app restarts it, and the tour has by then written a
+     * setting or two; without this it would look like a used installation and be abandoned midway.
+     */
+    val onboardingStarted: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[ONBOARDING_STARTED] ?: false
+    }
+
+    suspend fun setOnboardingStarted(started: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[ONBOARDING_STARTED] = started }
+    }
+
+    /** Which page the tour was on, so a restart picks it up rather than starting over. */
+    val onboardingStep: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[ONBOARDING_STEP] ?: 0
+    }
+
+    suspend fun setOnboardingStep(index: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[ONBOARDING_STEP] = index }
+    }
+
+    /** The newest version whose changes have been read. */
+    val lastSeenVersion: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[LAST_SEEN_VERSION] ?: 0
+    }
+
+    suspend fun setLastSeenVersion(version: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[LAST_SEEN_VERSION] = version }
+    }
+
+    /**
+     * Whether this installation has ever been used.
+     *
+     * An empty settings store means a launcher opened for the very first time. Anything at all in
+     * it - a moved tile, a chosen colour - means somebody has been here, which is how an
+     * installation that predates the tour is told apart from a new one. It is read once, before
+     * anything else has had a chance to write a default.
+     */
+    suspend fun hasExistingData(): Boolean =
+        context.settingsDataStore.data.first().asMap().isNotEmpty()
+
+    // ── Clock ───────────────────────────────────────────────────────────────
+
+    /**
+     * What a new alarm starts out with. Each alarm keeps its own copy once it is made, so changing
+     * this never quietly rewrites an alarm somebody set deliberately.
+     */
+    val alarmSnoozeMinutes: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[ALARM_SNOOZE_MINUTES] ?: com.serkantkn.zeta.data.model.Alarm.DEFAULT_SNOOZE_MINUTES
+    }
+
+    suspend fun setAlarmSnoozeMinutes(minutes: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[ALARM_SNOOZE_MINUTES] = minutes }
+    }
+
+    /** How long a new alarm rings for before giving up. Zero means it never gives up. */
+    val alarmAutoSilenceMinutes: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[ALARM_AUTO_SILENCE_MINUTES] ?: com.serkantkn.zeta.data.model.Alarm.DEFAULT_AUTO_SILENCE_MINUTES
+    }
+
+    suspend fun setAlarmAutoSilenceMinutes(minutes: Int) {
+        context.settingsDataStore.edit { prefs -> prefs[ALARM_AUTO_SILENCE_MINUTES] = minutes }
+    }
+
+    /** Whether the Clock hub's own big clock counts seconds as well as minutes. */
+    val clockShowSeconds: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[CLOCK_SHOW_SECONDS] ?: true
+    }
+
+    suspend fun setClockShowSeconds(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[CLOCK_SHOW_SECONDS] = enabled }
+    }
+
+    // ── Files ───────────────────────────────────────────────────────────────
+
+    /** How a folder's contents are ordered, remembered between visits. */
+    val filesSort: Flow<com.serkantkn.zeta.util.FileSort> = context.settingsDataStore.data.map { prefs ->
+        runCatching {
+            com.serkantkn.zeta.util.FileSort.valueOf(
+                prefs[FILES_SORT] ?: com.serkantkn.zeta.util.FileSort.NAME.name
+            )
+        }.getOrDefault(com.serkantkn.zeta.util.FileSort.NAME)
+    }
+
+    suspend fun setFilesSort(sort: com.serkantkn.zeta.util.FileSort) {
+        context.settingsDataStore.edit { prefs -> prefs[FILES_SORT] = sort.name }
+    }
+
+    /** "LIST" or "THUMBNAILS"; unset until chosen, when each form factor has its own default. */
+    val filesView: Flow<String?> = context.settingsDataStore.data.map { prefs -> prefs[FILES_VIEW] }
+
+    suspend fun setFilesView(view: String) {
+        context.settingsDataStore.edit { prefs -> prefs[FILES_VIEW] = view }
+    }
+
+    val filesSortAscending: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[FILES_SORT_ASCENDING] ?: true
+    }
+
+    suspend fun setFilesSortAscending(ascending: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[FILES_SORT_ASCENDING] = ascending }
+    }
+
+    /** Whether dot-files and Android's own bookkeeping folders are listed. */
+    val filesShowHidden: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[FILES_SHOW_HIDDEN] ?: false
+    }
+
+    suspend fun setFilesShowHidden(show: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[FILES_SHOW_HIDDEN] = show }
+    }
+
+    val socialHubLayout: Flow<SocialHubLayout> = context.settingsDataStore.data.map { prefs ->
+        runCatching { SocialHubLayout.valueOf(prefs[SOCIAL_HUB_LAYOUT] ?: SocialHubLayout.TIMELINE.name) }
+            .getOrDefault(SocialHubLayout.TIMELINE)
+    }
+
+    suspend fun setSocialHubLayout(layout: SocialHubLayout) {
+        context.settingsDataStore.edit { prefs -> prefs[SOCIAL_HUB_LAYOUT] = layout.name }
+    }
+
+    /**
+     * The apps whose notifications the Social hub collects.
+     *
+     * Null means nobody has chosen yet, and the hub should switch itself on for whichever social
+     * apps are installed. An empty set is a choice like any other: the user turned everything off.
+     */
+    val socialSources: Flow<Set<String>?> = flow {
+        migrateLegacyListsIfNeeded()
+        emitAll(
+            context.settingsDataStore.data.map { prefs ->
+                prefs[SOCIAL_SOURCES]?.let { raw -> LinkedHashSet(parseJsonStringList(raw, TAG)) }
+            }
+        )
+    }
+
+    suspend fun setSocialSources(packages: Set<String>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[SOCIAL_SOURCES] = packages.toList().toJsonStringArray()
+        }
+    }
+
+    /** JSON array of package names, or the legacy "pkg1,pkg2" string. */
+    private fun readDisabledNotificationApps(raw: String?): Set<String> {
+        if (raw.isNullOrBlank()) return emptySet()
+        val names = if (raw.looksLikeJsonArray()) parseJsonStringList(raw, TAG) else raw.split(",")
+        return LinkedHashSet(names.filter { it.isNotBlank() })
+    }
+
+    @Volatile
+    private var legacyListsMigrated = false
+
+    /**
+     * Rewrites the comma-delimited [HUB_ORDER], [START_TILES] and [DISABLED_NOTIFICATION_APPS]
+     * values as JSON once per process, so the legacy parsers above are only a fallback.
+     */
+    private suspend fun migrateLegacyListsIfNeeded() {
+        if (legacyListsMigrated) return
+        try {
+            val prefs = context.settingsDataStore.data.first()
+            val needsMigration = listOf(HUB_ORDER, START_TILES, DISABLED_NOTIFICATION_APPS).any { key ->
+                val value = prefs[key]
+                !value.isNullOrEmpty() && !value.looksLikeJsonArray()
+            }
+            if (needsMigration) {
+                context.settingsDataStore.edit { mutable ->
+                    mutable[HUB_ORDER]?.let { raw ->
+                        if (raw.isNotEmpty() && !raw.looksLikeJsonArray()) {
+                            mutable[HUB_ORDER] = raw.split(",").filter { it.isNotBlank() }.toJsonStringArray()
+                        }
+                    }
+                    mutable[START_TILES]?.let { raw ->
+                        if (raw.isNotEmpty() && !raw.looksLikeJsonArray()) {
+                            mutable[START_TILES] = raw.split(",")
+                                .mapNotNull { StartTileItem.fromLegacyString(it) }
+                                .toJsonArrayString { it.toJson() }
+                        }
+                    }
+                    mutable[DISABLED_NOTIFICATION_APPS]?.let { raw ->
+                        if (raw.isNotEmpty() && !raw.looksLikeJsonArray()) {
+                            mutable[DISABLED_NOTIFICATION_APPS] = readDisabledNotificationApps(raw).toJsonStringArray()
+                        }
+                    }
+                }
+                ZuneLog.d(TAG, "migrated legacy delimited settings lists to json")
+            }
+            legacyListsMigrated = true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "legacy settings list migration failed; legacy values kept as fallback", e)
+        }
+    }
+
+    val timeFormat: Flow<String> = context.settingsDataStore.data.map { prefs ->
+        prefs[TIME_FORMAT] ?: "HH:mm"
+    }
+
+    val dateFormat: Flow<String> = context.settingsDataStore.data.map { prefs ->
+        prefs[DATE_FORMAT] ?: "EEEE, MMMM d"
+    }
+
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[THEME_MODE] = mode.name
+        }
+    }
+
+    suspend fun setFontScale(scale: Float) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[FONT_SCALE] = scale
+        }
+    }
+
+    suspend fun setAnimationsEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[ANIMATIONS_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setAccentColor(color: AccentColor) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[ACCENT_COLOR] = color.name
+        }
+    }
+
+    suspend fun setDirectCallEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[DIRECT_CALL_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setHubRemoved(hub: com.serkantkn.zeta.data.model.HubType, removed: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            val current = readRemovedHubs(prefs[REMOVED_HUBS]).toMutableSet()
+            if (removed) current.add(hub) else current.remove(hub)
+            prefs[REMOVED_HUBS] = current.map { it.name }.toJsonStringArray()
+        }
+    }
+
+    suspend fun setHubOrder(order: List<com.serkantkn.zeta.data.model.HubType>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[HUB_ORDER] = order.map { it.name }.toJsonStringArray()
+        }
+    }
+
+    suspend fun setCustomWallpaperPath(path: String?) {
+        context.settingsDataStore.edit { prefs ->
+            if (path == null) {
+                prefs.remove(CUSTOM_WALLPAPER_PATH)
+            } else {
+                prefs[CUSTOM_WALLPAPER_PATH] = path
+            }
+        }
+    }
+
+    suspend fun setCustomHubWallpaperPath(path: String?) {
+        context.settingsDataStore.edit { prefs ->
+            if (path == null) {
+                prefs.remove(CUSTOM_HUB_WALLPAPER_PATH)
+            } else {
+                prefs[CUSTOM_HUB_WALLPAPER_PATH] = path
+            }
+        }
+    }
+
+    suspend fun setHubBackgroundMode(mode: HubBackgroundMode) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[HUB_BACKGROUND_MODE] = mode.name
+        }
+    }
+
+    suspend fun setHubBackgroundOpacity(opacity: Float) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[HUB_BACKGROUND_OPACITY] = opacity
+        }
+    }
+
+    suspend fun setTileCornerStyle(style: TileCornerStyle) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_CORNER_STYLE] = style.name
+        }
+    }
+
+    suspend fun setTileSpacing(spacing: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_SPACING] = spacing
+        }
+    }
+
+    suspend fun setTileBlur(level: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_BLUR] = level.coerceIn(0, 100)
+        }
+    }
+
+    suspend fun setTileOpacity(opacity: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_OPACITY] = opacity.coerceIn(0, 100)
+        }
+    }
+
+    suspend fun setTileInk(ink: TileInk) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_INK] = ink.name
+        }
+    }
+
+    suspend fun setTileAnimation(animation: TileAnimation) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TILE_ANIMATION] = animation.name
+        }
+    }
+
+    suspend fun setZuneGlow(glow: com.serkantkn.zeta.data.model.ZuneGlow) {
+        context.settingsDataStore.edit { prefs -> prefs[ZUNE_GLOW] = glow.name }
+    }
+
+    suspend fun setHomeScreenLayout(layout: HomeScreenLayout) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[HOME_SCREEN_LAYOUT] = layout.name
+        }
+    }
+
+    suspend fun setSolidBackgroundEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[SOLID_BACKGROUND_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setDynamicThemeColor(color: Int?) {
+        context.settingsDataStore.edit { prefs ->
+            if (color == null) {
+                prefs.remove(DYNAMIC_THEME_COLOR)
+            } else {
+                prefs[DYNAMIC_THEME_COLOR] = color
+            }
+        }
+    }
+
+    suspend fun setCustomThemeColor(color: Int?) {
+        context.settingsDataStore.edit { prefs ->
+            if (color == null) {
+                prefs.remove(CUSTOM_THEME_COLOR)
+            } else {
+                prefs[CUSTOM_THEME_COLOR] = color
+            }
+        }
+    }
+
+    suspend fun setBrowserFavorites(json: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[BROWSER_FAVORITES] = json
+        }
+    }
+
+    suspend fun setSearchEngine(engine: SearchEngine) {
+        context.settingsDataStore.edit { prefs -> prefs[SEARCH_ENGINE] = engine.name }
+    }
+
+    suspend fun setSearchSuggestionsEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[SEARCH_SUGGESTIONS] = enabled }
+    }
+
+    /** Removes what BrowsingDataStore has taken over, so no copy is left in the backed-up file. */
+    suspend fun clearLegacyBrowsingKeys() {
+        context.settingsDataStore.edit { prefs ->
+            prefs.remove(BROWSER_HISTORY)
+            prefs.remove(BROWSER_DOWNLOADS)
+        }
+    }
+
+    suspend fun setNotificationStyle(style: NotificationStyle) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[NOTIFICATION_STYLE] = style.name
+        }
+    }
+
+    /** Whether a pull from the status bar opens the Windows Phone action center. On by default. */
+    val wpActionCenter: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[WP_ACTION_CENTER] ?: true
+    }
+
+    /** Whether the balloon that teaches the double press of Home has been shown already. */
+    val switcherTipShown: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[SWITCHER_TIP_SHOWN] ?: false
+    }
+
+    suspend fun setSwitcherTipShown() {
+        context.settingsDataStore.edit { prefs -> prefs[SWITCHER_TIP_SHOWN] = true }
+    }
+
+    suspend fun setWpActionCenter(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[WP_ACTION_CENTER] = enabled }
+    }
+
+    suspend fun setVolumeBarStyle(style: com.serkantkn.zeta.data.model.VolumeBarStyle) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[VOLUME_BAR_STYLE] = style.name
+        }
+    }
+
+    suspend fun setTimeFormat(format: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TIME_FORMAT] = format
+        }
+    }
+
+    suspend fun setDateFormat(format: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[DATE_FORMAT] = format
+        }
+    }
+
+    suspend fun setStartTiles(tiles: List<StartTileItem>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[START_TILES] = tiles.toJsonArrayString { it.toJson() }
+        }
+    }
+}
+
+/** Where a hub's shade over the wallpaper stands unless told otherwise. */
+private const val DEFAULT_HUB_OPACITY = 0.85f
+
+/** What the free build makes of a tile's stored look: only whether it shows notifications. */
+internal fun freeLooks(looks: Map<String, TileLook>): Map<String, TileLook> =
+    looks.mapValues { (_, look) -> TileLook(notifications = look.notifications) }
+        .filterValues { !it.isDefault }
+
+/** A change the free build makes to a tile's look: the notifications, and nothing else. */
+internal fun freeChange(stored: TileLook?, changed: TileLook): TileLook =
+    (stored ?: TileLook.DEFAULT).copy(notifications = changed.notifications)

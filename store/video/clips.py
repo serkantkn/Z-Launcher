@@ -50,7 +50,7 @@ body('zune_tablet', [('zune_tablet', 3.6, 5.6, 1.3), ('zune_tablet', 8.4, 14.4, 
 body('win8_tablet', [('win8_tablet', 0.3, 3.6, 1), ('win8_tablet', 3.9, 5.2, 1), ('win8_tablet', 9.0, 9.75, 1), ('win8_tablet', 10.1, 11.6, 1),
                      ('win8_tablet', 13.0, 14.0, 1), ('win8_tablet', 14.9, 15.35, 1), ('win8_tablet', 15.7, 18.6, 1),
                      ('win8_tablet', 18.6, 19.4, 1)], '2560:1600')
-body('xbox', [('xbox_tv', 4.6, 15.0, 1.5), ('xbox_music', 8.8, 12.8, 1), ('xbox_music', 13.6, 17.6, 1), ('xbox_music', 36.6, 41.0, 1)], '1920:1080')
+body('xbox', [('xbox_tv', 0.5, 3.2, 1), ('xbox_tv', 4.6, 13.0, 1.5), ('xbox_music', 8.8, 12.8, 1), ('xbox_music', 13.6, 17.6, 1), ('xbox_music', 36.6, 41.0, 1)], '1920:1080')
 body('mc', [('mc_tv', 1.6, 4.4, 1), ('mc_tv', 4.4, 16.4, 1.6), ('mc_pics', 0.6, 3.6, 1)], '1920:1080')
 
 
@@ -156,7 +156,7 @@ def intro(dur):
         f"[0:v]scale=2112:-1,crop=2112:1188:0:60,gblur=sigma=18,eq=brightness=-0.42:saturation=1.1,"
         f"zoompan=z=1+0.10*on/{dur * FPS}:x=iw/2-iw/zoom/2:y=ih/2-ih/zoom/2:d=1:s=1920x1080:fps={FPS},"
         f"drawbox=c=0x5b1037@0.35:t=fill[bg]",
-        f"[bg]{slide_text('Z Launcher', LIGHT, 190, 520, 380, 1.0, dx=0)},"
+        f"[bg]{slide_text('Zeta', LIGHT, 190, 520, 380, 1.0, dx=0)},"
         f"{slide_text('telefon · tablet · televizyon', REG, 52, 540, 610, 2.2, color='0xff6fae')},"
         f"{slide_text('aura  ·  mozaik  ·  panorama  ·  konsol  ·  salon', REG, 34, 542, 690, 3.6, color='white@0.75')},"
         f"fade=t=in:st=0:d=1.2,format=yuv420p[out]",
@@ -171,7 +171,7 @@ def outro(dur):
         f"[0:v]scale=2112:-1,crop=2112:1188,gblur=sigma=22,eq=brightness=-0.45,"
         f"zoompan=z=1.12-0.12*on/{dur * FPS}:x=iw/2-iw/zoom/2:y=ih/2-ih/zoom/2:d=1:s=1920x1080:fps={FPS},"
         f"drawbox=c=0x14202a@0.35:t=fill[bg]",
-        f"[bg]{slide_text('Z Launcher', LIGHT, 170, 560, 300, 0.4, dx=0)},"
+        f"[bg]{slide_text('Zeta', LIGHT, 170, 560, 300, 0.4, dx=0)},"
         f"{slide_text('çok yakında', BOLD, 92, 572, 520, 1.3, color='0xff3d9a')},"
         f"{slide_text('Google Play  ·  GitHub', REG, 50, 576, 660, 2.3, color='white@0.9')},"
         f"alpha=min(1\\,max(0\\,(t-3)/0.8)),"
@@ -232,4 +232,4 @@ if not ONLY or 'final' in ONLY:
     fl.append(f'[{len(SEG)}:a]atrim=0:{total},afade=t=in:d=0.6,afade=t=out:st={total - 2.0}:d=2.0[a]')
     ff(ins + ['-filter_complex', ';'.join(fl), '-map', prev, '-map', '[a]', '-c:v', 'libx264', '-crf', '18',
               '-preset', 'slow', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart',
-              f'{P}/z_launcher_tanitim.mp4'], 'final')
+              f'{P}/zeta_tanitim.mp4'], 'final')

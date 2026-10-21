@@ -1,0 +1,884 @@
+package com.serkantkn.zeta.ui.screens.pictures
+
+import android.app.Activity
+import android.os.Build
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.serkantkn.zeta.R
+import com.serkantkn.zeta.data.model.MediaAlbum
+import com.serkantkn.zeta.data.model.MediaImage
+import com.serkantkn.zeta.data.repository.PicturesBridge
+import com.serkantkn.zeta.ui.animation.ZuneTitleZoomOverlay
+import com.serkantkn.zeta.ui.animation.rememberZuneTitleZoomState
+import com.serkantkn.zeta.ui.animation.rememberZuneZoomAnchor
+import com.serkantkn.zeta.ui.components.MetroTextField
+import com.serkantkn.zeta.ui.components.PhotoViewer
+import com.serkantkn.zeta.ui.components.WpBarAction
+import com.serkantkn.zeta.ui.components.WpBarMenuItem
+import com.serkantkn.zeta.ui.components.ZuneHub
+import com.serkantkn.zeta.ui.components.ZuneHubBar
+import com.serkantkn.zeta.ui.components.ZuneHubPhoneTitle
+import com.serkantkn.zeta.ui.components.bottomBarHeight
+import com.serkantkn.zeta.ui.components.ZunePageTransition
+import com.serkantkn.zeta.ui.components.ZunePermissionRequest
+import com.serkantkn.zeta.ui.components.ZunePivotTabs
+import com.serkantkn.zeta.ui.components.rememberLoopingPagerState
+import com.serkantkn.zeta.ui.screens.messaging.MessagingSheet
+import com.serkantkn.zeta.ui.screens.messaging.SheetAction
+import com.serkantkn.zeta.ui.theme.LocalIsWideScreen
+import com.serkantkn.zeta.ui.theme.LocalZuneColors
+import com.serkantkn.zeta.ui.theme.ZuneDimens
+import com.serkantkn.zeta.util.GRID_COLUMN_CHOICES
+import com.serkantkn.zeta.util.defaultGridColumns
+import com.serkantkn.zeta.util.groupByDay
+import com.serkantkn.zeta.util.matchesQuery
+import kotlinx.coroutines.launch
+import java.util.Locale
+
+/**
+ * The pictures hub: the camera roll, the albums, and whatever has been kept.
+ *
+ * Three things shape it. It holds videos as well as stills, because the launcher's own camera
+ * records both and a gallery that hides half of what was taken is not a gallery. It has the bottom
+ * bar every other hub has, so choosing, searching and sharing live where they live everywhere else
+ * rather than nowhere. And opening an album flies the album's name up into the pivot, the way the
+ * Zune HD threw a title towards you when you went into it — the one piece of motion this hub was
+ * missing while every other hub had its own.
+ */
+@Composable
+fun PicturesHubScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: PicturesHubViewModel = viewModel()
+) {
+    val zuneColors = LocalZuneColors.current
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+
+    val hasPermission by viewModel.hasPermission.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val allImages by viewModel.allImages.collectAsState()
+    val cameraRollImages by viewModel.cameraRollImages.collectAsState()
+    val albums by viewModel.albums.collectAsState()
+    val favoriteImages by viewModel.favoriteImages.collectAsState()
+    val favoritePhotoIds by viewModel.favoritePhotoIds.collectAsState()
+    val selectedAlbum by viewModel.selectedAlbum.collectAsState()
+    val selection by viewModel.selection.collectAsState()
+    val selectionMode by viewModel.selectionMode.collectAsState()
+    val storedColumns by viewModel.storedColumns.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val pinnedAlbums by viewModel.pinnedAlbums.collectAsState()
+    val pendingAlbum by PicturesBridge.pendingAlbum.collectAsState()
+    val pendingPhoto by PicturesBridge.pendingPhoto.collectAsState()
+
+    // Coming back reads the roll again only when the store said something changed; a full
+    // read on every resume made the hub stutter each time a dialog closed over it.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.loadMediaIfChanged()
+    }
+
+    val statusMessage by viewModel.statusMessage.collectAsState()
+    LaunchedEffect(statusMessage) {
+        statusMessage?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearStatus()
+        }
+    }
+
+
+    val unsortedLabel = stringResource(R.string.pics_unsorted_album)
+    val albumsLabel = stringResource(R.string.pics_tab_albums)
+    val albumTabLabel = selectedAlbum?.bucketName?.ifBlank { unsortedLabel }?.lowercase(Locale.getDefault())
+        ?: albumsLabel
+
+    // The Zune layout: an open album's name is the hub's title, flown up from its tile, and the
+    // heading under it stays "albums".
+    val zuneTitled = com.serkantkn.zeta.ui.animation.LocalZuneMotion.current && !com.serkantkn.zeta.ui.theme.LocalIsWideScreen.current
+    val hubFlight = com.serkantkn.zeta.ui.animation.LocalZuneHubFlight.current
+    val tabs = listOf(
+        stringResource(R.string.pics_tab_camera_roll),
+        if (zuneTitled) albumsLabel else albumTabLabel,
+        stringResource(R.string.pics_tab_favorites)
+    )
+    val picturesTitleKey = selectedAlbum?.let { pictureAlbumTitleKey(it.bucketId) } ?: "PICTURES"
+    var shownPicturesTitle by remember { mutableStateOf(picturesTitleKey to albumTabLabel) }
+    LaunchedEffect(picturesTitleKey) {
+        val (before, beforeText) = shownPicturesTitle
+        if (zuneTitled && before.startsWith("$picturesTitleKey:")) hubFlight?.closePage(before, beforeText)
+        shownPicturesTitle = picturesTitleKey to albumTabLabel
+    }
+    val pager = rememberLoopingPagerState(pageCount = tabs.size)
+
+    // A pinned album tile asks for its album; the ask waits until the media store has been read.
+    LaunchedEffect(pendingAlbum, albums) {
+        val wanted = pendingAlbum ?: return@LaunchedEffect
+        if (viewModel.openPendingAlbum(wanted)) {
+            pager.scrollToPage(ALBUMS_TAB)
+            PicturesBridge.consume()
+        }
+    }
+
+    // ── The flight ─────────────────────────────────────────────────────────
+    // The album's name leaves its tile, swells as it crosses the screen and lands as the pivot
+    // word; the grid underneath settles in behind it.
+    val albumZoom = rememberZuneTitleZoomState()
+    val albumTabAnchor = rememberZuneZoomAnchor()
+    albumZoom.bindTitle(albumTabAnchor, PIVOT_FONT_SIZE)
+
+    val gridEntry = remember { Animatable(1f) }
+    LaunchedEffect(selectedAlbum?.bucketId) {
+        gridEntry.snapTo(0f)
+        gridEntry.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
+    }
+
+    var viewingPhotosList by remember { mutableStateOf<List<MediaImage>?>(null) }
+    var viewingInitialIndex by remember { mutableIntStateOf(0) }
+    // Vista's "play all": the viewer opens already turning its pages.
+    var viewingSlideshow by remember { mutableStateOf(false) }
+    var isSearchOpen by remember { mutableStateOf(false) }
+    var showColumnsSheet by remember { mutableStateOf(false) }
+
+    /** The consent dialog's launcher, held in a holder so its own result can launch it again. */
+    val deleteLauncherHolder = remember { arrayOfNulls<androidx.activity.result.ActivityResultLauncher<IntentSenderRequest>>(1) }
+    val deleteIntentSenderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val granted = result.resultCode == Activity.RESULT_OK
+        if (granted) {
+            viewModel.clearSelection()
+            viewingPhotosList = null
+        }
+        // On Android 10 a yes only opens the door; the delete itself still has to be run.
+        (context as? Activity)?.let { activity ->
+            viewModel.onDeleteConsent(activity, granted) { sender ->
+                deleteLauncherHolder[0]?.launch(IntentSenderRequest.Builder(sender).build())
+            }
+        }
+    }
+    deleteLauncherHolder[0] = deleteIntentSenderLauncher
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { granted -> viewModel.onPermissionResult(granted.values.any { it }) }
+    )
+
+    fun requestMediaPermission() {
+        val wanted = when {
+            // Android 14 lets the person hand over a few pictures rather than all of them;
+            // asking for that too is what makes the picker offer the choice.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> arrayOf(
+                android.Manifest.permission.READ_MEDIA_IMAGES,
+                android.Manifest.permission.READ_MEDIA_VIDEO,
+                android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+            )
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(
+                android.Manifest.permission.READ_MEDIA_IMAGES,
+                android.Manifest.permission.READ_MEDIA_VIDEO
+            )
+            else -> arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        permissionLauncher.launch(wanted)
+    }
+
+    // Android 9 has to be asked before a picture may be written; the save waits for the answer.
+    var pendingSave by remember { mutableStateOf<Pair<android.graphics.Bitmap, (String?) -> Unit>?>(null) }
+    var editingPhoto by remember { mutableStateOf<MediaImage?>(null) }
+    val writePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val (bitmap, onDone) = pendingSave ?: return@rememberLauncherForActivityResult
+        pendingSave = null
+        val source = editingPhoto
+        if (granted && source != null) {
+            viewModel.saveEditedPhoto(bitmap, source, onSaved = { onDone(null) }, onFailed = { onDone(it) })
+        } else {
+            onDone(context.getString(R.string.pics_save_failed))
+        }
+    }
+
+    /** Saves the editor's result, asking Android 9 for leave first; [onDone] gets the failure, if any. */
+    fun saveEdited(bitmap: android.graphics.Bitmap, onDone: (String?) -> Unit) {
+        val source = editingPhoto ?: return onDone(context.getString(R.string.pics_save_failed))
+        if (com.serkantkn.zeta.util.LegacyStorage.needsWritePermission(context)) {
+            pendingSave = bitmap to onDone
+            writePermissionLauncher.launch(com.serkantkn.zeta.util.LegacyStorage.WRITE_PERMISSION)
+        } else {
+            viewModel.saveEditedPhoto(bitmap, source, onSaved = { onDone(null) }, onFailed = { onDone(it) })
+        }
+    }
+
+    /** Opens an album and sends its name up into the pivot. */
+    fun openAlbum(album: MediaAlbum, from: Rect?) {
+        viewModel.clearSelection()
+        viewModel.selectAlbum(album)
+        val label = album.bucketName.ifBlank { unsortedLabel }.lowercase(Locale.getDefault())
+        if (zuneTitled) {
+            hubFlight?.openPage(pictureAlbumTitleKey(album.bucketId), label, pictureAlbumItem(album.bucketId))
+            return
+        }
+        if (from != null) {
+            scope.launch { albumZoom.flyToTitle(label, from, ALBUM_TILE_NAME_SIZE) }
+        }
+    }
+
+    /** Leaves an album; the name drops back towards the tiles it came from. */
+    fun leaveAlbum() {
+        val leaving = albumTabLabel
+        val anchorBounds = albumTabAnchor.bounds
+        viewModel.selectAlbum(null)
+        viewModel.clearSelection()
+        // The Zune layout's title flies back down by itself, as the title changes.
+        if (anchorBounds != null && !zuneTitled) {
+            scope.launch {
+                albumZoom.flyToRowBounds(
+                    label = leaving,
+                    toBounds = Rect(
+                        left = anchorBounds.left,
+                        top = anchorBounds.top + with(density) { 200.dp.toPx() },
+                        right = anchorBounds.right,
+                        bottom = anchorBounds.bottom
+                    ),
+                    toFontSize = ALBUM_TILE_NAME_SIZE
+                )
+            }
+        }
+    }
+
+    BackHandler(
+        enabled = editingPhoto != null || viewingPhotosList != null || selectionMode ||
+            isSearchOpen || showColumnsSheet || selectedAlbum != null
+    ) {
+        when {
+            editingPhoto != null -> editingPhoto = null
+            viewingPhotosList != null -> viewingPhotosList = null
+            showColumnsSheet -> showColumnsSheet = false
+            selectionMode -> viewModel.clearSelection()
+            isSearchOpen -> {
+                isSearchOpen = false
+                viewModel.setSearchQuery("")
+            }
+            selectedAlbum != null -> leaveAlbum()
+        }
+    }
+
+    // ── What each page is showing ──────────────────────────────────────────
+    val albumImages = remember(allImages, selectedAlbum) {
+        selectedAlbum?.let { album -> allImages.filter { it.bucketId == album.bucketId } } ?: emptyList()
+    }
+    val searchResults = remember(allImages, searchQuery) {
+        if (searchQuery.isBlank()) emptyList() else allImages.filter { it.matchesQuery(searchQuery) }
+    }
+
+    // Opening a picture from the search page left the keyboard standing over the viewer's own
+    // bar, because the field underneath still had the focus.
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    LaunchedEffect(viewingPhotosList != null) {
+        if (viewingPhotosList != null) keyboard?.hide()
+    }
+
+    fun openViewer(list: List<MediaImage>, item: MediaImage) {
+        if (item.isVideo) {
+            viewModel.playVideo(context, item)
+            return
+        }
+        // The viewer shows stills; a roll with clips in it still opens at the right picture.
+        val stills = list.filter { !it.isVideo }
+        viewingPhotosList = stills
+        viewingInitialIndex = stills.indexOf(item).coerceAtLeast(0)
+    }
+
+    val playAll by PicturesBridge.pendingPlayAll.collectAsState()
+    LaunchedEffect(playAll, allImages.isNotEmpty()) {
+        if (!playAll || allImages.isEmpty()) return@LaunchedEffect
+        PicturesBridge.consumePlayAll()
+        val stills = allImages.filter { !it.isVideo }
+        if (stills.isEmpty()) return@LaunchedEffect
+        viewingSlideshow = true
+        viewingPhotosList = stills
+        viewingInitialIndex = 0
+    }
+
+    fun onTileClick(list: List<MediaImage>, item: MediaImage) {
+        if (selectionMode) viewModel.toggleSelection(item) else openViewer(list, item)
+    }
+
+    // The camera asks for the shot it has just taken. The media store publishes it a moment after
+    // the file is written, so the ask is retried for a second or so rather than given up on; if
+    // the picture never turns up the hub simply stays where it is, on the roll.
+    LaunchedEffect(pendingPhoto) {
+        val wanted = pendingPhoto ?: return@LaunchedEffect
+        viewModel.selectAlbum(null)
+        viewModel.clearSelection()
+        pager.scrollToPage(CAMERA_ROLL_TAB)
+        repeat(PENDING_PHOTO_TRIES) { attempt ->
+            val roll = viewModel.cameraRollImages.value
+            val found = roll.firstOrNull { it.uri == wanted }
+                ?: viewModel.allImages.value.firstOrNull { it.uri == wanted }
+            if (found != null) {
+                openViewer(if (found in roll) roll else viewModel.allImages.value, found)
+                PicturesBridge.consumePhoto()
+                return@LaunchedEffect
+            }
+            if (attempt > 0) viewModel.loadMedia()
+            kotlinx.coroutines.delay(PENDING_PHOTO_WAIT_MILLIS)
+        }
+        PicturesBridge.consumePhoto()
+    }
+
+    val isWideScreen = LocalIsWideScreen.current
+
+    val columnsFor: (Int) -> Int = { count ->
+        // The same grid with twice the room: on a tablet a row holds twice as many.
+        val phone = if (storedColumns > 0) storedColumns else defaultGridColumns(count)
+        if (isWideScreen) phone * 2 else phone
+    }
+
+    val renderPage: @Composable (Int) -> Unit = { tabIndex ->
+        ZunePageTransition {
+            when (tabIndex) {
+                0 -> MediaDayGrid(
+                    items = cameraRollImages,
+                    columns = columnsFor(cameraRollImages.size),
+                    favourites = favoritePhotoIds,
+                    selection = selection,
+                    selectionMode = selectionMode,
+                    onClick = { onTileClick(cameraRollImages, it) },
+                    onLongClick = { viewModel.toggleSelection(it) },
+                    empty = {
+                        PicturesEmpty(
+                            message = errorMessage?.let { stringResource(R.string.pics_load_failed, it) }
+                                ?: stringResource(R.string.pics_empty_camera_roll),
+                            hint = if (errorMessage == null) {
+                                stringResource(R.string.pics_empty_camera_roll_hint)
+                            } else null
+                        )
+                    }
+                )
+
+                1 -> if (selectedAlbum != null) {
+                    MediaDayGrid(
+                        items = albumImages,
+                        columns = columnsFor(albumImages.size),
+                        favourites = favoritePhotoIds,
+                        selection = selection,
+                        selectionMode = selectionMode,
+                        onClick = { onTileClick(albumImages, it) },
+                        onLongClick = { viewModel.toggleSelection(it) },
+                        modifier = Modifier.graphicsLayer {
+                            // The grid arrives a beat behind the name that flew up.
+                            alpha = gridEntry.value
+                            translationY = (1f - gridEntry.value) * 40.dp.toPx()
+                        },
+                        empty = { PicturesEmpty(stringResource(R.string.no_photos)) }
+                    )
+                } else {
+                    AlbumsGrid(
+                        albums = albums,
+                        onOpen = ::openAlbum,
+                        empty = {
+                            PicturesEmpty(
+                                message = errorMessage?.let {
+                                    stringResource(R.string.pics_albums_load_failed, it)
+                                } ?: stringResource(R.string.no_albums),
+                                hint = if (errorMessage == null) {
+                                    stringResource(R.string.pics_empty_albums_hint)
+                                } else null
+                            )
+                        }
+                    )
+                }
+
+                2 -> MediaDayGrid(
+                    items = favoriteImages,
+                    columns = columnsFor(favoriteImages.size),
+                    favourites = favoritePhotoIds,
+                    selection = selection,
+                    selectionMode = selectionMode,
+                    onClick = { onTileClick(favoriteImages, it) },
+                    onLongClick = { viewModel.toggleSelection(it) },
+                    empty = {
+                        PicturesEmpty(
+                            message = stringResource(R.string.no_favorites),
+                            hint = stringResource(R.string.pics_empty_favorites_hint)
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    // ── The bottom bar ─────────────────────────────────────────────
+    val chosen = remember(selection, allImages) { allImages.filter { it.id in selection } }
+    val barActions = if (selectionMode) {
+        listOf(
+            WpBarAction(Icons.Default.Share, stringResource(R.string.pics_action_share)) {
+                viewModel.share(context, chosen)
+            },
+            WpBarAction(Icons.Default.Favorite, stringResource(R.string.pics_action_favorite)) {
+                chosen.forEach { viewModel.toggleFavorite(it) }
+                viewModel.clearSelection()
+            },
+            WpBarAction(Icons.Default.Delete, stringResource(R.string.pics_action_delete)) {
+                val activity = context as? Activity ?: return@WpBarAction
+                viewModel.deletePhotos(
+                    activity = activity,
+                    photos = chosen,
+                    onIntentSenderRequired = { sender ->
+                        deleteIntentSenderLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                    },
+                    onDeleted = { viewModel.clearSelection() }
+                )
+            },
+            WpBarAction(Icons.Default.Check, stringResource(R.string.pics_action_done)) {
+                viewModel.clearSelection()
+            }
+        )
+    } else {
+        listOf(
+            WpBarAction(Icons.Default.CheckCircle, stringResource(R.string.pics_action_select)) {
+                viewModel.startSelection()
+            },
+            WpBarAction(Icons.Default.Search, stringResource(R.string.pics_action_search)) {
+                isSearchOpen = true
+            },
+            WpBarAction(Icons.Default.Refresh, stringResource(R.string.pics_action_refresh)) {
+                viewModel.loadMedia()
+            }
+        )
+    }
+
+    val barMenu = buildList {
+        if (selectionMode) {
+            add(WpBarMenuItem(stringResource(R.string.pics_menu_select_all)) {
+                val page = (pager.currentPage % tabs.size).let { if (it < 0) it + tabs.size else it }
+                viewModel.selectAll(
+                    when {
+                        page == 1 && selectedAlbum != null -> albumImages
+                        page == 2 -> favoriteImages
+                        else -> cameraRollImages
+                    }
+                )
+            })
+            if (chosen.size == 1 && !chosen.first().isVideo) {
+                add(WpBarMenuItem(stringResource(R.string.pics_menu_wallpaper)) {
+                    viewModel.setAsWallpaper(context, chosen.first())
+                    viewModel.clearSelection()
+                })
+            }
+        }
+        val album = selectedAlbum
+        if (album != null && !selectionMode) {
+            val pinned = album.bucketId in pinnedAlbums
+            add(
+                WpBarMenuItem(
+                    stringResource(
+                        if (pinned) R.string.pics_menu_unpin_album else R.string.pics_menu_pin_album
+                    )
+                ) { viewModel.togglePinAlbum(album) }
+            )
+        }
+        add(WpBarMenuItem(stringResource(R.string.pics_menu_columns)) { showColumnsSheet = true })
+    }
+
+    ZuneHub(
+        title = if (zuneTitled && selectedAlbum != null) albumTabLabel else stringResource(R.string.pictures_hub),
+        zuneTitleKey = picturesTitleKey,
+        tabs = if (isWideScreen) listOf(tabs[0], albumsLabel, tabs[2]) else tabs,
+        pager = pager,
+        modifier = modifier,
+        bar = ZuneHubBar(barActions, barMenu),
+        takeover = when {
+            !hasPermission -> {
+                {
+                    ZunePermissionRequest(
+                        title = stringResource(R.string.storage_permission_title).lowercase(Locale.getDefault()),
+                        message = stringResource(R.string.storage_permission_message),
+                        buttonLabel = stringResource(R.string.grant_permission).lowercase(Locale.getDefault()),
+                        onRequest = { requestMediaPermission() }
+                    )
+                }
+            }
+            isSearchOpen -> {
+                {
+                    SearchPage(
+                        query = searchQuery,
+                        onQueryChange = viewModel::setSearchQuery,
+                        results = searchResults,
+                        columns = columnsFor(searchResults.size),
+                        favourites = favoritePhotoIds,
+                        onClick = { openViewer(searchResults, it) }
+                    )
+                }
+            }
+            isLoading && allImages.isEmpty() -> {
+                {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = zuneColors.accentColor)
+                    }
+                }
+            }
+            else -> null
+        },
+        // The pivot here is the pictures' own: the albums heading zooms into an album's name.
+        phoneHeader = {
+            ZuneHubPhoneTitle(title = stringResource(R.string.pictures_hub), modifier = Modifier.padding(top = 28.dp))
+            if (hasPermission && !isSearchOpen && !(isLoading && allImages.isEmpty())) {
+                ZunePivotTabs(
+                    tabs = tabs,
+                    state = pager,
+                    firstTabAnchor = albumTabAnchor,
+                    firstTabAlpha = albumZoom.titleAlpha,
+                    zoomTabIndex = ALBUMS_TAB,
+                    onSelected = {
+                        if (selectedAlbum != null) viewModel.selectAlbum(null)
+                        viewModel.clearSelection()
+                    },
+                    modifier = Modifier.padding(top = 12.dp, bottom = 18.dp)
+                )
+            }
+        },
+        phonePeek = true,
+        wideOnSelected = {
+            if (selectedAlbum != null) viewModel.selectAlbum(null)
+            viewModel.clearSelection()
+        },
+        // The albums listed under the headings like folders; the grid has the rest of the screen.
+        wideNavExtra = {
+            if (albums.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(28.dp))
+                albums.forEach { album ->
+                    val chosen = selectedAlbum?.bucketId == album.bucketId &&
+                        pager.currentPage == ALBUMS_TAB
+                    Text(
+                        text = album.bucketName.ifBlank { unsortedLabel }.lowercase(Locale.getDefault()),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Light,
+                            fontSize = 19.sp
+                        ),
+                        color = if (chosen) zuneColors.accentColor else zuneColors.textMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) {
+                                viewModel.clearSelection()
+                                viewModel.selectAlbum(album)
+                                scope.launch { pager.scrollToPage(ALBUMS_TAB) }
+                            }
+                            .padding(vertical = 6.dp)
+                    )
+                }
+            }
+        },
+        overlay = {
+            // How many are in hand, above the bar so it is never in the way of the pictures.
+            AnimatedVisibility(
+                visible = selectionMode,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = bottomBarHeight() + 8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.pics_selected_count, selection.size),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                    modifier = Modifier
+                        .background(zuneColors.accentColor)
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                )
+            }
+
+            PhotoViewer(
+                photos = viewingPhotosList,
+                initialIndex = viewingInitialIndex,
+                startSlideshow = viewingSlideshow,
+                favoritePhotoIds = favoritePhotoIds,
+                onDismiss = {
+                    viewingPhotosList = null
+                    viewingSlideshow = false
+                },
+                onToggleFavorite = { photo -> viewModel.toggleFavorite(photo) },
+                onEditPhoto = { photo -> editingPhoto = photo },
+                onShare = { photo -> viewModel.share(context, listOf(photo)) },
+                onSetWallpaper = { photo -> viewModel.setAsWallpaper(context, photo) },
+                onDeletePhoto = { photo ->
+                    val activity = context as? Activity ?: return@PhotoViewer
+                    viewModel.deletePhoto(
+                        activity = activity,
+                        photo = photo,
+                        onIntentSenderRequired = { sender ->
+                            deleteIntentSenderLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                        },
+                        onDeleted = { viewingPhotosList = null }
+                    )
+                }
+            )
+
+            editingPhoto?.let { photoToEdit ->
+                PhotoEditorScreen(
+                    photo = photoToEdit,
+                    onSave = { editedBitmap, onDone ->
+                        // The editor closes only once the picture is on disk; a failure leaves
+                        // it open with the edits still in it.
+                        saveEdited(editedBitmap) { error ->
+                            if (error == null) editingPhoto = null
+                            onDone(error)
+                        }
+                    },
+                    onCancel = { editingPhoto = null }
+                )
+            }
+
+            if (showColumnsSheet) {
+                MessagingSheet(
+                    title = stringResource(R.string.pics_columns_title),
+                    onDismiss = { showColumnsSheet = false }
+                ) {
+                    SheetAction(
+                        label = stringResource(R.string.pics_columns_auto),
+                        color = if (storedColumns == 0) zuneColors.accentColor else null
+                    ) {
+                        viewModel.setColumns(0)
+                        showColumnsSheet = false
+                    }
+                    GRID_COLUMN_CHOICES.forEach { choice ->
+                        SheetAction(
+                            label = stringResource(R.string.pics_columns_value, choice),
+                            color = if (storedColumns == choice) zuneColors.accentColor else null
+                        ) {
+                            viewModel.setColumns(choice)
+                            showColumnsSheet = false
+                        }
+                    }
+                }
+            }
+        }
+    ) { index -> renderPage(index) }
+
+    // The word in flight, above everything else on the screen.
+    ZuneTitleZoomOverlay(state = albumZoom, letterSpacing = (-3).sp)
+}
+
+/**
+ * A grid of pictures with a heading over each day's worth.
+ *
+ * The headings are what keep a long roll navigable; without them a thousand thumbnails are one
+ * undifferentiated wall. A heading spans the full width of the grid, whatever it has been set to.
+ */
+@Composable
+private fun MediaDayGrid(
+    items: List<MediaImage>,
+    columns: Int,
+    favourites: Set<String>,
+    selection: Set<Long>,
+    selectionMode: Boolean,
+    onClick: (MediaImage) -> Unit,
+    onLongClick: (MediaImage) -> Unit,
+    modifier: Modifier = Modifier,
+    empty: @Composable () -> Unit
+) {
+    if (items.isEmpty()) {
+        empty()
+        return
+    }
+
+    val days = remember(items) { groupByDay(items) }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+        contentPadding = PaddingValues(bottom = 96.dp),
+        modifier = modifier.fillMaxSize()
+    ) {
+        days.forEach { (day, ofDay) ->
+            item(key = "day_$day", span = { GridItemSpan(maxLineSpan) }) {
+                DayHeader(dayMillis = day, count = ofDay.size)
+            }
+            items(ofDay, key = { it.stableKey }) { item ->
+                MediaTile(
+                    item = item,
+                    isFavorite = item.stableKey in favourites || item.id.toString() in favourites,
+                    isSelected = item.id in selection,
+                    selectionMode = selectionMode,
+                    onClick = { onClick(item) },
+                    onLongClick = { onLongClick(item) }
+                )
+            }
+        }
+    }
+}
+
+/** The albums, two across, each opening with a flight. */
+@Composable
+private fun AlbumsGrid(
+    albums: List<MediaAlbum>,
+    onOpen: (MediaAlbum, Rect?) -> Unit,
+    empty: @Composable () -> Unit
+) {
+    if (albums.isEmpty()) {
+        empty()
+        return
+    }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(if (LocalIsWideScreen.current) 4 else 2),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(bottom = 96.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(albums, key = { it.bucketId }) { album ->
+            // Where the tile's name sits is where its flight begins, so each tile keeps its own
+            // bounds; the name lifts off from the picture the finger actually touched.
+            var bounds by remember { mutableStateOf<Rect?>(null) }
+            AlbumTile(
+                album = album,
+                onClick = { onOpen(album, bounds) },
+                modifier = Modifier.onGloballyPositioned { coords ->
+                    val box = coords.boundsInRoot()
+                    // The name is written across the bottom-left of the tile, not its middle.
+                    bounds = Rect(
+                        left = box.left + 10f,
+                        top = box.bottom - 56f,
+                        right = box.right,
+                        bottom = box.bottom - 24f
+                    )
+                }
+            )
+        }
+    }
+}
+
+/** Searching across everything, by picture name or the folder it sits in. */
+@Composable
+private fun SearchPage(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    results: List<MediaImage>,
+    columns: Int,
+    favourites: Set<String>,
+    onClick: (MediaImage) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
+    ) {
+        Spacer(modifier = Modifier.height(ZuneDimens.SpacingMd))
+        MetroTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            placeholder = stringResource(R.string.pics_search_hint),
+            search = true
+        )
+        Spacer(modifier = Modifier.height(ZuneDimens.SpacingMd))
+
+        if (query.isNotBlank() && results.isEmpty()) {
+            PicturesEmpty(stringResource(R.string.pics_empty_search, query))
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+                contentPadding = PaddingValues(bottom = 96.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(results, key = { it.stableKey }) { item ->
+                    MediaTile(
+                        item = item,
+                        isFavorite = item.stableKey in favourites || item.id.toString() in favourites,
+                        isSelected = false,
+                        selectionMode = false,
+                        onClick = { onClick(item) },
+                        onLongClick = { onClick(item) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Which pivot page the albums live on. */
+private const val ALBUMS_TAB = 1
+
+/** Which pivot page the camera's own shots live on. */
+private const val CAMERA_ROLL_TAB = 0
+
+/** How long the hub waits for the media store to publish a shot the camera has just taken. */
+private const val PENDING_PHOTO_TRIES = 8
+private const val PENDING_PHOTO_WAIT_MILLIS = 180L
+
+/** The pivot's own size, so a word that flies into it lands at exactly the right scale. */
+private val PIVOT_FONT_SIZE = 72.sp
+
+/** The size an album's name is written at on its tile: where a flight starts, and ends. */
+private val ALBUM_TILE_NAME_SIZE = 16.sp

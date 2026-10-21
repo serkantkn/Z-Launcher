@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Televizyonda erişilebilirlik servisinin tek bir işi var; Android'in listesinde de bunu söyler. -->
 <resources>
-    <string name="label_key_service">Z Launcher Home tuşu</string>
-    <string name="accessibility_service_description">Televizyonda üç iş için çalışır: kumandanın Home tuşuna basıldığını görüp televizyonun kendi ana ekranı yerine Z Launcher\'ı açar; \"kapat\" penceresinden istersen televizyonun kapatma menüsünü ya da uyku modunu açar; eşlediğin telefondan gelen arama ve mesaj bildirimini diğer uygulamaların üstünde gösterir. Başka hiçbir tuşa karışmaz, ekrandakileri okumaz, hiçbir şeyi kaydetmez ve dışarı göndermez.</string>
+    <string name="label_key_service">Zeta Home tuşu</string>
+    <string name="accessibility_service_description">Televizyonda üç iş için çalışır: kumandanın Home tuşuna basıldığını görüp televizyonun kendi ana ekranı yerine Zeta\'yı açar; \"kapat\" penceresinden istersen televizyonun kapatma menüsünü ya da uyku modunu açar; eşlediğin telefondan gelen arama ve mesaj bildirimini diğer uygulamaların üstünde gösterir. Başka hiçbir tuşa karışmaz, ekrandakileri okumaz, hiçbir şeyi kaydetmez ve dışarı göndermez.</string>
     <!-- Televizyonun iki başlangıç ekranı. -->
     <string name="settings_layout_zune">salon</string>
     <string name="settings_layout_zune_sub">Salon listesi: yerler dev kelimelerle, seçilenin içi yanında</string>

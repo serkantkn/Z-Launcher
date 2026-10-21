@@ -26,12 +26,12 @@
     <string name="action_center_no_access">bildirimleri göstermek için eylem merkezinin bildirim erişimine ihtiyacı var</string>
     <string name="action_center_grant">izin ver</string>
     <string name="ac_settings_group">eylem merkezi</string>
-    <string name="ac_settings_switch">Z Launcher eylem merkezi</string>
+    <string name="ac_settings_switch">Zeta eylem merkezi</string>
     <string name="ac_settings_switch_on">durum çubuğundan aşağı çekince Android paneli yerine eylem merkezi açılır</string>
     <string name="ac_settings_switch_off">Android\'in kendi bildirim paneli kullanılır</string>
     <string name="ac_settings_needs">eylem merkezinin tam çalışması için şu izinler gerekir. Yeşil nokta olanlar tamam.</string>
     <string name="ac_perm_service">erişilebilirlik servisi</string>
-    <string name="ac_perm_service_sub">gerekli: erişilebilirlik ayarlarında Z Launcher servisini aç</string>
+    <string name="ac_perm_service_sub">gerekli: erişilebilirlik ayarlarında Zeta servisini aç</string>
     <string name="ac_perm_restricted">ayar griyse ya da açılmıyorsa</string>
     <string name="ac_perm_restricted_sub">uygulama bilgisi → sağ üstteki ⋮ → kısıtlanmış ayarlara izin ver, sonra servisi yeniden aç</string>
     <string name="ac_perm_notifications">bildirim erişimi</string>
@@ -42,6 +42,6 @@
     <string name="ac_perm_dnd">rahatsız etmeyin erişimi</string>
     <string name="ac_perm_dnd_sub">sessiz saatler karesi için</string>
     <string name="ac_perm_battery">pil kısıtlaması yok</string>
-    <string name="ac_perm_battery_sub">Samsung gibi cihazlar servisi uyutabilir; listede Z Launcher\'ı \"kısıtlanmamış\" yap</string>
+    <string name="ac_perm_battery_sub">Samsung gibi cihazlar servisi uyutabilir; listede Zeta\'yı \"kısıtlanmamış\" yap</string>
     <string name="ac_settings_lock_info">kilit ekranında Android\'in kendi paneli açılır; böylece bildirimler kilitliyken açığa çıkmaz.</string>
 </resources>

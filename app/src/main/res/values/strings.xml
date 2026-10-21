@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Z Launcher</string>
+    <!-- The name the product goes by, whatever the build: the TV's logos and its shutdown panel. -->
+    <string name="brand_name" translatable="false">Zeta</string>
+    <string name="app_name">Zeta</string>
     <string name="home_hub">home</string>
     <string name="apps_hub">apps</string>
     <string name="tv_android_settings">android settings</string>
@@ -26,7 +28,7 @@
     <string name="xbox_theme_orange">orange</string>
     <string name="xbox_theme_black">black</string>
     <string name="xbox_theme_picture">picture…</string>
-    <string name="xbox_no_pictures">No pictures on the TV, or Z Launcher may not read them yet. Open the pictures hub once and allow it.</string>
+    <string name="xbox_no_pictures">No pictures on the TV, or Zeta may not read them yet. Open the pictures hub once and allow it.</string>
     <string name="xbox_sys_saver">screensaver</string>
     <string name="xbox_sys_saver_sub">When the remote is left alone the screen dims, or shows the TV\'s pictures one after another. Any key wakes it.</string>
     <string name="xbox_saver_off">off</string>
@@ -101,7 +103,7 @@
     <string name="xbox_nothing_playing">nothing playing</string>
     <string name="xbox_play_pause">play / pause</string>
     <string name="xbox_next">next</string>
-    <string name="xbox_launcher_settings_full">Z Launcher settings</string>
+    <string name="xbox_launcher_settings_full">Zeta settings</string>
     <string name="xbox_select">select</string>
     <string name="xbox_back">back</string>
     <string name="xbox_home">home</string>
@@ -112,16 +114,16 @@
     <string name="xbox_my_apps">my apps</string>
     <string name="xbox_shuffle">shuffle all</string>
     <string name="xbox_slide_show">slide show</string>
-    <string name="xbox_launcher_settings">Z Launcher</string>
+    <string name="xbox_launcher_settings">Zeta</string>
     <string name="xbox_look">look</string>
     <string name="xbox_turn_off">turn off</string>
-    <string name="xbox_exit">exit Z Launcher</string>
+    <string name="xbox_exit">exit Zeta</string>
     <string name="xbox_show_me">show me</string>
     <string name="xbox_all_apps">all apps</string>
     <string name="xbox_n_of_m">%1$d of %2$d</string>
     <string name="xbox_tv_off_sub">Opens the TV\'s power menu. The accessibility service has to be on.</string>
     <string name="xbox_sleep_sub">Puts the TV to sleep. The accessibility service has to be on.</string>
-    <string name="xbox_exit_sub">Z Launcher closes and the TV\'s own home screen opens.</string>
+    <string name="xbox_exit_sub">Zeta closes and the TV\'s own home screen opens.</string>
     <string name="tv_link_calling">is calling</string>
     <string name="tv_link_missed">missed call</string>
     <string name="tv_link_message">message</string>
@@ -130,8 +132,8 @@
     <string name="tv_link_show">phone notices</string>
     <string name="tv_link_show_sub">calls and messages to paired phones show in the corner of the screen</string>
     <string name="tv_link_add">add a phone</string>
-    <string name="tv_link_add_sub">on the phone: Z Launcher → settings → connections → add a TV</string>
-    <string name="tv_link_pair_body">On the phone open Z Launcher\'s settings, press \"add a TV\" on the connections page and pick this TV. Then type this code:</string>
+    <string name="tv_link_add_sub">on the phone: Zeta → settings → connections → add a TV</string>
+    <string name="tv_link_pair_body">On the phone open Zeta\'s settings, press \"add a TV\" on the connections page and pick this TV. Then type this code:</string>
     <string name="tv_link_pair_name">this TV: %1$s</string>
     <string name="tv_link_pair_address">if the TV is not listed, type its address: %1$s</string>
     <string name="tv_link_pair_done">%1$s added</string>
@@ -144,10 +146,10 @@
     <string name="tv_link_remove_body">Calls and messages from this phone will no longer show. To add it again it has to be paired again.</string>
     <string name="tv_link_remove">remove</string>
     <string name="tv_link_cancel">cancel</string>
-    <string name="tv_link_needs_window">To show notices over other apps too, turn on the Home key service (system → home). While it is off they show only while Z Launcher is open.</string>
+    <string name="tv_link_needs_window">To show notices over other apps too, turn on the Home key service (system → home). While it is off they show only while Zeta is open.</string>
     <string name="phone_link_group">TV link</string>
     <string name="phone_link_send">tell my TV about calls and messages</string>
-    <string name="phone_link_send_sub">shows in the corner of a TV on the same Wi-Fi running Z Launcher</string>
+    <string name="phone_link_send_sub">shows in the corner of a TV on the same Wi-Fi running Zeta</string>
     <string name="phone_link_calls">calls</string>
     <string name="phone_link_calls_sub">who is calling, missed calls</string>
     <string name="phone_link_sms">SMS</string>
@@ -171,7 +173,7 @@
     <string name="phone_link_unreachable">The TV could not be reached. Are you on the same Wi-Fi?</string>
     <string name="phone_link_pairing">pairing…</string>
     <string name="phone_link_permissions">To know a call is ringing and who is calling it needs the phone state and contacts permissions; tap to grant them</string>
-    <string name="phone_link_notification_access_sub">While Z Launcher is not the default phone and SMS app it reads calls and texts from those apps\' notifications; tap to turn it on</string>
+    <string name="phone_link_notification_access_sub">While Zeta is not the default phone and SMS app it reads calls and texts from those apps\' notifications; tap to turn it on</string>
     <string name="phone_link_notification_access">notification access</string>
     <string name="phone_link_remove_body">This TV will no longer be told. To add it again it has to be paired again.</string>
     <string name="vista_start">start</string>
@@ -191,7 +193,6 @@
     <string name="vista_close">Close</string>
     <string name="vista_tv_off">Turn Off TV</string>
     <string name="vista_sleep">Sleep</string>
-    <string name="vista_media_center">Lounge</string>
     <string name="vista_no_apps">there are no apps to show on this TV</string>
     <string name="tv_design_group">TV design</string>
     <string name="tv_design_xbox">Console</string>
@@ -202,22 +203,22 @@
     <string name="tv_design_sounds_sub">ticks and chimes as the remote moves</string>
     <string name="news_no_tv_browser">there is no browser on this TV to open the story in</string>
     <string name="tv_home_group">home screen</string>
-    <string name="tv_home_intro">On Google TV the remote\'s Home button always opens Google\'s home screen; Android does not hand it to another launcher. Z Launcher can catch the button with an accessibility service and open itself. On older Android TV boxes Z Launcher can also simply be made the default home screen.</string>
-    <string name="tv_home_key">Home opens Z Launcher</string>
-    <string name="tv_home_key_off">turn on the \"Z Launcher Home button\" service in the accessibility settings</string>
-    <string name="tv_home_key_on">on; a long press opens Z Launcher too</string>
+    <string name="tv_home_intro">On Google TV the remote\'s Home button always opens Google\'s home screen; Android does not hand it to another launcher. Zeta can catch the button with an accessibility service and open itself. On older Android TV boxes Zeta can also simply be made the default home screen.</string>
+    <string name="tv_home_key">Home opens Zeta</string>
+    <string name="tv_home_key_off">turn on the \"Zeta Home button\" service in the accessibility settings</string>
+    <string name="tv_home_key_on">on; a long press opens Zeta too</string>
     <string name="tv_home_default">default home screen</string>
-    <string name="tv_home_default_sub">Android\'s own choice of home screen. On older Android TV boxes it gives the Home button to Z Launcher; on Google TV it does not.</string>
+    <string name="tv_home_default_sub">Android\'s own choice of home screen. On older Android TV boxes it gives the Home button to Zeta; on Google TV it does not.</string>
     <string name="tv_home_default_google">Google TV does not apply this choice to the Home button; use the service above</string>
-    <string name="a11y_disclosure_body_tv">Z Launcher uses an accessibility service not as an aid for disabilities but for three things on a television:
+    <string name="a11y_disclosure_body_tv">Zeta uses an accessibility service not as an aid for disabilities but for three things on a television:
 
-• The Home button: it sees the remote\'s Home button pressed and opens Z Launcher instead of Google TV\'s home screen.
+• The Home button: it sees the remote\'s Home button pressed and opens Zeta instead of Google TV\'s home screen.
 • The shutdown panel: if you choose \"turn off TV\" or \"sleep\" in Media Center\'s shutdown panel, it opens the TV\'s power menu or puts it to sleep.
 • Phone notices: it shows the call and message notices from a phone you paired in a corner of the screen, over whatever app is open.
 
 It touches no other key, reads no text on the screen, records nothing and sends no data off the TV. You can turn the service off at any time in the accessibility settings.
 
-If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher Home button\" service there.</string>
+If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home button\" service there.</string>
     <string name="music_hub">music + videos</string>
     <string name="people_hub">people</string>
     <string name="pictures_hub">pictures</string>
@@ -243,12 +244,12 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="grant_permission">grant permission</string>
     <string name="all_apps">all apps</string>
     <string name="storage_permission_title">Storage Permission Required</string>
-    <string name="storage_permission_message">Z Launcher needs storage permission to show your photos.</string>
+    <string name="storage_permission_message">Zeta needs storage permission to show your photos.</string>
     <string name="no_photos">no photos found</string>
     <string name="no_albums">no albums found</string>
     <string name="no_favorites">no favorite photos yet</string>
     <string name="contacts_permission_title">Contacts Permission Required</string>
-    <string name="contacts_permission_message">Z Launcher needs contacts permission to show your people.</string>
+    <string name="contacts_permission_message">Zeta needs contacts permission to show your people.</string>
     <string name="no_contacts">no contacts found</string>
     <string name="no_recent_contacts">no recent contacts</string>
     <string name="no_favorite_contacts">no favorite contacts</string>
@@ -257,13 +258,13 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="search_contacts">search contacts</string>
     <string name="social_hub">social</string>
     <string name="notification_permission_title">Notification Access Required</string>
-    <string name="notification_permission_message">To show and reply to notifications in Social Hub, you need to give Z Launcher notification access.</string>
+    <string name="notification_permission_message">To show and reply to notifications in Social Hub, you need to give Zeta notification access.</string>
     <string name="open_settings">open settings</string>
     <string name="type_message">type a message...</string>
     <string name="send">send</string>
-    <string name="accessibility_service_description">Catches the volume keys while other apps are open to show Z Launcher\'s own volume bar. With the action center on, it finds the status bar from the kind and position of the windows on screen, tells that Android\'s notification shade has opened from the system interface\'s window name, and closes it to bring the action center down instead. It does not read the text of other apps\' screens, keeps no record and sends nothing off the phone.</string>
+    <string name="accessibility_service_description">Catches the volume keys while other apps are open to show Zeta\'s own volume bar. With the action center on, it finds the status bar from the kind and position of the windows on screen, tells that Android\'s notification shade has opened from the system interface\'s window name, and closes it to bring the action center down instead. It does not read the text of other apps\' screens, keeps no record and sends nothing off the phone.</string>
     <string name="a11y_disclosure_title">accessibility service</string>
-    <string name="a11y_disclosure_body">Z Launcher uses an accessibility service not as an aid for disabilities but for two parts of its own interface:\n\n• The volume bar: while other apps are open it sees the volume keys being pressed, sets the volume and shows its own volume bar. It leaves every other key alone.\n\n• The action center (if you turned it on): it finds the status bar from the kind and position of the windows on screen, tells that Android\'s notification shade has opened from the system interface\'s window name, closes the shade and brings the action center down in its place.\n\nIt does not read the text of other apps\' screens, does not see what you type, keeps no record and sends nothing off the phone. You can turn the service off in the accessibility settings whenever you like.\n\nIf you accept, Android\'s accessibility settings open; turn on \"Z Launcher volume bar and action center\" there.</string>
+    <string name="a11y_disclosure_body">Zeta uses an accessibility service not as an aid for disabilities but for two parts of its own interface:\n\n• The volume bar: while other apps are open it sees the volume keys being pressed, sets the volume and shows its own volume bar. It leaves every other key alone.\n\n• The action center (if you turned it on): it finds the status bar from the kind and position of the windows on screen, tells that Android\'s notification shade has opened from the system interface\'s window name, closes the shade and brings the action center down in its place.\n\nIt does not read the text of other apps\' screens, does not see what you type, keeps no record and sends nothing off the phone. You can turn the service off in the accessibility settings whenever you like.\n\nIf you accept, Android\'s accessibility settings open; turn on \"Zeta volume bar and action center\" there.</string>
     <string name="a11y_disclosure_accept">Accept</string>
     <string name="settings_language">language</string>
     <string name="settings_language_subtitle">app language</string>
@@ -333,7 +334,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="settings_wallpaper_custom">custom image</string>
     <string name="settings_wallpaper_custom_active">custom image active</string>
     <string name="settings_wallpaper_none">no image selected</string>
-    <string name="settings_wallpaper_pro_only">Custom wallpaper is only available in Z Launcher Pro.</string>
+    <string name="settings_wallpaper_pro_only">Custom wallpaper is only available in Zeta Pro.</string>
     <string name="settings_wallpaper_change">Change Image</string>
     <string name="settings_solid_background">solid background</string>
     <string name="settings_solid_background_sub">black in dark, white in light</string>
@@ -416,15 +417,15 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="settings_display_brightness">display and brightness</string>
     <string name="settings_brightness">brightness</string>
     <string name="settings_volume_style">volume ui style</string>
-    <string name="settings_volume_wp_sub">square wp volume control sliding from the top of the screen</string>
+    <string name="settings_volume_wp_sub">square volume control sliding from the top of the screen</string>
     <string name="settings_volume_system_sub">the system\'s own volume panel is used</string>
-    <string name="settings_volume_permissions_info">two permissions are needed for the wp volume bar while other apps are open: showing over other apps, and Z Launcher\'s accessibility service. what the service does exactly is shown before you turn it on, and you can turn it off whenever you like.</string>
+    <string name="settings_volume_permissions_info">two permissions are needed for the volume bar while other apps are open: showing over other apps, and Zeta\'s accessibility service. what the service does exactly is shown before you turn it on, and you can turn it off whenever you like.</string>
     <string name="settings_overlay_permission">display over other apps</string>
     <string name="settings_permission_granted">granted</string>
     <string name="settings_overlay_permission_sub">so the volume bar can be drawn over other apps</string>
     <string name="settings_key_service">capturing volume keys (accessibility)</string>
     <string name="settings_enabled">enabled</string>
-    <string name="settings_key_service_sub">enable the Z Launcher volume key service in accessibility settings</string>
+    <string name="settings_key_service_sub">enable the Zeta volume key service in accessibility settings</string>
     <string name="settings_volume_levels">volume levels</string>
     <string name="settings_media_volume">media</string>
     <string name="settings_ring_volume">ringer</string>
@@ -532,7 +533,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="settings_default_launcher_sub">home screen app</string>
     <string name="settings_notification_access">notification access</string>
     <string name="settings_notification_access_sub">social hub permissions</string>
-    <string name="settings_about_group">z launcher</string>
+    <string name="settings_about_group">zeta</string>
     <string name="settings_version">version %1$s</string>
     <string name="settings_about_inspired">a launcher of bold type, live tiles and hubs</string>
     <string name="settings_permissions_group">app permissions</string>
@@ -540,16 +541,16 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="settings_perm_contacts">contacts access</string>
     <string name="settings_perm_contacts_sub">for the people hub and phone book matching</string>
     <string name="settings_perm_call_log">call logs</string>
-    <string name="settings_perm_call_log_sub">to show recent calls and history in the phone hub; turning it on makes Z Launcher the phone app</string>
+    <string name="settings_perm_call_log_sub">to show recent calls and history in the phone hub; turning it on makes Zeta the phone app</string>
     <string name="settings_perm_sms">sms and messaging</string>
-    <string name="settings_perm_sms_sub">to receive and reply to sms in the messages hub; turning it on makes Z Launcher the messaging app</string>
+    <string name="settings_perm_sms_sub">to receive and reply to sms in the messages hub; turning it on makes Zeta the messaging app</string>
     <string name="settings_perm_storage">files and storage</string>
     <string name="settings_perm_storage_sub">for the files hub and loading custom wallpapers</string>
     <string name="settings_perm_notification_listener">notification listener permission</string>
     <string name="settings_perm_notification_listener_sub">for the social hub and live notifications on the lock screen</string>
     <string name="settings_perm_overlay_sub">for pop-up cards and the notification panel</string>
-    <string name="pro_only_feature">This feature is only available in Z Launcher Pro.</string>
-    <string name="pro_in_pro">Z Launcher Pro</string>
+    <string name="pro_only_feature">This feature is only available in Zeta Pro.</string>
+    <string name="pro_in_pro">Zeta Pro</string>
     <string name="pro_title">pro</string>
     <string name="pro_lead">Pro opens the rest of the launcher for one payment. Bought once, it holds on every phone signed in to the same Google account.</string>
     <string name="pro_group_looks">looks</string>
@@ -559,16 +560,16 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="pro_group_hubs">hubs</string>
     <string name="pro_group_hubs_body">the social hub, locked notes, your own news feeds, the browser\'s reading list, PDF, translation and favourites, more than ten apps on Start, more than one weather place</string>
     <string name="pro_group_system">system</string>
-    <string name="pro_group_system_body">Z Launcher\'s keyboard, volume bar and notification banners</string>
+    <string name="pro_group_system_body">Zeta\'s keyboard, volume bar and notification banners</string>
     <string name="pro_nothing_locked_away">Nothing of yours is locked away without Pro: locked notes still open, saved pages still read, and settings made for Pro are kept for it.</string>
     <string name="pro_buy">buy pro</string>
     <string name="pro_buy_for">buy pro · %1$s</string>
     <string name="pro_connecting">asking Google Play…</string>
-    <string name="pro_unavailable">Pro cannot be bought here right now. It is sold only in the Z Launcher installed from Google Play, and Google Play has to be reachable.</string>
+    <string name="pro_unavailable">Pro cannot be bought here right now. It is sold only in the Zeta installed from Google Play, and Google Play has to be reachable.</string>
     <string name="pro_pending">The payment has not gone through yet. Pro switches itself on once it has.</string>
     <string name="pro_owned">Pro is yours. Thank you!</string>
     <string name="pro_restore">restore purchase</string>
-    <string name="pro_settings_row">Z Launcher Pro</string>
+    <string name="pro_settings_row">Zeta Pro</string>
     <string name="pro_settings_row_owned">yours · thank you</string>
     <string name="pro_settings_row_free">what Pro adds, and buying it</string>
     <string name="settings_color_picker">color picker</string>
@@ -637,7 +638,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="notes_share_title">share note</string>
     <string name="notes_copy_suffix">%1$s (copy)</string>
     <string name="notes_items_list">list with %1$d items</string>
-    <string name="notes_export_path">Documents/ZLauncherNotes/%1$s</string>
+    <string name="notes_export_path">Documents/ZetaNotes/%1$s</string>
     <string name="notes_exported">exported: %1$s</string>
     <string name="notes_restored_count">%1$d notes restored</string>
     <string name="notes_locked">locked</string>
@@ -880,8 +881,8 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="browser_download_failed">Download could not be started: %1$s</string>
     <string name="browser_open_failed">File could not be opened: %1$s</string>
     <string name="browser_favorites">favorites</string>
-    <string name="browser_fav_add_pro">Adding sites to favorites is only available in Z Launcher Pro.</string>
-    <string name="browser_fav_edit_pro">Editing favorites is only available in Z Launcher Pro.</string>
+    <string name="browser_fav_add_pro">Adding sites to favorites is only available in Zeta Pro.</string>
+    <string name="browser_fav_edit_pro">Editing favorites is only available in Zeta Pro.</string>
     <string name="browser_history_empty">your history is empty</string>
     <string name="browser_edit_favorite">edit favorite</string>
     <string name="browser_add_favorite">add favorite</string>
@@ -939,13 +940,13 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="music_no_genres_hint">tracks gather here once their files say what genre they are</string>
     <plurals name="music_genre_tracks"><item quantity="one">%d song</item><item quantity="other">%d songs</item></plurals>
     <string name="music_load_failed">music could not be loaded: %1$s</string>
-    <string name="social_pro_only">Social Hub is only available in Z Launcher Pro.</string>
+    <string name="social_pro_only">Social Hub is only available in Zeta Pro.</string>
     <string name="social_notification_settings">notification settings</string>
     <string name="social_open_in_app">go to the app</string>
     <string name="social_test_message">Hi! This notification card looks great. Try dragging this card down to send me a quick reply!</string>
     <string name="social_test_reply_sent">Test reply sent: \"%1$s\"</string>
     <string name="notes_locked_note">locked note</string>
-    <string name="apps_favorites_limit">The free version pins up to 10 apps to start. Upgrade to Z Launcher Pro to remove the limit.</string>
+    <string name="apps_favorites_limit">The free version pins up to 10 apps to start. Upgrade to Zeta Pro to remove the limit.</string>
     <string name="launcher_fullscreen">Enter Full Screen</string>
     <string name="launcher_close_hub">Close Hub</string>
     <string name="toast_quick_reply">quick reply:</string>
@@ -1120,7 +1121,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="email_signature">signature</string>
     <string name="email_signature_none">no signature</string>
     <string name="email_signature_cap">Signature</string>
-    <string name="email_signature_hint">Sent from Z Launcher</string>
+    <string name="email_signature_hint">Sent from Zeta</string>
     <string name="common_remove_cap">Remove</string>
     <string name="email_error_google_reauth">this account was signed in with Google, which is no longer offered; edit it and enter an app password</string>
     <string name="email_gmail_make_app_password">make an app password in your Google account</string>
@@ -1531,7 +1532,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="camera_error_panorama_short">turn a little further for a panorama</string>
     <string name="camera_error_panorama_memory">there is not enough room to gather a panorama</string>
     <string name="camera_permission_title">camera</string>
-    <string name="camera_permission_body">Z Launcher needs the camera to take photos and video.</string>
+    <string name="camera_permission_body">Zeta needs the camera to take photos and video.</string>
     <string name="camera_permission_button">allow</string>
     <string name="camera_sweep_unavailable">this phone cannot tell how far it has turned</string>
 
@@ -1548,8 +1549,8 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="phone_filter_all">all</string>
     <string name="phone_no_missed">No missed calls.</string>
     <string name="phone_default_dialer_title">make this the phone app</string>
-    <string name="phone_default_dialer_body">Calls are real either way. Until Z Launcher is the phone app, the phone\'s own dialler shows them instead of this one.</string>
-    <string name="phone_history_needs_default">to show your recent calls, Z Launcher has to be the phone app. Android gives it the call history along with that, and you can take it back in settings at any time.</string>
+    <string name="phone_default_dialer_body">Calls are real either way. Until Zeta is the phone app, the phone\'s own dialler shows them instead of this one.</string>
+    <string name="phone_history_needs_default">to show your recent calls, Zeta has to be the phone app. Android gives it the call history along with that, and you can take it back in settings at any time.</string>
 
     <!-- Voicemail, blocked numbers, the SIM a call goes out on, and real quick replies -->
     <string name="phone_voicemail">voicemail</string>
@@ -1561,7 +1562,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="phone_blocked_badge">blocked</string>
     <string name="phone_blocked_list">blocked numbers</string>
     <string name="phone_blocked_empty">No numbers are blocked.</string>
-    <string name="phone_blocked_note">This is the phone\'s own list: blocked numbers are turned away before anything rings, and they stay blocked if Z Launcher is removed.</string>
+    <string name="phone_blocked_note">This is the phone\'s own list: blocked numbers are turned away before anything rings, and they stay blocked if Zeta is removed.</string>
     <string name="phone_blocked_toast">%1$s is blocked</string>
     <string name="phone_unblocked_toast">%1$s can call again</string>
     <string name="phone_block_failed">The phone would not change its blocked list.</string>
@@ -1667,7 +1668,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="people_photo_take">take a picture</string>
     <string name="people_photo_remove">remove the photo</string>
     <string name="people_photo_crop_help">pinch and drag to frame the face</string>
-    <string name="people_photo_camera_denied">Z Launcher has not been allowed to use the camera.</string>
+    <string name="people_photo_camera_denied">Zeta has not been allowed to use the camera.</string>
 
     <!-- Messaging hub -->
     <string name="msg_tab_all">all</string>
@@ -1692,7 +1693,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="msg_needs_default_app">only the phone\'s messaging app can change this</string>
     <string name="msg_make_default">make this the messaging app</string>
     <string name="msg_default_app_prompt">the launcher can read your messages, but only the phone\'s messaging app may mark them read, delete them or keep a draft.</string>
-    <string name="msg_needs_default">to read and send your messages, Z Launcher has to be the messaging app. Android gives it SMS along with that, and you can take it back in settings at any time.</string>
+    <string name="msg_needs_default">to read and send your messages, Zeta has to be the messaging app. Android gives it SMS along with that, and you can take it back in settings at any time.</string>
     <string name="msg_blocked">the number is blocked</string>
     <string name="msg_unblocked">the number is no longer blocked</string>
     <string name="msg_block_failed">the number could not be blocked</string>
@@ -1915,7 +1916,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="files_viewer_page">page %1$d of %2$d</string>
     <string name="files_viewer_play">play</string>
     <string name="files_viewer_pause">pause</string>
-    <string name="files_install_permission">To install apps from here, allow Z Launcher as a source in the setting that just opened, then tap the file again.</string>
+    <string name="files_install_permission">To install apps from here, allow Zeta as a source in the setting that just opened, then tap the file again.</string>
     <string name="files_details_writable">Can be changed</string>
     <string name="files_details_read_only">Read only</string>
     <string name="files_upload">Send a file here</string>
@@ -2013,7 +2014,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Z Launcher 
     <string name="editor_filter_faded">faded</string>
     <string name="music_unknown_album">Unknown Album</string>
     <string name="music_permission_title">Music Permission Required</string>
-    <string name="music_permission_message">Z Launcher needs permission to read the music on this phone.</string>
+    <string name="music_permission_message">Zeta needs permission to read the music on this phone.</string>
     <string name="music_nothing_playing">nothing is playing</string>
     <string name="music_nothing_playing_hint">pick a song and it turns up here</string>
     <string name="music_tab_albums">albums</string>

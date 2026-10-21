@@ -1,8 +1,8 @@
-# Z Launcher
+# Zeta
 
 ## Hubs follow one standard
 
-Every hub is laid out by `ZuneHub` (`app/src/main/java/com/serkantkn/zunelauncher/ui/components/ZuneHub.kt`).
+Every hub is laid out by `ZuneHub` (`app/src/main/java/com/serkantkn/zeta/ui/components/ZuneHub.kt`).
 A hub supplies its title, headings, pages, bar commands and, on a tablet, what opens in the pane;
 `ZuneHub` picks the layout:
 
@@ -43,7 +43,9 @@ added to that list.
 
 ## Names the user sees
 
-The designs have names of their own. In everything a user can read - the app's strings, the store
+The product is **Zeta** - an interface suite for phone, tablet and TV, not only a launcher -
+package `com.serkantkn.zeta` (`.dev` for `premium`); `R.string.brand_name` is its name whatever the build
+(the TV's opening logos and shutdown panels show it with `ZetaMark`). The designs have names of their own. In everything a user can read - the app's strings, the store
 text, README, the site, PRIVACY, images and the promo video - they are **Aura** (the Zune layout),
 **Mozaik / Mosaic** (Windows Phone tiles), **Panorama** (the tablet's Windows 8 Start), **Konsol /
 Console** (the TV's Xbox 360 design) and **Salon / Lounge** (the TV's Media Center design). Zune,
@@ -54,8 +56,8 @@ this file and `TV.md` keep the old words. The Fluent UI icons' MIT attribution s
 
 ## Free and Pro
 
-The `free` flavour is the real app, `com.serkantkn.zunelauncher`, on Play and GitHub; `premium`
-is a development build, `com.serkantkn.zunelauncher.dev`, "Z Launcher Dev". Pro is bought once inside the app through Google Play (`data/billing/ProStore.kt`, product id
+The `free` flavour is the real app, `com.serkantkn.zeta`, on Play and GitHub; `premium`
+is a development build, `com.serkantkn.zeta.dev`, "Zeta Dev". Pro is bought once inside the app through Google Play (`data/billing/ProStore.kt`, product id
 `z_launcher_pro`); the `premium` flavour is always Pro. Whether it is Pro can change while running,
 so never read `BuildConfig.IS_PREMIUM`: use `util/Pro.kt` - `Pro.unlocked` while drawing (it
 recomposes), `Pro.flow` to combine with flows, `Pro.tell`/`Pro.orTell` to send the user to the Pro

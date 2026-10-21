@@ -212,8 +212,8 @@
             android:name=".data.service.CallActionReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.serkantkn.zunelauncher.CALL_ANSWER" />
-                <action android:name="com.serkantkn.zunelauncher.CALL_DECLINE" />
+                <action android:name="com.serkantkn.zeta.CALL_ANSWER" />
+                <action android:name="com.serkantkn.zeta.CALL_DECLINE" />
             </intent-filter>
         </receiver>
 

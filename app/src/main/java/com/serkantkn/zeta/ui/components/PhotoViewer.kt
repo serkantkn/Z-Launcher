@@ -1,0 +1,639 @@
+package com.serkantkn.zeta.ui.components
+
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusGroup
+import com.serkantkn.zeta.ui.tv.tvOwnFocus
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.serkantkn.zeta.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.serkantkn.zeta.data.model.MediaImage
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+
+/**
+ * Full-screen photo viewer overlay supporting horizontal swiping between photos,
+ * independent pinch-to-zoom without dismiss conflict, double-tap zoom, and smooth vertical drag-to-dismiss.
+ */
+@Composable
+fun PhotoViewer(
+    photos: List<MediaImage>?,
+    initialIndex: Int = 0,
+    favoritePhotoIds: Set<String>,
+    onDismiss: () -> Unit,
+    onToggleFavorite: (MediaImage) -> Unit,
+    onEditPhoto: (MediaImage) -> Unit = {},
+    onDeletePhoto: (MediaImage) -> Unit = {},
+    onShare: (MediaImage) -> Unit = {},
+    onSetWallpaper: (MediaImage) -> Unit = {},
+    /**
+     * A picture from outside the library - another app's attachment or download: it is not the
+     * launcher's to edit, delete or mark, so only what can be done with any picture is offered.
+     */
+    standalone: Boolean = false,
+    /** Opens already turning its pages, for a "play all". */
+    startSlideshow: Boolean = false
+) {
+    AnimatedVisibility(
+        visible = !photos.isNullOrEmpty(),
+        enter = fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                scaleIn(initialScale = 0.88f, animationSpec = tween(280, easing = FastOutSlowInEasing)),
+        exit = fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                scaleOut(targetScale = 0.88f, animationSpec = tween(220, easing = FastOutSlowInEasing))
+    ) {
+        if (photos.isNullOrEmpty()) return@AnimatedVisibility
+
+        val safeInitialIndex = initialIndex.coerceIn(0, photos.lastIndex)
+        val pagerState = rememberPagerState(
+            initialPage = safeInitialIndex,
+            pageCount = { photos.size }
+        )
+
+        var currentScale by remember { mutableFloatStateOf(1f) }
+        var currentDragOffsetY by remember { mutableFloatStateOf(0f) }
+        var showControls by remember { mutableStateOf(true) }
+        var showDetails by remember { mutableStateOf(false) }
+        var slideshow by remember { mutableStateOf(startSlideshow) }
+        // A slide show is a TV's screensaver of its own: the other one keeps away while it runs.
+        com.serkantkn.zeta.ui.tv.TvIdleHold(slideshow)
+
+        val currentPhoto = photos.getOrNull(pagerState.currentPage) ?: photos[0]
+        // Marked now by a key that survives a rescan, marked once by a plain id: both count.
+        val isFavorite = currentPhoto.stableKey in favoritePhotoIds ||
+            currentPhoto.id.toString() in favoritePhotoIds
+
+        // A slideshow turns the page by itself and gets the controls out of the way; any tap on
+        // the picture stops it, which is the only way out anybody looks for.
+        LaunchedEffect(slideshow, photos.size) {
+            if (!slideshow) return@LaunchedEffect
+            showControls = false
+            while (true) {
+                kotlinx.coroutines.delay(SLIDESHOW_MILLIS)
+                val next = (pagerState.currentPage + 1) % photos.size
+                pagerState.animateScrollToPage(next)
+            }
+        }
+
+        val backgroundAlpha = (1f - (abs(currentDragOffsetY) / 600f)).coerceIn(0.2f, 1f)
+
+        // A television's remote: the picture itself holds the focus, and while it does the left
+        // and right arrows turn to the photo before or after, the centre button shows or hides the
+        // controls (and stops a slideshow), up and down bring them. Once one of the controls has
+        // the focus, the arrows move between them as usual.
+        val isTv = com.serkantkn.zeta.ui.theme.LocalIsTv.current
+        val pictureFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+        var pictureFocused by remember { mutableStateOf(false) }
+        val remoteScope = rememberCoroutineScope()
+        if (isTv) {
+            LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(TV_FOCUS_DELAY_MILLIS)
+                runCatching { pictureFocus.requestFocus() }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = backgroundAlpha))
+                .then(
+                    if (!isTv) Modifier
+                    else Modifier
+                        // The remote stays in the viewer: the grid it was opened from is still
+                        // there underneath, and the arrows would wander off into it.
+                        .focusProperties { onExit = { cancelFocusChange() } }
+                        .focusGroup()
+                )
+        ) {
+            // On a TV, the remote's place on the picture: a point at its middle, beside the
+            // controls rather than round them, so the arrows go from it down to them and back up.
+            if (isTv) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(1.dp)
+                        .onKeyEvent { event ->
+                            if (!pictureFocused || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                            when (event.key) {
+                                Key.DirectionLeft, Key.DirectionRight -> {
+                                    val next = pagerState.currentPage + if (event.key == Key.DirectionLeft) -1 else 1
+                                    if (next in photos.indices) remoteScope.launch { pagerState.animateScrollToPage(next) }
+                                    true
+                                }
+                                Key.DirectionCenter, Key.Enter -> {
+                                    if (slideshow) slideshow = false
+                                    showControls = !showControls
+                                    true
+                                }
+                                Key.DirectionUp, Key.DirectionDown -> {
+                                    if (!showControls) { showControls = true; true } else false
+                                }
+                                else -> false
+                            }
+                        }
+                        .onFocusChanged { pictureFocused = it.isFocused }
+                        .focusRequester(pictureFocus)
+                        // The picture is the whole screen: framing it in white would only
+                        // frame the television.
+                        .tvOwnFocus()
+                        .focusable()
+                )
+            }
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = currentScale == 1f && currentDragOffsetY == 0f,
+                pageSpacing = 16.dp,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val photo = photos[page]
+                val isCurrentPage = page == pagerState.currentPage
+
+                ZoomablePhotoItem(
+                    photo = photo,
+                    isCurrentPage = isCurrentPage,
+                    onScaleChanged = { scale ->
+                        if (isCurrentPage) {
+                            currentScale = scale
+                        }
+                    },
+                    onDragOffsetYChanged = { dragY ->
+                        if (isCurrentPage) {
+                            currentDragOffsetY = dragY
+                        }
+                    },
+                    onDismiss = onDismiss,
+                    onToggleControls = {
+                        if (slideshow) {
+                            slideshow = false
+                            showControls = true
+                        } else {
+                            showControls = !showControls
+                        }
+                    }
+                )
+            }
+
+            // Top Info Bar (Photo Counter)
+            AnimatedVisibility(
+                visible = showControls && currentDragOffsetY == 0f && photos.size > 1,
+                enter = fadeIn(tween(180)),
+                exit = fadeOut(tween(180)),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(top = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${pagerState.currentPage + 1} / ${photos.size}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 15.sp
+                        ),
+                        color = Color.White.copy(alpha = 0.95f),
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.55f), shape = RoundedCornerShape(16.dp))
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            // Bottom Windows Phone Application Bar
+            AnimatedVisibility(
+                visible = showControls && currentDragOffsetY == 0f,
+                enter = fadeIn(tween(180)),
+                exit = fadeOut(tween(180)),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                WindowsPhoneBottomBar(
+                    actions = if (standalone) listOf(
+                        WpBarAction(
+                            icon = Icons.Default.Share,
+                            label = stringResource(R.string.common_share),
+                            onClick = { onShare(currentPhoto) }
+                        ),
+                        WpBarAction(
+                            icon = Icons.Default.Close,
+                            label = stringResource(R.string.common_close),
+                            onClick = onDismiss
+                        )
+                    ) else listOf(
+                        WpBarAction(
+                            icon = Icons.Default.Edit,
+                            label = stringResource(R.string.common_edit),
+                            onClick = { onEditPhoto(currentPhoto) }
+                        ),
+                        WpBarAction(
+                            icon = Icons.Default.Delete,
+                            label = stringResource(R.string.common_delete),
+                            onClick = { onDeletePhoto(currentPhoto) }
+                        ),
+                        WpBarAction(
+                            icon = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            label = stringResource(R.string.common_favorite),
+                            onClick = { onToggleFavorite(currentPhoto) }
+                        ),
+                        WpBarAction(
+                            icon = Icons.Default.Close,
+                            label = stringResource(R.string.common_close),
+                            onClick = onDismiss
+                        )
+                    ),
+                    menuItems = if (standalone) listOf(
+                        WpBarMenuItem(stringResource(R.string.pics_menu_wallpaper)) { onSetWallpaper(currentPhoto) },
+                        WpBarMenuItem(stringResource(R.string.pics_menu_details)) { showDetails = true }
+                    ) else listOf(
+                        WpBarMenuItem(stringResource(R.string.common_share)) { onShare(currentPhoto) },
+                        WpBarMenuItem(stringResource(R.string.pics_menu_wallpaper)) {
+                            onSetWallpaper(currentPhoto)
+                        },
+                        WpBarMenuItem(stringResource(R.string.pics_menu_slideshow)) {
+                            slideshow = true
+                        },
+                        WpBarMenuItem(stringResource(R.string.pics_menu_details)) { showDetails = true }
+                    )
+                )
+            }
+            if (showDetails) {
+                PhotoDetailsPanel(photo = currentPhoto, onDismiss = { showDetails = false })
+            }
+        }
+    }
+}
+
+/** How long a slideshow rests on each picture. */
+private const val SLIDESHOW_MILLIS = 3_500L
+
+/**
+ * Everything the picture itself knows about.
+ *
+ * The file's own size and shape come from the media store; the camera, the lens and the moment
+ * come from the EXIF block written by whatever took it, which many pictures — screenshots,
+ * downloads, anything re-encoded by a chat app — simply do not have. Those lines are left out
+ * rather than shown empty.
+ */
+@Composable
+private fun PhotoDetailsPanel(photo: MediaImage, onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val zuneColors = com.serkantkn.zeta.ui.theme.LocalZuneColors.current
+    var exif by remember(photo.uri) { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+
+    val cameraLabel = stringResource(R.string.pics_details_camera)
+    val lensLabel = stringResource(R.string.pics_details_lens)
+    val exposureLabel = stringResource(R.string.pics_details_exposure)
+
+    LaunchedEffect(photo.uri) {
+        exif = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.serkantkn.zeta.util.readPhotoExif(
+                context = context,
+                uri = photo.uri,
+                cameraLabel = cameraLabel,
+                lensLabel = lensLabel,
+                exposureLabel = exposureLabel
+            )
+        }
+    }
+
+    val rows = buildList {
+        add(stringResource(R.string.pics_details_name) to photo.displayName)
+        if (photo.bucketName.isNotBlank()) {
+            add(stringResource(R.string.pics_details_folder) to photo.bucketName)
+        }
+        add(
+            stringResource(R.string.pics_details_date) to java.text.SimpleDateFormat(
+                "d MMMM yyyy HH:mm",
+                java.util.Locale.getDefault()
+            ).format(java.util.Date(photo.dateAdded * 1000L))
+        )
+        if (photo.sizeBytes > 0L) {
+            add(
+                stringResource(R.string.pics_details_size) to
+                    com.serkantkn.zeta.util.formatFileSize(photo.sizeBytes)
+            )
+        }
+        if (photo.width > 0 && photo.height > 0) {
+            add(stringResource(R.string.pics_details_dimensions) to "${photo.width} × ${photo.height}")
+        }
+        if (photo.isVideo && photo.durationMillis > 0L) {
+            add(
+                stringResource(R.string.pics_details_duration) to
+                    com.serkantkn.zeta.util.formatDuration(photo.durationMillis)
+            )
+        }
+        if (photo.mimeType.isNotBlank()) {
+            add(stringResource(R.string.pics_details_type) to photo.mimeType)
+        }
+        addAll(exif)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.78f))
+            .pointerInput(Unit) { detectTapGestures { onDismiss() } }
+    ) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(if (zuneColors.isDark) Color(0xFF121212) else Color.White)
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 20.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.pics_details_title),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Light),
+                color = zuneColors.accentColor,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            rows.forEach { (label, value) ->
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 5.dp)
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = zuneColors.textDim,
+                        modifier = Modifier.width(110.dp)
+                    )
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoomablePhotoItem(
+    photo: MediaImage,
+    isCurrentPage: Boolean,
+    onScaleChanged: (Float) -> Unit,
+    onDragOffsetYChanged: (Float) -> Unit,
+    onDismiss: () -> Unit,
+    onToggleControls: () -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    val dragOffsetYAnim = remember { Animatable(0f) }
+
+    LaunchedEffect(isCurrentPage) {
+        if (!isCurrentPage) {
+            scale = 1f
+            offset = Offset.Zero
+            dragOffsetYAnim.snapTo(0f)
+            onScaleChanged(1f)
+            onDragOffsetYChanged(0f)
+        }
+    }
+
+    val dragScaleFactor = (1f - (abs(dragOffsetYAnim.value) / 750f)).coerceIn(0.45f, 1f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(photo.id) {
+                detectTapGestures(
+                    onTap = {
+                        if (scale > 1.05f) {
+                            coroutineScope.launch {
+                                val scaleAnim = Animatable(scale)
+                                val offsetAnimX = Animatable(offset.x)
+                                val offsetAnimY = Animatable(offset.y)
+                                launch { scaleAnim.animateTo(1f, tween(200)) { scale = value; onScaleChanged(value) } }
+                                launch { offsetAnimX.animateTo(0f, tween(200)) { offset = offset.copy(x = value) } }
+                                launch { offsetAnimY.animateTo(0f, tween(200)) { offset = offset.copy(y = value) } }
+                            }
+                        } else {
+                            onToggleControls()
+                        }
+                    },
+                    onDoubleTap = { tapOffset ->
+                        coroutineScope.launch {
+                            val targetScale = if (scale > 1.2f) 1f else 2.5f
+                            val centerX = size.width / 2f
+                            val centerY = size.height / 2f
+                            val targetOffset = if (targetScale == 1f) {
+                                Offset.Zero
+                            } else {
+                                Offset(
+                                    x = (centerX - tapOffset.x) * (targetScale - 1f),
+                                    y = (centerY - tapOffset.y) * (targetScale - 1f)
+                                )
+                            }
+
+                            val scaleAnim = Animatable(scale)
+                            val offsetAnimX = Animatable(offset.x)
+                            val offsetAnimY = Animatable(offset.y)
+
+                            launch {
+                                scaleAnim.animateTo(targetScale, tween(250, easing = FastOutSlowInEasing)) {
+                                    scale = value
+                                    onScaleChanged(value)
+                                }
+                            }
+                            launch {
+                                offsetAnimX.animateTo(targetOffset.x, tween(250, easing = FastOutSlowInEasing)) {
+                                    offset = offset.copy(x = value)
+                                }
+                            }
+                            launch {
+                                offsetAnimY.animateTo(targetOffset.y, tween(250, easing = FastOutSlowInEasing)) {
+                                    offset = offset.copy(y = value)
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+            .pointerInput(photo.id) {
+                awaitEachGesture {
+                    var isZooming = false
+                    var isVerticalDrag = false
+                    var isHorizontalSwipe = false
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val pointerCount = event.changes.size
+
+                        if (pointerCount >= 2) {
+                            // Two or more fingers: Pure pinch-to-zoom & pan. Dismiss gesture is NEVER active.
+                            isZooming = true
+                            isVerticalDrag = false
+                            if (dragOffsetYAnim.value != 0f) {
+                                coroutineScope.launch { dragOffsetYAnim.snapTo(0f) }
+                                onDragOffsetYChanged(0f)
+                            }
+
+                            val zoomChange = event.calculateZoom()
+                            val panChange = event.calculatePan()
+
+                            val newScale = (scale * zoomChange).coerceIn(1f, 5f)
+                            scale = newScale
+                            onScaleChanged(newScale)
+
+                            if (newScale > 1f) {
+                                val maxOffsetX = (size.width * (newScale - 1f)) / 2f
+                                val maxOffsetY = (size.height * (newScale - 1f)) / 2f
+                                offset = Offset(
+                                    x = (offset.x + panChange.x).coerceIn(-maxOffsetX, maxOffsetX),
+                                    y = (offset.y + panChange.y).coerceIn(-maxOffsetY, maxOffsetY)
+                                )
+                            } else {
+                                offset = Offset.Zero
+                            }
+
+                            event.changes.forEach { it.consume() }
+                        } else if (pointerCount == 1) {
+                            val change = event.changes[0]
+
+                            if (scale > 1.05f && !isVerticalDrag) {
+                                // Zoomed in: 1-finger panning within image bounds
+                                val pan = change.position - change.previousPosition
+                                val maxOffsetX = (size.width * (scale - 1f)) / 2f
+                                val maxOffsetY = (size.height * (scale - 1f)) / 2f
+                                offset = Offset(
+                                    x = (offset.x + pan.x).coerceIn(-maxOffsetX, maxOffsetX),
+                                    y = (offset.y + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
+                                )
+                                change.consume()
+                            } else if (scale <= 1.05f && !isZooming) {
+                                // At 1x scale: separate vertical dismiss drag from horizontal pager swipe
+                                val deltaY = change.position.y - change.previousPosition.y
+                                val deltaX = change.position.x - change.previousPosition.x
+
+                                if (!isVerticalDrag && !isHorizontalSwipe) {
+                                    if (abs(deltaY) > 8f && abs(deltaY) > abs(deltaX) * 1.35f) {
+                                        isVerticalDrag = true
+                                    } else if (abs(deltaX) > 8f) {
+                                        isHorizontalSwipe = true
+                                    }
+                                }
+
+                                if (isVerticalDrag) {
+                                    val newDragY = dragOffsetYAnim.value + deltaY
+                                    coroutineScope.launch {
+                                        dragOffsetYAnim.snapTo(newDragY)
+                                    }
+                                    onDragOffsetYChanged(newDragY)
+                                    change.consume()
+                                }
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+
+                    // All pointers released
+                    if (isVerticalDrag) {
+                        if (abs(dragOffsetYAnim.value) > 170f) {
+                            onDismiss()
+                        } else {
+                            coroutineScope.launch {
+                                dragOffsetYAnim.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    )
+                                )
+                                onDragOffsetYChanged(0f)
+                            }
+                        }
+                    }
+
+                    if (scale < 1.05f) {
+                        scale = 1f
+                        offset = Offset.Zero
+                        onScaleChanged(1f)
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        AsyncImage(
+            model = photo.uri,
+            contentDescription = photo.displayName,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale * dragScaleFactor
+                    scaleY = scale * dragScaleFactor
+                    translationX = offset.x
+                    translationY = offset.y + dragOffsetYAnim.value
+                }
+        )
+    }
+}
+
+/** Long enough for the viewer to be laid out before the picture asks for a TV remote's keys. */
+private const val TV_FOCUS_DELAY_MILLIS = 150L

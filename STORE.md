@@ -9,9 +9,9 @@ Karakter sınırları Play'in kendi sınırlarıdır; her metnin sonunda kullan�
 ### Uygulama adı (en fazla 30)
 
 ```
-Z Launcher: Canlı Karolar
+Zeta: Canlı Karolar
 ```
-*(25 karakter)*
+*(19 karakter)*
 
 ### Kısa açıklama (en fazla 80)
 
@@ -23,8 +23,9 @@ Canlı karolar, hub'lar ve dev yazılı listeler: telefonuna baştan, yeni bir d
 ### Tam açıklama (en fazla 4000)
 
 ```
-Canlı karoları ve hub'ları özleyenler için baştan yazılmış bir başlatıcı. Canlı kutucuklar, hub'lar,
-turnike animasyonları ve ince, büyük yazılar — hepsi bugünün Android'inde çalışıyor.
+Telefon, tablet ve televizyon için baştan yazılmış bir arayüz paketi. Canlı kutucuklar, hub'lar,
+turnike animasyonları ve ince, büyük yazılar — hepsi bugünün Android'inde, hepsi aynı dilde; telefon
+bağlantısıyla cihazların birbirinden haberi olur.
 
 BAŞLANGIÇ EKRANI
 • Küçük, orta, geniş ve büyük kutucuklar; istediğin gibi yerleştir
@@ -45,7 +46,7 @@ HUB'LAR
 • Saat, Takvim, Hava Durumu, Hesap Makinesi, Dosyalar, Kamera
 
 TELEVİZYON
-Android TV ve Google TV'de Z Launcher iki tasarımdan biriyle kumandayla kullanılır:
+Android TV ve Google TV'de Zeta iki tasarımdan biriyle kumandayla kullanılır:
 • İki tasarım: Konsol (gri zemin, yeşil karolar, üstte bölümler) ya da Salon (dönen kategoriler, cam kutu); ikisinde de açılış logosu ve gezinme sesleri
 • Kumandayla çalışan hub'lar: müzik, videolar, resimler, hava durumu, haberler, saat, dosyalar
 • Yarıda kalan filme devam et, televizyonun uygulamaları kendi afişleriyle
@@ -54,7 +55,7 @@ Android TV ve Google TV'de Z Launcher iki tasarımdan biriyle kumandayla kullan�
 • Telefon bağlantısı: telefonuna gelen aramalar ve mesajlar televizyonun köşesinde. Aynı Wi-Fi, 6 haneli kodla eşleme, şifreli, sunucusuz; mesaj metni sen istemedikçe gitmez
 
 AYRICA
-• Z Launcher klavyesi (Pro)
+• Zeta klavyesi (Pro)
 • Ses çubuğundan bildirim şeridine kadar aynı arayüz
 • Türkçe ve İngilizce
 • Karanlık ve aydınlık tema, vurgu rengi seçimi
@@ -78,9 +79,9 @@ Gizlilik politikası: <gizlilik politikası adresini buraya yaz>
 ### App name (max 30)
 
 ```
-Z Launcher: Live Tiles
+Zeta: Live Tiles
 ```
-*(22 characters)*
+*(16 characters)*
 
 ### Short description (max 80)
 
@@ -92,8 +93,9 @@ Live tiles, hubs and big-type lists: a whole new language for your phone.
 ### Full description (max 4000)
 
 ```
-A launcher written from scratch for anyone who misses live tiles and hubs. Live tiles, hubs,
-turnstile animations and thin, big type — all of it running on today's Android.
+An interface suite for phone, tablet and television, written from scratch. Live tiles, hubs,
+turnstile animations and thin, big type — all of it on today's Android, all in one language; the
+phone link lets your devices know of each other.
 
 START SCREEN
 • Small, medium, wide and large tiles, arranged how you like
@@ -114,7 +116,7 @@ HUBS
 • Clock, Calendar, Weather, Calculator, Files, Camera
 
 TELEVISION
-On Android TV and Google TV, Z Launcher is worked with the remote in one of two designs:
+On Android TV and Google TV, Zeta is worked with the remote in one of two designs:
 • Two designs: Console (a grey ground, green tiles, sections along the top) or Lounge (turning categories, a pane of glass); both with a logo at launch and navigation sounds
 • Hubs worked with the remote: music, videos, pictures, weather, news, clock, files
 • Continue the film you left, the TV's apps by their own banners
@@ -123,7 +125,7 @@ On Android TV and Google TV, Z Launcher is worked with the remote in one of two 
 • Phone link: calls and messages to your phone in the corner of the TV. Same Wi-Fi, paired by a six-digit code, encrypted, no server; the message text stays on the phone unless you allow it
 
 ALSO
-• Z Launcher's own keyboard (Pro)
+• Zeta's own keyboard (Pro)
 • The same interface throughout, from the volume bar to the notification banner
 • Turkish and English
 • Dark and light themes, your choice of accent colour

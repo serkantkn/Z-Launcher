@@ -33,7 +33,7 @@ olmalı, yoksa ilk ret ikincisini de getirir.
 > **Android TV'de** servis başka işler yapar (aynı servis, aynı ayar dosyası):
 >
 > - Donanım tuşu filtreleme: yalnızca kumandanın Home tuşu (`KEYCODE_HOME`) işlenir; Google TV
->   ana ekranı yerine Z Launcher açılır. Diğer bütün tuşlar sisteme olduğu gibi geçer.
+>   ana ekranı yerine Zeta açılır. Diğer bütün tuşlar sisteme olduğu gibi geçer.
 > - Genel eylemler: kullanıcı televizyon arayüzünün "kapat" penceresinde "TV'yi kapat"ı seçerse
 >   `GLOBAL_ACTION_POWER_DIALOG`, "uyku"yu seçerse `GLOBAL_ACTION_LOCK_SCREEN`. Kendiliğinden
 >   hiçbir zaman çağrılmaz.
@@ -43,7 +43,7 @@ olmalı, yoksa ilk ret ikincisini de getirir.
 
 **Bu, uygulamanın hangi işlevi için gerekli?**
 
-> Z Launcher, canlı karolar ve hub'lardan kendi arayüzünü kuran bir başlatıcıdır. Servis bu arayüzün iki
+> Zeta, canlı karolar ve hub'lardan kendi arayüzünü kuran bir başlatıcıdır. Servis bu arayüzün iki
 > parçası içindir ve her ikisi de kullanıcı ayarlardan açmadıkça çalışmaz:
 >
 > 1. **Ses çubuğu.** Android'de donanım tuşları yalnızca ön plandaki uygulamaya ulaşır; başlatıcı
@@ -56,7 +56,7 @@ olmalı, yoksa ilk ret ikincisini de getirir.
 >    ekranında hiçbir şey yapmaz; orada Android'in kendi paneli kalır.
 
 > 3. **Televizyonda Home tuşu.** Google TV, kullanıcı başka bir başlatıcı seçse bile kumandanın
->    Home tuşunu kendi ana ekranına bağlar. Z Launcher'ın televizyonda ana ekran olarak
+>    Home tuşunu kendi ana ekranına bağlar. Zeta'nın televizyonda ana ekran olarak
 >    kullanılabilmesinin tek yolu bu tuşu servisle yakalamaktır. Aynı servis, kullanıcının
 >    seçtiği "TV'yi kapat / uyku" eylemlerini ve eşlenen telefonun bildirimini gösterir.
 
@@ -68,9 +68,9 @@ olmalı, yoksa ilk ret ikincisini de getirir.
 > hiçbir şey kaydetmediği ve dışarı göndermediği yazar; "Kabul et" ve "İptal" düğmeleri vardır.
 > Yalnızca "Kabul et"e basınca ayarlar açılır. Aynı açıklama Android'in erişilebilirlik
 > ekranında servisin altında da görünür (`accessibility_service_description`).
-> Televizyonda kutu Ayarlar → sistem → ana ekran → "Home tuşu Z Launcher'ı açsın"dan çıkar ve
+> Televizyonda kutu Ayarlar → sistem → ana ekran → "Home tuşu Zeta'yı açsın"dan çıkar ve
 > servisin televizyondaki üç işini anlatır (`a11y_disclosure_body_tv`); televizyonda servisin
-> adı "Z Launcher Home tuşu"dur.
+> adı "Zeta Home tuşu"dur.
 
 **Toplanan veri:** Hiçbiri. Servis hiçbir şey kaydetmez, saklamaz ve göndermez. Pencere türü,
 konumu ve SystemUI olaylarının metni yalnızca o an karar vermek için kullanılır ve atılır.
@@ -79,7 +79,7 @@ konumu ve SystemUI olaylarının metni yalnızca o an karar vermek için kullan�
 bir uygulama açıkken ses tuşuna basınca uygulamanın ses çubuğu → durum çubuğundan çekince
 eylem merkezi. **Televizyon için ikinci bir parça ekle:** TV'de ayarlar → sistem → ana ekran →
 açıklama kutusu → kabul → servisi açma → başka bir uygulama (ör. YouTube) açıkken Home tuşu →
-Z Launcher açılır; Görevler → kapat → "uyku". Play Console tek video alanı veriyor; iki parçayı tek
+Zeta açılır; Görevler → kapat → "uyku". Play Console tek video alanı veriyor; iki parçayı tek
 videoda birleştir.
 
 ---
@@ -87,7 +87,7 @@ videoda birleştir.
 ## 2. SMS ve Çağrı Kaydı izin beyanı
 
 Google bu izinleri yalnızca varsayılan SMS veya telefon uygulaması olabilen uygulamalara
-verir. Z Launcher her iki rolü de üstlenebilir: manifestte `ACTION_SENDTO` (sms/smsto/mms),
+verir. Zeta her iki rolü de üstlenebilir: manifestte `ACTION_SENDTO` (sms/smsto/mms),
 `ACTION_DIAL`, `ACTION_CALL` niyet filtreleri, `HeadlessSmsSendService`, `WpInCallService`,
 `SmsReceiver` ve `MmsReceiver` tanımlıdır.
 
@@ -107,7 +107,7 @@ birlikte verir; rehber ve SIM bilgisi gibi rolün kapsamadığı izinler ancak r
 istenir. Uygulama varsayılan değilken bu izinler hiç istenmez.
 
 **Telefon bağlantısı bu izinleri istemez.** Telefona gelen aramayı ve mesajı eşlenen
-televizyona bildiren özellik, Z Launcher varsayılan telefon/SMS uygulamasıysa rolün verdiği
+televizyona bildiren özellik, Zeta varsayılan telefon/SMS uygulamasıysa rolün verdiği
 izinleri kullanır; değilse aramaları ve mesajları o uygulamaların **bildirimlerinden** okur
 (bildirim dinleyicisi, bölüm 4). Kendisi yalnızca `READ_PHONE_STATE` (çalıyor / cevaplandı /
 bitti) ve `READ_CONTACTS` (numarayı ada çevirmek) ister; ikisi de bu beyanın kapsamında değildir.
@@ -224,7 +224,7 @@ kaydı gerekmez. Manifest Android TV'nin şartlarını karşılıyor:
   kapalıyken uygulama yine çalışıyor (Home tuşu Google TV'yi açar). Ret gelirse ilk yapılacak:
   TV'de servisi tamamen kaldırıp Home tuşu özelliğini bırakmak; TV'nin geri kalanı etkilenmez.
 - **"Başlatıcı" olarak TV.** Google TV, varsayılan başlatıcının değiştirilmesine izin vermiyor;
-  Z Launcher TV'de sıradan bir uygulama olarak açılır. Mağaza metninde "Google TV'nin ana
+  Zeta TV'de sıradan bir uygulama olarak açılır. Mağaza metninde "Google TV'nin ana
   ekranının yerine geçer" gibi bir vaat yazma — metinler bu yüzden "olur", "açılır" diyor.
 
 ## 7. Yayın öncesi kontrol listesi

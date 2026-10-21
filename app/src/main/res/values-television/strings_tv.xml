@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- On a television the accessibility service has one job, and says so where Android lists it. -->
 <resources>
-    <string name="label_key_service">Z Launcher Home button</string>
-    <string name="accessibility_service_description">On a TV it does three things: it sees the remote\'s Home button pressed and opens Z Launcher instead of the TV\'s own home screen; from the \"shutdown\" panel, when you choose it, it opens the TV\'s power menu or puts it to sleep; and it shows the call and message notices from a phone you paired over other apps. It touches no other key, reads nothing on the screen, records nothing and sends nothing anywhere.</string>
+    <string name="label_key_service">Zeta Home button</string>
+    <string name="accessibility_service_description">On a TV it does three things: it sees the remote\'s Home button pressed and opens Zeta instead of the TV\'s own home screen; from the \"shutdown\" panel, when you choose it, it opens the TV\'s power menu or puts it to sleep; and it shows the call and message notices from a phone you paired over other apps. It touches no other key, reads nothing on the screen, records nothing and sends nothing anywhere.</string>
     <!-- The two Starts as a television has them. -->
     <string name="settings_layout_zune">lounge</string>
     <string name="settings_layout_zune_sub">Lounge\'s list: the places as huge words, what each holds beside it</string>
@@ -13,7 +13,7 @@
     <string name="pics_empty_camera_roll">no pictures on this TV yet</string>
     <string name="pics_empty_camera_roll_hint">pictures copied over, cast or on a USB stick appear here</string>
     <!-- What the phone\'s wording says of "the phone", said of the TV. -->
-    <string name="music_permission_message">Z Launcher needs permission to read the music on this TV.</string>
+    <string name="music_permission_message">Zeta needs permission to read the music on this TV.</string>
     <string name="music_no_albums_hint">albums appear once there is music on the TV or a USB stick</string>
     <string name="music_no_artists_hint">artists appear once there is music on the TV or a USB stick</string>
     <string name="music_not_found_hint">copy some music onto the TV or plug in a USB stick and it turns up here</string>

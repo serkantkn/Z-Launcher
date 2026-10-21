@@ -8,9 +8,9 @@ yeniden üretmek yerine elle değiştirirsen ikisi birbirinden ayrılır.
 GitHub Pages'i açmak için: repo → Settings → Pages → Source: `main`, klasör: `/docs`.
 Adres şu olur:
 
-- Tanıtım sitesi: `https://serkantkn.github.io/Z-Launcher/`
-- Gizlilik, Türkçe: `https://serkantkn.github.io/Z-Launcher/gizlilik.html`
-- Privacy, English: `https://serkantkn.github.io/Z-Launcher/privacy.html`
+- Tanıtım sitesi: `https://serkantkn.github.io/Zeta/`
+- Gizlilik, Türkçe: `https://serkantkn.github.io/Zeta/gizlilik.html`
+- Privacy, English: `https://serkantkn.github.io/Zeta/privacy.html`
 
 Play Console'da "Gizlilik Politikası" alanına gizlilik sayfasının adresini yaz. Yayımlamadan önce her iki
 dosyadaki **iletişim e-posta adresi** yer tutucusunu doldurmayı unutma.

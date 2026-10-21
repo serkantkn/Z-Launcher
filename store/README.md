@@ -8,7 +8,7 @@
 | `play_store_icon.png` | Uygulama ikonu, 512 × 512 | Hazır |
 | `tv-banner.png` | Android TV afişi, 1280 × 720 | Hazır |
 | `screenshots-tv/*.png` | TV ekran görüntüleri, 1920 × 1080 | Hazır (gerçek Mi TV, örnek içerik) |
-| `z-launcher-tanitim.mp4` | Tanıtım videosu, 1920 × 1080, 60 kare/sn, 96 sn, müzikli | Hazır (emülatör çekimi; `video/` yeniden kurar) |
+| `zeta-tanitim.mp4` | Tanıtım videosu, 1920 × 1080, 60 kare/sn, 96 sn, müzikli | Hazır (emülatör çekimi; `video/` yeniden kurar) |
 
 Metinler (uygulama adı, kısa ve tam açıklama, iki dilde) `../STORE.md` dosyasında.
 
@@ -36,7 +36,7 @@ Play en az 2, en fazla 8 telefon görüntüsü ister; 16:9 ile 9:16 arasında, k
 
 ## Tanıtım videosu hakkında
 
-`z-launcher-tanitim.mp4` — 1920 × 1080, 60 kare/sn, 96 sn, Pixabay'den telifsiz bir müzikle. Her
+`zeta-tanitim.mp4` — 1920 × 1080, 60 kare/sn, 96 sn, Pixabay'den telifsiz bir müzikle. Her
 arayüz kendi cihazının çerçevesinde (telefon, tablet, televizyon), o tasarımın renklerinde sade bir
 zeminde oynuyor; açılış ve kapanışta üç cihaz birlikte, sonda "çok yakında". Sırası: Aura (telefon),
 Mozaik, Aura (tablet), Panorama, Konsol, Salon.

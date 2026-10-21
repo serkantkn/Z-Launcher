@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The Z Launcher promo, second cut: each interface plays inside its device's frame on a plain,
+"""The Zeta promo, second cut: each interface plays inside its device's frame on a plain,
 slowly moving ground in that design's colours. No scenes."""
 import subprocess, sys, os
 
@@ -138,7 +138,7 @@ def lineup(name, dur, lines, outro=False):
     specs = [('tv', 'xbox', 980, 470, 150), ('tablet', 'zune_tablet', 760, 90, 360), ('phone', 'wp_phone', 250, 1430, 330)]
     idx = 0
     for k, (kind, bodyname, width, x, y) in enumerate(specs):
-        ss = 2.0 if outro else 0.0
+        ss = (6.0 if kind == "tv" else 2.0) if outro else (3.4 if kind == "tv" else 0.0)
         ins += ['-ss', str(ss), '-i', f'{W}/body_{bodyname}.mp4']; bi = idx; idx += 1
         ins += frame_inputs(kind, dur); fi = idx; idx += 2
         fl.append(f'[{bi}:v]tpad=stop_mode=clone:stop_duration={dur},fps={FPS},trim=duration={dur}[b{k}]')
@@ -161,10 +161,10 @@ TR = [('intro', None, 0), ('zune_phone', 'circleopen', 0.7), ('wp_phone', 'slide
 
 if not ONLY or any(o.startswith('v2') or o == 'segs' for o in ONLY):
     lineup('intro', D['intro'], [
-        text('Z Launcher', LIGHT, 150, 0, 820 - 120 * 0, 1.6, dx=0, center=True).replace('y=700', 'y=700'),
+        text('Zeta', LIGHT, 150, 0, 820 - 120 * 0, 1.6, dx=0, center=True).replace('y=700', 'y=700'),
     ] if False else [
-        text('Z Launcher', LIGHT, 130, 0, 860, 1.8, dx=0, center=True),
-        text('telefon · tablet · televizyon', REG, 44, 0, 1010, 2.6, color='0xff8cc0', dx=0, center=True),
+        text('Zeta', LIGHT, 130, 0, 860, 1.8, dx=0, center=True),
+        text('telefon · tablet · televizyon için bir arayüz', REG, 44, 0, 1010, 2.6, color='0xff8cc0', dx=0, center=True),
     ])
     section('zune_phone', 'phone', 'zune_phone', ('0xe0157a', '0xff7a2a', '0x7a0d55'), 'aura', 'telefon', 'kayar hub listesi', '0xffe0c2', D['zune_phone'])
     section('wp_phone', 'phone', 'wp_phone', ('0x050505', '0x5c0b35', '0x111111'), 'mozaik', 'telefon', 'canlı karolar', '0xff5fa8', D['wp_phone'])
@@ -173,8 +173,9 @@ if not ONLY or any(o.startswith('v2') or o == 'segs' for o in ONLY):
     section('xbox', 'tv', 'xbox', ('0x2b2f31', '0x1f7a1f', '0x4a4f52'), 'konsol', 'televizyon', 'rehber · görselleştirici', '0x9cf09c', D['xbox'])
     section('mc', 'tv', 'mc', ('0x061631', '0x0b4aa2', '0x04101f'), 'salon', 'televizyon', 'oturma odası için', '0x9fd2ff', D['mc'])
     lineup('outro', D['outro'], [
-        text('çok yakında', BOLD, 96, 0, 820, 1.6, color='0xff3d9a', dx=0, center=True),
-        text('Z Launcher  ·  Google Play  ·  GitHub', REG, 46, 0, 950, 2.4, color='white@0.92', dx=0, center=True),
+        text('Zeta', LIGHT, 110, 0, 770, 0.9, dx=0, center=True),
+        text('çok yakında', BOLD, 76, 0, 905, 1.6, color='0xff3d9a', dx=0, center=True),
+        text('Google Play  ·  GitHub', REG, 40, 0, 1005, 2.4, color='white@0.92', dx=0, center=True),
     ], outro=True)
 
 if not ONLY or 'final' in ONLY:
@@ -191,4 +192,4 @@ if not ONLY or 'final' in ONLY:
     ins += ['-i', MUSIC]
     fl.append(f'[{len(TR)}:a]atrim=0:{t},afade=t=in:d=0.5,afade=t=out:st={t - 2.0}:d=2.0[a]')
     ff(ins + ['-filter_complex', ';'.join(fl), '-map', prev, '-map', '[a]', '-c:v', 'libx264', '-crf', '17', '-preset', 'slow',
-              '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', f'{P}/z_launcher_tanitim_v2.mp4'], 'final')
+              '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', f'{P}/zeta_tanitim.mp4'], 'final')

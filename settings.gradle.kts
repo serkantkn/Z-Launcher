@@ -26,5 +26,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Z Launcher"
+rootProject.name = "Zeta"
 include(":app")

@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.serkantkn.zunelauncher"
+    namespace = "com.serkantkn.zeta"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.serkantkn.zunelauncher"
+        applicationId = "com.serkantkn.zeta"
         minSdk = 28
         targetSdk = 36
         versionCode = 1
