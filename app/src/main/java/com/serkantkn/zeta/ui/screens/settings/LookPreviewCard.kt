@@ -64,7 +64,7 @@ fun LookPreviewCard(
     hubBackgroundOpacity: Float,
     hubBackgroundMode: HubBackgroundMode,
     homeScreenLayout: HomeScreenLayout = HomeScreenLayout.ZUNE,
-    zuneGlow: com.serkantkn.zeta.data.model.ZuneGlow = com.serkantkn.zeta.data.model.ZuneGlow.OFF,
+    zuneGlow: com.serkantkn.zeta.data.model.ZuneGlow = com.serkantkn.zeta.data.model.ZuneGlow.ZUNE,
     modifier: Modifier = Modifier
 ) {
     val isDark = themeMode == ThemeMode.DARK

@@ -727,7 +727,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     val zuneGlow: StateFlow<com.serkantkn.zeta.data.model.ZuneGlow> =
-        settingsDataStore.zuneGlow.asState(com.serkantkn.zeta.data.model.ZuneGlow.OFF)
+        settingsDataStore.zuneGlow.asState(com.serkantkn.zeta.data.model.ZuneGlow.ZUNE)
 
     fun setZuneGlow(glow: com.serkantkn.zeta.data.model.ZuneGlow) {
         viewModelScope.launch { settingsDataStore.setZuneGlow(glow) }

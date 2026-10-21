@@ -66,7 +66,7 @@ telefonlarında çalışıyor — ve hiçbir şeyi hiçbir yere göndermiyor.
   <img src="docs/img/baslangic-acik.png" width="150" alt="Açık tema">
   <img src="docs/img/gorunum.png" width="150" alt="Görünüm ayarları">
 </p>
-<p align="center"><sub>Varsayılan renk tasarıma göre (Mozaik mavi, Aura turuncu, Panorama kırmızı, Konsol yeşil); on dört vurgu rengi, özel renk, koyu ve açık tema, saydamlık, köşe biçimi, karo aralığı.</sub></p>
+<p align="center"><sub>Varsayılan renk tasarıma göre (Mozaik mavi, Aura turuncu, Panorama kırmızı, Konsol yeşil), Aura'nın arkasında magentadan turuncuya bir ışıltı; on dört vurgu rengi, özel renk, koyu ve açık tema, saydamlık, köşe biçimi, karo aralığı.</sub></p>
 
 ## Aura düzeni
 
@@ -386,7 +386,7 @@ Start, messages, music and the TV all speak one language, and the phone link let
   timeout, rotation, ringer, volumes, tones and touch sounds; connections shows airplane mode, Wi-Fi,
   Bluetooth, mobile data, roaming, data usage, hotspot, location, NFC, VPN and casting as they are and opens
   Android's own switch for each; about lists this device.
-- **Looks.** By default the accent follows the design (Mosaic blue, Aura orange, Panorama red, Console green), with solid tiles 5 dp apart; fourteen accent colours and a custom one, dark and light themes, tile transparency and frost,
+- **Looks.** By default the accent follows the design (Mosaic blue, Aura orange, Panorama red, Console green), Aura on its magenta-to-orange glow, with solid tiles 5 dp apart; fourteen accent colours and a custom one, dark and light themes, tile transparency and frost,
   corner style and spacing. Zeta's own keyboard *(Pro)*.
 - **Free and Pro.** Start, every hub, the action center, the tablet layout, the TV interface (both designs and
   the phone link) and the default-app roles are whole in the free edition. Pro is one purchase inside the app, through Google Play (settings → about → Zeta

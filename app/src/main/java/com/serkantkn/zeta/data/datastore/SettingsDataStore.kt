@@ -334,10 +334,10 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    /** The Zune layout's ground: the wallpaper, or a glow of colour. */
+    /** The Zune layout's ground: a glow of colour - its own, by default - or the wallpaper. */
     val zuneGlow: Flow<com.serkantkn.zeta.data.model.ZuneGlow> = context.settingsDataStore.data.map { prefs ->
-        runCatching { com.serkantkn.zeta.data.model.ZuneGlow.valueOf(prefs[ZUNE_GLOW] ?: "OFF") }
-            .getOrDefault(com.serkantkn.zeta.data.model.ZuneGlow.OFF)
+        runCatching { com.serkantkn.zeta.data.model.ZuneGlow.valueOf(prefs[ZUNE_GLOW] ?: "ZUNE") }
+            .getOrDefault(com.serkantkn.zeta.data.model.ZuneGlow.ZUNE)
     }
 
     /** The accent as chosen in settings, [AccentColor.LAYOUT] until one is. */
