@@ -12,10 +12,12 @@ A hub supplies its title, headings, pages, bar commands and, on a tablet, what o
   comes in on "recent" and glides round to "all" (`glideFrom`). No other hub uses either.
 - **Tablet:** small title at the top left, headings down the left, the page beside them, an optional
   pane for whatever is open, and the Windows 8 bar.
-- **Zune layout, phone:** the main hubs - phone, people, messaging, pictures, and music with its
-  own menu - stand under a huge, bold, slightly see-through title across the top that runs off the
-  right edge and slides left as the pages turn; touching it goes back. The name touched in the Zune
-  list flies up to become it (`ui/animation/ZuneHubFlight.kt`). Pages opened inside those hubs from
+- **Zune layout, phone:** every hub but the camera - music with its own menu - stands under a
+  huge, bold, slightly see-through title across the top that runs off the right edge and slides
+  left as the pages turn; touching it goes back. The name touched in the Zune list flies up to
+  become it (`ui/animation/ZuneHubFlight.kt`), and when the hub closes the title flies back down
+  onto that name (`closeHub`, called from `LauncherScreen`) as the hub fades and the list comes in.
+  Weather and files, which lay themselves out, draw it with `ZuneTitledHeader`. Pages opened inside those hubs from
   a name - a conversation, a contact, a group, an album, a music list - do the same and send the
   title back down on closing: mark the name with `Modifier.zuneFlightLabel(id, ...)`, call
   `openPage`/`closePage`, and give the page a `ZuneHubFlightTitle` with the same key. A hub opts in with `ZuneHub(zuneTitleKey = ...)`;

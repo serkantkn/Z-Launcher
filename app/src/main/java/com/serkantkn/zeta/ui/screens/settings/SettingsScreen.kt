@@ -218,6 +218,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.common_settings),
                 tabs = tabs.map { stringResource(it.titleRes) },
                 pager = pager,
+                zuneTitleKey = "SETTINGS",
                 phonePeek = true
             ) { index ->
                 // A settings page is a list of lines; across a whole tablet they would be too

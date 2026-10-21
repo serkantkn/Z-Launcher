@@ -1117,8 +1117,18 @@ fun FilesHubScreen(
                                     .fillMaxSize()
                                     .graphicsLayer { alpha = contentAlpha.value }
                             ) {
+                                val zuneTitled = !isWideScreen && com.serkantkn.zeta.ui.animation.LocalZuneMotion.current
                                 if (isWideScreen) {
                                     ZuneWideHubTitle(text = stringResource(R.string.hub_files))
+                                } else if (zuneTitled) {
+                                    // The Zune layout: the hub's name huge and heavy at the top,
+                                    // where its word from the list lands, the headings small under it.
+                                    com.serkantkn.zeta.ui.components.ZuneTitledHeader(
+                                        title = stringResource(R.string.hub_files),
+                                        key = com.serkantkn.zeta.data.model.HubType.FILES.name,
+                                        tabs = tabs,
+                                        pager = pager
+                                    )
                                 } else {
                                     Text(
                                         text = stringResource(R.string.hub_files),
@@ -1141,7 +1151,7 @@ fun FilesHubScreen(
                                     )
                                 }
 
-                                ZunePivotTabs(
+                                if (!zuneTitled) ZunePivotTabs(
                                     tabs = tabs,
                                     state = pager,
                                     startPadding = if (isWideScreen) 48.dp else ZuneDimens.ScreenPaddingHorizontal

@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
@@ -72,7 +73,12 @@ class ZuneHubFlight {
         val toColor: Color? = null,
         val itemId: String? = null,
         /** How the name reads in its list, where that differs from the title's lowercase. */
-        val listText: String? = null
+        val listText: String? = null,
+        /**
+         * The name is one of the Zune list's (a [com.serkantkn.zeta.ui.components.ZuneHubTitle]):
+         * the word meets it on its baseline, not just centred in its line.
+         */
+        val inList: Boolean = false
     )
 
     /** A name in a list, as it was last laid out, for a word to lift off or land back on. */
@@ -81,10 +87,25 @@ class ZuneHubFlight {
     internal var pending by mutableStateOf<Pending?>(null)
     internal var target by mutableStateOf<Rect?>(null)
     internal val progress = Animatable(0f)
+    /** The word [progress] is for: until its flight sets off, a new one stands at its start. */
+    internal var flown by mutableStateOf<Pending?>(null)
     private val known = HashMap<String, Rect>()
     private val labels = HashMap<String, Label>()
     /** The name each open page's title came from, so closing it can send the word back there. */
     private val origins = HashMap<String, Pair<String, Label>>()
+
+    /** The hub opened from a name in the Zune list, and that name, for its closing to go back to. */
+    private data class HubOrigin(val hub: String, val key: String, val itemId: String, val label: String, val name: Label)
+    private var hubOrigin: HubOrigin? = null
+
+    /** The titles drawn now, the latest last: a hub closing sends down whichever of its own shows. */
+    private val shown = LinkedHashSet<String>()
+
+    /**
+     * The list's name a hub's title has just come back down to: it stands still in its place while
+     * the rest of the list comes in round it, so the word lands on it rather than on a moving row.
+     */
+    private var landing by mutableStateOf<String?>(null)
 
     /** Whether the title [key] is still in the air, so the hub's own title keeps out of sight. */
     fun hides(key: String): Boolean = pending?.key == key
@@ -95,10 +116,59 @@ class ZuneHubFlight {
     /** Whether any title is in the air. */
     val isFlying: Boolean get() = pending != null
 
-    /** Sends [label], from where it stands in the list, up to the title of hub [key]. */
-    fun launch(key: String, label: String, from: Rect, fromSize: TextUnit, fromColor: Color) {
+    /** Whether the list's name [itemId] is the one a title has just come back down to. */
+    fun lands(itemId: String): Boolean = landing == itemId
+
+    /** The list has come in again: the name a title came back to moves with it from now on. */
+    fun landed() {
+        landing = null
+    }
+
+    /**
+     * Sends [label], from where it stands in the list, up to the title [key] of hub [hub]. The
+     * list's name is [itemId]; the hub's closing sends the title back down to it ([closeHub]).
+     */
+    fun launch(key: String, label: String, from: Rect, fromSize: TextUnit, fromColor: Color, hub: String, itemId: String) {
         target = null
-        pending = Pending(key, label, from, fromSize, fromColor)
+        landing = null
+        hubOrigin = HubOrigin(hub, key, itemId, label, Label(from, fromSize, fromColor, null))
+        pending = Pending(key, label, from, fromSize, fromColor, itemId = itemId, inList = true)
+    }
+
+    /**
+     * Hub [hub] closing in the Zune layout: the title it shows goes back down to the name in the
+     * list that opened it, as the hub goes and the list comes in. False when it was opened some
+     * other way, or its title is nowhere to be seen, and the hub simply closes.
+     */
+    fun closeHub(hub: String): Boolean {
+        val origin = hubOrigin?.takeIf { it.hub == hub } ?: return false
+        hubOrigin = null
+        // A page opened over the hub - a conversation, an album - stands over its title: the word
+        // leaves from whatever of the hub's titles came last.
+        val key = shown.lastOrNull { it == hub || it.startsWith("$hub:") } ?: return false
+        val title = known[key] ?: return false
+        landing = origin.itemId
+        target = origin.name.bounds
+        pending = Pending(
+            key, origin.label, title, ZUNE_HUB_TITLE_SIZE, Color.Unspecified,
+            down = true, to = origin.name.bounds, toSize = origin.name.size, toColor = origin.name.color,
+            itemId = origin.itemId, inList = true
+        )
+        return true
+    }
+
+    /** Another hub has taken the open one's place: closing it has no name to go back to. */
+    fun forgetHub() {
+        hubOrigin = null
+    }
+
+    internal fun show(key: String) {
+        shown.remove(key)
+        shown.add(key)
+    }
+
+    internal fun unshow(key: String) {
+        shown.remove(key)
     }
 
     /**
@@ -229,6 +299,12 @@ fun ZuneHubFlightTitle(
     val minStepPx = with(density) { TITLE_STEP_MIN.toPx() }
     var right by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     val back = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+    if (flight != null) {
+        androidx.compose.runtime.DisposableEffect(flight, key) {
+            flight.show(key)
+            onDispose { flight.unshow(key) }
+        }
+    }
     Text(
         text = title,
         style = zuneHubTitleStyle(FontWeight.Bold),
@@ -292,6 +368,7 @@ fun ZuneHubFlightOverlay(state: ZuneHubFlight) {
         }
         state.target = to
         state.progress.snapTo(0f)
+        state.flown = pending
         state.progress.animateTo(1f, tween(FLIGHT_MILLIS, easing = FlightEasing))
         state.finish()
     }
@@ -304,11 +381,22 @@ fun ZuneHubFlightOverlay(state: ZuneHubFlight) {
     val titlePx = with(density) { ZUNE_HUB_TITLE_SIZE.toPx() }
     val fromScale = with(density) { pending.fromSize.toPx() } / titlePx
     val toScale = with(density) { pending.toSize.toPx() } / titlePx
-    val t = if (to == null) 0f else state.progress.value
+    val t = if (to == null || state.flown !== pending) 0f else state.progress.value
     // A list's line and the title's sit their glyphs differently in their boxes; at the name's
-    // end the word is centred on it, at the title's it lies exactly on it.
-    val fromDrop = if (pending.down) 0f else (pending.from.height - titlePx * fromScale) / 2f
-    val toDrop = if (!pending.down || to == null) 0f else (to.height - titlePx * toScale) / 2f
+    // end the word is put on the Zune list's baseline, or centred on a page's name, and at the
+    // title's it lies exactly on it.
+    val measurer = rememberTextMeasurer()
+    val titleStyle = zuneHubTitleStyle(FontWeight.Bold)
+    val listStyle = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Light)
+    fun drop(box: Rect, size: TextUnit, scale: Float): Float = if (pending.inList) {
+        val listBaseline = measurer.measure(pending.listText ?: pending.label, listStyle.copy(fontSize = size)).firstBaseline
+        val titleBaseline = measurer.measure(pending.label, titleStyle).firstBaseline
+        listBaseline - titleBaseline * scale
+    } else {
+        (box.height - titlePx * scale) / 2f
+    }
+    val fromDrop = if (pending.down) 0f else drop(pending.from, pending.fromSize, fromScale)
+    val toDrop = if (!pending.down || to == null) 0f else drop(to, pending.toSize, toScale)
     val x = if (to == null) pending.from.left else lerp(pending.from.left, to.left, t)
     val y = if (to == null) pending.from.top + fromDrop else lerp(pending.from.top + fromDrop, to.top + toDrop, t)
     val scale = lerp(fromScale, toScale, t) * (1f + BULGE * sin(t * Math.PI).toFloat())

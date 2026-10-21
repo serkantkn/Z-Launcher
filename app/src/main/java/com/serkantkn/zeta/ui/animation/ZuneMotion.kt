@@ -31,7 +31,9 @@ val LocalZuneMotion = staticCompositionLocalOf { false }
 fun Modifier.zuneListMotion(
     progress: () -> Float,
     index: Int,
-    isClicked: Boolean = false
+    isClicked: Boolean = false,
+    /** Stands in its place while the list comes in: a hub's title is coming back down to it. */
+    steady: () -> Boolean = { false }
 ): Modifier = composed {
     if (!LocalAnimationsEnabled.current) return@composed this
     val slidePx = with(LocalDensity.current) { SLIDE.toPx() }
@@ -40,6 +42,7 @@ fun Modifier.zuneListMotion(
         if (value == 1f) return@graphicsLayer
         val order = index.coerceIn(0, MAX_STAGGERED)
         if (value < 1f) {
+            if (steady()) return@graphicsLayer
             val start = order * ENTER_STAGGER
             val t = ((value - start) / ENTER_SPAN).coerceIn(0f, 1f)
             val eased = EnterEasing.transform(t)

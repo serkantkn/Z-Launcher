@@ -160,10 +160,10 @@ fun ZuneHub(
     phonePanorama: Boolean = false,
     glideFrom: Int? = null,
     /**
-     * The Zune layout's main hubs (phone, people, messaging, pictures): on a phone their name
-     * stands large and heavy at the top - where the word touched in the list flies to - with the
-     * headings small under it, in place of the small name and pivot, and of the people hub's
-     * panorama. The key says which word lands here. Elsewhere nothing changes.
+     * The Zune layout's hubs: on a phone their name stands large and heavy at the top - where the
+     * word touched in the list flies to, and from where it goes back down when the hub closes -
+     * with the headings small under it, in place of the small name and pivot, and of the people
+     * hub's panorama. The key says which word lands here. Elsewhere nothing changes.
      */
     zuneTitleKey: String? = null,
     swipeEnabled: Boolean = true,
@@ -247,28 +247,7 @@ fun ZuneHub(
                     title, tabs, pager, bar, showTabs, takeover, titleTrailing, onTitleClick, barModifier,
                     if (zuneTitled) {
                         {
-                            Column(modifier = Modifier.fillMaxWidth().padding(top = com.serkantkn.zeta.ui.animation.ZUNE_HUB_TITLE_TOP, bottom = 8.dp)) {
-                                com.serkantkn.zeta.ui.animation.ZuneHubFlightTitle(
-                                    title = title,
-                                    key = zuneTitleKey!!,
-                                    modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal),
-                                    // Where the pages stand, so the title runs left as they turn.
-                                    cycle = {
-                                        val count = pager.pageCount
-                                        val at = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % count
-                                        if (at < 0) at + count else at
-                                    },
-                                    pageCount = pager.pageCount
-                                )
-                                if (showTabs) {
-                                    ZunePivotTabs(
-                                        tabs = tabs,
-                                        state = pager,
-                                        fontSize = ZUNE_TITLED_PIVOT_SIZE,
-                                        modifier = Modifier.padding(top = 2.dp).zuneHubLayer({ entrance.progress }, 1)
-                                    )
-                                }
-                            }
+                            ZuneTitledHeader(title, zuneTitleKey!!, tabs, pager, showTabs, { entrance.progress })
                         }
                     } else {
                         phoneHeader
@@ -711,3 +690,41 @@ internal val GlideEasing = androidx.compose.animation.core.CubicBezierEasing(0.3
 
 /** The headings' size under a Zune-titled hub's name: smaller than the pivot's own. */
 private val ZUNE_TITLED_PIVOT_SIZE = 30.sp
+
+/**
+ * A hub's head in the Zune layout on a phone: its name huge across the top - where the word
+ * touched in the list lands, keyed [key] - and the headings small under it. [ZuneHub] draws it for
+ * a hub given a `zuneTitleKey`; the two hubs that lay themselves out (weather, files) call it.
+ */
+@Composable
+fun ZuneTitledHeader(
+    title: String,
+    key: String,
+    tabs: List<String>,
+    pager: ZuneLoopingPagerState,
+    showTabs: Boolean = true,
+    entered: () -> Float = { 1f }
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = com.serkantkn.zeta.ui.animation.ZUNE_HUB_TITLE_TOP, bottom = 8.dp)) {
+        com.serkantkn.zeta.ui.animation.ZuneHubFlightTitle(
+            title = title,
+            key = key,
+            modifier = Modifier.padding(start = ZuneDimens.ScreenPaddingHorizontal),
+            // Where the pages stand, so the title runs left as they turn.
+            cycle = {
+                val count = pager.pageCount
+                val at = (pager.pagerState.currentPage + pager.pagerState.currentPageOffsetFraction) % count
+                if (at < 0) at + count else at
+            },
+            pageCount = pager.pageCount
+        )
+        if (showTabs) {
+            ZunePivotTabs(
+                tabs = tabs,
+                state = pager,
+                fontSize = ZUNE_TITLED_PIVOT_SIZE,
+                modifier = Modifier.padding(top = 2.dp).zuneHubLayer(entered, 1)
+            )
+        }
+    }
+}

@@ -208,6 +208,7 @@ fun CalculatorHubScreen(
             title = stringResource(R.string.hub_calculator),
             tabs = tabs,
             pager = pager,
+            zuneTitleKey = "CALCULATOR",
             bar = ZuneHubBar(bottomBarActions, bottomBarMenuItems),
             phonePagePadding = PaddingValues(0.dp),
             // A keypad has the whole width: the next keypad's edge beside it made the keys look

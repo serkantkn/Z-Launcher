@@ -69,6 +69,7 @@ import com.serkantkn.zeta.ui.components.WindowsPhoneBottomBar
 import com.serkantkn.zeta.ui.components.WpBarAction
 import com.serkantkn.zeta.ui.components.WpBarMenuItem
 import com.serkantkn.zeta.ui.components.ZuneHubEntranceLayout
+import com.serkantkn.zeta.data.model.HubType
 import com.serkantkn.zeta.ui.components.ZuneLoopingPager
 import com.serkantkn.zeta.ui.components.ZunePageTransition
 import com.serkantkn.zeta.ui.components.ZunePivotTabs
@@ -309,6 +310,16 @@ fun WeatherHubScreen(
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
+                    // The Zune layout: the hub's name huge and heavy at the top, where its word
+                    // from the list lands, and the headings small under it.
+                    if (com.serkantkn.zeta.ui.animation.LocalZuneMotion.current) {
+                        com.serkantkn.zeta.ui.components.ZuneTitledHeader(
+                            title = stringResource(R.string.hub_weather),
+                            key = HubType.WEATHER.name,
+                            tabs = tabs,
+                            pager = pager
+                        )
+                    } else {
                     // The People hub's header, exactly: the hub's own name in panorama type,
                     // running off the top of the screen and drifting sideways as the pivot moves,
                     // with a second copy waiting a screen away for when the pivot loops round.
@@ -359,6 +370,7 @@ fun WeatherHubScreen(
                         fontSize = 36.sp,
                         modifier = Modifier.padding(bottom = 10.dp)
                     )
+                    }
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         // The next page's edge at the right, as on every other hub's pivot.
                         ZuneLoopingPager(

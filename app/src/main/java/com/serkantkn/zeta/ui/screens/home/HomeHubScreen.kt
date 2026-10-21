@@ -424,6 +424,7 @@ private fun HomeHubScreenContent(
         }
     }
 
+    val hubFlightNow = com.serkantkn.zeta.ui.animation.LocalZuneHubFlight.current
     // Whether a hub was open the last time this looked: Start comes in whenever one closes.
     var hubWasOpen by remember { mutableStateOf(isHubOpen) }
     LaunchedEffect(isHubOpen) {
@@ -439,6 +440,8 @@ private fun HomeHubScreenContent(
             launching = false
             animationProgress.snapTo(0f)
             animationProgress.animateTo(1f, tween(enterMillis(), easing = LinearEasing))
+            // The name a hub's title came back down to joins the rest of the list again.
+            hubFlightNow?.landed()
         }
         // The hub comes up over the splash; once it has, the splash has done its work.
         if (isHubOpen && win8Splash != null) {
@@ -1875,16 +1878,17 @@ private fun HomeHubScreenContent(
                       androidx.compose.runtime.key(row.key) {
                         val hubType = row.hubType
                         val key = row.key
-                        // The main hubs take their name with them: it flies up and becomes their
-                        // title (ZuneHubFlight). A phone only; a tablet's hubs have no such title.
+                        // Every hub takes its name with them: it flies up and becomes its title
+                        // (ZuneHubFlight), and comes back down to the list when the hub closes.
+                        // A phone only; a tablet's hubs have no such title.
                         val flightKey = when {
                             isWideScreen || hubFlight == null -> null
                             // "videolar" lands on the videos page's title, "müzik" on the hub's.
                             hubType == HubType.MUSIC && row.videos ->
                                 com.serkantkn.zeta.ui.screens.music.musicTitleKey(com.serkantkn.zeta.ui.screens.music.MUSIC_VIDEOS_PAGE)
                             hubType == HubType.MUSIC -> com.serkantkn.zeta.ui.screens.music.MUSIC_TITLE_KEY
-                            hubType in FLIGHT_HUBS -> hubType.name
-                            else -> null
+                            hubType in UNTITLED_HUBS -> null
+                            else -> hubType.name
                         }
                         val wordAnchor = com.serkantkn.zeta.ui.animation.rememberZuneZoomAnchor()
                         val index = localHubOrder.indexOf(hubType)
@@ -1929,11 +1933,12 @@ private fun HomeHubScreenContent(
                                         progress = { animationProgress.value },
                                         index = 4 + rowIndex,
                                         // A name that flies to its hub does not zoom through.
-                                        isClicked = clickedItemKey == key && flightKey == null
+                                        isClicked = clickedItemKey == key && flightKey == null,
+                                        steady = { hubFlight?.lands(key) == true }
                                     )
                                     .graphicsLayer {
                                         // The word in the air is the flight's; the list's copy keeps out of sight.
-                                        alpha = if (flightKey != null && clickedItemKey == key && hubFlight?.hides(flightKey) == true) 0f else 1f
+                                        alpha = if (hubFlight?.hidesItem(key) == true) 0f else 1f
                                     }
                             ) {
                                 Row(
@@ -1966,7 +1971,7 @@ private fun HomeHubScreenContent(
                                                 val flies = flightKey != null && from != null && animationsOn &&
                                                     !hubTargetApps.containsKey(hubType)
                                                 if (flies && !launching && !isEditMode) {
-                                                    hubFlight!!.launch(flightKey!!, row.title, from!!, listSize, nameColour.copy(alpha = 0.85f))
+                                                    hubFlight!!.launch(flightKey!!, row.title, from!!, listSize, nameColour.copy(alpha = 0.85f), hubType.name, key)
                                                 }
                                                 handleLaunch(
                                                     key,
@@ -2219,8 +2224,8 @@ private fun ZuneTilesEmptyState(onOpenAppList: () -> Unit, modifier: Modifier = 
 private const val HINTS_PREFS = "hints"
 private const val HINT_FAVOURITES_MOVED = "zune_favourites_moved"
 
-/** The hubs whose name flies up to become their title in the Zune layout (music has its own). */
-private val FLIGHT_HUBS = setOf(HubType.PHONE, HubType.PEOPLE, HubType.MESSAGING, HubType.PICTURES)
+/** The hubs with no title for a name to fly to: the camera is its viewfinder from edge to edge. */
+private val UNTITLED_HUBS = setOf(HubType.CAMERA, HubType.HOME)
 
 /** How many squares the strip beside the Zune list holds. */
 private const val QUICKPLAY_STRIP_ITEMS = 8

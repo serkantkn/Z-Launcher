@@ -155,7 +155,8 @@ fun BrowserStartScreen(
         com.serkantkn.zeta.ui.components.ZuneHub(
             title = stringResource(R.string.hub_internet),
             tabs = tabs,
-            pager = pager
+            pager = pager,
+            zuneTitleKey = "INTERNET"
         ) { page ->
             when (pages[page]) {
                 StartPage.FREQUENT -> FrequentPage(frequent, onUrlSelected, bottomPadding)

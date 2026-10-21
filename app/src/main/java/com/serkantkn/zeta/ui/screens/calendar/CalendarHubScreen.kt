@@ -317,6 +317,7 @@ fun CalendarHubScreen(
                 title = stringResource(R.string.hub_calendar),
                 tabs = tabs,
                 pager = pager,
+                zuneTitleKey = "CALENDAR",
                 bar = ZuneHubBar(barActions, barMenu)
             ) { index -> Page(index) }
         }

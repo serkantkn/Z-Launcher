@@ -593,10 +593,14 @@ fun EmailHubScreen(
                 .fillMaxSize()
                 .pageHingeAway { subScreenHingeProgress }
         ) {
+            // In the Zune layout the hub's own name stands huge at the top, where its word lands;
+            // the account and folder, and the way to change them, go in a line under it.
+            val zuneTitled = com.serkantkn.zeta.ui.animation.LocalZuneMotion.current && !isWideScreen
             ZuneHub(
-                title = hubTitle,
+                title = if (zuneTitled) stringResource(R.string.hub_email) else hubTitle,
                 tabs = tabs,
                 pager = pager,
+                zuneTitleKey = "EMAIL",
                 bar = ZuneHubBar(bottomBarActions, bottomBarMenuItems),
                 showTabs = hasAccounts,
                 takeover = if (hasAccounts) null else {
@@ -606,7 +610,28 @@ fun EmailHubScreen(
                 titleTrailing = {
                     if (isSyncing) CircularProgressIndicator(color = zuneColors.accentColor, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
                 },
-                phoneAboveContent = { SearchRow() },
+                phoneAboveContent = {
+                    if (zuneTitled && hasAccounts) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clickable { showAccountPicker = true }
+                                .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = hubTitle,
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                                color = headerColor,
+                                maxLines = 1
+                            )
+                            if (isSyncing) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                CircularProgressIndicator(color = zuneColors.accentColor, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                            }
+                        }
+                    }
+                    SearchRow()
+                },
                 phonePagePadding = PaddingValues(0.dp),
                 swipeEnabled = !isSelectionMode,
                 wideNavExtra = { WideNavExtra() },

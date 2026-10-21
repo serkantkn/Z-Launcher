@@ -299,6 +299,7 @@ fun LauncherScreen(
         if (targetHub != activeHub) {
             if (activeHub != null && targetHub != null) {
                 // Current hub turns away into the depth, the next one swings in from outside
+                zuneHubFlight?.forgetHub()
                 isHubHingeOpening = false
                 hingeProgress.animateTo(0f, animationSpec = quickSpec(280))
                 activeHub = targetHub
@@ -312,6 +313,9 @@ fun LauncherScreen(
                 hingeProgress.animateTo(1f, animationSpec = hubInSpec())
             } else {
                 isHubHingeOpening = false
+                // The Zune layout: the hub's title goes back down to its name in the list as the
+                // hub fades from under it - the way in, backwards.
+                if (zuneStart && animationsOn && !isWideScreen) activeHub?.let { zuneHubFlight?.closeHub(it.name) }
                 hingeProgress.animateTo(0f, animationSpec = when {
                     vistaTv -> quickSpec(VISTA_PAGE_MILLIS)
                     tabletStart -> quickSpec(WIN8_HUB_FADE_OUT_MILLIS)

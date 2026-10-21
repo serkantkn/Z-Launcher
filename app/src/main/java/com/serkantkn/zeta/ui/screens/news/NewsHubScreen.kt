@@ -214,6 +214,7 @@ fun NewsHubScreen(
                 title = stringResource(HubType.NEWS.titleRes),
                 tabs = tabs,
                 pager = pager,
+                zuneTitleKey = "NEWS",
                 bar = ZuneHubBar(barActions, barMenu),
                 phonePagePadding = PaddingValues(0.dp),
                 widePane = ZuneHubPane(

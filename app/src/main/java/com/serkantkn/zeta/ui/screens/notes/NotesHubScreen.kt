@@ -628,6 +628,7 @@ fun NotesHubScreen(
                 title = if (isSelectionMode) stringResource(R.string.notes_selected_count, selectedIds.size) else stringResource(R.string.hub_notes),
                 tabs = tabs,
                 pager = pager,
+                zuneTitleKey = "NOTES",
                 bar = ZuneHubBar(bottomBarActions, bottomBarMenuItems),
                 phoneAboveContent = { SearchRow() },
                 phonePagePadding = PaddingValues(0.dp),

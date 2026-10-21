@@ -305,6 +305,7 @@ fun ClockHubScreen(
                 title = stringResource(R.string.hub_clock),
                 tabs = tabs,
                 pager = pager,
+                zuneTitleKey = "CLOCK",
                 bar = ZuneHubBar(barActions, barMenu)
             ) { index -> Page(index) }
         }
