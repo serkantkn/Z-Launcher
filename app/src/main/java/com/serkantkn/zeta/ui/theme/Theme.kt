@@ -25,6 +25,8 @@ import com.serkantkn.zeta.data.model.AccentColor
 import com.serkantkn.zeta.data.model.ThemeMode
 
 fun AccentColor.toColor(): Color = when (this) {
+    // Resolved before it reaches here (SettingsDataStore.accentColor); blue, Mozaik's, if it ever does.
+    AccentColor.LAYOUT -> ZuneColors.Blue
     AccentColor.DYNAMIC -> Color.Transparent
     AccentColor.CUSTOM -> Color.Transparent
     AccentColor.MAGENTA -> ZuneColors.Magenta

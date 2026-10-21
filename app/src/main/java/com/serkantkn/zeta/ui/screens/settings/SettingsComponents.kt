@@ -138,7 +138,9 @@ internal fun AccentColorChoiceRow(
     onSelected: (AccentColor) -> Unit,
     onCustomColorSelected: (Int) -> Unit,
     /** The colour taken from the wallpaper, shown in the middle of the automatic choice. */
-    dynamicThemeColor: Int? = null
+    dynamicThemeColor: Int? = null,
+    /** The colour "by design" stands for now: the design's own. */
+    layoutColor: Color? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var showColorPicker by remember { mutableStateOf(false) }
@@ -171,8 +173,9 @@ internal fun AccentColorChoiceRow(
             ) {
                 rowItems.forEach { color ->
                     val isSelected = selectedColor == color
+                    // "By design" is the default, so it stays everyone's to go back to.
                     val isAllowed = com.serkantkn.zeta.util.Pro.unlocked ||
-                        color in listOf(AccentColor.RED, AccentColor.BLUE, AccentColor.GREEN)
+                        color in listOf(AccentColor.LAYOUT, AccentColor.RED, AccentColor.BLUE, AccentColor.GREEN)
 
                     val baseModifier = Modifier
                         .size(if (isSelected) 48.dp else 40.dp)
@@ -193,6 +196,10 @@ internal fun AccentColorChoiceRow(
                         }
 
                     val coloredModifier = when (color) {
+                        // The design's colour, ringed: a choice that is not one colour for good.
+                        AccentColor.LAYOUT -> baseModifier
+                            .background(layoutColor ?: Color.Gray, CircleShape)
+                            .border(3.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f), CircleShape)
                         AccentColor.DYNAMIC -> {
                             baseModifier.background(
                                 brush = Brush.sweepGradient(

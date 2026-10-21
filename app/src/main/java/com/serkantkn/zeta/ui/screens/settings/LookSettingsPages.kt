@@ -1,5 +1,6 @@
 package com.serkantkn.zeta.ui.screens.settings
 
+import com.serkantkn.zeta.ui.theme.toColor
 import com.serkantkn.zeta.ui.components.HubGround
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -166,7 +167,8 @@ private fun LookPageGroups(page: LookPage, viewModel: SettingsViewModel) {
 @Composable
 private fun ThemeGroups(viewModel: SettingsViewModel) {
     val themeMode by viewModel.themeMode.collectAsState()
-    val accentColor by viewModel.accentColor.collectAsState()
+    val accentColor by viewModel.accentChoice.collectAsState()
+    val layoutAccent by viewModel.accentColor.collectAsState()
     val customThemeColor by viewModel.customThemeColor.collectAsState()
     val dynamicThemeColor by viewModel.dynamicThemeColor.collectAsState()
 
@@ -188,7 +190,8 @@ private fun ThemeGroups(viewModel: SettingsViewModel) {
                 viewModel.setCustomThemeColor(colorInt)
                 viewModel.setAccentColor(AccentColor.CUSTOM)
             },
-            dynamicThemeColor = dynamicThemeColor
+            dynamicThemeColor = dynamicThemeColor,
+            layoutColor = layoutAccent.toColor()
         )
     }
 }
@@ -791,7 +794,7 @@ internal enum class FontScaleChoice(@StringRes val titleRes: Int, val scale: Flo
 internal fun lookPageSummary(page: LookPage, viewModel: SettingsViewModel): String = when (page) {
     LookPage.THEME -> {
         val themeMode by viewModel.themeMode.collectAsState()
-        val accentColor by viewModel.accentColor.collectAsState()
+        val accentColor by viewModel.accentChoice.collectAsState()
         val theme = stringResource(
             when (themeMode) {
                 ThemeMode.LIGHT -> R.string.theme_light
@@ -882,6 +885,7 @@ internal fun lookPageSummary(page: LookPage, viewModel: SettingsViewModel): Stri
 @Composable
 private fun accentName(accentColor: AccentColor): String = stringResource(
     when (accentColor) {
+        AccentColor.LAYOUT -> R.string.settings_accent_layout
         AccentColor.DYNAMIC -> R.string.settings_accent_dynamic
         AccentColor.MAGENTA -> R.string.settings_accent_magenta
         AccentColor.PINK -> R.string.settings_accent_pink

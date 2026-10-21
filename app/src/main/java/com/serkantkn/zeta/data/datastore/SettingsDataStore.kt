@@ -55,7 +55,9 @@ class SettingsDataStore(private val context: Context) {
         private const val TAG = "SettingsDataStore"
 
         /** Windows Phone 8.1's own translucency, and what a fresh install starts with. */
-        const val DEFAULT_TILE_OPACITY = 45
+        /** Tiles are solid unless made see-through. */
+        const val DEFAULT_TILE_OPACITY = 100
+        const val DEFAULT_TILE_SPACING = 5
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val FONT_SCALE = floatPreferencesKey("font_scale")
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
@@ -338,11 +340,31 @@ class SettingsDataStore(private val context: Context) {
             .getOrDefault(com.serkantkn.zeta.data.model.ZuneGlow.OFF)
     }
 
+    /** The accent as chosen in settings, [AccentColor.LAYOUT] until one is. */
+    val accentChoice: Flow<AccentColor> = context.settingsDataStore.data.map { prefs -> choiceOf(prefs) }
+
+    /** The accent to draw with: a choice of "by design" turned into that design's colour. */
     val accentColor: Flow<AccentColor> = context.settingsDataStore.data.map { prefs ->
-        try {
-            AccentColor.valueOf(prefs[ACCENT_COLOR] ?: AccentColor.MAGENTA.name)
-        } catch (e: Exception) {
-            AccentColor.MAGENTA
+        val choice = choiceOf(prefs)
+        if (choice != AccentColor.LAYOUT) choice else layoutAccent(prefs)
+    }
+
+    private fun choiceOf(prefs: Preferences): AccentColor =
+        runCatching { AccentColor.valueOf(prefs[ACCENT_COLOR] ?: AccentColor.LAYOUT.name) }.getOrDefault(AccentColor.LAYOUT)
+
+    /**
+     * Each design's own colour: Konsol green on a TV, Panorama red on a tablet, Aura orange with its
+     * glow, Mozaik blue. A tablet is told by its shortest side, which does not change as it turns.
+     */
+    private fun layoutAccent(prefs: Preferences): AccentColor {
+        if (com.serkantkn.zeta.ui.theme.isTelevision(context)) return AccentColor.GREEN
+        val layout = runCatching { HomeScreenLayout.valueOf(prefs[HOME_SCREEN_LAYOUT] ?: HomeScreenLayout.ZUNE.name) }
+            .getOrDefault(HomeScreenLayout.ZUNE)
+        val tablet = context.resources.configuration.smallestScreenWidthDp >= 600
+        return when {
+            layout == HomeScreenLayout.ZUNE -> AccentColor.ORANGE
+            tablet -> AccentColor.RED
+            else -> AccentColor.BLUE
         }
     }
 
@@ -519,12 +541,12 @@ class SettingsDataStore(private val context: Context) {
     }
 
     val tileSpacing: Flow<Int> = context.settingsDataStore.data.map { prefs ->
-        prefs[TILE_SPACING] ?: 2
+        prefs[TILE_SPACING] ?: DEFAULT_TILE_SPACING
     }
 
     /**
      * How solid the Start tiles are, 0-100. The wallpaper shows through everything below 100;
-     * the default matches the translucent look Windows Phone 8.1 tiles had.
+     * the default is solid.
      */
     val tileOpacity: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         (prefs[TILE_OPACITY] ?: DEFAULT_TILE_OPACITY).coerceIn(0, 100)

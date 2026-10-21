@@ -57,7 +57,7 @@ fun LookPreviewCard(
     tileCornerStyle: TileCornerStyle,
     tileSpacing: Int,
     /** 0-100, the same scale the transparency slider works on. */
-    tileOpacity: Int = 45,
+    tileOpacity: Int = com.serkantkn.zeta.data.datastore.SettingsDataStore.DEFAULT_TILE_OPACITY,
     /** 0-100, how frosted the wallpaper behind the tiles is; 0 leaves it sharp. */
     tileBlur: Int = 0,
     tileInk: TileInk = TileInk.AUTO,

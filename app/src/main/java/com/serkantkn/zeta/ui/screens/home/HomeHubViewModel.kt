@@ -700,7 +700,7 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TileInk.AUTO)
 
     val tileSpacing: StateFlow<Int> = settingsDataStore.tileSpacing
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsDataStore.DEFAULT_TILE_SPACING)
 
     val homeScreenLayout: StateFlow<HomeScreenLayout> = settingsDataStore.homeScreenLayout
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeScreenLayout.ZUNE)

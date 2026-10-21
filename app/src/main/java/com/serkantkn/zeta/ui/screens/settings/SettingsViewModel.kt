@@ -92,7 +92,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val animationsEnabled: StateFlow<Boolean> = settingsDataStore.animationsEnabled.asState(true)
 
-    val accentColor: StateFlow<AccentColor> = settingsDataStore.accentColor.asState(AccentColor.MAGENTA)
+    val accentColor: StateFlow<AccentColor> = settingsDataStore.accentColor.asState(AccentColor.BLUE)
+    /** What the settings show as chosen: "by design" while nothing else is. */
+    val accentChoice: StateFlow<AccentColor> = settingsDataStore.accentChoice.asState(AccentColor.LAYOUT)
 
     val directCallEnabled: StateFlow<Boolean> = settingsDataStore.directCallEnabled.asState(false)
 
@@ -617,7 +619,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val tileCornerStyle: StateFlow<TileCornerStyle> = settingsDataStore.tileCornerStyle.asState(TileCornerStyle.ROUNDED)
 
-    val tileSpacing: StateFlow<Int> = settingsDataStore.tileSpacing.asState(2)
+    val tileSpacing: StateFlow<Int> = settingsDataStore.tileSpacing.asState(SettingsDataStore.DEFAULT_TILE_SPACING)
 
     val tileOpacity: StateFlow<Int> = settingsDataStore.tileOpacity.asState(SettingsDataStore.DEFAULT_TILE_OPACITY)
 

@@ -116,12 +116,17 @@ internal fun LookSettingsPage(
 
         if (isTv) item(key = "tv_design") { TvDesignGroup() }
 
-        items(LookPage.entries.filter { it !in tvLeftOut && it !in vistaLeftOut }, key = { it.name }) { page ->
-            SystemSettingRow(
-                title = stringResource(page.titleRes),
-                subtitle = lookPageSummary(page, viewModel),
-                onClick = { onOpenPage(page) }
-            )
+        // One item: the list puts a group's gap between its items, and these rows are one group.
+        item(key = "look_pages") {
+            Column {
+                LookPage.entries.filter { it !in tvLeftOut && it !in vistaLeftOut }.forEach { page ->
+                    SystemSettingRow(
+                        title = stringResource(page.titleRes),
+                        subtitle = lookPageSummary(page, viewModel),
+                        onClick = { onOpenPage(page) }
+                    )
+                }
+            }
         }
     }
 }

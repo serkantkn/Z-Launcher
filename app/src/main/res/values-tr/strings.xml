@@ -1576,6 +1576,7 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="settings_look_start">başlangıç ekranı</string>
     <string name="settings_look_tiles">karolar</string>
     <string name="settings_accent_custom">özel</string>
+    <string name="settings_accent_layout">tasarıma göre</string>
     <string name="settings_accent_dynamic">dinamik</string>
     <string name="settings_accent_magenta">eflatun</string>
     <string name="settings_accent_pink">pembe</string>

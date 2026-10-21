@@ -132,7 +132,7 @@ fun ThemeStepPage(
 @Composable
 private fun AccentSquares(selected: AccentColor, onSelect: (AccentColor) -> Unit) {
     val offered = remember {
-        val all = AccentColor.entries.filter { it != AccentColor.DYNAMIC && it != AccentColor.CUSTOM }
+        val all = AccentColor.entries.filter { it != AccentColor.DYNAMIC && it != AccentColor.CUSTOM && it != AccentColor.LAYOUT }
         if (com.serkantkn.zeta.util.Pro.unlocked) {
             all
         } else {
