@@ -557,7 +557,9 @@ fun PicturesHubScreen(
                         title = stringResource(R.string.storage_permission_title).lowercase(Locale.getDefault()),
                         message = stringResource(R.string.storage_permission_message),
                         buttonLabel = stringResource(R.string.grant_permission).lowercase(Locale.getDefault()),
-                        onRequest = { requestMediaPermission() }
+                        onRequest = { requestMediaPermission() },
+                        // What stands in for the pages has no margin of its own on a phone.
+                        modifier = Modifier.padding(horizontal = if (isWideScreen) 0.dp else ZuneDimens.ScreenPaddingHorizontal)
                     )
                 }
             }
