@@ -26,7 +26,7 @@
     <string name="action_center_no_access">bildirimleri göstermek için eylem merkezinin bildirim erişimine ihtiyacı var</string>
     <string name="action_center_grant">izin ver</string>
     <string name="ac_settings_group">eylem merkezi</string>
-    <string name="ac_settings_switch">WP eylem merkezi</string>
+    <string name="ac_settings_switch">Z Launcher eylem merkezi</string>
     <string name="ac_settings_switch_on">durum çubuğundan aşağı çekince Android paneli yerine eylem merkezi açılır</string>
     <string name="ac_settings_switch_off">Android\'in kendi bildirim paneli kullanılır</string>
     <string name="ac_settings_needs">eylem merkezinin tam çalışması için şu izinler gerekir. Yeşil nokta olanlar tamam.</string>

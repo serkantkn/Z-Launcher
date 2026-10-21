@@ -28,6 +28,7 @@ Selawik (SIL Open Font License), uygulamanın kendi yazı tipi.
    (Cihazın içindeki `screenrecord` saniyede ~6 kare alıyordu; arayüz kasıyormuş gibi görünüyordu.)
    `ui.sh` ekrandaki yazılara dokunur, `sheet.sh` bir kaydın kare sayfasını çıkarır.
    `python3 clips.py body` kayıtların iyi kısımlarını keser.
-3. `python3 build.py` — çerçeveli bölümleri ve son videoyu üretir (ffmpeg 8; tek adım için ör. `build.py v2_xbox final`).
+3. `python3 build.py` — çerçeveli bölümleri ve son videoyu üretir (ffmpeg 8; tek adım için ör. `build.py v2_xbox final`; bölüm adları kodda eski kısa adlarıyla).
 
-Microsoft'un logoları ve sesleri kullanılmadı; videonun sonunda "Microsoft ile ilişkili değildir" notu var.
+Videoda başka bir şirketin ürün adı, logosu ya da sesi geçmiyor; tasarımlar kendi adlarıyla anılıyor:
+Aura, Mozaik, Panorama, Konsol, Salon.

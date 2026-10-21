@@ -8,7 +8,7 @@
 | `play_store_icon.png` | Uygulama ikonu, 512 × 512 | Hazır |
 | `tv-banner.png` | Android TV afişi, 1280 × 720 | Hazır |
 | `screenshots-tv/*.png` | TV ekran görüntüleri, 1920 × 1080 | Hazır (gerçek Mi TV, örnek içerik) |
-| `tanitim-videosu.mp4` | Tanıtım videosu, 1920 × 1080 (16:9), 2 dk 24 sn | Hazır (emülatör çekimi, Pro sürüm) |
+| `z-launcher-tanitim.mp4` | Tanıtım videosu, 1920 × 1080, 60 kare/sn, 96 sn, müzikli | Hazır (emülatör çekimi; `video/` yeniden kurar) |
 
 Metinler (uygulama adı, kısa ve tam açıklama, iki dilde) `../STORE.md` dosyasında.
 
@@ -28,7 +28,7 @@ Yayından önce kendi telefonunda, kendi fotoğrafların, kişilerin ve müziği
 4. Telefon veya Mesajlar hub'ı
 5. Ayarlar → görünüm: tema ve vurgu rengi seçimi (uygulamanın ne kadar kişiselleştiğini
    gösterir)
-6. Zune liste düzeni (kutucuk düzeninin alternatifi olduğunu gösterir)
+6. Aura düzeni (Mozaik'in karolarına alternatif olduğunu gösterir)
 
 Play en az 2, en fazla 8 telefon görüntüsü ister; 16:9 ile 9:16 arasında, kısa kenarı en az
 1080 piksel. Tablet görüntüleri isteğe bağlıdır ama tablet düzeni varsa eklemeye değer.
@@ -36,64 +36,25 @@ Play en az 2, en fazla 8 telefon görüntüsü ister; 16:9 ile 9:16 arasında, k
 
 ## Tanıtım videosu hakkında
 
-`tanitim-videosu.mp4` — 1920 × 1080 (16:9), 30 fps, 2 dk 24 sn, sessiz. Play'in tanıtım
-videosu alanı bir YouTube bağlantısı ister, dosya yüklemez: videoyu YouTube'a yükleyip
-bağlantısını Play Console'a yazman gerekir. Yüklerken listelenmemiş (unlisted) değil, herkese
-açık olmalı, yoksa Play kabul etmez.
+`z-launcher-tanitim.mp4` — 1920 × 1080, 60 kare/sn, 96 sn, Pixabay'den telifsiz bir müzikle. Her
+arayüz kendi cihazının çerçevesinde (telefon, tablet, televizyon), o tasarımın renklerinde sade bir
+zeminde oynuyor; açılış ve kapanışta üç cihaz birlikte, sonda "çok yakında". Sırası: Aura (telefon),
+Mozaik, Aura (tablet), Panorama, Konsol, Salon.
 
-### Kurgu
+Play'in tanıtım videosu alanı bir YouTube bağlantısı ister: videoyu YouTube'a herkese açık yükleyip
+bağlantısını Play Console'a yazman gerekir.
 
-Her karede solda büyük ince yazı, altında ekranın büyütülmüş bir parçası, sağda telefonun
-kendisi duruyor — çerçevenin tamamı kullanılıyor, telefon 16:9'un ortasında yalnız kalmıyor.
-Bölüm başlıkları tam alan vurgu rengi ve karo ızgarasıyla açılıyor; geçişler Metro'nun dili
-olan yatay/dikey kaydırmalar, yumuşak çapraz geçiş yok.
-
-Sırasıyla: açılış · **zune başlangıç ekranı** (hub listesi, listenin kayması, favoriler
-bölmesine geçiş, turnike) · **windows phone panosu** (canlı karoların dönmesi, düzenleme kipi,
-karo boyutu diyaloğu, karonun büyümesi) · **köşeli → yuvarlatılmış** · **vurgu rengi** magenta,
-camgöbeği, lime, turuncu, mor · **koyu → açık tema** · **sosyal hub** · **klavye** ve tahmin
-çubuğu · **hub'lar**: fotoğraflar, müzik, kamera, telefon, kişiler, mesajlar, internet,
-dosyalar, hava durumu, e-posta, saat, takvim, notlar, hesap makinesi — her biri panodan
-turnike animasyonuyla açılıyor.
-
-Köşe biçimi, vurgu rengi ve tema değişimleri **tek karede** oluyor: her durum ayrı ayrı
-yakalanıp aynı çerçevede sert kesme ile birleştirildi. Böylece ayarlar ekranı videoda hiç
-görünmüyor, değişimi anında görüyorsun.
-
-### Bilinmesi gerekenler
-
-**Pro sürümle çekildi.** Vurgu renkleri, özel duvar kağıdı, sosyal hub ve klavye ücretsiz
-sürümde kilitli; videoda hepsi görünüyor. Mağaza açıklamasında bunların Pro olduğu yazıyor,
-ama videoya bir "Pro" ibaresi eklemek istersen yerinde olur.
-
-Sesi yok. Bilerek: telifsiz olduğundan emin olmadığım bir müziği mağaza materyaline koymak
-istemedim. Müzik eklemek istersen YouTube'un kendi ses kitaplığı ya da satın alınmış bir
-lisans en güvenlisi.
-
-İçerik emülatörde, üretilmiş test verisiyle çekildi: fotoğraflar emülatörün sanal sahnesinden
-kameranın kendisiyle çekildi, albüm kapakları ve şarkı adları uydurmadır, kişiler ve mesajlar
-örnek veridir. Gerçek telefonunda kendi içeriğinle çekersen daha inandırıcı olur — ekran
-görüntüleri için de aynı şey geçerli.
-
-Videoda uygulama adı ya da logo geçmiyor.
-
-### Yeniden çekmek gerekirse
-
-Emülatörün ekran kaydı **değişken kare hızı** yazıyor ve ekran durgunken hiç kare üretmiyor;
-zaman damgasına göre kesince ffmpeg bir sonraki kareye atlıyor ve yanlış an videoya giriyor.
-Her kaydı kesmeden önce sabit 30 fps'e çevirmek gerekiyor. Ayrıca başlangıç ekranında aşağı
-doğru sürükleme bildirim gölgesini açıyor; kayıt sırasında yalnızca yukarı doğru kaydırma
-kullanılmalı.
+Videoda başka bir şirketin ürün adı, logosu ya da sesi geçmiyor. Kaynaklar, lisanslar ve videoyu
+yeniden kurmak için `video/CREDITS.md`.
 
 ## TV ekran görüntüleri hakkında
 
-`screenshots-tv/` içinde iki tasarımdan dörder kare var: Xbox 360 panosu (ana sayfa, telefon
-bildirimi, uygulamalarım, ayarlar bölümü; Google TV emülatöründe alındı) ve Media Center
-(başlangıç, telefon bildirimi, müzik, kapat penceresi; gerçek bir Xiaomi Mi TV'de alındı).
-Xbox karelerini de gerçek televizyonda yeniden çekmek iyi olur. İçerik test içeriğidir (renk çubuklu deneme videosu, uydurma
+`screenshots-tv/` içinde iki tasarımdan dörder kare var: Konsol (ana sayfa, telefon
+bildirimi, uygulamalarım, ayarlar bölümü; Google TV emülatöründe alındı) ve Salon
+(başlangıç, telefon bildirimi, müzik, kapat penceresi; ilk üçü gerçek bir Xiaomi Mi TV'de, kapat
+penceresi adı "Salon" olduktan sonra emülatörde alındı). Konsol karelerini de gerçek televizyonda
+yeniden çekmek iyi olur. İçerik test içeriğidir (renk çubuklu deneme videosu, uydurma
 albümler, rehberdeki örnek kişiler); telefonun adı "Telefonum". Kişisel bilgi yok — hava durumu
 bilerek çekilmedi, gerçek konumu gösteriyordu. Kendi televizyonunda kendi film ve müziğinle
 yeniden çekersen mağaza sayfası daha iyi görünür; dosya adları sıralamayı belirler.
 
-Tanıtım videosu şu an yalnızca telefonu gösteriyor. TV'yi de göstersin istersen sonuna bir
-televizyon bölümü eklenebilir; kayıt gerçek televizyondan alınmalı.

@@ -1,6 +1,6 @@
 # Yayın sayfaları
 
-`index.html` projenin tanıtım sitesidir (Metro dilinde, tek dosya, `img/` içindeki görselleri
+`index.html` projenin tanıtım sitesidir (uygulamanın dilinde, tek dosya, `img/` içindeki görselleri
 kullanır). `gizlilik.html` ve `privacy.html` ise `PRIVACY.md` ve `PRIVACY.en.md` dosyalarından
 üretildi. **Gizlilik metnini bunlarda değil, o iki markdown dosyasında düzenle**; HTML'i
 yeniden üretmek yerine elle değiştirirsen ikisi birbirinden ayrılır.

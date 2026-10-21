@@ -26,7 +26,7 @@
     <string name="action_center_no_access">the action center needs notification access to show notifications</string>
     <string name="action_center_grant">allow</string>
     <string name="ac_settings_group">action center</string>
-    <string name="ac_settings_switch">WP action center</string>
+    <string name="ac_settings_switch">Z Launcher action center</string>
     <string name="ac_settings_switch_on">a pull from the status bar opens the action center instead of Android\'s shade</string>
     <string name="ac_settings_switch_off">Android\'s own notification shade is used</string>
     <string name="ac_settings_needs">the action center needs these to work fully. A green dot means done.</string>

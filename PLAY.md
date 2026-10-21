@@ -34,7 +34,7 @@ olmalı, yoksa ilk ret ikincisini de getirir.
 >
 > - Donanım tuşu filtreleme: yalnızca kumandanın Home tuşu (`KEYCODE_HOME`) işlenir; Google TV
 >   ana ekranı yerine Z Launcher açılır. Diğer bütün tuşlar sisteme olduğu gibi geçer.
-> - Genel eylemler: kullanıcı Media Center'ın "kapat" penceresinde "TV'yi kapat"ı seçerse
+> - Genel eylemler: kullanıcı televizyon arayüzünün "kapat" penceresinde "TV'yi kapat"ı seçerse
 >   `GLOBAL_ACTION_POWER_DIALOG`, "uyku"yu seçerse `GLOBAL_ACTION_LOCK_SCREEN`. Kendiliğinden
 >   hiçbir zaman çağrılmaz.
 > - Erişilebilirlik kaplaması (`TYPE_ACCESSIBILITY_OVERLAY`): eşlenen telefondan gelen arama ve
@@ -43,14 +43,14 @@ olmalı, yoksa ilk ret ikincisini de getirir.
 
 **Bu, uygulamanın hangi işlevi için gerekli?**
 
-> Z Launcher, Windows Phone arayüzünü yeniden üreten bir başlatıcıdır. Servis bu arayüzün iki
+> Z Launcher, canlı karolar ve hub'lardan kendi arayüzünü kuran bir başlatıcıdır. Servis bu arayüzün iki
 > parçası içindir ve her ikisi de kullanıcı ayarlardan açmadıkça çalışmaz:
 >
 > 1. **Ses çubuğu.** Android'de donanım tuşları yalnızca ön plandaki uygulamaya ulaşır; başlatıcı
->    arka plandayken Windows Phone ses çubuğunu gösterebilmenin tek yolu ses tuşlarını
+>    arka plandayken kendi ses çubuğunu gösterebilmenin tek yolu ses tuşlarını
 >    erişilebilirlik servisiyle filtrelemektir.
-> 2. **Eylem merkezi.** Durum çubuğundan aşağı çekince Android'in bildirim paneli yerine Windows 10
->    Mobile eylem merkezi açılır. Bunun için servis durum çubuğunun yerini pencere listesinden
+> 2. **Eylem merkezi.** Durum çubuğundan aşağı çekince Android'in bildirim paneli yerine
+>    uygulamanın kendi eylem merkezi açılır. Bunun için servis durum çubuğunun yerini pencere listesinden
 >    bulur, Android paneli yine de açılırsa (kilit ekranı dışındaki başka bir yoldan) bunu
 >    SystemUI'nin pencere olayından anlar, paneli kapatır ve eylem merkezini gösterir. Kilit
 >    ekranında hiçbir şey yapmaz; orada Android'in kendi paneli kalır.
@@ -76,10 +76,10 @@ olmalı, yoksa ilk ret ikincisini de getirir.
 konumu ve SystemUI olaylarının metni yalnızca o an karar vermek için kullanılır ve atılır.
 
 **Video:** Servisin açıklama kutusu → kabul → Android erişilebilirlik ayarlarında açma → başka
-bir uygulama açıkken ses tuşuna basınca Windows Phone ses çubuğu → durum çubuğundan çekince
+bir uygulama açıkken ses tuşuna basınca uygulamanın ses çubuğu → durum çubuğundan çekince
 eylem merkezi. **Televizyon için ikinci bir parça ekle:** TV'de ayarlar → sistem → ana ekran →
 açıklama kutusu → kabul → servisi açma → başka bir uygulama (ör. YouTube) açıkken Home tuşu →
-Z Launcher açılır; Görevler → kapat → "uyku". Konsol tek video alanı veriyor; iki parçayı tek
+Z Launcher açılır; Görevler → kapat → "uyku". Play Console tek video alanı veriyor; iki parçayı tek
 videoda birleştir.
 
 ---
@@ -206,7 +206,7 @@ kaydı gerekmez. Manifest Android TV'nin şartlarını karşılıyor:
 |---|---|
 | Uygulama TV'nin kendi başlatıcısında afişiyle görünür | Var (`LEANBACK_LAUNCHER`, `tv_banner`) |
 | Her ekran yalnızca kumandayla (yön tuşları, seç, geri) kullanılabilir; dokunmatik gerektiren yer yok | Bütün hub'lar, diyaloglar, ayarlar ve oynatıcı kumandayla denendi |
-| Odaklanan öğe her zaman belli | Xbox'ta büyüyen karo ve yeşil kenar, Media Center'da cam kutu |
+| Odaklanan öğe her zaman belli | Konsol'da büyüyen karo ve yeşil kenar, Salon'da cam kutu |
 | Geri tuşu bir önceki ekrana döner, ana ekranda uygulamadan çıkmaz | Ana ekranda Geri en başa döner |
 | Kenarlardan %5 güvenli alan | 48 × 27 dp kenar payı |
 | Telefona özgü özellikler (kamera, telefon, SMS) TV'de istenmez | Kamera, telefon, mesajlar, kişiler hub'ları televizyonda gösterilmez |
@@ -214,11 +214,10 @@ kaydı gerekmez. Manifest Android TV'nin şartlarını karşılıyor:
 
 **Riskler:**
 
-- **Marka.** TV tasarımlarının adı "Xbox 360" ve "Media Center"; ikisi de Microsoft'un. Uygulama
-  Microsoft'un logolarını (X küresi, "XBOX 360" yazısı, Media Center küresi) ve seslerini kullanmıyor,
-  yazı tipi açık lisanslı Selawik. Mağaza metninde "esinlenen, Microsoft'la ilgisi yok" notu var.
-  Play yine de marka şikâyeti gelirse ayardaki adları "Konsol" / "Medya merkezi" gibi genel adlara
-  çevirmek yeter; tasarım kalır.
+- **Marka.** Tasarımların kendi adları var: Aura, Mozaik, Panorama (telefon ve tablet), Konsol ve Salon
+  (televizyon). Uygulamada, mağaza metninde, sitede ve tanıtım videosunda başka bir şirketin ürün adı,
+  logosu ya da sesi geçmiyor; yazı tipi açık lisanslı Selawik. Karo glifleri MIT lisanslı Fluent UI
+  System Icons; lisansın istediği atıf README'de.
 
 - **Erişilebilirlik servisi ile Home tuşu.** İncelemeci servisin Home tuşunu yakaladığını
   görecek. Beyan (bölüm 1) ve açıklama kutusu bunu açıkça söylüyor; servis isteğe bağlı ve

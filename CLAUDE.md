@@ -41,6 +41,17 @@ two hubs that stay off the standard by choice: weather, which keeps its panorama
 sky behind every section side by side), and files, which is a Windows 8 explorer. Nothing new is
 added to that list.
 
+## Names the user sees
+
+The designs have names of their own. In everything a user can read - the app's strings, the store
+text, README, the site, PRIVACY, images and the promo video - they are **Aura** (the Zune layout),
+**Mozaik / Mosaic** (Windows Phone tiles), **Panorama** (the tablet's Windows 8 Start), **Konsol /
+Console** (the TV's Xbox 360 design) and **Salon / Lounge** (the TV's Media Center design). Zune,
+Windows, Windows Phone, Xbox, Media Center, Metro, Vista and Segoe are Microsoft's and appear in none
+of it; describe what a thing does ("pop-up card", "its own volume bar") rather than where it came
+from. Code names (classes, files, `ZuneHub`, `XboxStart`, `LocalVista`) and developer notes such as
+this file and `TV.md` keep the old words. The Fluent UI icons' MIT attribution stays in the README.
+
 ## Free and Pro
 
 The `free` flavour is the real app, `com.serkantkn.zunelauncher`, on Play and GitHub; `premium`

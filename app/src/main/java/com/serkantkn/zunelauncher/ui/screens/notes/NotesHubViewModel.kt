@@ -733,7 +733,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
                     val values = ContentValues().apply {
                         put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                         put(MediaStore.MediaColumns.MIME_TYPE, if (markdown) "text/markdown" else "text/plain")
-                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS + "/ZuneNotes")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS + "/ZLauncherNotes")
                     }
                     val uri = app.contentResolver.insert(MediaStore.Files.getContentUri("external"), values)
                     if (uri != null) {
@@ -742,7 +742,7 @@ class NotesHubViewModel(application: Application) : AndroidViewModel(application
                     } else null
                 } else {
                     @Suppress("DEPRECATION")
-                    val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "ZuneNotes").apply { mkdirs() }
+                    val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "ZLauncherNotes").apply { mkdirs() }
                     File(dir, fileName).writeText(body)
                     getApplication<Application>().localizedString(R.string.notes_export_path, fileName)
                 }

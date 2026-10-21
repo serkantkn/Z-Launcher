@@ -2,7 +2,7 @@
 <resources>
     <!-- The greeting's second paragraph, on both, and the tablet's own first one. -->
     <string name="onboarding_welcome_more">a few choices first, then a little practice. it takes under two minutes, and you can skip ahead whenever you like.</string>
-    <string name="onboarding_welcome_line_tablet">your tablet is about to look a little different. a start screen that runs from edge to edge, live tiles, and hubs that bring your people, music and photos together. the clean, bold language of Windows 8 and Zune, with everything Android can do underneath.</string>
+    <string name="onboarding_welcome_line_tablet">your tablet is about to look a little different. a start screen that runs from edge to edge, live tiles, and hubs that bring your people, music and photos together. the clean, bold language of Panorama and Aura, with everything Android can do underneath.</string>
 
     <!-- The tablet's lessons -->
     <string name="onboarding_tstart_title">start</string>

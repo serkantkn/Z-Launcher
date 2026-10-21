@@ -100,7 +100,7 @@ corner of the screen. Nothing is sent unless you pair the two.
 
 If you turn on the accessibility service on a TV, it is used for three things only: catching the
 remote's Home button, opening the TV's power menu or putting it to sleep when you choose that in
-Media Center's shutdown panel, and showing a paired phone's notice over other apps. Nothing on
+the TV interface's shutdown panel, and showing a paired phone's notice over other apps. Nothing on
 the screen is read, and nothing is recorded or sent.
 
 ## Where it is kept

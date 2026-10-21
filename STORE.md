@@ -9,29 +9,29 @@ Karakter sınırları Play'in kendi sınırlarıdır; her metnin sonunda kullan�
 ### Uygulama adı (en fazla 30)
 
 ```
-Z Launcher: Windows Phone
+Z Launcher: Canlı Karolar
 ```
-*(24 karakter)*
+*(25 karakter)*
 
 ### Kısa açıklama (en fazla 80)
 
 ```
-Metro kutucuklar, hub'lar ve Zune arayüzü. Telefonun yeniden Windows Phone.
+Canlı karolar, hub'lar ve dev yazılı listeler: telefonuna baştan, yeni bir dil.
 ```
-*(74 karakter)*
+*(79 karakter)*
 
 ### Tam açıklama (en fazla 4000)
 
 ```
-Windows Phone'u özleyenler için baştan yazılmış bir başlatıcı. Canlı kutucuklar, hub'lar,
-turnike animasyonları ve Zune'un o ince yazısı — hepsi bugünün Android'inde çalışıyor.
+Canlı karoları ve hub'ları özleyenler için baştan yazılmış bir başlatıcı. Canlı kutucuklar, hub'lar,
+turnike animasyonları ve ince, büyük yazılar — hepsi bugünün Android'inde çalışıyor.
 
 BAŞLANGIÇ EKRANI
 • Küçük, orta, geniş ve büyük kutucuklar; istediğin gibi yerleştir
 • Kendi kendine dönen canlı kutucuklar: saat, takvim, mesajlar, kişiler, hava durumu, müzik
 • Uygulama, kişi, konuşma, albüm, not ve web sayfası sabitleme
 • Klasörler, kutucuk renkleri, saydamlık ve köşe biçimi
-• Zune tarzı liste görünümü ya da Windows 8 yatay panosu
+• Üç düzen: Mozaik (canlı kutucuklar), Aura (dev yazılı hub listesi), tablette Panorama
 
 HUB'LAR
 • Telefon: arama, çağrı kaydı, hızlı arama, telesekreter
@@ -45,17 +45,17 @@ HUB'LAR
 • Saat, Takvim, Hava Durumu, Hesap Makinesi, Dosyalar, Kamera
 
 TELEVİZYON
-Android TV ve Google TV'de Z Launcher, Xbox 360 panosu ya da Windows Media Center olur:
-• İki tasarım: Xbox 360 panosu (gri zemin, yeşil karolar, üstte bölümler) ya da Windows Media Center (dönen kategoriler, cam kutu); ikisinde de açılış logosu ve gezinme sesleri
+Android TV ve Google TV'de Z Launcher iki tasarımdan biriyle kumandayla kullanılır:
+• İki tasarım: Konsol (gri zemin, yeşil karolar, üstte bölümler) ya da Salon (dönen kategoriler, cam kutu); ikisinde de açılış logosu ve gezinme sesleri
 • Kumandayla çalışan hub'lar: müzik, videolar, resimler, hava durumu, haberler, saat, dosyalar
 • Yarıda kalan filme devam et, televizyonun uygulamaları kendi afişleriyle
-• Xbox rehberi, arama, ana sayfaya sabitleme ve son kullanılanlar; gamepad ya da kumandanın renkli tuşlarıyla kısayollar
+• Rehber, arama, ana sayfaya sabitleme ve son kullanılanlar; gamepad ya da kumandanın renkli tuşlarıyla kısayollar
 • Temalar, müzik görselleştirici, ekran koruyucu ve uyku zamanlayıcısı
 • Telefon bağlantısı: telefonuna gelen aramalar ve mesajlar televizyonun köşesinde. Aynı Wi-Fi, 6 haneli kodla eşleme, şifreli, sunucusuz; mesaj metni sen istemedikçe gitmez
 
 AYRICA
-• Windows Phone klavyesi (Pro)
-• Ses çubuğundan bildirim şeridine kadar WP arayüzü
+• Z Launcher klavyesi (Pro)
+• Ses çubuğundan bildirim şeridine kadar aynı arayüz
 • Türkçe ve İngilizce
 • Karanlık ve aydınlık tema, vurgu rengi seçimi
 • Tablet düzeni ve bölünmüş ekran
@@ -66,9 +66,6 @@ fotoğrafların telefonunda kalır; telefon bağlantısı yalnızca eşlediğin 
 içinden konuşur. Hava durumu, haberler, şarkı sözü ve arama önerisi dışında
 hiçbir şey dışarı çıkmaz — onlar da yalnızca o özelliği kullandığında ve kimliğin eklenmeden.
 E-posta şifreleri ve kilitli notlar cihazda şifrelenir.
-
-Windows Phone, Zune, Metro, Xbox 360 ve Windows Media Center Microsoft'un markalarıdır; Z Launcher
-bunlardan esinlenen bağımsız bir uygulamadır, Microsoft'la ilgisi yoktur.
 
 Gizlilik politikası: <gizlilik politikası adresini buraya yaz>
 ```
@@ -81,29 +78,29 @@ Gizlilik politikası: <gizlilik politikası adresini buraya yaz>
 ### App name (max 30)
 
 ```
-Z Launcher: Windows Phone
+Z Launcher: Live Tiles
 ```
-*(24 characters)*
+*(22 characters)*
 
 ### Short description (max 80)
 
 ```
-Metro tiles, hubs and the Zune interface. Your phone, Windows Phone again.
+Live tiles, hubs and big-type lists: a whole new language for your phone.
 ```
-*(73 characters)*
+*(74 characters)*
 
 ### Full description (max 4000)
 
 ```
-A launcher written from scratch for anyone who misses Windows Phone. Live tiles, hubs,
-turnstile animations and Zune's thin type — all of it running on today's Android.
+A launcher written from scratch for anyone who misses live tiles and hubs. Live tiles, hubs,
+turnstile animations and thin, big type — all of it running on today's Android.
 
 START SCREEN
 • Small, medium, wide and large tiles, arranged how you like
 • Live tiles that turn by themselves: clock, calendar, messages, people, weather, music
 • Pin apps, people, conversations, albums, notes and web pages
 • Folders, tile colours, transparency and corner style
-• A Zune-style list, or the horizontal Windows 8 board
+• Three layouts: Mosaic (live tiles), Aura (a list of hubs in huge type), Panorama on tablets
 
 HUBS
 • Phone: dialling, call log, speed dial, voicemail
@@ -117,17 +114,17 @@ HUBS
 • Clock, Calendar, Weather, Calculator, Files, Camera
 
 TELEVISION
-On Android TV and Google TV, Z Launcher becomes the Xbox 360 dashboard or Windows Media Center:
-• Two designs: the Xbox 360 dashboard (a grey ground, green tiles, sections along the top) or Windows Media Center (turning categories, a pane of glass); both with a logo at launch and navigation sounds
+On Android TV and Google TV, Z Launcher is worked with the remote in one of two designs:
+• Two designs: Console (a grey ground, green tiles, sections along the top) or Lounge (turning categories, a pane of glass); both with a logo at launch and navigation sounds
 • Hubs worked with the remote: music, videos, pictures, weather, news, clock, files
 • Continue the film you left, the TV's apps by their own banners
-• The Xbox guide, search, pins on home and recent; shortcuts on a gamepad or the remote's coloured keys
+• A guide, search, pins on home and recent; shortcuts on a gamepad or the remote's coloured keys
 • Themes, a music visualizer, a screensaver and a sleep timer
 • Phone link: calls and messages to your phone in the corner of the TV. Same Wi-Fi, paired by a six-digit code, encrypted, no server; the message text stays on the phone unless you allow it
 
 ALSO
-• The Windows Phone keyboard (Pro)
-• The WP interface throughout, from the volume bar to the notification banner
+• Z Launcher's own keyboard (Pro)
+• The same interface throughout, from the volume bar to the notification banner
 • Turkish and English
 • Dark and light themes, your choice of accent colour
 • Tablet layout and split screen
@@ -137,9 +134,6 @@ There is no server. No ads, no analytics, no account. Your contacts, messages an
 stay on your phone; the phone link talks only to the TV you paired, inside your home network. Nothing leaves it except the weather, news, lyrics and search suggestions —
 and those only when you use that feature, with nothing identifying attached. Email passwords
 and locked notes are encrypted on the device.
-
-Windows Phone, Zune, Metro, Xbox 360 and Windows Media Center are Microsoft's trademarks; Z Launcher
-is an independent app inspired by them and is not affiliated with Microsoft.
 
 Privacy policy: <put the privacy policy address here>
 ```
@@ -157,7 +151,7 @@ Privacy policy: <put the privacy policy address here>
 | 7" tablet | isteğe bağlı | yok |
 | 10" tablet | isteğe bağlı | yok |
 | **TV afişi** | 1280 × 720 PNG/JPEG | `store/tv-banner.png` hazır |
-| **TV ekran görüntüsü** | 1920 × 1080, en az 1, en fazla 8 | `store/screenshots-tv/` hazır (8 adet: 4 Xbox, 4 Media Center) |
+| **TV ekran görüntüsü** | 1920 × 1080, en az 1, en fazla 8 | `store/screenshots-tv/` hazır (8 adet: 4 Konsol, 4 Salon) |
 
 TV afişi ve TV ekran görüntüleri yalnızca Play Console'da Android TV form faktörü eklendikten sonra
 istenir (bkz. `PLAY.md`, bölüm 6). Mağaza metinleri telefonla ortaktır; yukarıdaki "TELEVİZYON"

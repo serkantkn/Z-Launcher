@@ -137,9 +137,9 @@ fun LookPreviewCard(
             )
             Text(
                 text = when {
-                    homeScreenLayout != HomeScreenLayout.WINDOWS_PHONE -> "Zune"
-                    LocalIsWideScreen.current -> "Windows 8"
-                    else -> "Windows Phone"
+                    homeScreenLayout != HomeScreenLayout.WINDOWS_PHONE -> stringResource(R.string.settings_layout_zune)
+                    LocalIsWideScreen.current -> stringResource(R.string.settings_layout_win8)
+                    else -> stringResource(R.string.settings_layout_wp)
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = animatedAccentColor

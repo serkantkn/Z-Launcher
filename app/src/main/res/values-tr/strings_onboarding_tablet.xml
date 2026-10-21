@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="onboarding_welcome_more">önce birkaç tercih, ardından kısa bir alıştırma. iki dakika sürmez; istediğin an geçebilirsin.</string>
-    <string name="onboarding_welcome_line_tablet">tabletin artık biraz farklı görünecek. kenardan kenara uzanan bir başlangıç ekranı, canlı karolar ve kişileri, müziği, fotoğrafları bir araya toplayan hublar. Windows 8 ve Zune\'un sade, cesur dili, altında Android\'in yapabildiği her şeyle.</string>
+    <string name="onboarding_welcome_line_tablet">tabletin artık biraz farklı görünecek. kenardan kenara uzanan bir başlangıç ekranı, canlı karolar ve kişileri, müziği, fotoğrafları bir araya toplayan hublar. Panorama ve Aura\'nın sade, cesur dili, altında Android\'in yapabildiği her şeyle.</string>
 
     <string name="onboarding_tstart_title">başlangıç</string>
     <string name="onboarding_tstart_line">karoların yana doğru, doldurduğun kadar uzanır. gerisi bir kaydırma uzağında: uygulamaların hemen altta bekler, sosyal ise sol kenardan çekilir.</string>

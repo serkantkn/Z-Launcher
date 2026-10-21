@@ -166,17 +166,15 @@ if not ONLY or any(o.startswith('v2') or o == 'segs' for o in ONLY):
         text('Z Launcher', LIGHT, 130, 0, 860, 1.8, dx=0, center=True),
         text('telefon · tablet · televizyon', REG, 44, 0, 1010, 2.6, color='0xff8cc0', dx=0, center=True),
     ])
-    section('zune_phone', 'phone', 'zune_phone', ('0xe0157a', '0xff7a2a', '0x7a0d55'), 'zune', 'telefon', 'kayar hub listesi', '0xffe0c2', D['zune_phone'])
-    section('wp_phone', 'phone', 'wp_phone', ('0x050505', '0x5c0b35', '0x111111'), 'windows phone', 'telefon', 'canlı karolar', '0xff5fa8', D['wp_phone'])
-    section('zune_tablet', 'tablet', 'zune_tablet', ('0x2a0b3d', '0xb0177a', '0x4a1260'), 'zune', 'tablet', 'quickplay', '0xffc6e6', D['zune_tablet'])
-    section('win8_tablet', 'tablet', 'win8_tablet', ('0x1f0838', '0x4b1d84', '0x2d0b52'), 'windows 8', 'tablet', 'tam ekran başlangıç', '0xd9b8ff', D['win8_tablet'])
-    section('xbox', 'tv', 'xbox', ('0x2b2f31', '0x1f7a1f', '0x4a4f52'), 'xbox 360', 'televizyon', 'rehber · görselleştirici', '0x9cf09c', D['xbox'])
-    section('mc', 'tv', 'mc', ('0x061631', '0x0b4aa2', '0x04101f'), 'media center', 'televizyon', 'klasik, yeniden', '0x9fd2ff', D['mc'])
-    small = 'Zune, Windows Phone, Windows 8, Xbox 360 ve Media Center Microsoft’un markalarıdır. Z Launcher Microsoft ile ilişkili değildir.'
+    section('zune_phone', 'phone', 'zune_phone', ('0xe0157a', '0xff7a2a', '0x7a0d55'), 'aura', 'telefon', 'kayar hub listesi', '0xffe0c2', D['zune_phone'])
+    section('wp_phone', 'phone', 'wp_phone', ('0x050505', '0x5c0b35', '0x111111'), 'mozaik', 'telefon', 'canlı karolar', '0xff5fa8', D['wp_phone'])
+    section('zune_tablet', 'tablet', 'zune_tablet', ('0x2a0b3d', '0xb0177a', '0x4a1260'), 'aura', 'tablet', 'quickplay', '0xffc6e6', D['zune_tablet'])
+    section('win8_tablet', 'tablet', 'win8_tablet', ('0x1f0838', '0x4b1d84', '0x2d0b52'), 'panorama', 'tablet', 'tam ekran başlangıç', '0xd9b8ff', D['win8_tablet'])
+    section('xbox', 'tv', 'xbox', ('0x2b2f31', '0x1f7a1f', '0x4a4f52'), 'konsol', 'televizyon', 'rehber · görselleştirici', '0x9cf09c', D['xbox'])
+    section('mc', 'tv', 'mc', ('0x061631', '0x0b4aa2', '0x04101f'), 'salon', 'televizyon', 'oturma odası için', '0x9fd2ff', D['mc'])
     lineup('outro', D['outro'], [
         text('çok yakında', BOLD, 96, 0, 820, 1.6, color='0xff3d9a', dx=0, center=True),
         text('Z Launcher  ·  Google Play  ·  GitHub', REG, 46, 0, 950, 2.4, color='white@0.92', dx=0, center=True),
-        f"drawtext=fontfile={REG}:text='{esc(small)}':fontsize=21:fontcolor=white@0.5:x=(w-text_w)/2:y=1038:alpha=min(1\\,max(0\\,(t-3.2)/0.8))",
     ], outro=True)
 
 if not ONLY or 'final' in ONLY:

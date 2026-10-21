@@ -102,7 +102,7 @@ ekranın köşesinde gösterir. Bu özellik siz eşleştirme yapmadıkça hiçbi
 ## Televizyonda
 
 Televizyonda erişilebilirlik servisi açılırsa yalnızca üç iş için kullanılır: kumandanın Home
-tuşunu yakalamak, Media Center'ın "kapat" penceresinde seçtiğinizde televizyonu kapatma
+tuşunu yakalamak, televizyon arayüzünün "kapat" penceresinde seçtiğinizde televizyonu kapatma
 menüsünü açmak ya da uyutmak ve eşlediğiniz telefonun bildirimini diğer uygulamaların üstünde
 göstermek. Ekrandaki yazılar okunmaz, hiçbir şey kaydedilmez ve gönderilmez.
 

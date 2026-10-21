@@ -2,11 +2,12 @@
 <!-- Televizyonda erişilebilirlik servisinin tek bir işi var; Android'in listesinde de bunu söyler. -->
 <resources>
     <string name="label_key_service">Z Launcher Home tuşu</string>
-    <string name="accessibility_service_description">Televizyonda üç iş için çalışır: kumandanın Home tuşuna basıldığını görüp televizyonun kendi ana ekranı yerine Z Launcher\'ı açar; Media Center\'daki \"kapat\" penceresinden istersen televizyonun kapatma menüsünü ya da uyku modunu açar; eşlediğin telefondan gelen arama ve mesaj bildirimini diğer uygulamaların üstünde gösterir. Başka hiçbir tuşa karışmaz, ekrandakileri okumaz, hiçbir şeyi kaydetmez ve dışarı göndermez.</string>
+    <string name="accessibility_service_description">Televizyonda üç iş için çalışır: kumandanın Home tuşuna basıldığını görüp televizyonun kendi ana ekranı yerine Z Launcher\'ı açar; \"kapat\" penceresinden istersen televizyonun kapatma menüsünü ya da uyku modunu açar; eşlediğin telefondan gelen arama ve mesaj bildirimini diğer uygulamaların üstünde gösterir. Başka hiçbir tuşa karışmaz, ekrandakileri okumaz, hiçbir şeyi kaydetmez ve dışarı göndermez.</string>
     <!-- Televizyonun iki başlangıç ekranı. -->
-    <string name="settings_layout_zune_sub">Media Center listesi: yerler dev kelimelerle, seçilenin içi yanında</string>
-    <string name="settings_layout_win8">xbox</string>
-    <string name="settings_layout_win8_sub">Xbox 360 panosu: üstte bölümler, yana kayan büyük karolar</string>
+    <string name="settings_layout_zune">salon</string>
+    <string name="settings_layout_zune_sub">Salon listesi: yerler dev kelimelerle, seçilenin içi yanında</string>
+    <string name="settings_layout_win8">konsol</string>
+    <string name="settings_layout_win8_sub">Konsol panosu: üstte bölümler, yana kayan büyük karolar</string>
     <!-- Televizyonda kamera yok: ilk fotoğraf sayfası hepsini gösterir. -->
     <string name="pics_tab_camera_roll">tüm resimler</string>
     <string name="pics_empty_camera_roll">bu televizyonda henüz resim yok</string>

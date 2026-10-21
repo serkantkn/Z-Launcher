@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="store/feature-graphic.png" width="720" alt="Z Launcher — windows phone, yeniden">
+  <img src="store/feature-graphic.png" width="720" alt="Z Launcher">
 </p>
 
-<p align="center"><strong>Metro arayüzü, yeniden.</strong><br>
-Windows Phone'u özleyenler için sıfırdan yazılmış bir Android başlatıcı: canlı karolar, hub'lar, turnike animasyonları ve Zune'un o ince yazısı. Televizyonda Windows Media Center olur.</p>
+<p align="center"><strong>Canlı karolar, yeniden.</strong><br>
+Karoları ve hub'ları özleyenler için sıfırdan yazılmış bir Android başlatıcı: canlı karolar, hub'lar, turnike animasyonları ve ince, büyük yazılar. Televizyonda bir oturma odası arayüzü olur.</p>
 
 <p align="center">
   <a href="https://serkantkn.github.io/Z-Launcher/">tanıtım sitesi</a> · <a href="#english">English below</a>
@@ -30,7 +30,7 @@ Windows Phone'u özleyenler için sıfırdan yazılmış bir Android başlatıc�
 
 ## Neden
 
-Windows Phone'un arayüzü gitti; onu seven bir avuç insan kaldı. Z Launcher o arayüzü taklit etmiyor,
+Canlı karolu telefonlar gitti; onları seven bir avuç insan kaldı. Z Launcher o dili taklit etmiyor,
 **yeniden yapıyor**: karoların dönüşünden bir hub'a girerken karoların turnike gibi savrulmasına,
 klasör adının listeden kalkıp sayfanın başlığı olmasına kadar. Bugünün Android'inde, bugünün
 telefonlarında çalışıyor — ve hiçbir şeyi hiçbir yere göndermiyor.
@@ -51,11 +51,11 @@ telefonlarında çalışıyor — ve hiçbir şeyi hiçbir yere göndermiyor.
 - **Buzlu karolar** *(Pro)*. Saydam karoların arkasındaki duvar kağıdı buzlu cam gibi bulanıklaşabilir; ne kadar,
   ayarlardan.
 - **Her şey sabitlenir.** Uygulama, kişi, konuşma, albüm, plak, not, web sayfası.
-- **Karo başına kişiselleştirme** *(Pro)*. Renk, ad, simge (Windows Phone glifleri, ikon paketi ya da kendi resmin),
+- **Karo başına kişiselleştirme** *(Pro)*. Renk, ad, simge (Mozaik glifleri, ikon paketi ya da kendi resmin),
   simge boyutu, karoyu dolduran resim, animasyon, bildirim, şeffaflık ve yazı rengi — hepsi tek karo için,
   tek dokunuşla sıfırlanabilir.
 - **Hub yerine uygulama.** İstersen "internet" karosu Chrome'u açsın; her hub istediğin uygulamaya yönlendirilebilir.
-- **Üç düzen.** Windows Phone panosu, Zune tarzı hub listesi ya da Windows 8'in yatay panosu (tablet).
+- **Üç düzen.** Mozaik (canlı karolar), Aura (dev yazılı hub listesi) ya da tablette Panorama (yatay pano).
 - **Çalışan hub'lar.** Home tuşuyla çıktığın hub arka planda kalır; panonun altında, Home'a çift basınca
   açılan görev değiştiricide ya da iki parmakla yukarı çekince bölünen ekranda geri gelir.
 
@@ -68,9 +68,9 @@ telefonlarında çalışıyor — ve hiçbir şeyi hiçbir yere göndermiyor.
 </p>
 <p align="center"><sub>On dört vurgu rengi, özel renk, koyu ve açık tema, saydamlık, köşe biçimi, karo aralığı.</sub></p>
 
-## Zune düzeni
+## Aura düzeni
 
-Başlangıç ekranının ikinci yüzü, Zune HD'nin hub listesi:
+Başlangıç ekranının ikinci yüzü, kelimelerden bir hub listesi:
 
 - **Kelimelerle hub'lar.** Saat, tarih ve hava durumunun altında hub adları ince, büyük yazıyla; altlarında son mesaj,
   çalan parça, sıradaki etkinlik gibi canlı satırlar.
@@ -78,10 +78,10 @@ Başlangıç ekranının ikinci yüzü, Zune HD'nin hub listesi:
   büyüyüp kalınlaşarak hub'ın başlığı olur. Başlık ekranın üstünü kaplar, sağdan taşar ve sayfalar döndükçe kayar;
   dokununca geri götürür. Bir konuşma, kişi, grup, albüm ya da müzik listesi de aynı şekilde açılıp kapanır.
 - **Müziğin kendi menüsü.** Sanatçılar, albümler, şarkılar, türler, çalma listeleri ve videolar alt alta büyük
-  kelimeler olarak; uzun listelerde Zune'un harf atlayıcısı.
+  kelimeler olarak; uzun listelerde harf atlayıcı.
 - **Quickplay.** Listenin içinde bir şerit: son çalınanlar, sabitlediklerin ve yeni gelenler; tablette sağda
   hep açık.
-- **Karolar da burada.** Sabitlediğin uygulamalar ayrı bir sayfada Windows Phone karoları olarak durur; iki
+- **Karolar da burada.** Sabitlediğin uygulamalar ayrı bir sayfada Mozaik karoları olarak durur; iki
   düzen aynı anda kullanılabilir.
 
 ## Hub'lar
@@ -92,7 +92,7 @@ Hepsi uygulamanın içinde, hepsi aynı dilde yazılmış:
 |---|---|
 | **telefon** | arama, çağrı kaydı, hızlı arama, telesekreter |
 | **mesajlar** | SMS ve MMS (resimli mesaj gönderme ve alma), konuşmada arama, teslim raporları, konuşma sabitleme, hızlı yanıt |
-| **kişiler** | Windows Phone 7'deki gibi tek dev başlık altında bir panorama: tümü, yeni neler, son kullanılanlar; gruplar, mükerrer kayıt birleştirme, kişi karoları |
+| **kişiler** | tek dev başlık altında bir panorama: tümü, yeni neler, son kullanılanlar; gruplar, mükerrer kayıt birleştirme, kişi karoları |
 | **fotoğraflar** | film rulosu, albümler, video, düzenleyici, favoriler |
 | **müzik + videolar** | yerel kitaplık, çalma listeleri, şarkı sözleri, albüm kapakları; telefondaki videolar ve kendi video oynatıcısı |
 | **internet** | sekmeler, yer imleri, okuma görünümü ve okuma listesi, reklam ve izleyici engelleme, gizli gezinme |
@@ -126,13 +126,13 @@ beyaz bir çizgi menüye açılır.
 - **Haberler.** Manşetler, gündem, dünya, ekonomi, teknoloji, spor Google Haberler'den; "kaynaklarım" *(Pro)* takip ettiğin
   sitelerin RSS akışlarından, hazır Türkçe ve İngilizce kaynaklarla ya da kendi eklediğin adreslerle. Habere
   dokununca resmi ve özeti, devamı sitenin kendi sayfasında.
-- **Video oynatıcı.** Metro kontrolleri, iki kez dokunup 10 saniye atla, kaldığı yerden devam, ana ekrana dönünce
+- **Video oynatıcı.** Sade kontroller, iki kez dokunup 10 saniye atla, kaldığı yerden devam, ana ekrana dönünce
   küçük pencerede oynamaya devam. Altyazı (videonun yanındaki dosyalar da), ses parçası, hız, ekranı doldurma,
   klasördeki sonraki bölüm ve yanlışlıkla dokunmaya karşı kilit. Buluttaki videolar indirilmeden akış olarak oynar.
 
 ## Varsayılan uygulama
 
-Z Launcher telefonun varsayılan uygulaması olabilir; bir şey açıldığında karşına yine Metro çıkar:
+Z Launcher telefonun varsayılan uygulaması olabilir; bir şey açıldığında karşına yine aynı arayüz çıkar:
 
 - **Ana ekran, telefon, SMS, tarayıcı** — Android'in varsayılan uygulama ayarlarından.
 - **Galeri** — galerideki bir fotoğraf albümünün içinde, ekler ve indirilenler fotoğraflar görüntüleyicisinde açılır.
@@ -144,7 +144,7 @@ Z Launcher telefonun varsayılan uygulaması olabilir; bir şey açıldığında
 
 ## Eylem merkezi
 
-Durum çubuğundan aşağı çekince Android'in paneli yerine Windows 10 Mobile'ın eylem merkezi iner: saat,
+Durum çubuğundan aşağı çekince Android'in paneli yerine eylem merkezi iner: saat,
 hızlı eylemler (wi-fi, bluetooth, fener, döndürme kilidi; genişletince mobil veri, uçak modu, konum, sessiz
 saatler), ince parlaklık çubuğu, çalan müzik ve uygulamaya göre gruplu bildirimler. Bildirime dokun aç, sağa
 kaydır sil, mesajlara yerinde yanıt ver. Başlatıcının kendi bildirimleri e-posta, mesajlar, telefon diye
@@ -161,12 +161,12 @@ kilit ekranında Android'in kendi paneli kalır, böylece bildirimler kilitliyke
 
 ## Tablet
 
-Geniş ekranda başlangıç, Windows 8'in başlangıcıdır: tam ekran, gruplu karolar, yana doğru akan bir pano.
+Geniş ekranda başlangıç Panorama'dır: tam ekran, gruplu karolar, yana doğru akan bir pano.
 Uygulama listesi onun altında durur — yukarı kaydır ya da sol alttaki oka dokun, karolar ekranın üstünden
 çıkarken liste alttan gelir; aşağı kaydır, geri döner. Liste harflere göre gruplu, sütunlar önce aşağı sonra
 yana okunur, yana kayar; başlığın yanındaki menü ada, yüklenme tarihine ya da kullanıma göre sıralar. Basılı
-tutunca Windows 8'in uygulama çubuğu alttan gelir. Panoyu ilk grubun ötesine çekince sosyal hub açılır.
-Hub'lar da Windows 8 düzenindedir: başlıklar solda, açılan şey yanındaki bölmede, komutlar alttaki Windows 8
+tutunca uygulama çubuğu alttan gelir. Panoyu ilk grubun ötesine çekince sosyal hub açılır.
+Hub'lar da Panorama düzenindedir: başlıklar solda, açılan şey yanındaki bölmede, komutlar alttaki komut
 çubuğunda.
 
 <p align="center">
@@ -188,32 +188,32 @@ hub'lar oradadır: müzik + videolar (oynatıcısıyla), fotoğraflar, hava duru
 telefon, mesajlar, kişiler, kamera gibi telefona özgü olanlar gösterilmez. Ayarlar → görünüm → TV tasarımı'ndan iki
 tasarımdan biri seçilir, ana ekran ve bütün hub'lar onunla değişir:
 
-- **Xbox 360.** 2011–2013'teki Metro panosu, videolarından kare kare kopyalandı: koyudan açığa inen gri zemin,
+- **Konsol.** Bir oyun konsolu panosu: koyudan açığa inen gri zemin,
   üstte küçük harfli bölümler (ana sayfa, tv + filmler, müzik, uygulamalar, ayarlar), her bölümde yeşil karolardan
   bir grup; kumandanın üstündeki karo büyüyüp aydınlanır, komşu bölümler kenarlarda soluk görünür. Sol altta
   düğmelerin ne yaptığı (Ⓐ seç Ⓑ geri), uygulamalarım sayfası uzun beyaz kartlarla, kapat menüsü beyaz listede yeşil
-  seçimle. Hub'lar Xbox Music gibi: adı sağ üstte, bölümleri altında, komutları sol alttaki düğme açıklamalarında.
+  seçimle. Hub'lar da aynı dilde: adı sağ üstte, bölümleri altında, komutları sol alttaki düğme açıklamalarında.
   Ana sayfada sabitlenenler ve son kullanılanlar karoları; büyük karo yarıda kalan filmi, çalan albümü, son
   fotoğrafı, hava durumunu ve manşeti sırayla gösterir; alttaki karolar son açtığın iki şeydir. Bir karoya ya da
   uygulamaya basılı tutunca ayrıntı sayfası açılır: aç, ana sayfaya sabitle, öne taşı, uygulama bilgisi, kaldır;
-  yarıda kalan filmde devam et ya da baştan başla. Kumandanın menü tuşu (ya da Home'a uzun basış) Xbox rehberini
+  yarıda kalan filmde devam et ya da baştan başla. Kumandanın menü tuşu (ya da Home'a uzun basış) rehberi
   açar: son kullanılanlar, çalan müziği duraklatma ve geçme, hub'lar, uyku ve kapatma. Ana sayfanın sol kenarında
   arama durur: televizyonun uygulamaları, hub'lar ve televizyondaki şarkılar, albümler, videolar. Kart sayfalarının
   üstünde "göster" ve "sırala" seçicileri (ada, yüklenme tarihine, son kullanıma göre). Gamepad'in Ⓧ'i ya da
   kumandanın mavi tuşu ayrıntıları, Ⓨ ya da sarı tuş sabitlemeyi açar. Sabitleme, yeni yüklenen ve güncellenen
-  uygulamalar Xbox'un alttan çıkan bildirimiyle haber verilir. Sağ üstte profil: televizyonun adı ve eşlenen
+  uygulamalar alttan çıkan bir bildirimle haber verilir. Sağ üstte profil: televizyonun adı ve eşlenen
   telefon. Ayarlar bölümündeki "sistem ayarları" konsolun beyaz listesi gibi: tema (gri, gece mavisi, mor, turuncu,
   siyah ya da televizyondaki bir resim), ekran koruyucu (karartma ya da resimler, 5–30 dakika), görselleştirici,
   uyku zamanlayıcısı ve televizyonun görüntü, ses, ağ, kumanda, tarih, depolama ayarlarına kısayollar. Müzik
   çalarken kumandaya iki dakika dokunulmazsa şarkı ekranı doldurur: kapağı, adı, ilerlemesi ve arkada kayan dev
   sanatçı adı; rehberden de açılır.
-- **Media Center.** Windows Vista'nın Media Center'ı, videosundan kare kare kopyalandı: solda soluk "başlat" yazısı,
+- **Salon.** Oturma odası için bir medya arayüzü: solda soluk "başlat" yazısı,
   alt alta dönen kategoriler (Resimler + Videolar, Müzik, TV + Filmler, Uygulamalar, Bilgiler, Görevler), yerinden
   oynamayan cam bir kutu ve içinden kayan öğeler; program kitaplığı ve kapat penceresi. Kitaplıklarda ad sağ üstte
   büyük ve soluk, komutlar sol üstte bağlantı, seçili yol ‹ › arasında.
 
-İkisinde de açılışta logo, sayfalar arasında yakınlaşma, Segoe UI'ın açık ikizi Selawik ve kapatılabilir gezinme
-sesleri var (Microsoft'un logoları ve sesleri değil, kendi çizdiklerim ve ürettiklerim). Yarıda bırakılan film
+İkisinde de açılışta logo, sayfalar arasında yakınlaşma, açık lisanslı Selawik yazı tipi ve kapatılabilir gezinme
+sesleri var; logolar ve sesler bu projede çizildi ve üretildi. Yarıda bırakılan film
 "devam et"te, televizyonun uygulamaları kendi afişleriyle durur. Kumandanın Home tuşu, erişilebilirlik servisi
 açıksa Google TV'nin ana ekranı yerine Z Launcher'ı açar.
 
@@ -223,16 +223,16 @@ aramalar, cevapsız aramalar ve mesajlar televizyonun köşesinde, açık olan h
 metni varsayılan olarak gitmez; telefonda açılabilir. Sunucu yoktur, her şey ev ağında ve şifreli gider.
 
 <p align="center">
-  <img src="docs/img/tv-xbox-ana-sayfa.jpg" width="400" alt="Televizyonda Xbox 360 panosu">
-  <img src="docs/img/tv-xbox-bildirim.jpg" width="400" alt="Xbox tasarımında telefondan gelen mesaj">
+  <img src="docs/img/tv-konsol-ana-sayfa.jpg" width="400" alt="Televizyonda Konsol panosu">
+  <img src="docs/img/tv-konsol-bildirim.jpg" width="400" alt="Konsol tasarımında telefondan gelen mesaj">
 </p>
 <p align="center">
-  <img src="docs/img/tv-xbox-uygulamalarim.jpg" width="400" alt="Xbox tasarımında uygulamalarım">
-  <img src="docs/img/tv-xbox-kapat.jpg" width="400" alt="Xbox tasarımında kapat menüsü">
+  <img src="docs/img/tv-konsol-uygulamalarim.jpg" width="400" alt="Konsol tasarımında uygulamalarım">
+  <img src="docs/img/tv-konsol-kapat.jpg" width="400" alt="Konsol tasarımında kapat menüsü">
 </p>
 <p align="center">
-  <img src="docs/img/tv-vista-baslat.jpg" width="400" alt="Televizyonda Media Center başlangıcı">
-  <img src="docs/img/tv-vista-bildirim.jpg" width="400" alt="Media Center'da telefondan gelen mesaj">
+  <img src="docs/img/tv-salon-baslat.jpg" width="400" alt="Televizyonda Salon başlangıcı">
+  <img src="docs/img/tv-salon-bildirim.jpg" width="400" alt="Salon'da telefondan gelen mesaj">
 </p>
 <p align="center">
   <img src="docs/img/telefon-tv-baglantisi.png" width="200" alt="Telefonda TV bağlantısı ayarları">
@@ -240,7 +240,7 @@ metni varsayılan olarak gitmez; telefonda açılabilir. Sunucu yoktur, her şey
 
 ## Ayarlar
 
-Windows Phone'un ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli anahtarlar.
+Mozaik'in ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli anahtarlar.
 
 - **ekran+ses** — telefonun kendi ayarları: otomatik parlaklık, ekran kapanma süresi, otomatik döndürme; zil,
   titreşim, sessiz; medya, zil, bildirim ve alarm sesleri; zil, bildirim ve alarm tonu; dokunma sesleri ve
@@ -253,14 +253,14 @@ Windows Phone'un ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli
 
 ## Ayrıca
 
-- Windows Phone klavyesi ve tahmin çubuğu *(Pro)*
-- Ses çubuğundan bildirim şeridine kadar WP arayüzü *(Pro)*
+- Z Launcher klavyesi ve tahmin çubuğu *(Pro)*
+- Ses çubuğundan bildirim şeridine kadar aynı arayüz *(Pro)*
 - Türkçe ve İngilizce
 - Bölünmüş ekran: tablette dört, telefonda iki parmakla
 
 ## Ücretsiz ve Pro
 
-Başlangıç ekranı, bütün hub'lar, eylem merkezi, tablet düzeni, televizyon arayüzü (iki Media Center tasarımı ve
+Başlangıç ekranı, bütün hub'lar, eylem merkezi, tablet düzeni, televizyon arayüzü (iki tasarımı ve
 telefon bağlantısı dahil) ve varsayılan uygulama rolleri ücretsiz sürümde tamdır. **Pro, uygulamanın içinden tek seferlik bir satın almayla açılır** (Google Play üzerinden;
 ayarlar → hakkında → Z Launcher Pro, ya da kilitli herhangi bir şeye dokunarak). Bir kez alınır, aynı Google
 hesabıyla her telefonda geçerlidir; ayarların yerinde kalır. Pro şunları ekler:
@@ -272,7 +272,7 @@ hesabıyla her telefonda geçerlidir; ayarların yerinde kalır. Pro şunları e
 - **Hub'lar:** sosyal hub, kilitli notlar, haberlerde kendi RSS kaynakların, tarayıcıda okuma listesine
   ekleme, PDF olarak kaydetme, çeviri ve sık kullanılanlar; başlangıca 10'dan fazla uygulama, birden çok
   hava durumu şehri
-- **Sistem:** Windows Phone klavyesi, ses çubuğu ve bildirim şeridi
+- **Sistem:** Z Launcher klavyesi, ses çubuğu ve bildirim şeridi
 
 Satın alma yalnızca Google Play'den kurulan uygulamada yapılabilir; GitHub'daki APK ücretsiz sürümdür.
 Ücretsiz sürüm hiçbir verini Pro'ya kilitlemez: kilitli bir not yine açılır, okuma listesindekiler yine
@@ -326,54 +326,54 @@ kod katkısı göndermeden önce yaz, çünkü katkılar da aynı koşullarla ya
 ## Teşekkür
 
 Karo glifleri Microsoft'un [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) setinden
-(MIT, `third_party/`). Windows Phone, Zune ve Metro Microsoft'un markalarıdır; bu proje Microsoft'la ilgili değildir.
+(MIT, `third_party/`).
 
 ---
 
 <a name="english"></a>
 ## English
 
-**Metro, again.** A launcher written from scratch for anyone who misses Windows Phone: live tiles, hubs,
-turnstile animations and Zune's thin type, running on today's Android — and sending nothing anywhere. On a
-television it becomes Windows Media Center.
+**Live tiles, again.** A launcher written from scratch for anyone who misses tiles and hubs: live tiles, hubs,
+turnstile animations and thin, big type, running on today's Android — and sending nothing anywhere. On a
+television it becomes a living-room interface.
 
 - **Start screen.** Small, medium, wide and large tiles; live tiles that turn by themselves; folders; pin apps,
   people, conversations, albums, records, notes and web pages. Every live tile is laid out for every size, its
   count right beside its icon, and the wallpaper behind see-through tiles can be frosted. Every tile can be given its own colour, name,
   icon, picture, animation, transparency and ink, and reset with one tap. Any hub's tile can open another
-  app instead. Three layouts: the Windows Phone board, a Zune-style list, the Windows 8 board on tablets.
-- **The Zune layout.** The Zune HD's list of hubs as words, each with a live line beneath it. In phone,
+  app instead. Three layouts: Mosaic (live tiles), Aura (a list of hubs as huge words), and Panorama on tablets.
+- **The Aura layout.** A list of hubs as words, each with a live line beneath it. In phone,
   people, messaging, music, videos and pictures the name touched flies up and becomes the hub's huge, bold title,
   which runs off the right edge, slides as the pages turn and goes back when touched; a conversation, a contact,
-  a group, an album or a music list opens and closes the same way. Music has its own menu with genres and the
-  Zune alphabet, quickplay sits in the list (always open on the right on a tablet), and pinned apps stand as
-  Windows Phone tiles on a page of their own.
-- **Tablet.** Windows 8's Start, full screen and grouped; a swipe up slides it off while the app list rises from
+  a group, an album or a music list opens and closes the same way. Music has its own menu with genres and an
+  alphabet jump, quickplay sits in the list (always open on the right on a tablet), and pinned apps stand as
+  Mosaic tiles on a page of their own.
+- **Tablet.** Panorama's Start, full screen and grouped; a swipe up slides it off while the app list rises from
   below — apps under their letters in columns, scrolling sideways, ordered by name, install date or use, with
-  the Windows 8 app bar on a hold. Pulling the board past its first group opens the social hub.
+  the app bar on a hold. Pulling the board past its first group opens the social hub.
 - **Television.** On Android TV and Google TV the launcher is worked with the remote, with the hubs that make
   sense on a TV: music + videos with the player, pictures, weather, news, clock, files and settings. Two designs,
-  chosen in settings → look → TV design, Start and every hub with them: **Xbox 360**, the 2011–2013 Metro
-  dashboard copied frame by frame from videos of it - a grey ground, lower-case sections along the top, blocks of
+  chosen in settings → look → TV design, Start and every hub with them: **Console**, a games
+  console's dashboard - a grey ground, lower-case sections along the top, blocks of
   green tiles, the one the remote is on lifted, the neighbours peeking in at the edges, the button legend at the
-  bottom left - or **Media Center**, Windows Vista's, its categories turning through a fixed pane of glass. Both
-  have a logo at launch, a zoom between pages, Selawik (Segoe UI's open twin) and navigation sounds made here
+  bottom left - or **Lounge**, a living-room media interface, its categories turning through a fixed pane of glass. Both
+  have a logo at launch, a zoom between pages, the open Selawik type and navigation sounds made here
   that can be turned off. A film left part way waits under "continue"; the remote's Home button opens Z Launcher
   through an accessibility service. **The phone link** pairs a phone running Z Launcher with a TV on the same
   Wi-Fi by a six-digit code; calls, missed calls and messages then show in the TV's corner over whatever is
   on. The message text stays on the phone unless you allow it; no server, encrypted, on your own network.
-- **Action center.** A pull from the status bar brings down Windows 10 Mobile's action center instead of
+- **Action center.** A pull from the status bar brings down the action center instead of
   Android's shade: quick actions, a thin brightness slider, the music playing, and notifications grouped by
   app — the launcher's own by hub — to open, swipe away or answer in place. On a tablet it is a column from
   the right edge. It runs on an accessibility service, and the lock screen keeps Android's own shade.
 - **Hubs, all in-app.** Phone, Messaging (picture messages, search in a conversation, delivery reports),
-  People (a Windows Phone 7 panorama: all, what's new, recent), Pictures, Music + Videos (with the launcher's
+  People (a panorama: all, what's new, recent), Pictures, Music + Videos (with the launcher's
   own video player: small window, resume where you left off, subtitles, sound tracks, speed, the next
   episode, a touch lock), Internet, News, Email, Notes, Files (folders as tiles; copy, cut, paste, rename,
   delete, details, drag up a folder; opens text, pictures, sound, video and PDF itself; cloud files through the phone's own picker), Social,
   Clock, Calendar, Weather, Calculator, Camera. Hubs left with Home keep running and come back from the
   running-hubs strip, a double press of Home, or a two-finger swipe that splits the screen. On a tablet a hub
-  has its headings down the left, what is open in a pane beside them, and the Windows 8 bar.
+  has its headings down the left, what is open in a pane beside them, and a command bar.
 - **Internet and news.** Reading view offered beside the address where a page suits it, a reading list kept
   for offline, ad and tracker blocking with a per-site switch, a padlock and a proper warning for a bad
   certificate, a menu for held links and pictures, text size by site, translate, save as PDF, pull to reload.
@@ -382,19 +382,19 @@ television it becomes Windows Media Center.
 - **Default apps.** Besides Home, phone, SMS and browser, the launcher can be the phone's gallery, music
   player, video player and notes app, and answers when Android asks for the gallery, music, contacts,
   calendar, messaging, email, calculator, files, weather or browser app.
-- **Settings.** Windows Phone's sliders and switches. Display+sound holds the phone's own brightness, screen
+- **Settings.** Mosaic's sliders and switches. Display+sound holds the phone's own brightness, screen
   timeout, rotation, ringer, volumes, tones and touch sounds; connections shows airplane mode, Wi-Fi,
   Bluetooth, mobile data, roaming, data usage, hotspot, location, NFC, VPN and casting as they are and opens
   Android's own switch for each; about lists this device.
 - **Looks.** Fourteen accent colours and a custom one, dark and light themes, tile transparency and frost,
-  corner style and spacing. The Windows Phone keyboard *(Pro)*.
-- **Free and Pro.** Start, every hub, the action center, the tablet layout, the TV interface (both Media
-  Center designs and the phone link) and the default-app roles are whole in the free edition. Pro is one purchase inside the app, through Google Play (settings → about → Z Launcher
+  corner style and spacing. Z Launcher's own keyboard *(Pro)*.
+- **Free and Pro.** Start, every hub, the action center, the tablet layout, the TV interface (both designs and
+  the phone link) and the default-app roles are whole in the free edition. Pro is one purchase inside the app, through Google Play (settings → about → Z Launcher
   Pro, or touch anything locked); bought once, it holds on every phone signed in to the same Google account.
   Pro adds all accent colours, custom wallpaper, frosted tiles, each tile's own look,
   the hubs' background settings, the video player's subtitles, sound tracks, speed, fill, next episode and
   small window, online lyrics and covers, the social hub, locked notes, the news hub's own RSS sources, the
-  browser's reading list, PDF, translation and favourites, the Windows Phone keyboard, volume bar and banners.
+  browser's reading list, PDF, translation and favourites, Z Launcher's keyboard, volume bar and banners.
   Nothing of yours is locked away: a locked note still opens, saved pages still read, and Pro's settings
   wait, untouched, for Pro.
 - **Privacy.** No server, no ads, no analytics, no account. Only weather, news, lyrics and search suggestions
@@ -405,5 +405,4 @@ television it becomes Windows Media Center.
 Build with `./gradlew assembleFreeDebug` (flavours `free` and `premium`; minSdk 28). Written in Kotlin,
 all of the UI in Jetpack Compose. **Source-viewing licence:** read, study and build it for yourself;
 modifying, redistributing, reusing in other software and commercial use need written permission — see
-[LICENSE](LICENSE). Tile glyphs are Microsoft's Fluent UI System Icons (MIT). Windows Phone,
-Zune and Metro are Microsoft's trademarks; this project is not affiliated with Microsoft.
+[LICENSE](LICENSE). Tile glyphs are Microsoft's Fluent UI System Icons (MIT).
