@@ -6,10 +6,15 @@ plugins {
 
 android {
     namespace = "com.serkantkn.zeta.hubkit"
-    compileSdk = 37
+    // Built against an older platform than Zeta on purpose: a library's compileSdk becomes the
+    // least its users must compile against, and ZetaHubKit needs nothing newer than Android 9.
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 28
+        aarMetadata {
+            minCompileSdk = 28
+        }
     }
 
     compileOptions {

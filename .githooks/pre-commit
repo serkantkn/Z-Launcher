@@ -1,0 +1,16 @@
+#!/bin/sh
+# Refuses a commit that would put a secret into the repository: the Maven Central token, the
+# signing key and its password, the upload keystore's passwords. They belong in
+# ~/.gradle/gradle.properties or keystore.properties (ignored), never here.
+# Turned on per clone with: git config core.hooksPath .githooks
+pattern='^\+[[:space:]]*(mavenCentralUsername|mavenCentralPassword|signingInMemoryKey|signingInMemoryKeyId|signingInMemoryKeyPassword|signing\.password|storePassword|keyPassword)[[:space:]]*=[[:space:]]*[^[:space:]<]'
+if git diff --cached -U0 --no-color | grep -E -q "$pattern" ||
+   git diff --cached -U0 --no-color | grep -q 'BEGIN PGP PRIVATE KEY BLOC[K]'; then
+    echo "Commit refused: it would add a password, a token or a private key to the repository." >&2
+    echo "Put it in ~/.gradle/gradle.properties (or keystore.properties) instead." >&2
+    git diff --cached --name-only | while read f; do
+        git diff --cached -U0 --no-color -- "$f" | grep -E -q "$pattern" && echo "  in: $f" >&2
+    done
+    exit 1
+fi
+exit 0
