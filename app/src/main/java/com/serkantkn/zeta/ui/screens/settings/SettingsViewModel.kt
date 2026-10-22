@@ -272,7 +272,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
 
-    val hubOrder: StateFlow<List<com.serkantkn.zeta.data.model.HubId>> = settingsDataStore.hubOrder
+    val hubOrder: StateFlow<List<com.serkantkn.zeta.data.model.HubId>> = kotlinx.coroutines.flow.combine(
+        settingsDataStore.hubOrder,
+        com.serkantkn.zeta.data.hubs.HubDirectory.approved(settingsDataStore.approvedHubs)
+    ) { order, added -> com.serkantkn.zeta.data.hubs.HubDirectory.withAdded(order, added) }
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),

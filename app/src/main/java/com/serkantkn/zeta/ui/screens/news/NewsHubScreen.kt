@@ -343,7 +343,7 @@ private fun NewsPage(
     }
     ZunePageTransition {
         Column(modifier = Modifier.fillMaxSize()) {
-            if (isRefreshing) NewsLoadingDots(modifier = Modifier.padding(horizontal = horizontal))
+            if (isRefreshing) com.serkantkn.zeta.ui.components.ZuneLoadingDots(modifier = Modifier.padding(horizontal = horizontal))
             if (isSources && sourceNames.size > 1) {
                 SourceFilterRow(
                     names = sourceNames,
@@ -522,35 +522,3 @@ private fun SourceFilterRow(
     }
 }
 
-/**
- * Windows Phone's progress: dots in the accent colour running across the top of the page, slow
- * in the middle and quick at the ends, for as long as the stories are being fetched.
- */
-@Composable
-private fun NewsLoadingDots(modifier: Modifier = Modifier) {
-    val accent = LocalZuneColors.current.accentColor
-    val transition = rememberInfiniteTransition(label = "news_dots")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart),
-        label = "news_dots_progress"
-    )
-    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(4.dp)) {
-        val width = maxWidth
-        repeat(5) { index ->
-            // Each dot starts a little after the one before it; the cubic makes them bunch up in
-            // the middle and race at the edges, as the phone's did.
-            val t = (progress * 1.6f - index * 0.08f).coerceIn(0f, 1f)
-            val eased = 0.5f + 4f * (t - 0.5f) * (t - 0.5f) * (t - 0.5f)
-            if (t > 0f && t < 1f) {
-                Box(
-                    modifier = Modifier
-                        .offset(x = width * eased)
-                        .size(4.dp)
-                        .background(accent)
-                )
-            }
-        }
-    }
-}

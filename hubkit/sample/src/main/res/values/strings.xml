@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">To-do hub for Zeta</string>
+    <string name="hub_name">to-do</string>
+    <string name="page_open">to do</string>
+    <string name="page_done">done</string>
+    <string name="add">add</string>
+    <string name="clear_done">clear done</string>
+    <string name="nothing_to_do">nothing to do. add something with +.</string>
+    <string name="nothing_done">nothing done yet.</string>
+    <string name="done">done</string>
+    <string name="delete">delete</string>
+    <string name="added">added on %1$s</string>
+    <string name="details">details</string>
+    <string name="left">%1$d left</string>
+</resources>

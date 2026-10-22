@@ -2089,6 +2089,8 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="settings_replay_onboarding_sub">başlatıcı yeniyken gördüğün sayfalar</string>
     <!-- Neler değişti -->
     <string name="external_hub_unavailable">bu hub şu an açılamıyor.</string>
+    <string name="external_hub_retry">yeniden dene</string>
+    <string name="external_hub_empty">bu hub\'da henüz bir şey yok.</string>
     <string name="whats_new_title">neler değişti</string>
     <string name="whats_new_close">anladım</string>
     <string name="whats_new_v2_title">ikinci ön sürüm</string>

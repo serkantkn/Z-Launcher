@@ -124,6 +124,9 @@ dependencies {
     // Pro, bought once inside the app through Google Play.
     implementation(libs.billing.ktx)
 
+    // What Zeta and other apps' hubs speak (ZetaHubKit, PLATFORM.md).
+    implementation(project(":hubkit-protocol"))
+
     // AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

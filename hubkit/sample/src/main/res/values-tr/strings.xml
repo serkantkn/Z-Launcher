@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Zeta için yapılacaklar hub\'ı</string>
+    <string name="hub_name">yapılacaklar</string>
+    <string name="page_open">yapılacak</string>
+    <string name="page_done">bitti</string>
+    <string name="add">ekle</string>
+    <string name="clear_done">bitenleri temizle</string>
+    <string name="nothing_to_do">yapılacak bir şey yok. + ile ekle.</string>
+    <string name="nothing_done">henüz biten yok.</string>
+    <string name="done">bitti</string>
+    <string name="delete">sil</string>
+    <string name="added">%1$s eklendi</string>
+    <string name="details">ayrıntılar</string>
+    <string name="left">%1$d kaldı</string>
+</resources>

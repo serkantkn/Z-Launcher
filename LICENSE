@@ -7,6 +7,11 @@ Copyright (c) 2026 serkantkn (https://github.com/serkantkn)
 Türkçe metin asıldır; İngilizce çeviri kolaylık içindir.
 The Turkish text governs; the English translation is provided for convenience.
 
+İstisna: "hubkit/" klasöründeki dosyalar (ZetaHubKit) bu lisansa değil, o klasördeki
+LICENSE dosyasında yazılı Apache Lisansı 2.0'a tabidir.
+Exception: the files in the "hubkit/" directory (ZetaHubKit) are not under this licence but
+under the Apache License 2.0, as written in that directory's LICENSE file.
+
 ═══════════════════════════════════════════════════════════════════════════════
 TÜRKÇE
 ═══════════════════════════════════════════════════════════════════════════════

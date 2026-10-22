@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:supportsRtl="true">
+
+        <!-- The hub: Zeta finds it by this action and draws what it describes. -->
+        <service
+            android:name=".TodoHub"
+            android:exported="true"
+            android:label="@string/hub_name">
+            <intent-filter>
+                <action android:name="com.serkantkn.zeta.action.HUB" />
+            </intent-filter>
+            <meta-data
+                android:name="com.serkantkn.zeta.hub.protocol"
+                android:value="1" />
+        </service>
+    </application>
+</manifest>

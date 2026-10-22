@@ -114,6 +114,9 @@
         <intent><action android:name="com.anddoes.launcher.THEME" /></intent>
         <intent><action android:name="ch.deletescape.lawnchair.ICONPACK" /></intent>
         <intent><action android:name="com.teslacoilsw.launcher.THEME" /></intent>
+
+        <!-- Other apps' hubs (ZetaHubKit, PLATFORM.md) answer this. -->
+        <intent><action android:name="com.serkantkn.zeta.action.HUB" /></intent>
     </queries>
 
     <application

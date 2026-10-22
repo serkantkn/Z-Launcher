@@ -107,43 +107,42 @@ dependencies {
 ```kotlin
 class KargoHub : ZetaHubService() {
 
-    private val kargolar = MutableStateFlow<List<Kargo>>(emptyList())
+    private var kargolar by mutableHubStateOf(emptyList<Kargo>())   // değişince hub yeniden tarif edilir
 
     override fun hub(): HubSpec = zetaHub {
-        val liste by kargolar.collectAsHubState()
-
         page("yolda") {
-            if (liste.isEmpty()) empty("henüz kargo yok", action = "ekle") { yeniKargo() }
-            list(liste.filter { !it.teslim }, key = { it.no }) { k ->
-                item(k.ad, subtitle = k.durum, meta = k.tarih) {
-                    opens { kargoSayfasi(k) }        // alt sayfa; Aura'da ad uçar
-                }
+            val yolda = kargolar.filter { !it.teslim }
+            if (yolda.isEmpty()) empty("henüz kargo yok", actionLabel = "ekle") { yeniKargo() }
+            list(yolda, key = { it.no }) { k ->
+                item(k.ad, subtitle = k.durum, meta = k.tarih, opens = { kargoSayfasi(k.no) })
             }
         }
         page("teslim edildi") { ... }
 
         bar {
-            action("ekle", ZetaIcon.Add) { yeniKargo() }
-            action("yenile", ZetaIcon.Refresh) { yenile() }
+            action("ekle", HubIcon.ADD) { yeniKargo() }
+            action("yenile", HubIcon.REFRESH) { yenile() }
             menu("ayarlar") { ayarlar() }
         }
 
         liveTile {
-            count = liste.count { !it.teslim }
-            line = liste.firstOrNull()?.let { "${it.ad}: ${it.durum}" }
+            count = kargolar.count { !it.teslim }
+            line = kargolar.firstOrNull()?.let { "${it.ad}: ${it.durum}" }
         }
     }
 
-    private fun kargoSayfasi(k: Kargo) = subPage(title = k.ad) {
+    private fun kargoSayfasi(no: String) = subPage(title = bul(no).ad, key = no) {
         section("hareketler")
-        for (h in k.hareketler) item(h.yer, subtitle = h.saat)
-        button("takip numarasını kopyala") { kopyala(k.no) }
+        for (h in bul(no).hareketler) item(h.yer, subtitle = h.saat)
+        button("takip numarasını kopyala") { kopyala(no) }
     }
 }
 ```
 
-- `hub()` bir **tarif** döndürür; içindeki durum değişince kütüphane yeni tarifi kendisi gönderir
-  (Compose'un yeniden oluşturmasına benzer, ama ekran çizmez).
+- `hub()` bir **tarif** döndürür; `mutableHubStateOf` ile tutulan bir değer değişince, her olaydan
+  sonra ya da `invalidate()` çağrılınca kütüphane tarifi yeniden kurup gönderir (Compose'un yeniden
+  oluşturmasına benzer, ama ekran çizmez).
+- Gerçek, çalışan bir örnek: `hubkit/sample` (yapılacaklar listesi).
 - Tıklama, uzun basma, metin girişi gibi olaylar geliştiricinin verdiği lambdalara gelir.
   Kütüphane bunları kimliklerle eşler; geliştirici kimlikle uğraşmaz.
 - Hub uygulamasının kendi Activity'si olması gerekmez; isterse bir ayar ekranı ya da giriş ekranı
@@ -448,8 +447,8 @@ zaman `HubType`'tır" varsayımını kaldırmaktır.
 
 | Aşama | İçerik | Süre (kaba) |
 |---|---|---|
-| 0 | `HubId` düzenlemesi; davranış değişmez, testler geçer | ~1 hafta |
-| 1 | `hubkit-protocol`, `HubDirectory`, `HubConnection`, `ExternalHubScreen` telefonda; temel öğeler (sayfa, satır, liste, bölüm, düğme, boş, alt çubuk) | ~1,5 hafta |
+| 0 ✓ | `HubId` düzenlemesi; davranış değişmez, testler geçer | yapıldı (2026-10-22) |
+| 1 ✓ | `hubkit-protocol`, `hubkit`, örnek hub, `HubDirectory`, onay, `HubConnection`, `ExternalHubScreen`; v1 öğeleri (sayfa, satır, liste, bölüm, metin, düğme, boş, bilgi, yükleniyor, anahtar, değer, alt çubuk, alt sayfa) | yapıldı (2026-10-22) |
 | 2 | Tablet bölmesi, Aura uçuşu; canlı karo ve `HubTileProvider`; onay ve ayarlar sayfası | ~1 hafta |
 | 3 | `hubkit` DSL'i, doğrulayıcı, geliştirici modu, örnek hub (ör. "kargolarım"), belgeler | ~1 hafta |
 | 4 | Kalan v1 öğeleri, sınırlar, güvenlik denetimi, Maven yayını | ~0,5 hafta |

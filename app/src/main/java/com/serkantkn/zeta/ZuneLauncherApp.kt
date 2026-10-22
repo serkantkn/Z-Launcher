@@ -63,6 +63,8 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
         com.serkantkn.zeta.util.AppLocale.applyDefault(this)
         // Pro from what was last known, before anything is drawn; then from Google Play.
         com.serkantkn.zeta.data.billing.ProStore.start(this)
+        // Other apps' hubs (PLATFORM.md): which are installed, kept up to date as apps come and go.
+        com.serkantkn.zeta.data.hubs.HubDirectory.start(this)
         NoteFallbackTitles.refresh(localized())
         bindTimeText()
         rearmClock()

@@ -226,7 +226,11 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     private val _newAlbums = MutableStateFlow<List<com.serkantkn.zeta.data.model.RecentAlbum>>(emptyList())
 
 
-    val hubOrder: StateFlow<List<com.serkantkn.zeta.data.model.HubId>> = settingsDataStore.hubOrder
+    /** The hubs in the list's order: Zeta's own and the other apps' hubs the person has added. */
+    val hubOrder: StateFlow<List<com.serkantkn.zeta.data.model.HubId>> = kotlinx.coroutines.flow.combine(
+        settingsDataStore.hubOrder,
+        com.serkantkn.zeta.data.hubs.HubDirectory.approved(settingsDataStore.approvedHubs)
+    ) { order, added -> com.serkantkn.zeta.data.hubs.HubDirectory.withAdded(order, added) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** The Zune list's order, as the user has just rearranged it. */
@@ -1249,7 +1253,12 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             favoriteAppsDataStore.setFolderTileSpan(id, null)
             // Both lists fill themselves in with whatever hub they are missing, so a hub has to
             // be remembered as taken off or it comes straight back on the next read.
-            StartTileItem(id).hubId?.let { settingsDataStore.setHubRemoved(it, true) }
+            // Another app's hub is not hidden but given back: taking it off is withdrawing it.
+            when (val hub = StartTileItem(id).hubId) {
+                is com.serkantkn.zeta.data.model.ExternalHub -> settingsDataStore.setHubApproved(hub, null)
+                null -> Unit
+                else -> settingsDataStore.setHubRemoved(hub, true)
+            }
             // A tile that has gone takes its own look with it: pinned again, it starts plain.
             dropTileLook(id)
         }
@@ -1257,13 +1266,25 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
 
     /** Puts a hub back on the home screen; it returns to the end of the board and of the list. */
     fun addHub(hub: com.serkantkn.zeta.data.model.HubId) {
-        viewModelScope.launch { settingsDataStore.setHubRemoved(hub, false) }
+        viewModelScope.launch {
+            if (hub is com.serkantkn.zeta.data.model.ExternalHub) {
+                // Allowed as it is signed now; signed by anyone else later, it does not open.
+                val certificate = com.serkantkn.zeta.data.hubs.HubDirectory.find(hub)?.certificate ?: return@launch
+                settingsDataStore.setHubApproved(hub, certificate)
+            } else {
+                settingsDataStore.setHubRemoved(hub, false)
+            }
+        }
     }
 
     /** The hubs not on the home screen at the moment, in the order they are offered in. */
-    val hubsOffHome: StateFlow<List<com.serkantkn.zeta.data.model.HubId>> = settingsDataStore.removedHubs
-        .map { removed -> HubType.entries.filter { it != HubType.HOME && it in removed } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val hubsOffHome: StateFlow<List<com.serkantkn.zeta.data.model.HubId>> = kotlinx.coroutines.flow.combine(
+        settingsDataStore.removedHubs,
+        com.serkantkn.zeta.data.hubs.HubDirectory.notAdded(settingsDataStore.approvedHubs)
+    ) { removed, offered ->
+        // Zeta's own first, then what other apps offer (PLATFORM.md): adding one allows it.
+        HubType.entries.filter { it != HubType.HOME && it in removed } + offered.map { it.hub }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
 
     fun removeFavorite(packageName: String) {

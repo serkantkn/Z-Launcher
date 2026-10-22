@@ -103,6 +103,7 @@ class SettingsDataStore(private val context: Context) {
         val TILE_ICON_OVERRIDES = stringPreferencesKey("tile_icon_overrides")
         val TILE_LOOKS = stringPreferencesKey("tile_looks")
         val HUB_TARGET_APPS = stringPreferencesKey("hub_target_apps")
+        val APPROVED_HUBS = stringPreferencesKey("approved_hubs")
         val RECENT_APPS = stringPreferencesKey("recent_apps")
         val RECENT_ALBUMS = stringPreferencesKey("recent_albums")
         val QUICKPLAY_PINS = stringPreferencesKey("quickplay_pins")
@@ -214,6 +215,37 @@ class SettingsDataStore(private val context: Context) {
             }
         } catch (e: Exception) {
             ZuneLog.w(TAG, "hub targets could not be read", e)
+            emptyMap()
+        }
+    }
+
+    /**
+     * Other apps' hubs the person has added (PLATFORM.md): hub key to the SHA-256 of the app's
+     * signing certificate when it was added. A hub whose app is now signed by someone else is not
+     * the one that was allowed, and does not open.
+     */
+    val approvedHubs: Flow<Map<String, String>> = context.settingsDataStore.data.map { prefs ->
+        readApprovedHubs(prefs[APPROVED_HUBS])
+    }
+
+    /** Allows another app's hub, signed with [certificate]; or takes it away again with null. */
+    suspend fun setHubApproved(hub: com.serkantkn.zeta.data.model.ExternalHub, certificate: String?) {
+        context.settingsDataStore.edit { prefs ->
+            val current = readApprovedHubs(prefs[APPROVED_HUBS]).toMutableMap()
+            if (certificate == null) current.remove(hub.key) else current[hub.key] = certificate
+            prefs[APPROVED_HUBS] = org.json.JSONObject().apply {
+                current.forEach { (key, cert) -> put(key, cert) }
+            }.toString()
+        }
+    }
+
+    private fun readApprovedHubs(raw: String?): Map<String, String> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(raw)
+            buildMap { obj.keys().forEach { key -> obj.optString(key).takeIf { it.isNotBlank() }?.let { put(key, it) } } }
+        } catch (e: Exception) {
+            ZuneLog.w(TAG, "approved hubs could not be read", e)
             emptyMap()
         }
     }
