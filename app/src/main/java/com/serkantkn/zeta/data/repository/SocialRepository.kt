@@ -31,6 +31,14 @@ object SocialRepository {
     private val _notificationCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
     val notificationCounts: StateFlow<Map<String, Int>> = _notificationCounts.asStateFlow()
 
+    /**
+     * The newest notification in the shade per package, with words: what an app's tile turns over to
+     * show. Every app, in every build - the social hub's own messages are a Pro thing, a tile saying
+     * what its app has to say is not. In memory only.
+     */
+    private val _latestNotices = MutableStateFlow<Map<String, AppNotice>>(emptyMap())
+    val latestNotices: StateFlow<Map<String, AppNotice>> = _latestNotices.asStateFlow()
+
     private val _latestToastMessage = MutableStateFlow<SocialMessageModel?>(null)
     val latestToastMessage: StateFlow<SocialMessageModel?> = _latestToastMessage.asStateFlow()
 
@@ -86,6 +94,10 @@ object SocialRepository {
 
     fun updateNotificationCounts(counts: Map<String, Int>) {
         _notificationCounts.value = counts
+    }
+
+    fun updateLatestNotices(notices: Map<String, AppNotice>) {
+        _latestNotices.value = notices
     }
 
     fun markAsShown(id: String) {
@@ -214,3 +226,6 @@ object SocialRepository {
     private const val TEST_REPLY_KEY = "test_reply_key"
     private const val SHOWN_KEPT = 400
 }
+
+/** An app's newest notification, as its tile shows it. */
+data class AppNotice(val title: String?, val text: String?, val timestamp: Long)

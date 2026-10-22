@@ -1,5 +1,6 @@
 package com.serkantkn.zeta.data.link
 
+import com.serkantkn.zeta.ui.animation.installZetaMotion
 import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Handler
@@ -124,6 +125,7 @@ internal object TvLinkNotices {
             setViewTreeLifecycleOwner(lifecycle)
             setViewTreeViewModelStoreOwner(lifecycle)
             setViewTreeSavedStateRegistryOwner(lifecycle)
+            installZetaMotion(lifecycle.lifecycle)
             setContent {
                 val shown by this@TvLinkNotices.shown.collectAsState()
                 ZuneLauncherTheme { TvLinkNoticeCard(shown) }

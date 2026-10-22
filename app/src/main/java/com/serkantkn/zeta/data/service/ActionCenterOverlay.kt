@@ -1,5 +1,6 @@
 package com.serkantkn.zeta.data.service
 
+import com.serkantkn.zeta.ui.animation.installZetaMotion
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
@@ -235,6 +236,7 @@ object ActionCenterOverlay {
         val appContext = context.applicationContext
         // The launcher's own language, not the phone's: the service context only lends the window.
         val compose = ComposeView(appContextLocalized(context)).apply {
+            installZetaMotion(lifecycle.lifecycle)
             setViewTreeLifecycleOwner(lifecycle)
             setViewTreeViewModelStoreOwner(lifecycle)
             setViewTreeSavedStateRegistryOwner(lifecycle)

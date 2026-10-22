@@ -43,6 +43,8 @@ class SocialNotificationListener : NotificationListenerService() {
     companion object {
         var instance: SocialNotificationListener? = null
         private const val TAG = "SocialNotificationListener"
+        /** As much of a notification as a tile has room to write. */
+        private const val NOTICE_CHARS = 200
     }
 
     /** The app's own icon, which never changes and is asked for once per app rather than per message. */
@@ -263,15 +265,27 @@ class SocialNotificationListener : NotificationListenerService() {
     private fun updateAllNotificationCounts() {
         scope.launch {
             try {
-                val fromShade = (activeNotifications ?: emptyArray())
+                val waiting = (activeNotifications ?: emptyArray())
                     .filter { sbn ->
                         val n = sbn.notification
                         n != null &&
                             (n.flags and Notification.FLAG_ONGOING_EVENT) == 0 &&
                             (n.flags and Notification.FLAG_GROUP_SUMMARY) == 0
                     }
-                    .groupingBy { it.packageName }
-                    .eachCount()
+                val fromShade = waiting.groupingBy { it.packageName }.eachCount()
+
+                // The newest with words, per app, for its tile to show.
+                SocialRepository.updateLatestNotices(
+                    waiting.groupBy { it.packageName }.mapNotNull { (packageName, list) ->
+                        list.sortedByDescending { it.postTime }.firstNotNullOfOrNull { sbn ->
+                            val extras = sbn.notification?.extras
+                            val title = titleOf(extras)?.take(NOTICE_CHARS)?.takeIf { it.isNotBlank() }
+                            val text = textOf(extras)?.take(NOTICE_CHARS)?.takeIf { it.isNotBlank() }
+                            if (title == null && text == null) null
+                            else packageName to com.serkantkn.zeta.data.repository.AppNotice(title, text, sbn.postTime)
+                        }
+                    }.toMap()
+                )
 
                 val fromHub = SocialRepository.messages.value
                     .groupBy { it.packageName }

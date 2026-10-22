@@ -1,5 +1,6 @@
 package com.serkantkn.zeta.ui.screens.clock
 
+import com.serkantkn.zeta.ui.animation.installZetaMotion
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -120,6 +121,7 @@ class AlarmActivity : ComponentActivity() {
             return
         }
 
+        window.decorView.installZetaMotion(lifecycle)
         setContent {
             val fontScale by appContainer.settingsDataStore.fontScale.collectAsState(initial = 1.0f)
             val use24h by TimeText.use24h.collectAsState()

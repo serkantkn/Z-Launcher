@@ -1,5 +1,6 @@
 package com.serkantkn.zeta.ui.pro
 
+import com.serkantkn.zeta.ui.animation.installZetaMotion
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -58,6 +59,7 @@ class ProActivity : ComponentActivity() {
         enableEdgeToEdge()
         val reason = intent.getIntExtra(EXTRA_REASON, 0).takeIf { it != 0 }
         ProStore.restore()
+        window.decorView.installZetaMotion(lifecycle)
         setContent {
             val settings = appContainer.settingsDataStore
             val theme by settings.themeMode.collectAsState(initial = ThemeMode.DARK)

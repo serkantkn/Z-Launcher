@@ -206,7 +206,7 @@ fun ZuneHub(
                 // gliding there would pass through every page between - a search page opens its
                 // keyboard on the way. It holds on the page a moment and then turns to the first,
                 // which comes in the way a chosen heading's page does.
-                delay(WIDE_GLIDE_HOLD_MILLIS)
+                com.serkantkn.zeta.ui.animation.motionDelay(WIDE_GLIDE_HOLD_MILLIS)
                 pager.scrollToPage(0)
                 return@LaunchedEffect
             }

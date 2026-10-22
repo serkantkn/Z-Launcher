@@ -445,7 +445,7 @@ private fun HomeHubScreenContent(
         }
         // The hub comes up over the splash; once it has, the splash has done its work.
         if (isHubOpen && win8Splash != null) {
-            delay(WIN8_SPLASH_LINGER_MILLIS)
+            com.serkantkn.zeta.ui.animation.motionDelay(WIN8_SPLASH_LINGER_MILLIS)
             win8Splash = null
         }
     }
@@ -504,7 +504,7 @@ private fun HomeHubScreenContent(
                         tween(com.serkantkn.zeta.ui.animation.ZUNE_EXIT_MILLIS, easing = LinearEasing)
                     )
                 }
-                delay(zuneOpenAt)
+                com.serkantkn.zeta.ui.animation.motionDelay(zuneOpenAt)
                 openFolderId = null
                 action()
                 launching = false
@@ -513,7 +513,7 @@ private fun HomeHubScreenContent(
             // Turnstile feather out (1f -> 2f). The launch itself fires slightly before the
             // chosen tile has fully turned away so the hub's hinge-in overlaps it, WP style.
             launch { animationProgress.animateTo(2f, tween(1000, easing = LinearEasing)) }
-            delay(860)
+            com.serkantkn.zeta.ui.animation.motionDelay(860)
             // A folder left open under the hub would answer the Back key in the hub's stead.
             openFolderId = null
             action()

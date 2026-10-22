@@ -1,5 +1,6 @@
 package com.serkantkn.zeta.data.service
 
+import com.serkantkn.zeta.ui.animation.installZetaMotion
 import com.serkantkn.zeta.util.localized
 import com.serkantkn.zeta.util.ZuneLog
 import android.content.Context
@@ -80,6 +81,7 @@ object WpVolumeOverlay {
         }
 
         val view = ComposeView(appContext.localized()).apply {
+            installZetaMotion(owner.lifecycle)
             setViewTreeLifecycleOwner(owner)
             setViewTreeViewModelStoreOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)

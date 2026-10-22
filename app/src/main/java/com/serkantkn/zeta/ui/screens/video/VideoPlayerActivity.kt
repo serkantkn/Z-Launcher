@@ -1,5 +1,6 @@
 package com.serkantkn.zeta.ui.screens.video
 
+import com.serkantkn.zeta.ui.animation.installZetaMotion
 import androidx.compose.foundation.layout.fillMaxSize
 import com.serkantkn.zeta.util.Pro
 import android.app.PendingIntent
@@ -206,6 +207,7 @@ class VideoPlayerActivity : ComponentActivity() {
 
         load(intent)
 
+        window.decorView.installZetaMotion(lifecycle)
         setContent {
             val settings = appContainer.settingsDataStore
             val accent by settings.accentColor.collectAsState(initial = com.serkantkn.zeta.data.model.AccentColor.MAGENTA)

@@ -1,5 +1,6 @@
 package com.serkantkn.zeta.ui.openwith
 
+import com.serkantkn.zeta.ui.animation.installZetaMotion
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -49,6 +50,7 @@ class ImageViewerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.decorView.setBackgroundColor(android.graphics.Color.BLACK)
+        window.decorView.installZetaMotion(lifecycle)
         setContent {
             val settings = appContainer.settingsDataStore
             val accent by settings.accentColor.collectAsState(initial = com.serkantkn.zeta.data.model.AccentColor.MAGENTA)

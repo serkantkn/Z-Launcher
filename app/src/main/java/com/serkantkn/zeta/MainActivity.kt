@@ -1,5 +1,6 @@
 package com.serkantkn.zeta
 
+import com.serkantkn.zeta.ui.animation.installZetaMotion
 import androidx.compose.foundation.layout.fillMaxSize
 import android.content.Context
 import android.content.Intent
@@ -167,6 +168,8 @@ class MainActivity : FragmentActivity() {
         handleDialIntent(intent)
         handleWebIntent(intent)
         handleCallIntent(intent)
+        // Every animation at Zeta's own pace (ui/animation/Motion.kt).
+        window.decorView.installZetaMotion(lifecycle)
         setLauncherContent()
     }
 

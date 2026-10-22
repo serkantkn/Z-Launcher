@@ -1,5 +1,6 @@
 package com.serkantkn.zeta.data.service
 
+import com.serkantkn.zeta.ui.animation.installZetaMotion
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.PixelFormat
@@ -75,6 +76,7 @@ object QuickReplyOverlay {
         }
         val lifecycle = Owner().also { it.create() }
         val compose = ComposeView(appContext.localized()).apply {
+            installZetaMotion(lifecycle.lifecycle)
             setContent {
                 val settings = appContext.appContainer.settingsDataStore
                 val themeMode by settings.themeMode.collectAsState(initial = ThemeMode.DARK)

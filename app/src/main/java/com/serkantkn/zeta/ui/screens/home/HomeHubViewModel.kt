@@ -708,11 +708,21 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     private val _defaultDialerPackage = MutableStateFlow<String?>(null)
     val defaultDialerPackage: StateFlow<String?> = _defaultDialerPackage.asStateFlow()
 
-    val latestMessages: StateFlow<Map<String, SocialMessageModel>> = SocialRepository.messages
-        .map { list ->
-            list.associateBy { it.packageName }
+    /**
+     * What each app's tile turns over to show: its newest notification in the shade, or - for the
+     * social hub's sources, whose notifications the hub takes out of the shade - the hub's newest.
+     */
+    val latestMessages: StateFlow<Map<String, com.serkantkn.zeta.data.repository.AppNotice>> = combine(
+        SocialRepository.latestNotices,
+        SocialRepository.messages
+    ) { shade, hub ->
+        val fromHub = hub.groupBy { it.packageName }.mapValues { (_, list) ->
+            list.maxBy { it.timestamp }.let { com.serkantkn.zeta.data.repository.AppNotice(it.title, it.text, it.timestamp) }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        (shade.keys + fromHub.keys).associateWith { pkg ->
+            listOfNotNull(shade[pkg], fromHub[pkg]).maxBy { it.timestamp }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val tileCornerStyle: StateFlow<TileCornerStyle> = settingsDataStore.tileCornerStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TileCornerStyle.ROUNDED)
