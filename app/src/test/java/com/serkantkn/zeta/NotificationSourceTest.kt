@@ -46,4 +46,25 @@ class NotificationSourceTest {
         assertEquals(listOf("mail", "mail2"), groups.first().items.map { it.key })
         assertEquals(3, groups.map { it.key }.distinct().size)
     }
+
+    @Test
+    fun `conversations come first and silent notifications go last, apart`() {
+        fun item(key: String, time: Long, pkg: String, silent: Boolean = false, conversation: Boolean = false) = PanelNotification(
+            key = key, packageName = pkg, appName = pkg, appIcon = null,
+            title = key, text = "", subText = "", postTime = time, clearable = true,
+            contentIntent = null, autoCancel = true, reply = null,
+            silent = silent, conversation = conversation
+        )
+        val groups = ActionCenterNotifications.group(
+            listOf(
+                item("update", 500, "store", silent = true),
+                item("news", 400, "news"),
+                item("hi", 100, "chat", conversation = true),
+                item("promo", 450, "news", silent = true)
+            )
+        )
+        assertEquals(listOf("chat", "news", "store", "news"), groups.map { it.packageName })
+        assertEquals(listOf(false, false, true, true), groups.map { it.silent })
+        assertEquals(4, groups.map { it.key }.distinct().size)
+    }
 }

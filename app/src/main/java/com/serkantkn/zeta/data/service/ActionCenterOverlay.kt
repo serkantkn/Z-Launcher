@@ -54,6 +54,8 @@ import com.serkantkn.zeta.util.localized
  */
 object ActionCenterOverlay {
 
+    /** The least of the sheet's colour a frosted panel keeps: a page of words has to stay readable. */
+    private const val MIN_SHEET_ALPHA = 0.6f
     private const val TAG = "ActionCenter"
     private const val SETTLE_MILLIS = 260L
     private const val COVER_HOLD_MILLIS = 700L
@@ -173,6 +175,12 @@ object ActionCenterOverlay {
     /** Shows the (perhaps already built) window, still put away, ready to be pulled down. */
     private fun attach(context: Context): Boolean {
         if (showing) return true
+        // Never over the lock screen: the panel shows whole notifications, which a locked phone
+        // must not. The lock screen's shade is Android's, and it hides what apps marked private.
+        if ((context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager)?.isKeyguardLocked == true) {
+            ZuneLog.d(TAG, "locked: the panel stays away")
+            return false
+        }
         if (!ensureWindow(context)) return false
         val wm = windowManager ?: return false
         heightPx = screenHeight(wm, context).toFloat().coerceAtLeast(1f)
@@ -247,6 +255,15 @@ object ActionCenterOverlay {
                 val dynamicThemeColor by settings.dynamicThemeColor.collectAsState(initial = null)
                 val customThemeColor by settings.customThemeColor.collectAsState(initial = null)
                 val fontScale by settings.fontScale.collectAsState(initial = 1.0f)
+                val tileBlur by settings.tileBlur.collectAsState(initial = 0)
+                val tileOpacity by settings.tileOpacity.collectAsState(initial = 100)
+                // Frosted as the tiles are, where the phone blurs behind windows; never so thin
+                // that a page of notifications cannot be read over what is behind it.
+                val frost = com.serkantkn.zeta.ui.components.bannerAlpha(tileBlur, tileOpacity) < 1f && blursBehind()
+                val sheetAlpha = if (frost) {
+                    com.serkantkn.zeta.ui.components.bannerAlpha(tileBlur, tileOpacity).coerceAtLeast(MIN_SHEET_ALPHA)
+                } else 1f
+                val blurPx = if (frost) com.serkantkn.zeta.ui.components.bannerBlurPx(tileBlur) else 0
                 ZuneLauncherTheme(
                     themeMode = themeMode,
                     accentColor = accentColor,
@@ -259,6 +276,8 @@ object ActionCenterOverlay {
                         active = active.value,
                         progress = { progress.floatValue },
                         cover = { cover.floatValue },
+                        sheetAlpha = sheetAlpha,
+                        onShown = { shown -> setBlur((blurPx * shown).toInt()) },
                         onDragBy = { fraction -> progress.floatValue = (progress.floatValue + fraction).coerceIn(0f, 1f) },
                         onDragEnd = { velocity -> endDrag(velocity) },
                         onClose = { close() }
@@ -294,6 +313,28 @@ object ActionCenterOverlay {
             lifecycle.onDestroy()
             false
         }
+    }
+
+    /** Whether this phone blurs behind windows just now (Android 12 on, not in battery saver). */
+    private fun blursBehind(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            runCatching { windowManager?.isCrossWindowBlurEnabled == true }.getOrDefault(false)
+
+    /**
+     * The blur behind the panel, in pixels: set in steps as it comes down rather than every frame,
+     * since each is a change to the window.
+     */
+    private fun setBlur(px: Int) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val wm = windowManager ?: return
+        val view = root ?: return
+        val lp = params ?: return
+        val flags = if (px > 0) lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+            else lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+        if (lp.blurBehindRadius == px && lp.flags == flags) return
+        lp.flags = flags
+        lp.blurBehindRadius = px
+        runCatching { wm.updateViewLayout(view, lp) }.onFailure { ZuneLog.w(TAG, "the blur could not be set", it) }
     }
 
     /** Put away: hidden and kept for next time when the service holds it, taken down otherwise. */
@@ -337,6 +378,8 @@ object ActionCenterOverlay {
 
     private fun finishedAt(target: Float) {
         if (target <= 0f) {
+            // What was cleared with an "undo" still on offer goes for good once the panel is away.
+            com.serkantkn.zeta.data.repository.ActionCenterNotifications.commitPendingClear()
             detach()
         } else {
             // Open: the window takes focus so the Back key reaches it.

@@ -370,6 +370,27 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsDataStore.setDirectCallEnabled(enabled) }
     }
 
+    val quickActions: StateFlow<List<com.serkantkn.zeta.util.QuickAction>> =
+        settingsDataStore.quickActions.asState(com.serkantkn.zeta.util.QuickAction.DEFAULT)
+
+    /** Moves a square one place up (-1) or down (+1). */
+    fun moveQuickAction(action: com.serkantkn.zeta.util.QuickAction, by: Int) {
+        val list = quickActions.value.toMutableList()
+        val from = list.indexOf(action)
+        val to = from + by
+        if (from < 0 || to !in list.indices) return
+        list.add(to, list.removeAt(from))
+        viewModelScope.launch { settingsDataStore.setQuickActions(list) }
+    }
+
+    /** Puts a square in the action center, at the end, or takes it out. */
+    fun setQuickActionShown(action: com.serkantkn.zeta.util.QuickAction, shown: Boolean) {
+        val list = quickActions.value.toMutableList()
+        if (shown) { if (action !in list) list.add(action) } else list.remove(action)
+        if (list.isEmpty()) return
+        viewModelScope.launch { settingsDataStore.setQuickActions(list) }
+    }
+
     fun setWpActionCenter(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setWpActionCenter(enabled) }
     }

@@ -47,6 +47,10 @@ import androidx.compose.material.icons.filled.ScreenLockRotation
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Screenshot
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.Nfc
+import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -92,6 +96,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zeta.MainActivity
 import com.serkantkn.zeta.R
+import com.serkantkn.zeta.di.appContainer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import com.serkantkn.zeta.data.model.HubType
 import com.serkantkn.zeta.data.repository.ActionCenterNotifications
 import com.serkantkn.zeta.data.repository.PanelGroup
@@ -139,6 +151,10 @@ fun ActionCenterPanel(
     active: Boolean,
     progress: () -> Float,
     cover: () -> Float = { 0f },
+    /** How much of the sheet's colour shows, 1 solid; less when it is frosted as the tiles are. */
+    sheetAlpha: Float = 1f,
+    /** How far it has come down, in fifths: its window's blur follows it. */
+    onShown: (Float) -> Unit = {},
     onDragBy: (Float) -> Unit,
     onDragEnd: (Float) -> Unit,
     onClose: () -> Unit
@@ -146,7 +162,18 @@ fun ActionCenterPanel(
     val zuneColors = LocalZuneColors.current
     val context = LocalContext.current
     val ink = if (zuneColors.isDark) Color.White else Color.Black
-    val sheet = if (zuneColors.isDark) Color(0xFF1B1B1B) else Color(0xFFF2F2F2)
+    val sheet = (if (zuneColors.isDark) Color(0xFF1B1B1B) else Color(0xFFF2F2F2)).copy(alpha = sheetAlpha)
+    // The window's blur follows the sheet - and the strength chosen now, not when it was first built.
+    val latestShown by androidx.compose.runtime.rememberUpdatedState(onShown)
+    var shownStep by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.snapshotFlow { (progress() * 5f).roundToInt() / 5f }
+            .collect { shownStep = it; latestShown(it) }
+    }
+    LaunchedEffect(onShown) { latestShown(shownStep) }
+    val quick by remember { context.appContainer.settingsDataStore.quickActions }
+        .collectAsState(initial = QuickAction.DEFAULT)
+    val offered = remember(quick) { quick.filter { QuickActions.available(context, it) } }
     val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
 
     // A slow tick refreshes the clock and every switch's state, so a square turned on from
@@ -172,7 +199,16 @@ fun ActionCenterPanel(
     val date = remember(now / 60_000L, locale) {
         SimpleDateFormat("EEEE, d MMMM", locale).format(Date(now)).lowercase(locale)
     }
-    val groups by ActionCenterNotifications.groups.collectAsState()
+    val allGroups by ActionCenterNotifications.groups.collectAsState()
+    val pendingClear by ActionCenterNotifications.pendingClear.collectAsState()
+    // What was just cleared is off the panel while "undo" is still on offer.
+    val groups = remember(allGroups, pendingClear) {
+        if (pendingClear.isEmpty()) allGroups else allGroups.mapNotNull { g ->
+            val left = g.items.filterNot { it.key in pendingClear }
+            if (left.isEmpty()) null else g.copy(items = left)
+        }
+    }
+    val unfolded = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
     var expanded by remember { mutableStateOf(false) }
     // The panel is built once and kept (see ActionCenterOverlay), so its list would come back
     // where it was left — and a notification that arrived meanwhile lands above the fold. Each
@@ -194,7 +230,7 @@ fun ActionCenterPanel(
     }
 
     val pressed: (QuickOutcome) -> Unit = { outcome ->
-        if (outcome == QuickOutcome.OPENED_ELSEWHERE) onClose()
+        if (outcome == QuickOutcome.OPENED_ELSEWHERE || outcome == QuickOutcome.AFTER_CLOSING) onClose()
         stateTick++
     }
 
@@ -266,6 +302,23 @@ fun ActionCenterPanel(
 
     val hasClearable = groups.any { g -> g.items.any { it.clearable } }
 
+    val handlers = NotificationHandlers(
+        open = { item -> leave { ActionCenterNotifications.open(context, item) } },
+        dismiss = { item -> ActionCenterNotifications.dismiss(item) },
+        reply = { item ->
+            // The reply box sits below the keyboard; the panel would hide both.
+            if (QuickReplyOverlay.show(context, item)) {
+                onClose()
+            } else {
+                leave { ActionCenterNotifications.open(context, item) }
+            }
+        },
+        press = { item, action -> ActionCenterNotifications.press(context, item, action) },
+        snooze = { item, millis -> ActionCenterNotifications.snooze(item, millis) },
+        settings = { item -> leave { ActionCenterNotifications.openSettings(context, item) } },
+        clearGroup = { group -> ActionCenterNotifications.dismissGroup(group) }
+    )
+
     val notifications: @Composable (Modifier, NestedScrollConnection?) -> Unit = { modifier, scroll ->
         Box(modifier = modifier) {
             when {
@@ -286,7 +339,7 @@ fun ActionCenterPanel(
                         }
                     }
                 }
-                groups.isEmpty() -> Text(
+                groups.isEmpty() && pendingClear.isEmpty() -> Text(
                     text = stringResource(R.string.action_center_empty),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Light, fontSize = 18.sp),
                     color = ink.copy(alpha = 0.55f),
@@ -296,29 +349,13 @@ fun ActionCenterPanel(
                     state = listState,
                     modifier = Modifier.fillMaxSize().then(if (scroll != null) Modifier.nestedScroll(scroll) else Modifier)
                 ) {
-                    groups.forEach { group ->
-                        item(key = "group_" + group.key) {
-                            GroupHeader(group, ink) { ActionCenterNotifications.dismissGroup(group) }
-                        }
-                        items(group.items, key = { it.key }) { item ->
-                            NotificationRow(
-                                item = item,
-                                now = now,
-                                locale = locale,
-                                ink = ink,
-                                onOpen = { leave { ActionCenterNotifications.open(context, item) } },
-                                onDismiss = { ActionCenterNotifications.dismiss(item) },
-                                onReply = {
-                                    // The reply box sits below the keyboard; the panel would hide both.
-                                    if (QuickReplyOverlay.show(context, item)) {
-                                        onClose()
-                                    } else {
-                                        leave { ActionCenterNotifications.open(context, item) }
-                                    }
-                                }
-                            )
+                    if (pendingClear.isNotEmpty()) {
+                        item(key = "undo") {
+                            UndoBar(pendingClear.size, ink) { ActionCenterNotifications.undoClear() }
                         }
                     }
+                    notificationCards(groups, unfolded, now, locale, ink, handlers)
+                    item(key = "foot") { Spacer(modifier = Modifier.height(8.dp)) }
                 }
             }
         }
@@ -353,6 +390,7 @@ fun ActionCenterPanel(
                 hasClearable = hasClearable,
                 expanded = expanded,
                 expandLink = expandLink,
+                quick = offered,
                 stateTick = stateTick,
                 onPressed = pressed,
                 onAllSettings = openAllSettings,
@@ -372,6 +410,7 @@ fun ActionCenterPanel(
                 hasClearable = hasClearable,
                 expanded = expanded,
                 expandLink = expandLink,
+                quick = offered,
                 stateTick = stateTick,
                 onPressed = pressed,
                 onAllSettings = openAllSettings,
@@ -407,6 +446,7 @@ private fun PhonePanel(
     hasClearable: Boolean,
     expanded: Boolean,
     expandLink: @Composable () -> Unit,
+    quick: List<QuickAction>,
     stateTick: Int,
     onPressed: (QuickOutcome) -> Unit,
     onAllSettings: () -> Unit,
@@ -461,11 +501,14 @@ private fun PhonePanel(
             }
 
             // ── Quick actions ──
-            QuickRow(QuickAction.FIRST_ROW, stateTick, ink, onPressed)
-            AnimatedVisibility(visible = expanded, enter = expandVertically(tween(200)), exit = shrinkVertically(tween(160))) {
+            val rows = quick.chunked(QuickAction.ROW)
+            rows.firstOrNull()?.let { QuickRow(it, stateTick, ink, onPressed) }
+            AnimatedVisibility(visible = expanded && rows.size > 1, enter = expandVertically(tween(200)), exit = shrinkVertically(tween(160))) {
                 Column {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    QuickRow(QuickAction.SECOND_ROW, stateTick, ink, onPressed)
+                    rows.drop(1).forEach { row ->
+                        Spacer(modifier = Modifier.height(6.dp))
+                        QuickRow(row, stateTick, ink, onPressed)
+                    }
                 }
             }
 
@@ -526,6 +569,7 @@ private fun androidx.compose.foundation.layout.BoxScope.SidePanel(
     hasClearable: Boolean,
     expanded: Boolean,
     expandLink: @Composable () -> Unit,
+    quick: List<QuickAction>,
     stateTick: Int,
     onPressed: (QuickOutcome) -> Unit,
     onAllSettings: () -> Unit,
@@ -590,11 +634,14 @@ private fun androidx.compose.foundation.layout.BoxScope.SidePanel(
                 Spacer(modifier = Modifier.weight(1f))
                 LinkText(stringResource(R.string.action_center_all_settings), zuneColors.accentLink, onAllSettings)
             }
-            QuickTileRow(QuickAction.FIRST_ROW, stateTick, ink, onPressed)
-            AnimatedVisibility(visible = expanded, enter = expandVertically(tween(200)), exit = shrinkVertically(tween(160))) {
+            val rows = quick.chunked(QuickAction.ROW)
+            rows.firstOrNull()?.let { QuickTileRow(it, stateTick, ink, onPressed) }
+            AnimatedVisibility(visible = expanded && rows.size > 1, enter = expandVertically(tween(200)), exit = shrinkVertically(tween(160))) {
                 Column {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    QuickTileRow(QuickAction.SECOND_ROW, stateTick, ink, onPressed)
+                    rows.drop(1).forEach { row ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        QuickTileRow(row, stateTick, ink, onPressed)
+                    }
                 }
             }
             BrightnessRow(stateTick, ink, onAskPermission = onAskPermission)
@@ -612,41 +659,77 @@ private fun QuickRow(actions: List<QuickAction>, tick: Int, ink: Color, onPresse
         actions.forEach { action ->
             QuickSquare(action, tick, ink, onPressed, Modifier.weight(1f))
         }
+        // A last row that is short keeps the squares the size of the rest.
+        repeat(QuickAction.ROW - actions.size) { Spacer(modifier = Modifier.weight(1f)) }
     }
 }
 
 @Composable
 private fun QuickSquare(action: QuickAction, tick: Int, ink: Color, onPressed: (QuickOutcome) -> Unit, modifier: Modifier) {
+    QuickFace(action, tick, ink, onPressed, modifier.height(QUICK_SQUARE_HEIGHT), iconSize = 22.dp, pad = 8.dp)
+}
+
+/** Lower than square: four across, two rows of them are a third of the screen no longer. */
+private val QUICK_SQUARE_HEIGHT = 72.dp
+
+/**
+ * A quick action's face, on the phone and the tablet alike: lit in the accent while it is on,
+ * a small "›" in the corner when it opens a page of Android's rather than switching here, and
+ * read out by its name, whether it is on, and what pressing it does.
+ */
+@Composable
+private fun QuickFace(
+    action: QuickAction,
+    tick: Int,
+    ink: Color,
+    onPressed: (QuickOutcome) -> Unit,
+    modifier: Modifier,
+    iconSize: androidx.compose.ui.unit.Dp,
+    pad: androidx.compose.ui.unit.Dp
+) {
     val zuneColors = LocalZuneColors.current
     val context = LocalContext.current
-    val on = remember(tick, action) { QuickActions.isOn(context, action) }
-    val off = if (zuneColors.isDark) Color(0xFF333333) else Color(0xFFDADADA)
+    val on = remember(tick, action) { action.hasState && QuickActions.isOn(context, action) }
+    val off = if (zuneColors.isDark) Color(0x33FFFFFF) else Color(0x22000000)
     val glyph = if (on) Color.White else ink
     val source = remember { MutableInteractionSource() }
-    Column(
+    val name = stringResource(action.labelRes)
+    val state = stringResource(if (on) R.string.ac_on else R.string.ac_off)
+    val opens = stringResource(R.string.ac_opens_settings)
+    Box(
         modifier = modifier
-            .aspectRatio(1f)
             .background(if (on) zuneColors.accentColor else off)
             .wpTilt(interactionSource = source)
             .clickable(indication = null, interactionSource = source) {
                 onPressed(QuickActions.press(context, action))
             }
-            .padding(8.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+            // What a screen reader says: "wi-fi, on, opens settings".
+            .clearAndSetSemantics {
+                contentDescription = listOfNotNull(name, opens.takeIf { action.opensSettings }).joinToString(", ")
+                if (action.hasState) stateDescription = state
+                role = if (action.hasState && !action.opensSettings) Role.Switch else Role.Button
+                onClick { onPressed(QuickActions.press(context, action)); true }
+            }
+            .padding(pad)
     ) {
-        Icon(
-            painter = quickIcon(action),
-            contentDescription = null,
-            tint = glyph,
-            modifier = Modifier.size(24.dp)
-        )
-        Text(
-            text = stringResource(action.labelRes),
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 14.sp),
-            color = glyph,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+        Column(modifier = Modifier.matchParentSize(), verticalArrangement = Arrangement.SpaceBetween) {
+            Icon(painter = quickIcon(action), contentDescription = null, tint = glyph, modifier = Modifier.size(iconSize))
+            Text(
+                text = name,
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 13.sp),
+                color = glyph,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (action.opensSettings) {
+            Text(
+                text = "›",
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, lineHeight = 16.sp),
+                color = glyph.copy(alpha = 0.7f),
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+        }
     }
 }
 
@@ -657,42 +740,14 @@ private fun QuickTileRow(actions: List<QuickAction>, tick: Int, ink: Color, onPr
         actions.forEach { action ->
             QuickTile(action, tick, ink, onPressed, Modifier.weight(1f))
         }
+        // A last row that is short keeps the squares the size of the rest.
+        repeat(QuickAction.ROW - actions.size) { Spacer(modifier = Modifier.weight(1f)) }
     }
 }
 
 @Composable
 private fun QuickTile(action: QuickAction, tick: Int, ink: Color, onPressed: (QuickOutcome) -> Unit, modifier: Modifier) {
-    val zuneColors = LocalZuneColors.current
-    val context = LocalContext.current
-    val on = remember(tick, action) { QuickActions.isOn(context, action) }
-    val off = if (zuneColors.isDark) Color(0xFF333333) else Color(0xFFDADADA)
-    val glyph = if (on) Color.White else ink
-    val source = remember { MutableInteractionSource() }
-    Column(
-        modifier = modifier
-            .height(68.dp)
-            .background(if (on) zuneColors.accentColor else off)
-            .wpTilt(interactionSource = source)
-            .clickable(indication = null, interactionSource = source) {
-                onPressed(QuickActions.press(context, action))
-            }
-            .padding(horizontal = 8.dp, vertical = 7.dp),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Icon(
-            painter = quickIcon(action),
-            contentDescription = null,
-            tint = glyph,
-            modifier = Modifier.size(20.dp)
-        )
-        Text(
-            text = stringResource(action.labelRes),
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, lineHeight = 13.sp),
-            color = glyph,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
+    QuickFace(action, tick, ink, onPressed, modifier.height(68.dp), iconSize = 20.dp, pad = 7.dp)
 }
 
 @Composable
@@ -705,6 +760,13 @@ private fun quickIcon(action: QuickAction): Painter = when (action) {
     QuickAction.AIRPLANE -> painterResource(R.drawable.ic_wp_airplane)
     QuickAction.LOCATION -> painterResource(R.drawable.ic_wp_location)
     QuickAction.QUIET_HOURS -> painterResource(R.drawable.ic_wp_moon)
+    QuickAction.RINGER -> rememberVectorPainter(androidx.compose.material.icons.Icons.Default.Vibration)
+    QuickAction.VOLUME -> painterResource(R.drawable.ic_wp_speaker)
+    QuickAction.BATTERY_SAVER -> painterResource(R.drawable.ic_wp_battery)
+    QuickAction.NFC -> rememberVectorPainter(androidx.compose.material.icons.Icons.Default.Nfc)
+    QuickAction.CAST -> rememberVectorPainter(androidx.compose.material.icons.Icons.Default.Cast)
+    QuickAction.SCREENSHOT -> rememberVectorPainter(androidx.compose.material.icons.Icons.Default.Screenshot)
+    QuickAction.LOCK_SCREEN -> painterResource(R.drawable.ic_wp_lock)
 }
 
 @Composable
@@ -722,41 +784,41 @@ private fun BrightnessRow(tick: Int, ink: Color, onAskPermission: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(painterResource(R.drawable.ic_wp_sun), contentDescription = null, tint = ink.copy(alpha = 0.8f), modifier = Modifier.size(20.dp))
-        if (canWrite) {
-            WpSlider(
-                value = value,
-                accent = zuneColors.accentColor,
-                track = ink.copy(alpha = 0.2f),
-                onValueChange = {
+        // The slider is there whether or not the launcher may change the brightness yet: without
+        // the permission, the first touch asks for it, rather than a line of text standing in.
+        val label = stringResource(R.string.ac_brightness)
+        WpSlider(
+            value = value,
+            accent = zuneColors.accentColor,
+            track = ink.copy(alpha = 0.2f),
+            onValueChange = {
+                if (!canWrite) {
+                    if (!dragging) onAskPermission()
                     dragging = true
-                    value = it
-                    QuickActions.setBrightness(context, it)
-                },
-                onValueChangeFinished = { dragging = false },
-                modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
-            )
-            Text(
-                text = stringResource(R.string.action_center_brightness_auto),
-                style = MaterialTheme.typography.labelLarge,
-                color = if (auto) Color.White else ink.copy(alpha = 0.8f),
-                modifier = Modifier
-                    .background(if (auto) zuneColors.accentColor else Color.Transparent)
-                    .border(1.dp, if (auto) zuneColors.accentColor else ink.copy(alpha = 0.4f))
-                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
-                        QuickActions.setAutoBrightness(context, !auto)
-                    }
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
-            )
-        } else {
-            Text(
-                text = stringResource(R.string.action_center_brightness_permission),
-                style = MaterialTheme.typography.bodyMedium,
-                color = zuneColors.accentLink,
-                modifier = Modifier
-                    .padding(start = 10.dp, top = 12.dp, bottom = 12.dp)
-                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onAskPermission() }
-            )
-        }
+                    return@WpSlider
+                }
+                dragging = true
+                value = it
+                QuickActions.setBrightness(context, it)
+            },
+            onValueChangeFinished = { dragging = false },
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 12.dp)
+                .semantics { contentDescription = label }
+        )
+        Text(
+            text = stringResource(R.string.action_center_brightness_auto),
+            style = MaterialTheme.typography.labelLarge,
+            color = if (auto) Color.White else ink.copy(alpha = 0.8f),
+            modifier = Modifier
+                .background(if (auto) zuneColors.accentColor else Color.Transparent)
+                .border(1.dp, if (auto) zuneColors.accentColor else ink.copy(alpha = 0.4f))
+                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+                    if (canWrite) QuickActions.setAutoBrightness(context, !auto) else onAskPermission()
+                }
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        )
     }
 }
 
@@ -794,24 +856,37 @@ private fun MediaCard(
                 Text(artist, style = MaterialTheme.typography.bodyMedium, color = ink.copy(alpha = 0.65f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        RoundGlyph(Icons.Default.SkipPrevious, ink, onPrevious)
-        Spacer(modifier = Modifier.width(8.dp))
-        RoundGlyph(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, ink, onPlayPause)
-        Spacer(modifier = Modifier.width(8.dp))
-        RoundGlyph(Icons.Default.SkipNext, ink, onNext)
+        RoundGlyph(Icons.Default.SkipPrevious, stringResource(R.string.ac_previous), ink, onPrevious)
+        RoundGlyph(
+            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+            stringResource(if (isPlaying) R.string.ac_pause else R.string.ac_play),
+            ink,
+            onPlayPause
+        )
+        RoundGlyph(Icons.Default.SkipNext, stringResource(R.string.ac_next), ink, onNext)
     }
 }
 
 @Composable
-private fun RoundGlyph(icon: androidx.compose.ui.graphics.vector.ImageVector, ink: Color, onClick: () -> Unit) {
+private fun RoundGlyph(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, ink: Color, onClick: () -> Unit) {
+    // The ring is 36 dp; what takes the touch is a finger's 48.
     Box(
         modifier = Modifier
-            .size(36.dp)
-            .border(1.5.dp, ink.copy(alpha = 0.7f), androidx.compose.foundation.shape.CircleShape)
-            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onClick),
+            .size(48.dp)
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onClick)
+            .clearAndSetSemantics {
+                contentDescription = label
+                role = Role.Button
+                onClick { onClick(); true }
+            },
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(20.dp))
+        Box(
+            modifier = Modifier.size(36.dp).border(1.5.dp, ink.copy(alpha = 0.7f), androidx.compose.foundation.shape.CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(20.dp))
+        }
     }
 }
 
@@ -820,150 +895,7 @@ private fun RoundGlyph(icon: androidx.compose.ui.graphics.vector.ImageVector, in
 // ════════════════════════════════════════════════════════════
 
 @Composable
-private fun GroupHeader(group: PanelGroup, ink: Color, onClear: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        val hub = group.hub
-        if (hub != null) {
-            // The launcher's own: the hub's glyph on a small square of the accent, a tile in
-            // miniature, rather than the launcher's icon over every one of them.
-            Box(
-                modifier = Modifier.size(18.dp).background(LocalZuneColors.current.accentColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(getHubIcon(hub), contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-        } else {
-            group.appIcon?.let {
-                Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-        }
-        Text(
-            text = group.appName,
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, letterSpacing = 0.5.sp),
-            color = ink.copy(alpha = 0.65f),
-            modifier = Modifier.weight(1f)
-        )
-        if (group.items.any { it.clearable }) {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = null,
-                tint = ink.copy(alpha = 0.55f),
-                modifier = Modifier
-                    .size(32.dp)
-                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onClear)
-                    .padding(7.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun NotificationRow(
-    item: PanelNotification,
-    now: Long,
-    locale: Locale,
-    ink: Color,
-    onOpen: () -> Unit,
-    onDismiss: () -> Unit,
-    onReply: () -> Unit
-) {
-    val zuneColors = LocalZuneColors.current
-    val scope = rememberCoroutineScope()
-    val offset = remember { Animatable(0f) }
-    var width by remember { mutableIntStateOf(1) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .onSizeChanged { width = it.width.coerceAtLeast(1) }
-            .offset { IntOffset(offset.value.roundToInt(), 0) }
-            .graphicsLayer { alpha = 1f - (offset.value / width).coerceIn(0f, 1f) }
-            .then(
-                if (item.clearable) {
-                    Modifier.pointerInput(item.key) {
-                        detectHorizontalDragGestures(
-                            onDragEnd = {
-                                scope.launch {
-                                    if (offset.value > width * 0.4f) {
-                                        offset.animateTo(width.toFloat(), tween(160))
-                                        onDismiss()
-                                    } else {
-                                        offset.animateTo(0f, tween(160))
-                                    }
-                                }
-                            },
-                            onDragCancel = { scope.launch { offset.animateTo(0f, tween(160)) } },
-                            onHorizontalDrag = { change, delta ->
-                                change.consume()
-                                scope.launch { offset.snapTo((offset.value + delta).coerceAtLeast(0f)) }
-                            }
-                        )
-                    }
-                } else Modifier
-            )
-            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Row(verticalAlignment = Alignment.Top) {
-            Box(modifier = Modifier.width(3.dp).height(36.dp).background(zuneColors.accentColor))
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                if (item.subText.isNotBlank()) {
-                    Text(
-                        text = item.subText,
-                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
-                        color = ink.copy(alpha = 0.55f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (item.title.isNotBlank()) {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
-                        color = ink,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (item.text.isNotBlank()) {
-                    Text(
-                        text = item.text,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                        color = ink.copy(alpha = 0.7f),
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (item.reply != null) {
-                    Text(
-                        text = stringResource(R.string.action_center_reply),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = zuneColors.accentLink,
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onReply)
-                            .padding(vertical = 4.dp)
-                    )
-                }
-            }
-            Text(
-                text = whenText(item.postTime, now, locale),
-                style = MaterialTheme.typography.labelMedium,
-                color = ink.copy(alpha = 0.5f),
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun whenText(postTime: Long, now: Long, locale: Locale): String {
+internal fun whenText(postTime: Long, now: Long, locale: Locale): String {
     if (now - postTime < 60_000L) return stringResource(R.string.action_center_now)
     val then = Calendar.getInstance().apply { timeInMillis = postTime }
     val today = Calendar.getInstance().apply { timeInMillis = now }

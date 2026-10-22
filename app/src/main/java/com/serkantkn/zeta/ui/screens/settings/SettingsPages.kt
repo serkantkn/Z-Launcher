@@ -726,6 +726,135 @@ private fun androidx.compose.foundation.lazy.LazyListScope.actionCenterItem(view
             }
         }
     }
+    item(key = "quick_actions") {
+        val on by viewModel.wpActionCenter.collectAsState()
+        if (on) QuickActionsEditor(viewModel)
+    }
+}
+
+/**
+ * Which squares the action center shows, and in what order: the first four always, the rest when
+ * it is expanded. Squares this phone cannot offer (NFC without NFC) are not listed.
+ */
+@Composable
+private fun QuickActionsEditor(viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    val zuneColors = LocalZuneColors.current
+    val chosen by viewModel.quickActions.collectAsState()
+    val shown = chosen.filter { com.serkantkn.zeta.util.QuickActions.available(context, it) }
+    val addable = com.serkantkn.zeta.util.QuickAction.entries
+        .filter { it !in chosen && com.serkantkn.zeta.util.QuickActions.available(context, it) }
+
+    SettingGroup(title = stringResource(R.string.ac_quick_title)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = stringResource(R.string.ac_quick_sub),
+                style = MaterialTheme.typography.bodySmall,
+                color = zuneColors.textMuted,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            shown.forEachIndexed { index, action ->
+                QuickActionEditRow(
+                    label = "${index + 1}. ${stringResource(action.labelRes)}",
+                    divider = index == com.serkantkn.zeta.util.QuickAction.ROW - 1 && shown.size > com.serkantkn.zeta.util.QuickAction.ROW,
+                    onUp = if (index > 0) ({ viewModel.moveQuickAction(action, -1) }) else null,
+                    onDown = if (index < shown.lastIndex) ({ viewModel.moveQuickAction(action, 1) }) else null,
+                    onRemove = if (shown.size > 1) ({ viewModel.setQuickActionShown(action, false) }) else null
+                )
+            }
+            if (addable.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.ac_quick_hidden),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = zuneColors.textMuted,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+                addable.forEach { action ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.setQuickActionShown(action, true) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(action.labelRes),
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = stringResource(R.string.ac_quick_add),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = zuneColors.accentLink
+                        )
+                    }
+                }
+            }
+            if ((com.serkantkn.zeta.util.QuickAction.SCREENSHOT in shown || com.serkantkn.zeta.util.QuickAction.LOCK_SCREEN in shown) &&
+                com.serkantkn.zeta.data.service.ZuneKeyAccessibilityService.current == null
+            ) {
+                Text(
+                    text = stringResource(R.string.ac_quick_needs_service),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = zuneColors.textMuted,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionEditRow(
+    label: String,
+    divider: Boolean,
+    onUp: (() -> Unit)?,
+    onDown: (() -> Unit)?,
+    onRemove: (() -> Unit)?
+) {
+    val ink = MaterialTheme.colorScheme.onBackground
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, LocalZuneColors.current.textMuted.copy(alpha = 0.25f))
+                .padding(start = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp),
+                color = ink,
+                modifier = Modifier.weight(1f)
+            )
+            listOf(
+                Triple(Icons.Default.KeyboardArrowUp, R.string.settings_move_up, onUp),
+                Triple(Icons.Default.KeyboardArrowDown, R.string.settings_move_down, onDown),
+                Triple(Icons.Default.Close, R.string.ac_quick_remove, onRemove)
+            ).forEach { (icon, desc, action) ->
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .alpha(if (action != null) 1f else 0.3f)
+                        .clickable(enabled = action != null) { action?.invoke() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = icon, contentDescription = stringResource(desc), tint = ink)
+                }
+            }
+        }
+        // Where the first row ends and the expanded part begins.
+        if (divider) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(LocalZuneColors.current.accentColor.copy(alpha = 0.6f))
+            )
+        }
+    }
 }
 
 @Composable

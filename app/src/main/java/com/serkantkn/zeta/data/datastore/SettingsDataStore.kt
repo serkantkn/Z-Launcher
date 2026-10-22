@@ -83,6 +83,7 @@ class SettingsDataStore(private val context: Context) {
         val NOTIFICATION_STYLE = stringPreferencesKey("notification_style")
         val VOLUME_BAR_STYLE = stringPreferencesKey("volume_bar_style")
         val WP_ACTION_CENTER = booleanPreferencesKey("wp_action_center")
+        val QUICK_ACTIONS = stringPreferencesKey("quick_actions")
         val SWITCHER_TIP_SHOWN = booleanPreferencesKey("switcher_tip_shown")
         val DISABLED_NOTIFICATION_APPS = stringPreferencesKey("disabled_notification_apps")
         val TIME_FORMAT = stringPreferencesKey("time_format")
@@ -1102,6 +1103,21 @@ class SettingsDataStore(private val context: Context) {
     }
 
     /** Whether a pull from the status bar opens the Windows Phone action center. On by default. */
+    /**
+     * The action center's squares in the order chosen: the first row and then the rest. Unknown
+     * names are skipped; nothing stored is the default eight.
+     */
+    val quickActions: Flow<List<com.serkantkn.zeta.util.QuickAction>> = context.settingsDataStore.data.map { prefs ->
+        val raw = prefs[QUICK_ACTIONS] ?: return@map com.serkantkn.zeta.util.QuickAction.DEFAULT
+        parseJsonStringList(raw, TAG)
+            .mapNotNull { name -> com.serkantkn.zeta.util.QuickAction.entries.firstOrNull { it.name == name } }
+            .distinct()
+    }
+
+    suspend fun setQuickActions(actions: List<com.serkantkn.zeta.util.QuickAction>) {
+        context.settingsDataStore.edit { prefs -> prefs[QUICK_ACTIONS] = actions.map { it.name }.toJsonStringArray() }
+    }
+
     val wpActionCenter: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[WP_ACTION_CENTER] ?: true
     }

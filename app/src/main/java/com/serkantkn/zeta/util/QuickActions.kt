@@ -1,12 +1,17 @@
 package com.serkantkn.zeta.util
 
+import android.accessibilityservice.AccessibilityService
 import android.app.NotificationManager
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.media.AudioManager
+import android.nfc.NfcAdapter
+import android.os.PowerManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -25,20 +30,38 @@ import com.serkantkn.zeta.R
  * settings page where there is no sheet); the rest — the torch, the rotation lock, quiet hours —
  * are switched here directly, given the permission each needs.
  */
-enum class QuickAction(@StringRes val labelRes: Int) {
-    WIFI(R.string.quick_wifi),
-    BLUETOOTH(R.string.quick_bluetooth),
+enum class QuickAction(
+    @StringRes val labelRes: Int,
+    /** Pressing it opens Android's own sheet or settings page rather than switching it here. */
+    val opensSettings: Boolean = false,
+    /** It is on or off; one that only does something (a screenshot) has no state. */
+    val hasState: Boolean = true
+) {
+    WIFI(R.string.quick_wifi, opensSettings = true),
+    BLUETOOTH(R.string.quick_bluetooth, opensSettings = true),
     FLASHLIGHT(R.string.quick_flashlight),
     ROTATION_LOCK(R.string.quick_rotation_lock),
-    MOBILE_DATA(R.string.quick_mobile_data),
-    AIRPLANE(R.string.quick_airplane),
-    LOCATION(R.string.quick_location),
-    QUIET_HOURS(R.string.quick_quiet_hours);
+    MOBILE_DATA(R.string.quick_mobile_data, opensSettings = true),
+    AIRPLANE(R.string.quick_airplane, opensSettings = true),
+    LOCATION(R.string.quick_location, opensSettings = true),
+    QUIET_HOURS(R.string.quick_quiet_hours),
+    RINGER(R.string.quick_ringer),
+    VOLUME(R.string.quick_volume, opensSettings = true, hasState = false),
+    BATTERY_SAVER(R.string.quick_battery_saver, opensSettings = true),
+    NFC(R.string.quick_nfc, opensSettings = true),
+    CAST(R.string.quick_cast, opensSettings = true, hasState = false),
+    SCREENSHOT(R.string.quick_screenshot, hasState = false),
+    LOCK_SCREEN(R.string.quick_lock_screen, hasState = false);
 
     companion object {
-        /** The first row; the rest come out when the row is expanded, as on Windows 10 Mobile. */
-        val FIRST_ROW = listOf(WIFI, BLUETOOTH, FLASHLIGHT, ROTATION_LOCK)
-        val SECOND_ROW = listOf(MOBILE_DATA, AIRPLANE, LOCATION, QUIET_HOURS)
+        /** As the panel comes the first time: the first row, and the rest when it is expanded. */
+        val DEFAULT = listOf(
+            WIFI, BLUETOOTH, FLASHLIGHT, ROTATION_LOCK,
+            MOBILE_DATA, AIRPLANE, LOCATION, QUIET_HOURS
+        )
+
+        /** How many squares make a row. */
+        const val ROW = 4
     }
 }
 
@@ -51,7 +74,10 @@ enum class QuickOutcome {
     OPENED_ELSEWHERE,
 
     /** Nothing could be done. */
-    FAILED
+    FAILED,
+
+    /** It is done once the panel has gone (a screenshot of what is under it); the panel goes away. */
+    AFTER_CLOSING
 }
 
 object QuickActions {
@@ -77,6 +103,12 @@ object QuickActions {
             QuickAction.QUIET_HOURS ->
                 (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
                     .currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+            // Lit while the phone does not ring: on vibrate or silent.
+            QuickAction.RINGER ->
+                (context.getSystemService(Context.AUDIO_SERVICE) as AudioManager).ringerMode != AudioManager.RINGER_MODE_NORMAL
+            QuickAction.BATTERY_SAVER -> (context.getSystemService(Context.POWER_SERVICE) as PowerManager).isPowerSaveMode
+            QuickAction.NFC -> NfcAdapter.getDefaultAdapter(context)?.isEnabled == true
+            QuickAction.VOLUME, QuickAction.CAST, QuickAction.SCREENSHOT, QuickAction.LOCK_SCREEN -> false
         }
     }.getOrDefault(false)
 
@@ -110,7 +142,37 @@ object QuickActions {
                 QuickOutcome.SWITCHED
             }
         }
+        QuickAction.RINGER -> {
+            com.serkantkn.zeta.data.service.VolumeController.toggleRingerMode(context)
+            QuickOutcome.SWITCHED
+        }
+        QuickAction.VOLUME -> openSheet(context, Settings.Panel.ACTION_VOLUME, Settings.ACTION_SOUND_SETTINGS)
+        QuickAction.BATTERY_SAVER -> open(context, Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS))
+        QuickAction.NFC -> openSheet(context, Settings.Panel.ACTION_NFC, Settings.ACTION_NFC_SETTINGS)
+        QuickAction.CAST -> open(context, Intent(Settings.ACTION_CAST_SETTINGS))
+        // Both need the launcher's accessibility service, which may take a screenshot and lock the
+        // screen; the screenshot waits for the panel to be out of it.
+        QuickAction.SCREENSHOT -> globalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT, SCREENSHOT_DELAY_MILLIS)
+        QuickAction.LOCK_SCREEN -> globalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN, LOCK_DELAY_MILLIS)
     }
+
+    /** Which squares this phone can offer at all: no NFC square on a phone without NFC. */
+    fun available(context: Context, action: QuickAction): Boolean = when (action) {
+        QuickAction.NFC -> NfcAdapter.getDefaultAdapter(context) != null
+        QuickAction.FLASHLIGHT -> context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH)
+        QuickAction.MOBILE_DATA -> context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)
+        else -> true
+    }
+
+    private fun globalAction(action: Int, delayMillis: Long): QuickOutcome {
+        val service = com.serkantkn.zeta.data.service.ZuneKeyAccessibilityService.current ?: return QuickOutcome.FAILED
+        Handler(Looper.getMainLooper()).postDelayed({ service.performGlobalAction(action) }, delayMillis)
+        return QuickOutcome.AFTER_CLOSING
+    }
+
+    /** Long enough for the panel to have gone up out of the picture. */
+    private const val SCREENSHOT_DELAY_MILLIS = 650L
+    private const val LOCK_DELAY_MILLIS = 250L
 
     // ── Brightness ────────────────────────────────────────────────────────────────
 
