@@ -2092,6 +2092,12 @@ If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home b
     <!-- What is new -->
     <string name="whats_new_title">what is new</string>
     <string name="whats_new_close">got it</string>
+    <string name="whats_new_v2_title">second pre-release</string>
+    <string name="whats_new_v2_line1">in Aura, closing a hub sends its big title back down onto its name in the list</string>
+    <string name="whats_new_v2_line2">every hub but the camera opens in Aura with the big title and the flying name: internet, clock, calendar, notes, e-mail, calculator, weather, news, files, settings</string>
+    <string name="whats_new_v2_line3">Aura stands on a magenta-to-orange glow by default</string>
+    <string name="whats_new_v2_line4">the default colour follows the design: Mosaic blue, Aura orange, Panorama red, Console green; tiles solid and 5 dp apart</string>
+    <string name="whats_new_v2_line5">the look settings sit closer together, and the pictures hub\'s permission card keeps its margin</string>
     <string name="whats_new_v1_title">first pre-release</string>
     <string name="whats_new_v1_line1">the Mosaic Start screen, with live tiles laid out for every size, folders, hubs and turnstile animations</string>
     <string name="whats_new_v1_line9">the Aura layout: the hub name touched flies up to become its big title, music has its own menu, quickplay sits in the list, and pinned apps are Mosaic tiles on a page of their own</string>

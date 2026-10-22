@@ -2090,6 +2090,12 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <!-- Neler değişti -->
     <string name="whats_new_title">neler değişti</string>
     <string name="whats_new_close">anladım</string>
+    <string name="whats_new_v2_title">ikinci ön sürüm</string>
+    <string name="whats_new_v2_line1">Aura\'da hub kapanınca büyük başlık listedeki adının üstüne geri iner</string>
+    <string name="whats_new_v2_line2">kamera dışında bütün hub\'lar Aura\'da büyük başlıkla ve uçan adla açılır: internet, saat, takvim, notlar, e-posta, hesap makinesi, hava durumu, haberler, dosyalar, ayarlar</string>
+    <string name="whats_new_v2_line3">Aura varsayılan olarak magentadan turuncuya bir ışıltının üstünde durur</string>
+    <string name="whats_new_v2_line4">varsayılan renk tasarıma göre: Mozaik mavi, Aura turuncu, Panorama kırmızı, Konsol yeşil; karolar tamamen opak ve 5 dp aralıklı</string>
+    <string name="whats_new_v2_line5">görünüm ayarlarında satırlar sıklaştı, fotoğraflardaki izin kartı kenara yapışmıyor</string>
     <string name="whats_new_v1_title">ilk ön sürüm</string>
     <string name="whats_new_v1_line1">canlı karolar (her boyut için ayrı düzenlenmiş), klasörler, hub\'lar ve turnike animasyonlarıyla Mozaik başlangıç ekranı</string>
     <string name="whats_new_v1_line9">Aura düzeni: dokunduğun hub adı uçup büyük başlık olur, müzik kendi menüsüyle, listede quickplay şeridi, sabitlediğin uygulamalar Mozaik karoları olarak bir sayfada</string>
