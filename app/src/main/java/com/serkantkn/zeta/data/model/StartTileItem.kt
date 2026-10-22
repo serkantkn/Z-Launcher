@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 /**
- * One tile on the Start screen. [id] is prefixed with "hub:", "app:", "note:", "web:", "person:",
+ * One tile on the Start screen. [id] is prefixed with "hub:" (then a [HubId.key]), "app:", "note:", "web:", "person:",
  * "sms:", "album:" or "folder:".
  * Persisted by SettingsDataStore as a JSON array of [toJson] objects.
  *
@@ -56,15 +56,11 @@ data class StartTileItem(
 
     val noteId: String? get() = if (isNote) id.removePrefix("note:") else null
 
-    val hubType: HubType? get() {
-        if (!isHub) return null
-        val name = id.removePrefix("hub:")
-        return try {
-            HubType.valueOf(name)
-        } catch (_: Exception) {
-            null
-        }
-    }
+    /** The hub a "hub:" tile opens: one of Zeta's own, or another app's ("hub:ext:..."). */
+    val hubId: HubId? get() = if (isHub) HubId.fromKey(id.removePrefix("hub:")) else null
+
+    /** The hub, when it is one of Zeta's own. */
+    val hubType: HubType? get() = hubId as? HubType
 
     val packageName: String? get() {
         if (!isApp) return null
@@ -82,8 +78,8 @@ data class StartTileItem(
         }
 
     companion object {
-        fun fromHub(hubType: HubType, span: Int = 2): StartTileItem =
-            StartTileItem("hub:${hubType.name}", span)
+        fun fromHub(hub: HubId, span: Int = 2): StartTileItem =
+            StartTileItem("hub:${hub.key}", span)
 
         fun fromApp(packageName: String, span: Int = 2): StartTileItem =
             StartTileItem("app:$packageName", span)

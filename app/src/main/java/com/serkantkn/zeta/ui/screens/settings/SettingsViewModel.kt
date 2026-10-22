@@ -272,11 +272,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
 
-    val hubOrder: StateFlow<List<HubType>> = settingsDataStore.hubOrder
+    val hubOrder: StateFlow<List<com.serkantkn.zeta.data.model.HubId>> = settingsDataStore.hubOrder
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            listOf(
+            listOf<com.serkantkn.zeta.data.model.HubId>(
                 HubType.PHONE,
                 HubType.MESSAGING,
                 HubType.PEOPLE,

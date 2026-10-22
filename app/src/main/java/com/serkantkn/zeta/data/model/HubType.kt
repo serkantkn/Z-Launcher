@@ -15,9 +15,9 @@ import com.serkantkn.zeta.R
  */
 enum class HubType(
     @StringRes val titleRes: Int,
-    val runsInBackground: Boolean = true,
-    val onTelevision: Boolean = false
-) {
+    override val runsInBackground: Boolean = true,
+    override val onTelevision: Boolean = false
+) : HubId {
     HOME(R.string.home_hub, runsInBackground = false),
     MUSIC(R.string.music_hub, onTelevision = true),
     PEOPLE(R.string.people_hub),
@@ -34,5 +34,7 @@ enum class HubType(
     CALCULATOR(R.string.hub_calculator),
     WEATHER(R.string.hub_weather, onTelevision = true),
     NEWS(R.string.hub_news, onTelevision = true),
-    CAMERA(R.string.hub_camera, runsInBackground = false)
+    CAMERA(R.string.hub_camera, runsInBackground = false);
+
+    override val key: String get() = name
 }

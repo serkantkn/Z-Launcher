@@ -226,11 +226,11 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     private val _newAlbums = MutableStateFlow<List<com.serkantkn.zeta.data.model.RecentAlbum>>(emptyList())
 
 
-    val hubOrder: StateFlow<List<HubType>> = settingsDataStore.hubOrder
+    val hubOrder: StateFlow<List<com.serkantkn.zeta.data.model.HubId>> = settingsDataStore.hubOrder
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** The Zune list's order, as the user has just rearranged it. */
-    fun setHubOrder(order: List<HubType>) {
+    fun setHubOrder(order: List<com.serkantkn.zeta.data.model.HubId>) {
         viewModelScope.launch { settingsDataStore.setHubOrder(order) }
     }
 
@@ -1061,7 +1061,9 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
      * nothing was chosen, or what was chosen is no longer installed, in which case the choice is
      * forgotten rather than left pointing at nothing.
      */
-    fun openHubTarget(hub: HubType): Boolean {
+    fun openHubTarget(hub: com.serkantkn.zeta.data.model.HubId): Boolean {
+        // Only Zeta's own hubs can be pointed at another app; another app's hub is one already.
+        if (hub !is HubType) return false
         val packageName = hubTargetApps.value[hub] ?: return false
         if (appRepository.appInfoFor(packageName) == null) {
             setHubTargetApp(hub, null)
@@ -1247,19 +1249,19 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             favoriteAppsDataStore.setFolderTileSpan(id, null)
             // Both lists fill themselves in with whatever hub they are missing, so a hub has to
             // be remembered as taken off or it comes straight back on the next read.
-            StartTileItem(id).hubType?.let { settingsDataStore.setHubRemoved(it, true) }
+            StartTileItem(id).hubId?.let { settingsDataStore.setHubRemoved(it, true) }
             // A tile that has gone takes its own look with it: pinned again, it starts plain.
             dropTileLook(id)
         }
     }
 
     /** Puts a hub back on the home screen; it returns to the end of the board and of the list. */
-    fun addHub(hub: HubType) {
+    fun addHub(hub: com.serkantkn.zeta.data.model.HubId) {
         viewModelScope.launch { settingsDataStore.setHubRemoved(hub, false) }
     }
 
     /** The hubs not on the home screen at the moment, in the order they are offered in. */
-    val hubsOffHome: StateFlow<List<HubType>> = settingsDataStore.removedHubs
+    val hubsOffHome: StateFlow<List<com.serkantkn.zeta.data.model.HubId>> = settingsDataStore.removedHubs
         .map { removed -> HubType.entries.filter { it != HubType.HOME && it in removed } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

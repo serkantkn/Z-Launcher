@@ -50,8 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zeta.R
-import com.serkantkn.zeta.data.model.HubType
-import com.serkantkn.zeta.ui.components.getHubIcon
+import com.serkantkn.zeta.data.model.HubId
+import com.serkantkn.zeta.ui.components.hubGlyph
+import com.serkantkn.zeta.ui.components.hubTitle
 import com.serkantkn.zeta.ui.theme.LocalZuneColors
 
 /**
@@ -68,10 +69,10 @@ import com.serkantkn.zeta.ui.theme.LocalZuneColors
  */
 @Composable
 fun HubSwitcher(
-    hubs: List<HubType>,
-    previews: Map<HubType, ImageBitmap>,
-    onPick: (HubType) -> Unit,
-    onStop: (HubType) -> Unit,
+    hubs: List<HubId>,
+    previews: Map<HubId, ImageBitmap>,
+    onPick: (HubId) -> Unit,
+    onStop: (HubId) -> Unit,
     onDismiss: () -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
@@ -143,7 +144,7 @@ fun HubSwitcher(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 20.dp)
             ) {
-                items(items = hubs, key = { it.name }) { hub ->
+                items(items = hubs, key = { it.key }) { hub ->
                     SwitcherCard(
                         hub = hub,
                         preview = previews[hub],
@@ -163,10 +164,10 @@ fun HubSwitcher(
  */
 @Composable
 fun RunningHubsRow(
-    hubs: List<HubType>,
-    previews: Map<HubType, ImageBitmap>,
-    onPick: (HubType) -> Unit,
-    onStop: (HubType) -> Unit,
+    hubs: List<HubId>,
+    previews: Map<HubId, ImageBitmap>,
+    onPick: (HubId) -> Unit,
+    onStop: (HubId) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -221,7 +222,7 @@ fun RunningHubsRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 20.dp)
         ) {
-            items(items = hubs, key = { it.name }) { hub ->
+            items(items = hubs, key = { it.key }) { hub ->
                 SwitcherCard(
                     hub = hub,
                     preview = previews[hub],
@@ -236,14 +237,14 @@ fun RunningHubsRow(
 
 @Composable
 private fun SwitcherCard(
-    hub: HubType,
+    hub: HubId,
     preview: ImageBitmap?,
     onPick: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
-    val name = stringResource(hub.titleRes)
+    val name = hubTitle(hub)
     val ink = if (zuneColors.isDark) Color.White else Color.Black
 
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.width(CARD_WIDTH)) {
@@ -271,7 +272,7 @@ private fun SwitcherCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = getHubIcon(hub),
+                            imageVector = hubGlyph(hub),
                             contentDescription = name,
                             tint = Color.White,
                             modifier = Modifier.size(26.dp)

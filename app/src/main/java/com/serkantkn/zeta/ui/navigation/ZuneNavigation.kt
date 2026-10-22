@@ -7,6 +7,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.serkantkn.zeta.data.model.HubId
 import com.serkantkn.zeta.data.model.HubType
 
 /**
@@ -18,7 +19,7 @@ import com.serkantkn.zeta.data.model.HubType
  */
 class ZuneNavigationState {
     /** Stack of currently open hubs. */
-    var hubStack by mutableStateOf<List<HubType>>(emptyList())
+    var hubStack by mutableStateOf<List<HubId>>(emptyList())
         private set
 
     /**
@@ -28,19 +29,19 @@ class ZuneNavigationState {
      * keeps its text — and they are what the "running hubs" section on Start lists. Back is the
      * other way out of a hub and closes it, so it never adds anything here.
      */
-    var backgroundHubs by mutableStateOf<List<HubType>>(emptyList())
+    var backgroundHubs by mutableStateOf<List<HubId>>(emptyList())
         private set
 
     /** Every hub that is composed right now: the foreground stack plus what is running behind it. */
-    val openHubs: List<HubType>
+    val openHubs: List<HubId>
         get() = (hubStack + backgroundHubs).distinct()
 
     /** In tablet split screen mode, rightHub is docked on the right 50% pane. */
-    var rightHub by mutableStateOf<HubType?>(null)
+    var rightHub by mutableStateOf<HubId?>(null)
         private set
 
     /** In tablet split screen mode, leftHub is docked on the left 50% pane. */
-    var leftHub by mutableStateOf<HubType?>(null)
+    var leftHub by mutableStateOf<HubId?>(null)
         private set
 
     /** Indicates whether tablet dual-hub split mode is active. */
@@ -48,11 +49,11 @@ class ZuneNavigationState {
         private set
 
     /** Currently active hub at the top of the stack, or null if on main pager. */
-    val currentHub: HubType?
+    val currentHub: HubId?
         get() = if (isSplitMode) (leftHub ?: rightHub) else hubStack.lastOrNull()
 
     /** Last active hub — used during exit animations. */
-    var lastHub by mutableStateOf(HubType.MUSIC)
+    var lastHub by mutableStateOf<HubId>(HubType.MUSIC)
         private set
 
     fun enterSplitMode() {
@@ -70,10 +71,10 @@ class ZuneNavigationState {
         leftHub = null
     }
 
-    /** Set on a television, where only the hubs made for one ([HubType.onTelevision]) open. */
+    /** Set on a television, where only the hubs made for one ([HubId.onTelevision]) open. */
     var television: Boolean = false
 
-    fun openHub(hub: HubType) {
+    fun openHub(hub: HubId) {
         // A notification, a shortcut or another app may still ask a TV for the phone hub.
         if (television && !hub.onTelevision) return
         // Coming back to a hub that was left running: it leaves the running list and is picked up
@@ -143,7 +144,7 @@ class ZuneNavigationState {
     }
 
     /** Closes a hub that was left running, from the switcher. */
-    fun stopHub(hub: HubType) {
+    fun stopHub(hub: HubId) {
         backgroundHubs = backgroundHubs - hub
         if (hubStack.contains(hub)) {
             val newStack = hubStack - hub
@@ -187,35 +188,35 @@ class ZuneNavigationState {
         /**
          * Persists the full navigation state as a flat list of Strings so it fits in a Bundle.
          * Layout: [hubStack joined by ",", rightHub, leftHub, isSplitMode, lastHub].
-         * Unknown enum names (e.g. a hub removed in a future version) are skipped safely.
+         * Unknown keys (a hub removed in a future version, an app that was uninstalled) are skipped safely.
          */
         val Saver: Saver<ZuneNavigationState, Any> = listSaver(
             save = { state ->
                 listOf(
-                    state.hubStack.joinToString(",") { it.name },
-                    state.rightHub?.name ?: NONE,
-                    state.leftHub?.name ?: NONE,
+                    state.hubStack.joinToString(",") { it.key },
+                    state.rightHub?.key ?: NONE,
+                    state.leftHub?.key ?: NONE,
                     state.isSplitMode.toString(),
-                    state.lastHub.name,
-                    state.backgroundHubs.joinToString(",") { it.name }
+                    state.lastHub.key,
+                    state.backgroundHubs.joinToString(",") { it.key }
                 )
             },
             restore = { saved ->
                 ZuneNavigationState().apply {
                     hubStack = saved.getOrNull(0)
                         ?.split(",")
-                        ?.mapNotNull { it.toHubTypeOrNull() }
+                        ?.mapNotNull { it.toHubIdOrNull() }
                         ?: emptyList()
-                    rightHub = saved.getOrNull(1)?.toHubTypeOrNull()
-                    leftHub = saved.getOrNull(2)?.toHubTypeOrNull()
+                    rightHub = saved.getOrNull(1)?.toHubIdOrNull()
+                    leftHub = saved.getOrNull(2)?.toHubIdOrNull()
                     isSplitMode = saved.getOrNull(3)?.toBoolean() ?: false
-                    lastHub = saved.getOrNull(4)?.toHubTypeOrNull() ?: HubType.MUSIC
+                    lastHub = saved.getOrNull(4)?.toHubIdOrNull() ?: HubType.MUSIC
                     // What was running is remembered by name only: after process death the hubs
                     // are composed afresh, so the section still lists them but their contents
                     // start over. That is the honest best a saved Bundle can do.
                     backgroundHubs = saved.getOrNull(5)
                         ?.split(",")
-                        ?.mapNotNull { it.toHubTypeOrNull() }
+                        ?.mapNotNull { it.toHubIdOrNull() }
                         ?.take(MAX_BACKGROUND_HUBS)
                         ?: emptyList()
 
@@ -227,8 +228,8 @@ class ZuneNavigationState {
             }
         )
 
-        private fun String.toHubTypeOrNull(): HubType? =
-            if (isEmpty()) null else HubType.entries.firstOrNull { it.name == this }
+        private fun String.toHubIdOrNull(): HubId? =
+            if (isEmpty()) null else HubId.fromKey(this)
     }
 }
 

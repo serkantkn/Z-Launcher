@@ -451,7 +451,7 @@ internal fun HubSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "${index + 1}. ${stringResource(hubType.titleRes).lowercase()}",
+                                    text = "${index + 1}. ${com.serkantkn.zeta.ui.components.hubTitle(hubType).lowercase()}",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 15.sp

@@ -29,10 +29,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zeta.R
-import com.serkantkn.zeta.data.model.HubType
+import com.serkantkn.zeta.data.model.HubId
 import com.serkantkn.zeta.ui.components.ZuneDialogButton
 import com.serkantkn.zeta.ui.components.ZuneFlipDialog
-import com.serkantkn.zeta.ui.components.getHubIcon
+import com.serkantkn.zeta.ui.components.hubGlyph
+import com.serkantkn.zeta.ui.components.hubTitle
 import com.serkantkn.zeta.ui.theme.LocalZuneColors
 
 /**
@@ -43,7 +44,7 @@ import com.serkantkn.zeta.ui.theme.LocalZuneColors
  */
 @Composable
 fun AddHubButton(
-    missing: List<HubType>,
+    missing: List<HubId>,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -80,8 +81,8 @@ fun AddHubButton(
 /** The hubs that are off the home screen, offered back one tap at a time. */
 @Composable
 fun AddHubDialog(
-    missing: List<HubType>,
-    onPick: (HubType) -> Unit,
+    missing: List<HubId>,
+    onPick: (HubId) -> Unit,
     onDismiss: () -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
@@ -115,7 +116,7 @@ fun AddHubDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = getHubIcon(hub),
+                            imageVector = hubGlyph(hub),
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
@@ -123,7 +124,7 @@ fun AddHubDialog(
                     }
                     Spacer(modifier = Modifier.width(14.dp))
                     Text(
-                        text = stringResource(hub.titleRes),
+                        text = hubTitle(hub),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Light
                         ),

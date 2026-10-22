@@ -2090,6 +2090,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home b
     <string name="settings_replay_onboarding">show the tour again</string>
     <string name="settings_replay_onboarding_sub">the pages you saw when the launcher was new</string>
     <!-- What is new -->
+    <string name="external_hub_unavailable">this hub cannot open right now.</string>
     <string name="whats_new_title">what is new</string>
     <string name="whats_new_close">got it</string>
     <string name="whats_new_v2_title">second pre-release</string>

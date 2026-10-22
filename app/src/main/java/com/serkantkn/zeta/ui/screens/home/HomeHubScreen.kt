@@ -177,7 +177,7 @@ private const val START_TILE_COLUMNS = 8
 fun HomeHubScreen(
     isHubOpen: Boolean = false,
     isCurrentPage: Boolean = true,
-    onHubSelected: (HubType) -> Unit,
+    onHubSelected: (com.serkantkn.zeta.data.model.HubId) -> Unit,
     onNavigateToSocialHub: () -> Unit = {},
     onNavigateToAppsHub: () -> Unit = {},
     /** The page to the right of Start: quickplay in the Zune layout, the app list otherwise. */
@@ -185,7 +185,7 @@ fun HomeHubScreen(
     /** Bumped when the Home key is pressed while Start is already in front. */
     homeResetSignal: Int = 0,
     /** The hubs left running; their tiles and names carry the running mark. */
-    runningHubs: Set<HubType> = emptySet(),
+    runningHubs: Set<com.serkantkn.zeta.data.model.HubId> = emptySet(),
     timeFormat: String = "HH:mm",
     dateFormat: String = "EEEE, MMMM d",
     /**
@@ -229,12 +229,12 @@ fun HomeHubScreen(
 private fun HomeHubScreenContent(
     isHubOpen: Boolean,
     isCurrentPage: Boolean,
-    onHubSelected: (HubType) -> Unit,
+    onHubSelected: (com.serkantkn.zeta.data.model.HubId) -> Unit,
     onNavigateToSocialHub: () -> Unit,
     onNavigateToAppsHub: () -> Unit,
     onNavigateNext: () -> Unit,
     homeResetSignal: Int,
-    runningHubs: Set<HubType>,
+    runningHubs: Set<com.serkantkn.zeta.data.model.HubId>,
     timeFormat: String,
     dateFormat: String,
     tilesPage: Boolean,
@@ -632,7 +632,9 @@ private fun HomeHubScreenContent(
      * show, in a line of words. A hub whose tile was told to keep quiet keeps quiet here too.
      */
     @Composable
-    fun liveLineFor(hub: HubType): HubLiveLine {
+    fun liveLineFor(hubId: com.serkantkn.zeta.data.model.HubId): HubLiveLine {
+        // Another app's hub says what it gives its own tile (PLATFORM.md, stage 2); nothing yet.
+        val hub = hubId as? HubType ?: return HubLiveLine.NONE
         val look = tileLooks["hub:${hub.name}"] ?: TileLook.DEFAULT
         val quiet = !look.notifications
         return when (hub) {
@@ -760,7 +762,7 @@ private fun HomeHubScreenContent(
         )
     }
     var hubTargetPickFor by remember { mutableStateOf<HubType?>(null) }
-    val openHub: (HubType) -> Unit = { hub -> if (!viewModel.openHubTarget(hub)) onHubSelected(hub) }
+    val openHub: (com.serkantkn.zeta.data.model.HubId) -> Unit = { hub -> if (!viewModel.openHubTarget(hub)) onHubSelected(hub) }
 
     // A held app tile offers the app's shortcuts, with editing Start among them. An app with
     // none, or a board already being edited, goes straight to editing as before.
@@ -1842,7 +1844,7 @@ private fun HomeHubScreenContent(
                     )
 
                     /** Moves a hub one place up or down the list and keeps the new order. */
-                    fun moveHub(hubType: HubType, by: Int) {
+                    fun moveHub(hubType: com.serkantkn.zeta.data.model.HubId, by: Int) {
                         val order = localHubOrder.toMutableList()
                         val from = order.indexOf(hubType)
                         val to = from + by
@@ -1861,15 +1863,15 @@ private fun HomeHubScreenContent(
 
                     // The rows of the list: one a hub, except music, which the Zune HD kept as two
                     // words - "music" and "videos" - and which opens at either.
-                    data class ZuneRow(val hubType: HubType, val key: String, val title: String, val videos: Boolean)
+                    data class ZuneRow(val hubType: com.serkantkn.zeta.data.model.HubId, val key: String, val title: String, val videos: Boolean)
                     val musicWord = stringResource(R.string.zune_row_music)
                     val videosWord = stringResource(R.string.music_tab_videos)
                     val rows = localHubOrder.flatMap { hubType ->
-                        val title = stringResource(hubType.titleRes)
+                        val title = com.serkantkn.zeta.ui.components.hubTitle(hubType)
                         if (hubType == HubType.MUSIC && !listEditing) listOf(
-                            ZuneRow(hubType, "hub_$hubType", musicWord, videos = false),
-                            ZuneRow(hubType, "hub_${hubType}_videos", videosWord, videos = true)
-                        ) else listOf(ZuneRow(hubType, "hub_$hubType", title, videos = false))
+                            ZuneRow(hubType, "hub_${hubType.key}", musicWord, videos = false),
+                            ZuneRow(hubType, "hub_${hubType.key}_videos", videosWord, videos = true)
+                        ) else listOf(ZuneRow(hubType, "hub_${hubType.key}", title, videos = false))
                     }
                     LaunchedEffect(rows.map { it.key }) { fittedSizes.keys.retainAll(rows.map { it.key }.toSet()) }
 
@@ -1888,7 +1890,7 @@ private fun HomeHubScreenContent(
                                 com.serkantkn.zeta.ui.screens.music.musicTitleKey(com.serkantkn.zeta.ui.screens.music.MUSIC_VIDEOS_PAGE)
                             hubType == HubType.MUSIC -> com.serkantkn.zeta.ui.screens.music.MUSIC_TITLE_KEY
                             hubType in UNTITLED_HUBS -> null
-                            else -> hubType.name
+                            else -> hubType.key
                         }
                         val wordAnchor = com.serkantkn.zeta.ui.animation.rememberZuneZoomAnchor()
                         val index = localHubOrder.indexOf(hubType)
@@ -1897,18 +1899,20 @@ private fun HomeHubScreenContent(
                                 ZuneListEditButton(
                                     icon = Icons.Default.Close,
                                     label = stringResource(R.string.home_running_hub_close),
-                                    onClick = { onRemoveTile("hub:${hubType.name}") }
+                                    onClick = { onRemoveTile("hub:${hubType.key}") }
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 // The list has no tile to customise, so what the title opens is
-                                // set from here.
-                                ZuneListEditButton(
-                                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                                    label = stringResource(R.string.hub_target_title),
-                                    filled = hubTargetApps.containsKey(hubType),
-                                    onClick = { hubTargetPickFor = hubType }
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                // set from here. Another app's hub is that app already.
+                                if (hubType is HubType) {
+                                    ZuneListEditButton(
+                                        icon = Icons.AutoMirrored.Filled.OpenInNew,
+                                        label = stringResource(R.string.hub_target_title),
+                                        filled = hubTargetApps.containsKey(hubType),
+                                        onClick = { hubTargetPickFor = hubType }
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
                                 // The list has nothing to drag, so a hub moves a step at a time.
                                 ZuneListEditButton(
                                     icon = Icons.Default.KeyboardArrowUp,
@@ -1971,7 +1975,7 @@ private fun HomeHubScreenContent(
                                                 val flies = flightKey != null && from != null && animationsOn &&
                                                     !hubTargetApps.containsKey(hubType)
                                                 if (flies && !launching && !isEditMode) {
-                                                    hubFlight!!.launch(flightKey!!, row.title, from!!, listSize, nameColour.copy(alpha = 0.85f), hubType.name, key)
+                                                    hubFlight!!.launch(flightKey!!, row.title, from!!, listSize, nameColour.copy(alpha = 0.85f), hubType.key, key)
                                                 }
                                                 handleLaunch(
                                                     key,

@@ -403,22 +403,16 @@ class SettingsDataStore(private val context: Context) {
      * used to undo a removal on the very next read, which is why a removed hub has to be
      * remembered by name rather than by its absence.
      */
-    val removedHubs: Flow<Set<com.serkantkn.zeta.data.model.HubType>> =
+    val removedHubs: Flow<Set<com.serkantkn.zeta.data.model.HubId>> =
         context.settingsDataStore.data.map { prefs -> readRemovedHubs(prefs[REMOVED_HUBS]) }
 
-    private fun readRemovedHubs(saved: String?): Set<com.serkantkn.zeta.data.model.HubType> {
+    private fun readRemovedHubs(saved: String?): Set<com.serkantkn.zeta.data.model.HubId> {
         if (saved.isNullOrEmpty()) return emptySet()
         val names = if (saved.looksLikeJsonArray()) parseJsonStringList(saved, TAG) else saved.split(",")
-        return names.mapNotNull { name ->
-            try {
-                com.serkantkn.zeta.data.model.HubType.valueOf(name)
-            } catch (e: IllegalArgumentException) {
-                null
-            }
-        }.toSet()
+        return names.mapNotNull { com.serkantkn.zeta.data.model.HubId.fromKey(it) }.toSet()
     }
 
-    val hubOrder: Flow<List<com.serkantkn.zeta.data.model.HubType>> = flow {
+    val hubOrder: Flow<List<com.serkantkn.zeta.data.model.HubId>> = flow {
         migrateLegacyListsIfNeeded()
         emitAll(context.settingsDataStore.data.map { prefs ->
             val removed = readRemovedHubs(prefs[REMOVED_HUBS])
@@ -426,9 +420,12 @@ class SettingsDataStore(private val context: Context) {
         })
     }
 
-    /** JSON array of HubType names, or the legacy "A,B,C" string; unknown names are skipped. */
-    private fun readHubOrder(saved: String?): List<com.serkantkn.zeta.data.model.HubType> {
-        val defaultOrder = listOf(
+    /**
+     * JSON array of hub keys ([com.serkantkn.zeta.data.model.HubId.key]: a Zeta hub's enum name, or "ext:..." for another
+     * app's), or the legacy "A,B,C" string; unknown names are skipped.
+     */
+    private fun readHubOrder(saved: String?): List<com.serkantkn.zeta.data.model.HubId> {
+        val defaultOrder = listOf<com.serkantkn.zeta.data.model.HubId>(
             com.serkantkn.zeta.data.model.HubType.PHONE,
             com.serkantkn.zeta.data.model.HubType.MESSAGING,
             com.serkantkn.zeta.data.model.HubType.PEOPLE,
@@ -449,9 +446,7 @@ class SettingsDataStore(private val context: Context) {
         if (saved.isNullOrEmpty()) return defaultOrder
         val names = if (saved.looksLikeJsonArray()) parseJsonStringList(saved, TAG) else saved.split(",")
         val savedList = names.mapNotNull { name ->
-            try {
-                com.serkantkn.zeta.data.model.HubType.valueOf(name)
-            } catch (e: IllegalArgumentException) {
+            com.serkantkn.zeta.data.model.HubId.fromKey(name) ?: run {
                 ZuneLog.w(TAG, "skipping unknown hub in hub order: $name")
                 null
             }
@@ -489,10 +484,10 @@ class SettingsDataStore(private val context: Context) {
     /** JSON array of [StartTileItem.toJson] objects, or the legacy "id#span,..." string. */
     private fun readStartTiles(
         saved: String?,
-        removed: Set<com.serkantkn.zeta.data.model.HubType> = emptySet()
+        removed: Set<com.serkantkn.zeta.data.model.HubId> = emptySet()
     ): List<StartTileItem> {
         fun List<StartTileItem>.withoutRemovedHubs() =
-            filterNot { it.isHub && it.hubType in removed }
+            filterNot { it.isHub && it.hubId in removed }
         if (saved.isNullOrEmpty()) return defaultStartTiles.withoutRemovedHubs()
         val list = if (saved.looksLikeJsonArray()) {
             parseJsonObjectList(saved, TAG, StartTileItem::fromJson)
@@ -501,10 +496,10 @@ class SettingsDataStore(private val context: Context) {
         }
         // A hub the user has filed away in a folder is not missing, so folders are counted too.
         val existingHubs = StartFolders.allTileIds(list)
-            .mapNotNull { StartTileItem(it).hubType }
+            .mapNotNull { StartTileItem(it).hubId }
             .toSet()
         val missingHubs = defaultStartTiles.filter {
-            it.isHub && it.hubType !in existingHubs && it.hubType !in removed
+            it.isHub && it.hubId !in existingHubs && it.hubId !in removed
         }
         return (list.withoutRemovedHubs() + missingHubs)
             .ifEmpty { defaultStartTiles.withoutRemovedHubs() }
@@ -920,17 +915,17 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    suspend fun setHubRemoved(hub: com.serkantkn.zeta.data.model.HubType, removed: Boolean) {
+    suspend fun setHubRemoved(hub: com.serkantkn.zeta.data.model.HubId, removed: Boolean) {
         context.settingsDataStore.edit { prefs ->
             val current = readRemovedHubs(prefs[REMOVED_HUBS]).toMutableSet()
             if (removed) current.add(hub) else current.remove(hub)
-            prefs[REMOVED_HUBS] = current.map { it.name }.toJsonStringArray()
+            prefs[REMOVED_HUBS] = current.map { it.key }.toJsonStringArray()
         }
     }
 
-    suspend fun setHubOrder(order: List<com.serkantkn.zeta.data.model.HubType>) {
+    suspend fun setHubOrder(order: List<com.serkantkn.zeta.data.model.HubId>) {
         context.settingsDataStore.edit { prefs ->
-            prefs[HUB_ORDER] = order.map { it.name }.toJsonStringArray()
+            prefs[HUB_ORDER] = order.map { it.key }.toJsonStringArray()
         }
     }
 

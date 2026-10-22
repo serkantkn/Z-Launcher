@@ -315,7 +315,7 @@ fun LauncherScreen(
                 isHubHingeOpening = false
                 // The Zune layout: the hub's title goes back down to its name in the list as the
                 // hub fades from under it - the way in, backwards.
-                if (zuneStart && animationsOn && !isWideScreen) activeHub?.let { zuneHubFlight?.closeHub(it.name) }
+                if (zuneStart && animationsOn && !isWideScreen) activeHub?.let { zuneHubFlight?.closeHub(it.key) }
                 hingeProgress.animateTo(0f, animationSpec = when {
                     vistaTv -> quickSpec(VISTA_PAGE_MILLIS)
                     tabletStart -> quickSpec(WIN8_HUB_FADE_OUT_MILLIS)
@@ -348,7 +348,7 @@ fun LauncherScreen(
     // whether it may still answer the Back key: one left running behind Start must not, or it
     // walks its own history back a page at a time while the user is only trying to get out of a
     // folder on Start.
-    val liveHubs = remember { mutableStateOf<Set<HubType>>(emptySet()) }
+    val liveHubs = remember { mutableStateOf<Set<com.serkantkn.zeta.data.model.HubId>>(emptySet()) }
     val homePresses by com.serkantkn.zeta.data.repository.HomeKeyBridge.presses.collectAsState()
     var handledHomePresses by remember { mutableIntStateOf(homePresses) }
     var homeResetSignal by remember { mutableIntStateOf(0) }
@@ -688,8 +688,8 @@ fun LauncherScreen(
                 // and its half-typed text. The content is *movable* so that stepping between the
                 // visible chrome and the host underneath is a move rather than a rebuild, and a
                 // rebuild is precisely what "still running" must not mean.
-                val hubContents = remember { mutableMapOf<HubType, @Composable () -> Unit>() }
-                val hubContentFor: (HubType) -> @Composable () -> Unit = { hub ->
+                val hubContents = remember { mutableMapOf<com.serkantkn.zeta.data.model.HubId, @Composable () -> Unit>() }
+                val hubContentFor: (com.serkantkn.zeta.data.model.HubId) -> @Composable () -> Unit = { hub ->
                     hubContents.getOrPut(hub) {
                         movableContentOf {
                             // Its own navigation-event dispatcher, switched off while the hub is
@@ -1329,6 +1329,24 @@ private const val TV_FOCUS_Z = 40f
 
 @Composable
 private fun RenderHubScreen(
+    hub: com.serkantkn.zeta.data.model.HubId,
+    navState: ZuneNavigationState,
+    messagingViewModel: com.serkantkn.zeta.ui.screens.messaging.MessagingHubViewModel,
+    settingsViewModel: SettingsViewModel,
+    context: Context
+) {
+    when (hub) {
+        // Another app's hub, drawn from what it describes (PLATFORM.md).
+        is com.serkantkn.zeta.data.model.ExternalHub -> com.serkantkn.zeta.ui.screens.external.ExternalHubScreen(
+            hub = hub,
+            onBack = { if (!navState.popHub()) navState.closeHub() }
+        )
+        is HubType -> RenderBuiltinHubScreen(hub, navState, messagingViewModel, settingsViewModel, context)
+    }
+}
+
+@Composable
+private fun RenderBuiltinHubScreen(
     hub: HubType,
     navState: ZuneNavigationState,
     messagingViewModel: com.serkantkn.zeta.ui.screens.messaging.MessagingHubViewModel,

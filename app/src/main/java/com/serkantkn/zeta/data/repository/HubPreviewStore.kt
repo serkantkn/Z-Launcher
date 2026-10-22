@@ -8,7 +8,7 @@ import android.view.PixelCopy
 import android.view.View
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import com.serkantkn.zeta.data.model.HubType
+import com.serkantkn.zeta.data.model.HubId
 import com.serkantkn.zeta.util.ZuneLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,14 +28,14 @@ object HubPreviewStore {
     /** A third of a 1080-wide screen is enough to read a page at a glance and costs ~1 MB. */
     private const val SCALE = 3
 
-    private val _previews = MutableStateFlow<Map<HubType, ImageBitmap>>(emptyMap())
-    val previews: StateFlow<Map<HubType, ImageBitmap>> = _previews.asStateFlow()
+    private val _previews = MutableStateFlow<Map<HubId, ImageBitmap>>(emptyMap())
+    val previews: StateFlow<Map<HubId, ImageBitmap>> = _previews.asStateFlow()
 
     /**
      * Copies the window as it stands and files it under [hub]. Returns when the copy is done, so
      * the caller can hold the hub still until its picture has been taken.
      */
-    suspend fun capture(view: View, hub: HubType) {
+    suspend fun capture(view: View, hub: HubId) {
         val window = (view.context as? Activity)?.window ?: return
         val width = view.width / SCALE
         val height = view.height / SCALE
@@ -65,7 +65,7 @@ object HubPreviewStore {
     }
 
     /** Throws away the pictures of hubs that are no longer running. */
-    fun keepOnly(hubs: Collection<HubType>) {
+    fun keepOnly(hubs: Collection<HubId>) {
         val current = _previews.value
         val kept = current.filterKeys { it in hubs }
         if (kept.size != current.size) _previews.value = kept
