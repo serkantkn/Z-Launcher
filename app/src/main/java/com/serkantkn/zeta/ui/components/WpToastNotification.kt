@@ -65,7 +65,11 @@ fun WpToastNotification(
     /** Fires when the quick-reply section opens/closes; the overlay host toggles window focus with it. */
     onExpandedChange: (Boolean) -> Unit = {},
     /** False when hosted in a WRAP_CONTENT overlay window so the window is only as tall as the banner. */
-    fillHeight: Boolean = true
+    fillHeight: Boolean = true,
+    /** In a window of its own, which is placed and sized to the card: the card fills it. */
+    ownWindow: Boolean = false,
+    /** How much of the card shows, 0-1, as it flips in and out and is swiped away: its window's blur follows it. */
+    onShown: (Float) -> Unit = {}
 ) {
     if (message == null) return
 
@@ -120,7 +124,13 @@ fun WpToastNotification(
         }
     }
 
-    val bannerBgColor = zuneColors.accentColor
+    // Frosted as the tiles are, when they are (LocalBannerAlpha); solid otherwise.
+    val cardAlpha = LocalBannerAlpha.current
+    val bannerBgColor = zuneColors.accentColor.copy(alpha = cardAlpha)
+    val swipe = rememberSwipeAwayState(message.id)
+    LaunchedEffect(message.id) {
+        snapshotFlow { flipAnim.value * swipe.blurShare }.collect { onShown(it) }
+    }
 
     Box(
         modifier = modifier
@@ -131,7 +141,7 @@ fun WpToastNotification(
         Surface(
             modifier = Modifier
                 .then(
-                    if (isWideScreen) {
+                    if (isWideScreen && !ownWindow) {
                         Modifier
                             .width(380.dp)
                             .padding(top = statusBarTop + 12.dp, end = 16.dp)
@@ -141,14 +151,14 @@ fun WpToastNotification(
                             .padding(top = 0.dp)
                     }
                 )
-                .draggable(
-                    orientation = Orientation.Vertical,
-                    state = rememberDraggableState { delta ->
-                        if (delta > 12f && !isExpanded) {
-                            isExpanded = true
-                        } else if (delta < -18f) {
-                            dismissWithFlip()
-                        }
+                // Up and away to put it aside; down to open the quick reply.
+                .swipeAway(
+                    state = swipe,
+                    enabled = !isClosing,
+                    onPulledDown = { if (!isExpanded) isExpanded = true },
+                    onSwipedAway = {
+                        isClosing = true
+                        onDismiss()
                     }
                 )
                 .clickable(
@@ -172,11 +182,15 @@ fun WpToastNotification(
                     transformOrigin = TransformOrigin(0.5f, 0.5f)
                     cameraDistance = 12f * density
                     alpha = flipAnim.value.coerceIn(0f, 1f)
-                },
+                }
+                // In the launcher, the wallpaper behind it frosted as behind the tiles; over another
+                // app its window blurs what is there instead.
+                .then(if (cardAlpha < 1f) Modifier.frostedBackdrop() else Modifier),
             shape = RoundedCornerShape(if (isWideScreen) 2.dp else 0.dp),
             color = bannerBgColor,
-            shadowElevation = 12.dp,
-            tonalElevation = 8.dp
+            // A shadow under glass shows through it.
+            shadowElevation = if (cardAlpha < 1f) 0.dp else 12.dp,
+            tonalElevation = if (cardAlpha < 1f) 0.dp else 8.dp
         ) {
             Column(
                 modifier = Modifier

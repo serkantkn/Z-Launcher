@@ -55,7 +55,11 @@ fun WpVolumeControl(
     /** False when hosted in a WRAP_CONTENT overlay window so the window is only as tall as the bar. */
     fillHeight: Boolean = true,
     /** Called once the close flip has finished; the overlay host removes its window here. */
-    onHidden: () -> Unit = {}
+    onHidden: () -> Unit = {},
+    /** In a window of its own, which is placed and sized to the card: the card fills it. */
+    ownWindow: Boolean = false,
+    /** How much of the card shows, 0-1, as it flips in and out and is swiped away: its window's blur follows it. */
+    onShown: (Float) -> Unit = {}
 ) {
     val context = LocalContext.current
     val zuneColors = LocalZuneColors.current
@@ -70,18 +74,25 @@ fun WpVolumeControl(
     var isExpanded by remember { mutableStateOf(false) }
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val swipe = rememberSwipeAwayState()
+    // Swiped up and away: already out of sight, so it does not flip shut as well.
+    var swipedAway by remember { mutableStateOf(false) }
 
     // 3D Flip entrance & exit logic
     LaunchedEffect(volumeState.isVisible) {
         if (volumeState.isVisible) {
             isClosing = false
+            swipedAway = false
+            swipe.reset()
             flipAnim.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
             )
         } else if (flipAnim.value > 0f && !isClosing) {
             isClosing = true
-            flipAnim.animateTo(
+            if (swipedAway) {
+                flipAnim.snapTo(0f)
+            } else flipAnim.animateTo(
                 targetValue = 0f,
                 animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
             )
@@ -103,7 +114,12 @@ fun WpVolumeControl(
 
     if (!volumeState.isVisible && flipAnim.value == 0f && !isClosing) return
 
-    val bannerBgColor = zuneColors.accentColor
+    // Frosted as the tiles are, when they are (LocalBannerAlpha); solid otherwise.
+    val cardAlpha = LocalBannerAlpha.current
+    val bannerBgColor = zuneColors.accentColor.copy(alpha = cardAlpha)
+    LaunchedEffect(Unit) {
+        snapshotFlow { flipAnim.value * swipe.blurShare }.collect { onShown(it) }
+    }
 
     Box(
         modifier = modifier
@@ -114,7 +130,7 @@ fun WpVolumeControl(
         Surface(
             modifier = Modifier
                 .then(
-                    if (isWideScreen) {
+                    if (isWideScreen && !ownWindow) {
                         Modifier
                             .width(420.dp)
                             .padding(top = statusBarTop + 12.dp, end = 16.dp)
@@ -124,6 +140,15 @@ fun WpVolumeControl(
                             .padding(top = 0.dp)
                     }
                 )
+                // Up and away to put it aside.
+                .swipeAway(
+                    state = swipe,
+                    enabled = volumeState.isVisible && !isClosing,
+                    onSwipedAway = {
+                        swipedAway = true
+                        VolumeController.hide()
+                    }
+                )
                 .graphicsLayer {
                     // Standardized 3D Flip animation around X-axis (top hinge)
                     val rotation = (1f - flipAnim.value) * -90f
@@ -131,11 +156,15 @@ fun WpVolumeControl(
                     transformOrigin = TransformOrigin(0.5f, 0f)
                     cameraDistance = 12f * density
                     alpha = flipAnim.value.coerceIn(0f, 1f)
-                },
+                }
+                // In the launcher, the wallpaper behind it frosted as behind the tiles; over another
+                // app its window blurs what is there instead.
+                .then(if (cardAlpha < 1f) Modifier.frostedBackdrop() else Modifier),
             shape = RoundedCornerShape(if (isWideScreen) 2.dp else 0.dp),
             color = bannerBgColor,
-            shadowElevation = 12.dp,
-            tonalElevation = 8.dp
+            // A shadow under glass shows through it.
+            shadowElevation = if (cardAlpha < 1f) 0.dp else 12.dp,
+            tonalElevation = if (cardAlpha < 1f) 0.dp else 8.dp
         ) {
             Column(
                 modifier = Modifier

@@ -10,6 +10,8 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.WindowManager
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
@@ -27,7 +29,10 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.serkantkn.zeta.data.model.AccentColor
 import com.serkantkn.zeta.data.model.ThemeMode
 import com.serkantkn.zeta.di.appContainer
+import com.serkantkn.zeta.ui.components.LocalBannerAlpha
 import com.serkantkn.zeta.ui.components.WpVolumeControl
+import com.serkantkn.zeta.ui.components.bannerAlpha
+import com.serkantkn.zeta.ui.components.bannerBlurPx
 import com.serkantkn.zeta.ui.theme.ZuneLauncherTheme
 
 /**
@@ -41,9 +46,11 @@ object WpVolumeOverlay {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    private var windowManager: WindowManager? = null
-    private var overlayView: ComposeView? = null
+    private var banner: BannerWindow? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
+
+    /** How wide the bar is on a wide screen, as the launcher draws it. */
+    private const val CARD_WIDTH_DP = 420
 
     /** Attaches the bar window if it is not already on screen. VolumeController drives the content. */
     fun show(context: Context) {
@@ -57,28 +64,16 @@ object WpVolumeOverlay {
     }
 
     private fun attach(appContext: Context) {
-        if (overlayView != null) return
+        if (banner != null) return
 
         // The bar is driven by the accessibility service, so it is that service's own overlay
         // and Android posts no "displaying over other apps" notice for it.
         val (host, type) = WpToastOverlay.overlayHost(appContext)
-        val wm = host.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val window = runCatching { BannerWindow(host, type) }
+            .onFailure { ZuneLog.e(TAG, "the window could not be made", it) }
+            .getOrNull() ?: return
+        window.placeAsCard(appContext, CARD_WIDTH_DP)
         val owner = OverlayLifecycleOwner().also { it.onCreate() }
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-        }
 
         val view = ComposeView(appContext.localized()).apply {
             installZetaMotion(owner.lifecycle)
@@ -93,6 +88,11 @@ object WpVolumeOverlay {
                 val customThemeColor by settings.customThemeColor.collectAsState(initial = null)
                 val solidBackgroundEnabled by settings.solidBackgroundEnabled.collectAsState(initial = false)
                 val fontScale by settings.fontScale.collectAsState(initial = 1.0f)
+                val tileBlur by settings.tileBlur.collectAsState(initial = 0)
+                val tileOpacity by settings.tileOpacity.collectAsState(initial = 100)
+                // Frosted as the tiles are - but only where the phone will blur behind the window.
+                val alpha = if (window.blursBehind) bannerAlpha(tileBlur, tileOpacity) else 1f
+                LaunchedEffect(alpha, tileBlur) { window.setFrost(if (alpha < 1f) bannerBlurPx(tileBlur) else 0) }
 
                 ZuneLauncherTheme(
                     themeMode = themeMode,
@@ -102,42 +102,38 @@ object WpVolumeOverlay {
                     solidBackgroundEnabled = solidBackgroundEnabled,
                     fontScale = fontScale
                 ) {
-                    WpVolumeControl(
-                        fillHeight = false,
-                        onHidden = { detach() }
-                    )
+                    CompositionLocalProvider(LocalBannerAlpha provides alpha) {
+                        WpVolumeControl(
+                            fillHeight = false,
+                            onHidden = { detach() },
+                            ownWindow = true,
+                            onShown = window::setShown
+                        )
+                    }
                 }
             }
         }
 
         try {
-            wm.addView(view, params)
-            windowManager = wm
-            overlayView = view
+            window.show(view)
+            banner = window
             lifecycleOwner = owner
             owner.onResume()
             ZuneLog.d(TAG, "attached volume overlay")
         } catch (e: Exception) {
-            ZuneLog.e(TAG, "addView failed", e)
+            ZuneLog.e(TAG, "show failed", e)
+            window.dismiss()
             owner.onDestroy()
         }
     }
 
     private fun detach() {
-        val wm = windowManager
-        val view = overlayView
+        val window = banner
         val owner = lifecycleOwner
-        if (view != null) ZuneLog.d(TAG, "detach volume overlay")
-        overlayView = null
+        if (window != null) ZuneLog.d(TAG, "detach volume overlay")
+        banner = null
         lifecycleOwner = null
-        windowManager = null
-        if (wm != null && view != null) {
-            try {
-                if (view.isAttachedToWindow || view.windowToken != null) wm.removeViewImmediate(view)
-            } catch (e: Exception) {
-                ZuneLog.e("WpVolumeOverlay", "detach failed", e)
-            }
-        }
+        window?.dismiss()
         owner?.onDestroy()
     }
 

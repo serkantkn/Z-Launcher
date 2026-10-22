@@ -11,6 +11,8 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
@@ -31,7 +33,10 @@ import com.serkantkn.zeta.data.model.SocialMessageModel
 import com.serkantkn.zeta.data.model.ThemeMode
 import com.serkantkn.zeta.data.repository.SocialRepository
 import com.serkantkn.zeta.di.appContainer
+import com.serkantkn.zeta.ui.components.LocalBannerAlpha
 import com.serkantkn.zeta.ui.components.WpToastNotification
+import com.serkantkn.zeta.ui.components.bannerAlpha
+import com.serkantkn.zeta.ui.components.bannerBlurPx
 import com.serkantkn.zeta.ui.theme.ZuneLauncherTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,10 +70,11 @@ object WpToastOverlay {
 
     private val currentMessage = MutableStateFlow<SocialMessageModel?>(null)
 
-    private var windowManager: WindowManager? = null
-    private var overlayView: ComposeView? = null
-    private var layoutParams: WindowManager.LayoutParams? = null
+    private var banner: BannerWindow? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
+
+    /** How wide the card is on a wide screen, as the launcher draws it. */
+    private const val CARD_WIDTH_DP = 380
 
     fun isAvailable(context: Context): Boolean =
         ZuneKeyAccessibilityService.current != null ||
@@ -127,26 +133,17 @@ object WpToastOverlay {
 
     private fun attachOrUpdate(appContext: Context, message: SocialMessageModel) {
         currentMessage.value = message
-        if (overlayView != null) return  // already showing: the composable swaps content by message.id
+        if (banner != null) return  // already showing: the composable swaps content by message.id
 
         val (host, type) = overlayHost(appContext)
-        val wm = host.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val owner = OverlayLifecycleOwner().also { it.onCreate() }
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            type,
-            unfocusableFlags(),
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            x = 0
-            y = 0
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        val window = runCatching { BannerWindow(host, type) }
+            .onFailure { ZuneLog.e(TAG, "the window could not be made", it) }
+            .getOrNull() ?: run {
+                currentMessage.value = null
+                return
             }
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-        }
+        window.placeAsCard(appContext, CARD_WIDTH_DP)
+        val owner = OverlayLifecycleOwner().also { it.onCreate() }
 
         val view = ComposeView(appContext.localized()).apply {
             installZetaMotion(owner.lifecycle)
@@ -162,7 +159,13 @@ object WpToastOverlay {
                 val customThemeColor by settings.customThemeColor.collectAsState(initial = null)
                 val solidBackgroundEnabled by settings.solidBackgroundEnabled.collectAsState(initial = false)
                 val fontScale by settings.fontScale.collectAsState(initial = 1.0f)
+                val tileBlur by settings.tileBlur.collectAsState(initial = 0)
+                val tileOpacity by settings.tileOpacity.collectAsState(initial = 100)
                 val shown by currentMessage.collectAsState()
+                // Frosted as the tiles are - but only where the phone will blur behind the window:
+                // see-through over an app without it would only be hard to read.
+                val alpha = if (window.blursBehind) bannerAlpha(tileBlur, tileOpacity) else 1f
+                LaunchedEffect(alpha, tileBlur) { window.setFrost(if (alpha < 1f) bannerBlurPx(tileBlur) else 0) }
 
                 ZuneLauncherTheme(
                     themeMode = themeMode,
@@ -172,77 +175,48 @@ object WpToastOverlay {
                     solidBackgroundEnabled = solidBackgroundEnabled,
                     fontScale = fontScale
                 ) {
-                    WpToastNotification(
-                        message = shown,
-                        onDismiss = {
-                            if (currentMessage.value?.id == shown?.id) {
-                                SocialRepository.clearToast()
-                                currentMessage.value = null
-                                detach()
-                            }
-                        },
-                        onExpandedChange = { expanded -> setFocusable(expanded) },
-                        fillHeight = false
-                    )
+                    CompositionLocalProvider(LocalBannerAlpha provides alpha) {
+                        WpToastNotification(
+                            message = shown,
+                            onDismiss = {
+                                if (currentMessage.value?.id == shown?.id) {
+                                    SocialRepository.clearToast()
+                                    currentMessage.value = null
+                                    detach()
+                                }
+                            },
+                            onExpandedChange = { expanded -> window.setFocusable(expanded) },
+                            fillHeight = false,
+                            ownWindow = true,
+                            onShown = window::setShown
+                        )
+                    }
                 }
             }
         }
 
         try {
-            wm.addView(view, params)
-            windowManager = wm
-            overlayView = view
-            layoutParams = params
+            window.show(view)
+            banner = window
             lifecycleOwner = owner
             owner.onResume()
             ZuneLog.d(TAG, "attached overlay for ${message.appName}: ${message.title}")
         } catch (e: Exception) {
-            ZuneLog.e(TAG, "addView failed", e)
+            ZuneLog.e(TAG, "show failed", e)
+            window.dismiss()
             owner.onDestroy()
             currentMessage.value = null
         }
     }
 
-    private fun setFocusable(focusable: Boolean) {
-        val wm = windowManager ?: return
-        val view = overlayView ?: return
-        val params = layoutParams ?: return
-        params.flags = if (focusable) focusableFlags() else unfocusableFlags()
-        try {
-            wm.updateViewLayout(view, params)
-            if (focusable) view.requestFocus()
-        } catch (e: Exception) {
-            ZuneLog.e("WpToastOverlay", "setFocusable failed", e)
-        }
-    }
-
-    private fun unfocusableFlags(): Int =
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-
-    private fun focusableFlags(): Int =
-        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-
     private fun detach() {
-        if (overlayView != null) ZuneLog.d(TAG, "detach overlay")
-        val wm = windowManager
-        val view = overlayView
+        if (banner != null) ZuneLog.d(TAG, "detach overlay")
+        val window = banner
         val owner = lifecycleOwner
-        overlayView = null
-        layoutParams = null
+        banner = null
         lifecycleOwner = null
-        windowManager = null
         currentMessage.value = null
-        if (wm != null && view != null) {
-            try {
-                if (view.isAttachedToWindow || view.windowToken != null) wm.removeViewImmediate(view)
-            } catch (e: Exception) {
-                ZuneLog.e("WpToastOverlay", "detach failed", e)
-            }
-        }
+        window?.dismiss()
         owner?.onDestroy()
     }
 

@@ -148,6 +148,7 @@ fun LauncherScreen(
     val socialSources by settingsViewModel.socialSources.collectAsState()
     val solidBackgroundEnabled by settingsViewModel.solidBackgroundEnabled.collectAsState()
     val tileBlur by settingsViewModel.tileBlur.collectAsState()
+    val tileOpacity by settingsViewModel.tileOpacity.collectAsState()
     val timeFormat by settingsViewModel.timeFormat.collectAsState()
     val dateFormat by settingsViewModel.dateFormat.collectAsState()
     val hubBackgroundMode by settingsViewModel.hubBackgroundMode.collectAsState()
@@ -1152,6 +1153,11 @@ fun LauncherScreen(
                 // their own (1 and 2) so that a hub kept running behind Start stays behind it, and
                 // anything left at zero — which these were — went under the lot: the volume bar
                 // and a notification were sliding in beneath the hub names.
+                // Frosted as the tiles are, when they are: the wallpaper behind them blurred.
+                CompositionLocalProvider(
+                    com.serkantkn.zeta.ui.components.LocalBannerAlpha provides
+                        com.serkantkn.zeta.ui.components.bannerAlpha(tileBlur, tileOpacity)
+                ) {
                 Box(modifier = Modifier.fillMaxSize().zIndex(BANNER_Z)) {
                     // Windows Phone Toast Notification Banner
                     if (notificationStyle == NotificationStyle.WINDOWS_PHONE) {
@@ -1169,6 +1175,7 @@ fun LauncherScreen(
 
                     // Windows Phone Style Volume Control Banner
                     WpVolumeControl()
+                }
                 }
 
                 // The tour, and the note about what changed. Over everything, because a first run
