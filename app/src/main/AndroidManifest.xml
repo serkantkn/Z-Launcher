@@ -620,6 +620,13 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Other apps' hubs write their live tiles here while closed (ZetaHubKit, PLATFORM.md).
+             Open to any app, but it takes a tile only from the app whose hub the person added. -->
+        <provider
+            android:name=".data.hubs.HubTileProvider"
+            android:authorities="${applicationId}.hubtiles"
+            android:exported="true" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

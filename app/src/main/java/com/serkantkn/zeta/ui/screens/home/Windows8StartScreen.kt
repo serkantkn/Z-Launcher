@@ -479,7 +479,7 @@ fun Windows8StartScreen(
 }
 
 private fun kindOf(model: StartTileUIModel): Win8GroupKind = when (model) {
-    is StartTileUIModel.Hub -> Win8GroupKind.HUBS
+    is StartTileUIModel.Hub, is StartTileUIModel.ExternalHubTile -> Win8GroupKind.HUBS
     is StartTileUIModel.App -> Win8GroupKind.APPS
     is StartTileUIModel.NoteTile, is StartTileUIModel.QuickNote -> Win8GroupKind.NOTES
     // A pinned site or person is something the user put there, like an app.

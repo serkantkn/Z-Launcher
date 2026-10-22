@@ -2,9 +2,10 @@ package com.serkantkn.zeta.hubkit
 
 import android.app.Service
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.content.res.Resources
 import android.os.Binder
 import android.os.Bundle
 import android.os.Handler
@@ -20,7 +21,7 @@ import com.serkantkn.zeta.hubkit.protocol.HubProtocol.Node
 import com.serkantkn.zeta.hubkit.protocol.HubProtocol.Prop
 import com.serkantkn.zeta.hubkit.protocol.IZetaHost
 import com.serkantkn.zeta.hubkit.protocol.IZetaHub
-import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * A hub for Zeta. Extend it, describe the hub in [hub], and declare the service in the manifest:
@@ -54,6 +55,20 @@ abstract class ZetaHubService : Service() {
     /** What Zeta told us about itself when it opened the hub; null while nobody is connected. */
     var host: HostInfo? = null
         private set
+
+    /**
+     * The language Zeta speaks, which may not be the phone's. While Zeta is connected the
+     * service's resources are in it too, so `getString` gives the hub's words in Zeta's language;
+     * format dates and numbers with it as well.
+     */
+    val hubLocale: Locale
+        get() = host?.locale?.takeIf { it.isNotBlank() }?.let(Locale::forLanguageTag) ?: Locale.getDefault()
+
+    private var localized: Context? = null
+
+    override fun getResources(): Resources = localized?.resources ?: super.getResources()
+
+    private fun baseConfiguration(): Configuration = super.getResources().configuration
 
     /** A value the hub is drawn from: setting it describes the hub again. */
     protected fun <T> mutableHubStateOf(value: T): HubState<T> = HubState(value, ::invalidate)
@@ -118,6 +133,9 @@ abstract class ZetaHubService : Service() {
                 callerUid = uid
                 this@ZetaHubService.callback = callback
                 host = info
+                localized = createConfigurationContext(
+                    Configuration(baseConfiguration()).apply { setLocale(hubLocale) }
+                )
                 render()
             }
         }
@@ -145,6 +163,7 @@ abstract class ZetaHubService : Service() {
     private fun disconnect() {
         callback = null
         host = null
+        localized = null
         callerUid = -1
     }
 
@@ -210,36 +229,35 @@ abstract class ZetaHubService : Service() {
         }
     }
 
+    /** The service's label from the manifest, in Zeta's language when it is a string resource. */
     private fun label(): String = runCatching {
         val info = packageManager.getServiceInfo(ComponentName(this, javaClass), 0)
-        info.loadLabel(packageManager).toString()
+        if (info.labelRes != 0) getString(info.labelRes) else info.loadLabel(packageManager).toString()
     }.getOrDefault(javaClass.simpleName)
 
     /** Zeta, signed with Zeta's key - or any Zeta build, when this app is a debuggable build. */
     private fun isZeta(uid: Int): Boolean {
         val packages = packageManager.getPackagesForUid(uid) ?: return false
-        val zetas = packages.filter { it in ZETA_PACKAGES }
-        if (zetas.isEmpty()) return false
-        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) return true
-        return zetas.any { signedByZeta(it) }
+        return packages.any { ZetaIdentity.isZeta(this, it) }
     }
 
-    private fun signedByZeta(packageName: String): Boolean = runCatching {
-        val info = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-        val signing = info.signingInfo ?: return false
-        val signers = if (signing.hasMultipleSigners()) signing.apkContentsSigners else signing.signingCertificateHistory
-        signers.any { sha256(it.toByteArray()) in ZETA_CERTIFICATES }
-    }.getOrDefault(false)
-
-    private fun sha256(bytes: ByteArray): String =
-        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+    /**
+     * Writes the hub's live tile, as [hub] describes it now, to Zeta while the hub is closed - after
+     * the data behind it changed in the background. See [ZetaTiles].
+     */
+    fun publishTile(): Boolean {
+        val scope = HubScope(Handlers()).apply(hub().content)
+        val tile = scope.nodes.firstOrNull { it.type == Node.LIVE_TILE } ?: return false
+        return ZetaTiles.update(this, javaClass) {
+            count = tile.int(Prop.COUNT)
+            line = tile.string(Prop.LINE)
+            title = tile.string(Prop.TITLE)
+        }
+    }
 
     private companion object {
         const val TAG = "ZetaHubKit"
         const val SUB_PREFIX = "sub:"
-        val ZETA_PACKAGES = setOf("com.serkantkn.zeta", "com.serkantkn.zeta.dev")
-        /** The SHA-256 of the certificate Zeta's releases are signed with. */
-        val ZETA_CERTIFICATES = setOf("4554a00ac45cf021b3be9fd37d301c8b8193952d0239a9fc3b1316dcab41a986")
     }
 }
 

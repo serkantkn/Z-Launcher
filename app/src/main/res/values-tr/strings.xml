@@ -2091,6 +2091,11 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="external_hub_unavailable">bu hub şu an açılamıyor.</string>
     <string name="external_hub_retry">yeniden dene</string>
     <string name="external_hub_empty">bu hub\'da henüz bir şey yok.</string>
+    <string name="external_hub_from">%1$s uygulamasından</string>
+    <string name="external_hub_note">başka uygulamaların hub\'ları o uygulamanın içinde çalışır; Zeta onlara kişilerini, mesajlarını ya da başka bir verini vermez.</string>
+    <string name="settings_external_hubs">diğer uygulamaların hub\'ları</string>
+    <string name="settings_external_hubs_none">Zeta için hub yazan bir uygulama kurduğunda burada görünür ve buradan ya da \"hub ekle\"den eklenir.</string>
+    <string name="settings_external_hub_newer">%1$s uygulamasından · Zeta\'nın daha yeni bir sürümünü istiyor</string>
     <string name="whats_new_title">neler değişti</string>
     <string name="whats_new_close">anladım</string>
     <string name="whats_new_v2_title">ikinci ön sürüm</string>

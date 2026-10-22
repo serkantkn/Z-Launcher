@@ -627,14 +627,21 @@ private fun HomeHubScreenContent(
         }
     }
 
+    val hubTiles by com.serkantkn.zeta.data.hubs.HubTileStore.tiles.collectAsState()
+
     /**
      * What a hub says under its name in the Zune list — the same facts its tile turns over to
      * show, in a line of words. A hub whose tile was told to keep quiet keeps quiet here too.
      */
     @Composable
     fun liveLineFor(hubId: com.serkantkn.zeta.data.model.HubId): HubLiveLine {
-        // Another app's hub says what it gives its own tile (PLATFORM.md, stage 2); nothing yet.
-        val hub = hubId as? HubType ?: return HubLiveLine.NONE
+        if (hubId is com.serkantkn.zeta.data.model.ExternalHub) {
+            // Another app's hub says what its live tile says (PLATFORM.md).
+            val tile = hubTiles[hubId.key] ?: return HubLiveLine.NONE
+            if (!(tileLooks["hub:${hubId.key}"] ?: TileLook.DEFAULT).notifications) return HubLiveLine.NONE
+            return HubLiveLine(text = tile.line, count = tile.count)
+        }
+        val hub = hubId as HubType
         val look = tileLooks["hub:${hub.name}"] ?: TileLook.DEFAULT
         val quiet = !look.notifications
         return when (hub) {
@@ -895,6 +902,7 @@ private fun HomeHubScreenContent(
     @Composable
     fun tileSubject(model: StartTileUIModel): String = when (model) {
         is StartTileUIModel.Hub -> stringResource(model.hubType.titleRes)
+        is StartTileUIModel.ExternalHubTile -> com.serkantkn.zeta.ui.components.hubTitle(model.hub)
         is StartTileUIModel.App -> model.appInfo.label
         is StartTileUIModel.NoteTile -> model.note.title.ifBlank { stringResource(HubType.NOTES.titleRes) }
         is StartTileUIModel.QuickNote -> stringResource(R.string.notes_quick_note)
@@ -970,6 +978,7 @@ private fun HomeHubScreenContent(
     ) {
         val launchKey = when (model) {
             is StartTileUIModel.Hub -> "hub_${model.hubType.name}"
+            is StartTileUIModel.ExternalHubTile -> "hub_${model.hub.key}"
             is StartTileUIModel.App -> "app_${model.appInfo.packageName}"
             is StartTileUIModel.NoteTile -> "note_${model.note.id}"
             is StartTileUIModel.QuickNote -> "note_new"
@@ -1018,7 +1027,10 @@ private fun HomeHubScreenContent(
         val preview = LocalTileIsPreview.current
         CompositionLocalProvider(
             LocalTileLook provides look,
-            LocalTileRunning provides (model is StartTileUIModel.Hub && model.hubType in runningHubs),
+            LocalTileRunning provides (
+                model is StartTileUIModel.Hub && model.hubType in runningHubs ||
+                    model is StartTileUIModel.ExternalHubTile && model.hub in runningHubs
+                ),
             // The preview on the customise page is not a way into another customise page.
             LocalTileCustomize provides if (preview) null else ({ lookTargetId = model.id })
         ) {
@@ -1178,6 +1190,33 @@ private fun HomeHubScreenContent(
                     )
                     }
                 }
+            }
+            is StartTileUIModel.ExternalHubTile -> {
+                // Another app's hub: its glyph and name, and what its live tile last said.
+                val tile = hubTiles[model.hub.key]
+                val label = com.serkantkn.zeta.ui.components.hubTitle(model.hub)
+                W10MAppTile(
+                    label = label,
+                    tileKey = model.hub.key,
+                    face = com.serkantkn.zeta.ui.components.externalHubFace(
+                        androidx.compose.ui.platform.LocalContext.current, model.hub
+                    ),
+                    span = model.span,
+                    gridColumns = gridColumns,
+                    spacing = tileSpacing.dp,
+                    isEditing = isEditMode,
+                    isDragging = isDragging,
+                    isMergeTarget = isMergeTarget,
+                    cornerStyle = tileCornerStyle,
+                    notificationCount = tile?.count ?: 0,
+                    notificationTitle = tile?.title ?: label,
+                    notificationText = tile?.line,
+                    onClick = { handleLaunch(launchKey) { openHub(model.hub) } },
+                    onLongClick = { isEditMode = true },
+                    onRemoveClick = { onRemoveTile(model.id) },
+                    onResizeClick = onResize,
+                    modifier = animated
+                )
             }
             is StartTileUIModel.App -> W10MAppTile(
                 label = model.appInfo.label,

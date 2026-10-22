@@ -1,2 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- To write the hub's live tile to Zeta while the hub is closed (ZetaTiles), the app has to
+         be able to see Zeta. -->
+    <queries>
+        <package android:name="com.serkantkn.zeta" />
+        <package android:name="com.serkantkn.zeta.dev" />
+    </queries>
+</manifest>

@@ -10,6 +10,7 @@
         <service
             android:name=".TodoHub"
             android:exported="true"
+            android:icon="@drawable/ic_todo"
             android:label="@string/hub_name">
             <intent-filter>
                 <action android:name="com.serkantkn.zeta.action.HUB" />

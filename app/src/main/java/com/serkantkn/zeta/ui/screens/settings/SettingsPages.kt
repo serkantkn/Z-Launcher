@@ -512,6 +512,33 @@ internal fun HubSettingsPage(
                 }
             }
         }
+
+        // Other apps' hubs (PLATFORM.md): which are installed, which are added. Not on a TV.
+        if (!isTv) item(key = "external_hubs") {
+            val installed by com.serkantkn.zeta.data.hubs.HubDirectory.installed.collectAsState()
+            val approved by viewModel.approvedHubs.collectAsState()
+            SettingGroup(title = stringResource(R.string.settings_external_hubs)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = stringResource(
+                            if (installed.isEmpty()) R.string.settings_external_hubs_none else R.string.external_hub_note
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalZuneColors.current.textMuted,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    installed.forEach { hub ->
+                        SettingSwitchRow(
+                            title = hub.label,
+                            subtitle = if (hub.speakable) stringResource(R.string.external_hub_from, hub.appLabel)
+                                else stringResource(R.string.settings_external_hub_newer, hub.appLabel),
+                            checked = hub.certificate != null && approved[hub.hub.key] == hub.certificate,
+                            onCheckedChange = { on -> if (hub.speakable) viewModel.setExternalHubAdded(hub, on) }
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

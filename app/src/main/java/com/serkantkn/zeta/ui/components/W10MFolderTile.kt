@@ -182,6 +182,13 @@ private fun FolderChip(
 
             is StartTileUIModel.Hub -> ChipGlyphOf(child.hubType, foreground, glyphPad)
 
+            is StartTileUIModel.ExternalHubTile -> TileIconImage(
+                face = externalHubFace(androidx.compose.ui.platform.LocalContext.current, child.hub),
+                size = iconSize,
+                ink = foreground,
+                contentDescription = hubTitle(child.hub)
+            )
+
             is StartTileUIModel.Person -> Icon(
                 imageVector = Icons.Default.Person,
                 contentDescription = null,

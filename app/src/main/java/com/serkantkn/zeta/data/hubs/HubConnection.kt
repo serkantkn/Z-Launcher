@@ -47,6 +47,7 @@ class HubConnection(
     private var remote: IZetaHub? = null
     private var bound = false
     private var host: Bundle = Bundle.EMPTY
+    private var rebinds = 0
 
     private val callback = object : IZetaHost.Stub() {
         override fun spec(spec: HubNode?) {
@@ -65,6 +66,7 @@ class HubConnection(
     }
 
     private val connection = object : ServiceConnection {
+        // Also after the app's process died and came back: the system binds again by itself.
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val hubBinder = IZetaHub.Stub.asInterface(service)
             remote = hubBinder
@@ -80,9 +82,11 @@ class HubConnection(
             _status.value = Status.FAILED
         }
 
+        // The app was updated or stopped for good: the binding has to be made again.
         override fun onBindingDied(name: ComponentName?) {
             remote = null
             _status.value = Status.FAILED
+            if (rebinds++ < MAX_REBINDS) retry()
         }
 
         override fun onNullBinding(name: ComponentName?) {
@@ -137,6 +141,12 @@ class HubConnection(
         connect(host)
     }
 
+    /** The person asked to try again: a fresh start. */
+    fun retryByHand() {
+        rebinds = 0
+        retry()
+    }
+
     private fun fail(what: String, e: Exception) {
         ZuneLog.w(TAG, "${hub.key}: $what failed", e)
         remote = null
@@ -149,5 +159,7 @@ class HubConnection(
         const val TAG = "HubConnection"
         /** More than any hub needs to describe at once; the rest belongs in a list fetched in parts. */
         const val MAX_NODES = 4000
+        /** How often a binding that died is made again before the hub says it cannot open. */
+        const val MAX_REBINDS = 3
     }
 }

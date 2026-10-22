@@ -166,6 +166,23 @@ object HubProtocol {
         const val VISIBLE = "visible"
     }
 
+    /**
+     * Writing a live tile while the hub is closed: `ContentResolver.call` on Zeta's provider at
+     * [AUTHORITY_SUFFIX] after Zeta's package name, method [METHOD], arg the hub service's class name.
+     */
+    object Tile {
+        const val AUTHORITY_SUFFIX = ".hubtiles"
+        const val METHOD = "tile"
+        /** Int. */
+        const val COUNT = "count"
+        /** String. */
+        const val LINE = "line"
+        /** String. */
+        const val TITLE = "title"
+        /** Boolean, in the answer: whether Zeta took it. */
+        const val OK = "ok"
+    }
+
     /** The [android.os.Bundle] a hub app sends with [IZetaHost.command]. */
     object Command {
         const val KIND = "kind"

@@ -65,6 +65,7 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
         com.serkantkn.zeta.data.billing.ProStore.start(this)
         // Other apps' hubs (PLATFORM.md): which are installed, kept up to date as apps come and go.
         com.serkantkn.zeta.data.hubs.HubDirectory.start(this)
+        com.serkantkn.zeta.data.hubs.HubTileStore.start(this)
         NoteFallbackTitles.refresh(localized())
         bindTimeText()
         rearmClock()

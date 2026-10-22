@@ -44,6 +44,7 @@ import java.io.File
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -306,6 +307,31 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val item = current.removeAt(index)
             current.add(targetIndex, item)
             viewModelScope.launch { settingsDataStore.setHubOrder(current) }
+        }
+    }
+
+    /** Other apps' hubs the person has added: hub key to the certificate it was added with. */
+    val approvedHubs: StateFlow<Map<String, String>> = settingsDataStore.approvedHubs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /**
+     * Adds another app's hub - allowed as it is signed now, with a tile on the board - or takes it
+     * off again, the same as taking it off the home screen.
+     */
+    fun setExternalHubAdded(hub: com.serkantkn.zeta.data.hubs.InstalledHub, added: Boolean) {
+        viewModelScope.launch {
+            if (added) {
+                val certificate = hub.certificate ?: return@launch
+                settingsDataStore.setHubApproved(hub.hub, certificate)
+                val tiles = settingsDataStore.startTiles.first()
+                val tile = com.serkantkn.zeta.data.model.StartTileItem.fromHub(hub.hub)
+                if (com.serkantkn.zeta.data.model.StartFolders.allTileIds(tiles).none { it == tile.id }) {
+                    settingsDataStore.setStartTiles(tiles + tile)
+                }
+            } else {
+                settingsDataStore.setHubApproved(hub.hub, null)
+                com.serkantkn.zeta.data.hubs.HubTileStore.drop(hub.hub.key)
+            }
         }
     }
 

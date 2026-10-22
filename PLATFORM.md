@@ -145,6 +145,8 @@ class KargoHub : ZetaHubService() {
 - Gerçek, çalışan bir örnek: `hubkit/sample` (yapılacaklar listesi).
 - Tıklama, uzun basma, metin girişi gibi olaylar geliştiricinin verdiği lambdalara gelir.
   Kütüphane bunları kimliklerle eşler; geliştirici kimlikle uğraşmaz.
+- **Dil**: Zeta bağlıyken servisin kaynakları Zeta'nın dilindedir; `getString` hub'ın metinlerini
+  Zeta'nın dilinde verir (telefonun dili başka olsa da). Tarih ve sayılar için `hubLocale`.
 - Hub uygulamasının kendi Activity'si olması gerekmez; isterse bir ayar ekranı ya da giriş ekranı
   için `openActivity(intent)` ile kendi ekranını açabilir (Zeta bunu ayrı uygulama gibi açar).
 
@@ -336,7 +338,8 @@ liveTile {
 - Bu, bugünkü `W10MHubTile(badgeCount, liveTitle, liveSubtitle, liveItems, photoUris)` ve
   `HubLiveLine(text, count)` ile birebir örtüşür; yeni bir karo çizimi gerekmez.
 - **Hub açık değilken güncelleme**: hub uygulaması kendi zamanlamasıyla (WorkManager, push)
-  `ZetaTiles.update(context, tile)` çağırır. Kütüphane bunu Zeta'nın dışa açık
+  `ZetaTiles.update(context, MyHub::class.java) { count = 3; line = "…" }` ya da servisin içinden
+  `publishTile()` (tarifteki `liveTile`'ı gönderir) çağırır. Kütüphane bunu Zeta'nın dışa açık
   `ContentProvider`'ına (`content://com.serkantkn.zeta.hubs/tile`) yazar. Zeta çağıranı
   `Binder.getCallingUid()` ile tanır; yalnızca onaylı hub'ların yazmasını kabul eder, sıklığı
   sınırlar (dakikada en çok 4).
@@ -449,7 +452,7 @@ zaman `HubType`'tır" varsayımını kaldırmaktır.
 |---|---|---|
 | 0 ✓ | `HubId` düzenlemesi; davranış değişmez, testler geçer | yapıldı (2026-10-22) |
 | 1 ✓ | `hubkit-protocol`, `hubkit`, örnek hub, `HubDirectory`, onay, `HubConnection`, `ExternalHubScreen`; v1 öğeleri (sayfa, satır, liste, bölüm, metin, düğme, boş, bilgi, yükleniyor, anahtar, değer, alt çubuk, alt sayfa) | yapıldı (2026-10-22) |
-| 2 | Tablet bölmesi, Aura uçuşu; canlı karo ve `HubTileProvider`; onay ve ayarlar sayfası | ~1 hafta |
+| 2 ✓ | Tablet bölmesi, Aura uçuşu; canlı karo (açıkken tariften, kapalıyken `ZetaTiles` ile), Aura satırı, Mozaik karosu; onayda uygulamanın adı; ayarlar › hub › diğer uygulamaların hub'ları; hub'ın notları Zeta tasarımında; hub uygulamasının metinleri Zeta'nın dilinde; kopan bağlantı yeniden kurulur | yapıldı (2026-10-22) |
 | 3 | `hubkit` DSL'i, doğrulayıcı, geliştirici modu, örnek hub (ör. "kargolarım"), belgeler | ~1 hafta |
 | 4 | Kalan v1 öğeleri, sınırlar, güvenlik denetimi, Maven yayını | ~0,5 hafta |
 | 5 | Hub kataloğu | ayrı karar |

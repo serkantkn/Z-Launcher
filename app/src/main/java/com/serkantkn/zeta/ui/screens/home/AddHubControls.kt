@@ -115,22 +115,52 @@ fun AddHubDialog(
                             .background(zuneColors.accentColor),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = hubGlyph(hub),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        if (hub is com.serkantkn.zeta.data.model.ExternalHub) {
+                            com.serkantkn.zeta.ui.components.TileIconImage(
+                                face = com.serkantkn.zeta.ui.components.externalHubFace(
+                                    androidx.compose.ui.platform.LocalContext.current, hub
+                                ),
+                                size = 20.dp,
+                                ink = Color.White,
+                                contentDescription = null
+                            )
+                        } else {
+                            Icon(
+                                imageVector = hubGlyph(hub),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(14.dp))
-                    Text(
-                        text = hubTitle(hub),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Light
-                        ),
-                        color = Color.White
-                    )
+                    Column {
+                        Text(
+                            text = hubTitle(hub),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Light
+                            ),
+                            color = Color.White
+                        )
+                        // Another app's hub says whose it is: adding it is trusting that app.
+                        if (hub is com.serkantkn.zeta.data.model.ExternalHub) {
+                            val from = com.serkantkn.zeta.data.hubs.HubDirectory.find(hub)?.appLabel ?: hub.packageName
+                            Text(
+                                text = stringResource(R.string.external_hub_from, from),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = zuneColors.textMuted
+                            )
+                        }
+                    }
                 }
+            }
+            if (missing.any { it is com.serkantkn.zeta.data.model.ExternalHub }) {
+                Text(
+                    text = stringResource(R.string.external_hub_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = zuneColors.textMuted,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
             Spacer(modifier = Modifier.height(4.dp))
         }

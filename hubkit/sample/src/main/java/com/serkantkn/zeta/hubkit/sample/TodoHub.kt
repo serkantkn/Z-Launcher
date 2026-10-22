@@ -76,6 +76,11 @@ class TodoHub : ZetaHubService() {
         }
     }
 
+    /** Leaving the hub, the tile is written to Zeta, as it would be after a change in the background. */
+    override fun onHubHidden() {
+        Thread { publishTile() }.start()
+    }
+
     private fun add() {
         val title = ideas[(nextId - 1) % ideas.size]
         tasks = tasks + Task(nextId++, title, System.currentTimeMillis())
@@ -83,5 +88,5 @@ class TodoHub : ZetaHubService() {
     }
 
     private fun added(task: Task): String =
-        getString(R.string.added, DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(task.added)))
+        getString(R.string.added, DateFormat.getTimeInstance(DateFormat.SHORT, hubLocale).format(Date(task.added)))
 }

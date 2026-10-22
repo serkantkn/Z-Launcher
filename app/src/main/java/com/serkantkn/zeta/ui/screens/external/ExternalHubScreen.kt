@@ -2,7 +2,6 @@ package com.serkantkn.zeta.ui.screens.external
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
@@ -28,6 +27,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.serkantkn.zeta.R
 import com.serkantkn.zeta.data.hubs.HubConnection
+import com.serkantkn.zeta.data.hubs.HubTileStore
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.serkantkn.zeta.data.model.ExternalHub
 import com.serkantkn.zeta.hubkit.protocol.HubNode
 import com.serkantkn.zeta.hubkit.protocol.HubProtocol
@@ -89,7 +96,10 @@ fun ExternalHubScreen(
     }
     DisposableEffect(connection) {
         connection.connect(host)
-        onDispose { connection.close() }
+        onDispose {
+            connection.send(Event.VISIBLE, "hub") { putBoolean(Event.SHOWN, false) }
+            connection.close()
+        }
     }
     LaunchedEffect(connection) {
         delay(CONNECT_TIMEOUT_MILLIS)
@@ -100,13 +110,30 @@ fun ExternalHubScreen(
     val status by connection.status.collectAsState()
     val latestBack by rememberUpdatedState(onBack)
 
+    // Whether the hub is in view: a hub left running behind Start is composed but not awake.
+    val awake = com.serkantkn.zeta.ui.theme.LocalScreenAwake.current
+    LaunchedEffect(awake, status) {
+        if (status == HubConnection.Status.READY) {
+            connection.send(Event.VISIBLE, "hub") { putBoolean(Event.SHOWN, awake) }
+        }
+    }
+    // What the hub says on its tile, kept for the list and the board while it is closed.
+    LaunchedEffect(spec) {
+        spec?.let { HubTileStore.fromSpec(it) }?.let { HubTileStore.put(hub.key, it) }
+    }
+    var banner by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(banner) {
+        if (banner != null) {
+            delay(BANNER_MILLIS)
+            banner = null
+        }
+    }
+
     // What the app asks of Zeta.
     LaunchedEffect(connection) {
         connection.commands.collect { command ->
             when (command.getString(Command.KIND)) {
-                Command.TOAST -> command.getString(Command.TEXT)?.let {
-                    Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-                }
+                Command.TOAST -> command.getString(Command.TEXT)?.let { banner = it.take(HubTileStore.MAX_TEXT) }
                 Command.OPEN_URL -> command.getString(Command.URL)
                     ?.takeIf { it.startsWith("https://") }
                     ?.let { url ->
@@ -125,7 +152,10 @@ fun ExternalHubScreen(
     }
 
     val send: HubEventSink = { kind, key, extra -> connection.send(kind, key, extra) }
-    val root = spec
+    // A hub whose app has stopped answering is not drawn from what it said last: nothing on it
+    // would do anything. It says so, and Back closes it.
+    val connected = status != HubConnection.Status.FAILED
+    val root = spec.takeIf { connected }
     val pages = root?.childrenOf(Node.PAGE).orEmpty()
     val subPages = root?.childrenOf(Node.SUB_PAGE).orEmpty()
     val top = subPages.lastOrNull()
@@ -153,7 +183,7 @@ fun ExternalHubScreen(
     if (top != null && shown?.key == top.key) shown = top
 
     BackHandler {
-        if (top != null) send(Event.BACK, top.key) {} else onBack()
+        if (top != null && status == HubConnection.Status.READY) send(Event.BACK, top.key) {} else onBack()
     }
 
     val bar = root?.childOf(Node.BAR)
@@ -185,12 +215,12 @@ fun ExternalHubScreen(
                     showTabs = pages.size > 1 || pages.isNotEmpty() && status == HubConnection.Status.READY,
                     bar = if (barActions.isNotEmpty() || barMenu.isNotEmpty()) ZuneHubBar(barActions, barMenu) else null,
                     takeover = when {
-                        status == HubConnection.Status.FAILED && root == null -> {
+                        !connected -> {
                             {
                                 MetroEmpty(
                                     message = stringResource(R.string.external_hub_unavailable),
                                     actionLabel = stringResource(R.string.external_hub_retry),
-                                    onAction = { connection.retry() },
+                                    onAction = { connection.retryByHand() },
                                     modifier = Modifier.padding(horizontal = ZuneDimens.ScreenPaddingHorizontal)
                                 )
                             }
@@ -255,8 +285,33 @@ fun ExternalHubScreen(
                 }
             }
         }
+
+        // A note from the hub app, in the accent across the top, as Zeta's own hubs give them.
+        androidx.compose.animation.AnimatedVisibility(
+            visible = banner != null,
+            enter = androidx.compose.animation.slideInVertically(initialOffsetY = { -it }) + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }) + androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(zuneColors.accentColor)
+                    .statusBarsPadding()
+                    .padding(horizontal = ZuneDimens.ScreenPaddingHorizontal, vertical = 12.dp)
+            ) {
+                Text(
+                    text = banner.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = Color.White
+                )
+            }
+        }
     }
 }
+
+/** How long a hub app's note stays at the top. */
+private const val BANNER_MILLIS = 2500L
 
 /** How long a hub app has to describe its hub before Zeta says it cannot open it. */
 private const val CONNECT_TIMEOUT_MILLIS = 5000L

@@ -83,6 +83,11 @@ sealed interface StartTileUIModel {
         override val id: String = "hub:${hubType.name}"
     }
 
+    /** Another app's hub (PLATFORM.md): its glyph, its name, what its live tile says. */
+    data class ExternalHubTile(val hub: com.serkantkn.zeta.data.model.ExternalHub, override val span: Int) : StartTileUIModel {
+        override val id: String = "hub:${hub.key}"
+    }
+
     data class App(val appInfo: AppInfo, override val span: Int) : StartTileUIModel {
         override val id: String = "app:${appInfo.packageName}"
     }
@@ -176,6 +181,7 @@ sealed interface StartTileUIModel {
     /** The same tile at another size. */
     fun withSpan(span: Int): StartTileUIModel = when (this) {
         is Hub -> copy(span = span)
+        is ExternalHubTile -> copy(span = span)
         is App -> copy(span = span)
         is NoteTile -> copy(span = span)
         is Web -> copy(span = span)
@@ -444,8 +450,11 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
         /** One tile of a folder; null when whatever it pointed at is gone. */
         fun resolve(id: String, span: Int): StartTileUIModel? = when {
             id == StartTileItem.QUICK_NOTE_ID -> StartTileUIModel.QuickNote(span)
-            id.startsWith("hub:") -> runCatching { HubType.valueOf(id.removePrefix("hub:")) }
-                .getOrNull()?.let { StartTileUIModel.Hub(it, span) }
+            id.startsWith("hub:") -> when (val hub = com.serkantkn.zeta.data.model.HubId.fromKey(id.removePrefix("hub:"))) {
+                is HubType -> StartTileUIModel.Hub(hub, span)
+                is com.serkantkn.zeta.data.model.ExternalHub -> StartTileUIModel.ExternalHubTile(hub, span)
+                null -> null
+            }
 
             id.startsWith("app:") -> appMap[id.removePrefix("app:")]
                 ?.let { StartTileUIModel.App(it, span) }
@@ -490,8 +499,10 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
                 return@forEach
             }
             if (item.isHub) {
-                item.hubType?.let { hubType ->
-                    result.add(StartTileUIModel.Hub(hubType, item.span))
+                when (val hub = item.hubId) {
+                    is HubType -> result.add(StartTileUIModel.Hub(hub, item.span))
+                    is com.serkantkn.zeta.data.model.ExternalHub -> result.add(StartTileUIModel.ExternalHubTile(hub, item.span))
+                    null -> Unit
                 }
             } else if (item.isQuickNote) {
                 result.add(StartTileUIModel.QuickNote(item.span))
@@ -554,8 +565,20 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val unifiedStartTiles: StateFlow<List<StartTileUIModel>> = combine(
         tilesWithoutCovers,
         _allImages,
-        _musicAlbums
-    ) { tiles, images, records ->
+        _musicAlbums,
+        com.serkantkn.zeta.data.hubs.HubDirectory.approved(settingsDataStore.approvedHubs)
+    ) { allTiles, images, records, addedHubs ->
+        // Another app's hub stands on the board only while it is added and installed.
+        val added = addedHubs.map { it.hub }.toSet()
+        fun shown(model: StartTileUIModel) = model !is StartTileUIModel.ExternalHubTile || model.hub in added
+        val tiles = allTiles.mapNotNull { model ->
+            when {
+                model is StartTileUIModel.Folder -> model.copy(children = model.children.filter(::shown))
+                    .takeIf { it.children.isNotEmpty() }
+                shown(model) -> model
+                else -> null
+            }
+        }
         if (tiles.none { it.hasAlbum() }) return@combine tiles
         val byBucket = images.asSequence().filter { !it.isVideo }.groupBy { it.bucketId }
 
@@ -1255,7 +1278,10 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
             // be remembered as taken off or it comes straight back on the next read.
             // Another app's hub is not hidden but given back: taking it off is withdrawing it.
             when (val hub = StartTileItem(id).hubId) {
-                is com.serkantkn.zeta.data.model.ExternalHub -> settingsDataStore.setHubApproved(hub, null)
+                is com.serkantkn.zeta.data.model.ExternalHub -> {
+                    settingsDataStore.setHubApproved(hub, null)
+                    com.serkantkn.zeta.data.hubs.HubTileStore.drop(hub.key)
+                }
                 null -> Unit
                 else -> settingsDataStore.setHubRemoved(hub, true)
             }
@@ -1271,6 +1297,10 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
                 // Allowed as it is signed now; signed by anyone else later, it does not open.
                 val certificate = com.serkantkn.zeta.data.hubs.HubDirectory.find(hub)?.certificate ?: return@launch
                 settingsDataStore.setHubApproved(hub, certificate)
+                // And a tile on the board, as a hub of Zeta's own comes back with one.
+                val tile = StartTileItem.fromHub(hub)
+                val current = startTiles.value
+                if (StartFolders.allTileIds(current).none { it == tile.id }) settingsDataStore.setStartTiles(current + tile)
             } else {
                 settingsDataStore.setHubRemoved(hub, false)
             }
