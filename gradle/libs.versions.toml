@@ -80,4 +80,6 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+# Publishing ZetaHubKit to Maven Central (hubkit/)
+maven-publish = { id = "com.vanniktech.maven.publish", version = "0.37.0" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

@@ -52,7 +52,9 @@ class HubConnection(
     private val callback = object : IZetaHost.Stub() {
         override fun spec(spec: HubNode?) {
             if (spec == null || spec.type != HubProtocol.Node.HUB) return
-            if (count(spec) > MAX_NODES) {
+            val nodes = count(spec)
+            HubLog.spec(hub.key, spec, nodes)
+            if (nodes > MAX_NODES) {
                 ZuneLog.w(TAG, "${hub.key} described more than $MAX_NODES things; not drawn")
                 return
             }
@@ -61,6 +63,7 @@ class HubConnection(
         }
 
         override fun command(command: Bundle?) {
+            if (command != null) HubLog.add(hub.key, "command", command.getString(HubProtocol.Command.KIND).orEmpty())
             if (command != null) _commands.tryEmit(Bundle(command))
         }
     }
@@ -70,6 +73,7 @@ class HubConnection(
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val hubBinder = IZetaHub.Stub.asInterface(service)
             remote = hubBinder
+            HubLog.add(hub.key, "connected", "hello, protocol ${HubProtocol.VERSION}")
             try {
                 hubBinder.hello(host, callback)
             } catch (e: RemoteException) {
@@ -78,18 +82,21 @@ class HubConnection(
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            HubLog.add(hub.key, "disconnected", "the app's process went away", problem = true)
             remote = null
             _status.value = Status.FAILED
         }
 
         // The app was updated or stopped for good: the binding has to be made again.
         override fun onBindingDied(name: ComponentName?) {
+            HubLog.add(hub.key, "binding died", "binding again ($rebinds of $MAX_REBINDS)", problem = true)
             remote = null
             _status.value = Status.FAILED
             if (rebinds++ < MAX_REBINDS) retry()
         }
 
         override fun onNullBinding(name: ComponentName?) {
+            HubLog.add(hub.key, "no binder", "onBind returned null: is the action com.serkantkn.zeta.action.HUB?", problem = true)
             _status.value = Status.FAILED
         }
     }
@@ -103,23 +110,35 @@ class HubConnection(
         bound = runCatching { context.bindService(intent, connection, Context.BIND_AUTO_CREATE) }
             .onFailure { ZuneLog.w(TAG, "could not bind ${hub.key}", it) }
             .getOrDefault(false)
-        if (!bound) _status.value = Status.FAILED
+        if (!bound) {
+            HubLog.add(hub.key, "bind failed", "is the service exported?", problem = true)
+            _status.value = Status.FAILED
+        }
     }
 
     /** Gives up waiting for a first description. */
     fun timeOut() {
-        if (_status.value == Status.CONNECTING) _status.value = Status.FAILED
+        if (_status.value == Status.CONNECTING) {
+            HubLog.add(hub.key, "timeout", "no description within five seconds (was the caller check passed?)", problem = true)
+            _status.value = Status.FAILED
+        }
     }
 
     /** Tells the app something happened: [HubProtocol.Event]. */
     fun send(kind: String, key: String, fill: Bundle.() -> Unit = {}) {
         val to = remote ?: return
+        val event = Bundle().apply {
+            putString(HubProtocol.Event.KIND, kind)
+            putString(HubProtocol.Event.KEY, key)
+            fill()
+        }
+        HubLog.add(hub.key, "event", buildString {
+            append(kind).append(' ').append(key)
+            event.keySet().filter { it != HubProtocol.Event.KIND && it != HubProtocol.Event.KEY }
+                .forEach { append(' ').append(it).append('=').append(event.get(it)) }
+        })
         try {
-            to.event(Bundle().apply {
-                putString(HubProtocol.Event.KIND, kind)
-                putString(HubProtocol.Event.KEY, key)
-                fill()
-            })
+            to.event(event)
         } catch (e: RemoteException) {
             fail("event", e)
         }
@@ -149,6 +168,7 @@ class HubConnection(
 
     private fun fail(what: String, e: Exception) {
         ZuneLog.w(TAG, "${hub.key}: $what failed", e)
+        HubLog.add(hub.key, "failed", "$what: ${e.javaClass.simpleName}", problem = true)
         remote = null
         _status.value = Status.FAILED
     }

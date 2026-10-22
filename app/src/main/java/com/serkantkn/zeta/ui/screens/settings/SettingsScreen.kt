@@ -204,8 +204,24 @@ fun SettingsScreen(
         }
     }
 
+    // 3D Door Hinge transition state for the log of other apps' hubs (developer mode)
+    val hubLogHingeAnim = remember { Animatable(0f) }
+    var isHubLogOpen by remember { mutableStateOf(false) }
+
+    fun openHubLog() {
+        isHubLogOpen = true
+        scope.launch { hubLogHingeAnim.animateTo(targetValue = 1f, animationSpec = hingeSpec) }
+    }
+
+    fun closeHubLog() {
+        scope.launch {
+            hubLogHingeAnim.animateTo(targetValue = 0f, animationSpec = hingeSpec)
+            isHubLogOpen = false
+        }
+    }
+
     val subScreenHingeProgress =
-        maxOf(dateTimeHingeAnim.value, lookHingeAnim.value, sourcesHingeAnim.value, calendarsHingeAnim.value, versionHingeAnim.value)
+        maxOf(dateTimeHingeAnim.value, lookHingeAnim.value, sourcesHingeAnim.value, calendarsHingeAnim.value, versionHingeAnim.value, hubLogHingeAnim.value)
 
     Box(modifier = modifier.fillMaxSize()) {
         // 1. Settings Main Screen (Hinges Out to -90° when filter screen opens)
@@ -238,7 +254,8 @@ fun SettingsScreen(
                             directCallEnabled = directCallEnabled,
                             onDirectCallChanged = viewModel::setDirectCallEnabled,
                             onOpenSocialSources = { openSocialSources() },
-                            onOpenCalendars = { openCalendars() }
+                            onOpenCalendars = { openCalendars() },
+                            onOpenHubLog = { openHubLog() }
                         )
                         SettingsTab.NOTIFICATIONS -> NotificationsSettingsPage(viewModel = viewModel)
                         SettingsTab.DISPLAY_AND_SOUND -> DisplayAndSoundSettingsPage(viewModel = viewModel)
@@ -331,6 +348,17 @@ fun SettingsScreen(
                     .pageHingeIn { versionHingeAnim.value }
             ) {
                 AboutVersionScreen(onClose = { closeVersion() })
+            }
+        }
+
+        // 7. The log of other apps' hubs, in developer mode (Hinges In)
+        if (isHubLogOpen || hubLogHingeAnim.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pageHingeIn { hubLogHingeAnim.value }
+            ) {
+                com.serkantkn.zeta.ui.screens.external.HubLogScreen(onClose = { closeHubLog() })
             }
         }
     }

@@ -335,6 +335,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    val hubDeveloperMode: StateFlow<Boolean> = settingsDataStore.hubDeveloperMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun setHubDeveloperMode(on: Boolean) {
+        viewModelScope.launch { settingsDataStore.setHubDeveloperMode(on) }
+    }
+
     fun resetHubOrder() {
         val defaultOrder = listOf(
             HubType.MUSIC,

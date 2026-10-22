@@ -19,6 +19,7 @@ import com.serkantkn.zeta.hubkit.protocol.HubProtocol.Command
 import com.serkantkn.zeta.hubkit.protocol.HubProtocol.Event
 import com.serkantkn.zeta.hubkit.protocol.HubProtocol.Node
 import com.serkantkn.zeta.hubkit.protocol.HubProtocol.Prop
+import com.serkantkn.zeta.hubkit.protocol.HubSpecValidator
 import com.serkantkn.zeta.hubkit.protocol.IZetaHost
 import com.serkantkn.zeta.hubkit.protocol.IZetaHub
 import java.util.Locale
@@ -116,6 +117,8 @@ abstract class ZetaHubService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private var callback: IZetaHost? = null
     private var callerUid = -1
+    /** The Zeta that is connected, to let it read the pictures the hub points at. */
+    private var zetaPackage: String? = null
     private var handlers = Handlers()
     private val subPages = ArrayList<OpenPage>()
     private var subPageCount = 0
@@ -129,8 +132,10 @@ abstract class ZetaHubService : Service() {
                 return
             }
             val info = HostInfo.from(hostInfo ?: Bundle.EMPTY)
+            val zeta = packageManager.getPackagesForUid(uid)?.firstOrNull { it in ZetaIdentity.PACKAGES }
             main.post {
                 callerUid = uid
+                zetaPackage = zeta
                 this@ZetaHubService.callback = callback
                 host = info
                 localized = createConfigurationContext(
@@ -162,14 +167,20 @@ abstract class ZetaHubService : Service() {
 
     private fun disconnect() {
         callback = null
+        zetaPackage = null
         host = null
         localized = null
         callerUid = -1
     }
 
-    private fun render() {
-        val to = callback ?: return
-        val made = Handlers()
+    /**
+     * What is wrong with the hub's description as it stands - for a test of your own:
+     * `assertEquals(emptyList(), Robolectric.buildService(MyHub::class.java).create().get().validate())`.
+     */
+    fun validate(): List<HubSpecValidator.Problem> = HubSpecValidator.check(describe(Handlers()))
+
+    /** The description as it stands, open sub-pages included; [made] collects what touches do. */
+    private fun describe(made: Handlers): HubNode {
         val spec = hub()
         val scope = HubScope(made).apply(spec.content)
         val children = ArrayList(scope.nodes)
@@ -180,16 +191,36 @@ abstract class ZetaHubService : Service() {
                 putString(Prop.TITLE, page.title)
             }, content.nodes))
         }
-        handlers = made
-        val root = HubNode(Node.HUB, "hub", Bundle().apply {
+        return HubNode(Node.HUB, "hub", Bundle().apply {
             putString(Prop.TITLE, spec.title ?: label())
         }, children)
+    }
+
+    private fun render() {
+        val to = callback ?: return
+        val made = Handlers()
+        val root = describe(made)
+        handlers = made
+        sharePictures(root)
         try {
             to.spec(root)
         } catch (e: RemoteException) {
             Log.w(TAG, "Zeta is gone", e)
             disconnect()
         }
+    }
+
+    /** Lets Zeta read the content:// pictures the description points at; https ones it fetches. */
+    private fun sharePictures(node: HubNode) {
+        val zeta = zetaPackage ?: return
+        node.string(Prop.IMAGE)?.let { image ->
+            val uri = android.net.Uri.parse(image)
+            if (uri.scheme == "content") {
+                runCatching { grantUriPermission(zeta, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                    .onFailure { Log.w(TAG, "could not let Zeta read $uri: is it your FileProvider's?", it) }
+            }
+        }
+        node.children.forEach { sharePictures(it) }
     }
 
     private fun dispatch(event: Bundle) {

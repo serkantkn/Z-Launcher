@@ -2096,6 +2096,13 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="settings_external_hubs">diğer uygulamaların hub\'ları</string>
     <string name="settings_external_hubs_none">Zeta için hub yazan bir uygulama kurduğunda burada görünür ve buradan ya da \"hub ekle\"den eklenir.</string>
     <string name="settings_external_hub_newer">%1$s uygulamasından · Zeta\'nın daha yeni bir sürümünü istiyor</string>
+    <string name="settings_hub_developer">geliştirici modu</string>
+    <string name="settings_hub_developer_sub">hub\'lar ile Zeta\'nın konuşmasını kaydeder ve tariflerindeki hataları gösterir</string>
+    <string name="settings_hub_log">hub günlüğü</string>
+    <string name="settings_hub_log_sub">bağlantılar, tarifler, dokunuşlar ve hatalar</string>
+    <string name="settings_hub_log_count">%1$d kayıt</string>
+    <string name="settings_hub_log_clear">temizle</string>
+    <string name="settings_hub_log_empty">henüz kayıt yok. bir hub açınca konuştukları burada görünür.</string>
     <string name="whats_new_title">neler değişti</string>
     <string name="whats_new_close">anladım</string>
     <string name="whats_new_v2_title">ikinci ön sürüm</string>

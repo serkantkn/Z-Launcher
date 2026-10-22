@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZetaHubKit — Zeta için hub yaz</title>
+<meta name="description" content="ZetaHubKit ile Zeta için hub yaz: uygulaman hub'ı tarif eder, Zeta onu telefonda, tablette ve her tasarımında kendisi çizer.">
+<style>
+  :root { --ink:#f2f2f2; --dim:#9a9a9a; --accent:#e3008c; --bg:#0a0a0a; --line:#242424; --code:#141414; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif; font-weight:300; line-height:1.6; }
+  main { max-width:820px; margin:0 auto; padding:48px 24px 96px; }
+  h1 { font-weight:200; font-size:clamp(40px,9vw,72px); letter-spacing:-1px; margin:0; }
+  .lead { font-size:20px; color:var(--dim); margin:4px 0 28px; }
+  h2 { font-weight:300; font-size:26px; color:var(--accent); margin:48px 0 10px; }
+  h3 { font-weight:400; font-size:18px; margin:24px 0 6px; }
+  p { margin:0 0 14px; }
+  a { color:var(--accent); }
+  code { font-family:Consolas,Menlo,monospace; font-size:.9em; color:#d8d8d8; }
+  pre { background:var(--code); border-left:3px solid var(--accent); padding:14px 16px; overflow-x:auto;
+        font-size:13.5px; line-height:1.5; margin:0 0 18px; }
+  pre code { color:#e6e6e6; }
+  table { width:100%; border-collapse:collapse; margin:8px 0 18px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; font-size:15px; }
+  th { color:var(--dim); font-weight:400; }
+  ul { padding-left:20px; margin:0 0 14px; }
+  li { margin-bottom:6px; }
+  .shots { display:flex; gap:14px; overflow-x:auto; padding:6px 0 10px; margin:0 0 8px; }
+  .shots figure { margin:0; flex:0 0 auto; }
+  .shots img { display:block; height:360px; width:auto; border:1px solid var(--line); }
+  .shots figcaption { font-size:13px; color:var(--dim); margin-top:6px; max-width:240px; }
+  .wide img { width:100%; height:auto; border:1px solid var(--line); }
+  .note { border-left:3px solid var(--dim); padding:4px 14px; color:var(--dim); margin:0 0 18px; }
+  .switch { margin-top:40px; font-size:14px; color:var(--dim); }
+  strong { font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+<h1>ZetaHubKit</h1>
+<p class="lead">Zeta için hub yaz. Uygulaman hub'ı tarif eder, Zeta onu çizer.</p>
+
+<div class="shots">
+  <figure><img src="img/hubkit-aura.jpg" alt="Aura'da açık bir hub: büyük başlık, iki sayfa, satırlar"><figcaption>Aura'da: listedeki ad uçup başlık olur</figcaption></figure>
+  <figure><img src="img/hubkit-alt-sayfa.jpg" alt="Hub'ın üstünde açılan bir alt sayfa"><figcaption>bir satıra dokununca açılan alt sayfa</figcaption></figure>
+  <figure><img src="img/hubkit-gunluk.jpg" alt="Geliştirici modunda hub günlüğü"><figcaption>geliştirici modunda hub günlüğü</figcaption></figure>
+</div>
+
+<h2>Kısaca</h2>
+<p>Zeta bir başlatıcıdan çok bir arayüz paketi; ZetaHubKit onu başkalarının da hub ekleyebildiği bir
+platform yapıyor. Hub'ın normal bir Android uygulamasında yaşar. O uygulama Zeta'ya ekranı değil
+<strong>tarifini</strong> verir: sayfaları, listeleri, düğmeleri, alt çubuğu, canlı karosu. Zeta bu tarifi
+kendi parçalarıyla çizer:</p>
+<ul>
+  <li>telefonda kaydırılan sayfalar,</li>
+  <li>tablette solda başlıklar, yanda bölme,</li>
+  <li>Aura'da listeden uçan büyük başlık,</li>
+  <li>Mozaik'te bir karo.</li>
+</ul>
+<div class="wide"><img src="img/hubkit-tablet.jpg" alt="Tablette bir dış hub: başlıklar solda, sayfa yanında, alt sayfa bölmede"></div>
+<p>Böylece hub, Zeta'nın kendi hub'larından ayırt edilmez, ve sen dört ayrı düzen yazmazsın. Dokunuşlar senin
+uygulamana geri gelir; kodun her zaman kendi uygulamanda, kendi izinleriyle çalışır.</p>
+<p>ZetaHubKit Apache 2.0 lisanslıdır; ücretsiz ya da ücretli, açık ya da kapalı kaynak hub yazabilirsin. Dış
+hub'lar Zeta'nın ücretsiz sürümünde de çalışır.</p>
+
+<h2>1. Projeye ekle</h2>
+<pre><code>dependencies {
+    implementation("io.github.serkantkn:zetahubkit:0.1.0")
+}</code></pre>
+<p class="note">İlk sürüm Maven Central'a hazırlanıyor. O zamana kadar
+<a href="https://github.com/serkantkn/Zeta">depoyu</a> klonlayıp
+<code>./gradlew :hubkit:publishToMavenLocal</code> çalıştır ve projene <code>mavenLocal()</code> ekle.
+En az Android 9 (API 28) gerekir; Kotlin 2.0 ve üstüyle çalışır.</p>
+
+<h2>2. Manifeste servisi ekle</h2>
+<pre><code>&lt;service
+    android:name=".TodoHub"
+    android:exported="true"
+    android:icon="@drawable/ic_todo"
+    android:label="@string/hub_name"&gt;
+    &lt;intent-filter&gt;
+        &lt;action android:name="com.serkantkn.zeta.action.HUB" /&gt;
+    &lt;/intent-filter&gt;
+    &lt;meta-data android:name="com.serkantkn.zeta.hub.protocol" android:value="1" /&gt;
+&lt;/service&gt;</code></pre>
+<ul>
+  <li><code>android:label</code> hub'ın adıdır: küçük harfle, kısa ("yapılacaklar", "kargolarım").</li>
+  <li><code>android:icon</code> tek renkli tek bir şekil olsun; karonun mürekkebiyle boyanır. Vermezsen adın ilk harfi kullanılır.</li>
+  <li>Uygulamanın başka bir ekranı olması gerekmez.</li>
+</ul>
+
+<h2>3. Hub'ı tarif et</h2>
+<pre><code>class TodoHub : ZetaHubService() {
+
+    private var tasks by mutableHubStateOf(listOf(Task(1, "süt al")))   // değişince hub yeniden tarif edilir
+
+    override fun hub(): HubSpec = zetaHub {
+        page(getString(R.string.page_open)) {
+            val open = tasks.filter { !it.done }
+            if (open.isEmpty()) empty(getString(R.string.nothing_to_do))
+            list(open, key = { it.id }) { task -&gt;
+                item(task.title, subtitle = task.note, opens = { taskPage(task.id) })
+            }
+        }
+        page(getString(R.string.page_done)) { /* … */ }
+
+        bar {
+            action(getString(R.string.add), HubIcon.ADD) { add() }
+            menu(getString(R.string.clear_done)) { tasks = tasks.filterNot { it.done } }
+        }
+
+        liveTile {
+            count = tasks.count { !it.done }
+            line = tasks.firstOrNull { !it.done }?.title
+        }
+    }
+
+    private fun taskPage(id: Int) = subPage(title = find(id).title, key = "task$id") {
+        section(getString(R.string.details))
+        switch(getString(R.string.done), checked = find(id).done) { checked -&gt; setDone(id, checked) }
+        button(getString(R.string.delete)) { delete(id); closeSubPage() }
+    }
+}</code></pre>
+<p><code>hub()</code> her olaydan sonra, <code>mutableHubStateOf</code> ile tuttuğun bir değer değişince ve
+<code>invalidate()</code> çağırınca yeniden çalışır; ZetaHubKit yeni tarifi Zeta'ya gönderir. Çalışan örneğin
+tamamı depoda: <a href="https://github.com/serkantkn/Zeta/tree/main/hubkit/sample">hubkit/sample</a>.</p>
+
+<h2>4. Öğeler</h2>
+<table>
+<thead><tr><th>Öğe</th><th>Ne işe yarar</th></tr></thead>
+<tbody>
+<tr><td><code>page(heading) { }</code></td><td>Bir başlığın sayfası. Telefonda kaydırılır, tablette solda listelenir.</td></tr>
+<tr><td><code>item(title, subtitle, meta, image, count, opens, onLongClick, onClick)</code></td><td>Liste satırı. <code>opens</code> bir alt sayfa açar; Aura'da satırın başlığı o sayfanın başlığı olur.</td></tr>
+<tr><td><code>list(items, key) { }</code></td><td>Değişen bir liste; <code>key</code> her satırın yerini korur.</td></tr>
+<tr><td><code>section(title, actionLabel) { }</code></td><td>Bölüm başlığı, sonunda isteğe bağlı bir bağlantı.</td></tr>
+<tr><td><code>text(text, style)</code></td><td>Metin: <code>TITLE</code>, <code>BODY</code> ya da <code>CAPTION</code>.</td></tr>
+<tr><td><code>button(label) { }</code></td><td>Düğme.</td></tr>
+<tr><td><code>switch(title, checked, subtitle) { }</code></td><td>Anahtar.</td></tr>
+<tr><td><code>value(title, value) { }</code></td><td>Bir ayar ve değeri.</td></tr>
+<tr><td><code>empty(message, actionLabel) { }</code></td><td>Boş sayfa.</td></tr>
+<tr><td><code>notice(message, actionLabel) { }</code></td><td>Kendi satırında bir uyarı.</td></tr>
+<tr><td><code>loading()</code></td><td>Yükleniyor noktaları.</td></tr>
+<tr><td><code>bar { action(label, icon) { }; menu(label) { } }</code></td><td>Alt çubuk: en çok dört simgeli komut, sınırsız menü.</td></tr>
+<tr><td><code>takeover { }</code></td><td>Sayfaların yerine tek bir ekran (giriş yap, izin ver gibi).</td></tr>
+<tr><td><code>subPage(title, key) { }</code></td><td>Hub'ın üstünde açılan sayfa; telefonda kayarak gelir, tablette bölmede durur.</td></tr>
+<tr><td><code>liveTile { count; line; title }</code></td><td>Karonun ve Aura satırının söyledikleri.</td></tr>
+</tbody>
+</table>
+<p>Servisin içinden: <code>openSubPage(page)</code>, <code>closeSubPage()</code>, <code>toast(text)</code>,
+<code>openUrl(url)</code> (yalnız https, Zeta'nın internet hub'ında), <code>share(text)</code>, <code>closeHub()</code>.
+Resimler <code>content://</code> (ZetaHubKit, Zeta'ya okuma iznini kendisi verir) ya da <code>https://</code> olur.</p>
+<p>Bir öğeye ihtiyacın varsa (harita, grafik, oynatıcı…)
+<a href="https://github.com/serkantkn/Zeta/issues">bir issue aç</a>. Öğeler ihtiyaca göre eklenir; eski hub'lar
+her zaman çalışmaya devam eder.</p>
+
+<h2>5. Canlı karo</h2>
+<div class="shots">
+  <figure><img src="img/hubkit-liste.jpg" alt="Aura listesinde sayı ve satırıyla bir dış hub" style="height:220px"><figcaption>Aura'da sayı ve satır</figcaption></figure>
+  <figure><img src="img/hubkit-mozaik.jpg" alt="Mozaik'te bir dış hub'ın karosu" style="height:220px"><figcaption>Mozaik'te karonun arka yüzü</figcaption></figure>
+</div>
+<p>Hub açıkken <code>liveTile { }</code> yeter. Hub kapalıyken bir şey değişirse (bir iş, bir bildirim, bir alarm):</p>
+<pre><code>// servisin içinden: tarifteki liveTile'ı gönderir
+publishTile()
+
+// ya da herhangi bir yerden
+ZetaTiles.update(context, TodoHub::class.java) {
+    count = 3
+    line = "süt al"
+}</code></pre>
+<p>Zeta bunu yalnızca kullanıcının eklediği bir hub için, yalnızca o hub'ın uygulamasından ve dakikada en çok dört
+kez kabul eder.</p>
+
+<h2>6. Dil</h2>
+<p>Zeta'nın dili telefonunkinden farklı olabilir. Zeta bağlıyken servisin kaynakları Zeta'nın dilindedir:
+<code>getString</code> hub'ın metinlerini doğru dilde verir. Tarih ve sayıları <code>hubLocale</code> ile biçimlendir.</p>
+
+<h2>7. Dene</h2>
+<ol>
+  <li>Telefona Zeta'yı (<a href="index.html">buradan</a>) ve hub uygulamanı kur.</li>
+  <li>Zeta'da <strong>ayarlar › hub › diğer uygulamaların hub'ları</strong> bölümünde hub'ını aç; ya da Aura listesine
+      uzun basıp <strong>hub ekle</strong>'yi kullan.</li>
+  <li>Aynı yerde <strong>geliştirici modu</strong>nu aç. <strong>Hub günlüğü</strong>:
+      <ul>
+        <li>bağlantıları, gelen her tarifi (kaç parça olduğuyla), dokunuşları ve komutları gösterir;</li>
+        <li>tariflerdeki hataları ve uyarıları kırmızıyla işaretler.</li>
+      </ul></li>
+</ol>
+<div class="wide"><img src="img/hubkit-ekle.jpg" alt="Hub ekleme penceresi: hub'ın adı, geldiği uygulama ve verilerin paylaşılmadığı notu"></div>
+<p>Tarifini kendi testinde de denetleyebilirsin (Robolectric ile):</p>
+<pre><code>@RunWith(RobolectricTestRunner::class)
+class TodoHubTest {
+    @Test fun describesItselfCleanly() {
+        val hub = Robolectric.buildService(TodoHub::class.java).create().get()
+        assertEquals(emptyList&lt;Any&gt;(), hub.validate())
+    }
+}</code></pre>
+
+<h2>8. Kurallar ve güvenlik</h2>
+<ul>
+  <li><strong>Kod Zeta'ya girmez.</strong> Zeta yalnızca tarifi okur; tarifte çalışan hiçbir şey yoktur. Hub'ın kodu kendi uygulamasında çalışır.</li>
+  <li><strong>Kullanıcı onaylamadan hub eklenmez.</strong> Onay uygulamanın imzasına bağlıdır; başka bir imzayla gelen sürüm açılmaz.</li>
+  <li><strong>Veri tek yönlü akar.</strong> Zeta hub'a kişileri, mesajları ya da başka bir veriyi vermez. Neye ihtiyacın varsa izni kendi uygulamanda iste.</li>
+  <li><strong>Hub yalnızca Zeta ile konuşur.</strong> Yayın sürümü (debuggable olmayan) yalnızca imzalı Zeta'ya yanıt verir; geliştirirken (debuggable) her Zeta yapısına yanıt verir.</li>
+  <li><strong>Sınırlar:</strong>
+    <ul>
+      <li>bir tarif en çok 4000 parça olabilir;</li>
+      <li>uygulama ilk tarifini 5 saniye içinde vermelidir;</li>
+      <li>kapalıyken karo dakikada en çok 4 kez yazılabilir.</li>
+    </ul>
+    Uygulama çökerse Zeta "açılamıyor · yeniden dene" der ve çalışmaya devam eder.</li>
+  <li>İlk sürümde dış hub'lar televizyonda sunulmaz.</li>
+</ul>
+
+<h2>Kaynak ve lisans</h2>
+<p>ZetaHubKit'in kaynağı, örneği ve protokolün tasarım belgesi depoda:
+<a href="https://github.com/serkantkn/Zeta/tree/main/hubkit">hubkit/</a> ·
+<a href="https://github.com/serkantkn/Zeta/blob/main/PLATFORM.md">PLATFORM.md</a>. ZetaHubKit Apache Lisansı 2.0
+ile yayınlanır; Zeta'nın kendisi kendi lisansındadır.</p>
+
+<p class="switch"><a href="developers.html">English</a> · <a href="index.html">Zeta</a></p>
+</main>
+</body>
+</html>

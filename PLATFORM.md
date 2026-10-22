@@ -76,7 +76,7 @@ tablette, Aura'da ve televizyonda çizer. Dokunuşlar geliştiricinin uygulamas�
 
 ```kotlin
 dependencies {
-    implementation("com.serkantkn.zeta:hubkit:1.0.0")
+    implementation("io.github.serkantkn:zetahubkit:0.1.0")
 }
 ```
 
@@ -152,12 +152,14 @@ class KargoHub : ZetaHubService() {
 
 ### 4.4 Denemek
 
-- Zeta'nın ayarlarında **geliştirici modu**: kurulu ama onaylanmamış hub'ları onaysız gösterir,
-  protokol günlüğünü (gelen tarifler, giden olaylar, süreler, hatalar) bir sayfada tutar,
-  hub'ı yeniden bağlar.
-- Kütüphane, tarifin kurallara uyduğunu (zorunlu alanlar, sınırlar, öğe sürümleri) birim testte
-  denetleyebilen bir `HubSpecValidator` içerir.
-- v1'de Zeta olmadan önizleme yok; geliştirici Zeta'yı (ücretsiz sürüm) cihazına kurar.
+- Zeta'da **ayarlar › hub › diğer uygulamaların hub'ları**: kurulu hub'lar, her biri bir anahtarla eklenir ya da
+  kaldırılır. Aynı yerde **geliştirici modu** ve **hub günlüğü**: bağlantılar, gelen her tarif (parça sayısıyla
+  ve `HubSpecValidator`'ın bulduğu hata ve uyarılarla), dokunuşlar, komutlar, kopmalar. Günlük yalnızca bellekte
+  ve yalnızca geliştirici modu açıkken tutulur.
+- `ZetaHubService.validate()`: tarifi aynı kurallarla geliştiricinin kendi testinde denetler (Robolectric ile).
+- Zeta olmadan önizleme yok; geliştirici Zeta'yı (ücretsiz sürüm) cihazına kurar.
+- Rehber: sitede [Zeta için hub yaz](https://serkantkn.github.io/Zeta/gelistiriciler.html) ·
+  [English](https://serkantkn.github.io/Zeta/developers.html).
 
 ## 5. Bulma, onay ve yaşam döngüsü
 
@@ -431,7 +433,7 @@ zaman `HubType`'tır" varsayımını kaldırmaktır.
 
 - `hubkit-protocol` ve `hubkit`: **Apache-2.0**. Geliştiriciler ticari ya da kapalı kaynak hub
   yazabilir.
-- Yayın: Maven Central (`com.serkantkn.zeta:hubkit`, ürün adı ZetaHubKit), kaynak Zeta deposunda ayrı bir dizinde
+- Yayın: Maven Central (`io.github.serkantkn:zetahubkit` ve `io.github.serkantkn:zetahubkit-protocol`; grup adı GitHub hesabınınki, Central onu hesapla doğrular). Adımlar: `hubkit/PUBLISHING.md`., kaynak Zeta deposunda ayrı bir dizinde
   (`hubkit/`), kendi `LICENSE` dosyasıyla.
 - Zeta'nın kendisi (çizici dahil) bugünkü kaynak görüntüleme lisansında kalır.
 - Belgeler: sitede bir "geliştiriciler" sayfası (öğe kataloğu ekran görüntüleriyle, her düzende
@@ -453,8 +455,8 @@ zaman `HubType`'tır" varsayımını kaldırmaktır.
 | 0 ✓ | `HubId` düzenlemesi; davranış değişmez, testler geçer | yapıldı (2026-10-22) |
 | 1 ✓ | `hubkit-protocol`, `hubkit`, örnek hub, `HubDirectory`, onay, `HubConnection`, `ExternalHubScreen`; v1 öğeleri (sayfa, satır, liste, bölüm, metin, düğme, boş, bilgi, yükleniyor, anahtar, değer, alt çubuk, alt sayfa) | yapıldı (2026-10-22) |
 | 2 ✓ | Tablet bölmesi, Aura uçuşu; canlı karo (açıkken tariften, kapalıyken `ZetaTiles` ile), Aura satırı, Mozaik karosu; onayda uygulamanın adı; ayarlar › hub › diğer uygulamaların hub'ları; hub'ın notları Zeta tasarımında; hub uygulamasının metinleri Zeta'nın dilinde; kopan bağlantı yeniden kurulur | yapıldı (2026-10-22) |
-| 3 | `hubkit` DSL'i, doğrulayıcı, geliştirici modu, örnek hub (ör. "kargolarım"), belgeler | ~1 hafta |
-| 4 | Kalan v1 öğeleri, sınırlar, güvenlik denetimi, Maven yayını | ~0,5 hafta |
+| 3 ✓ | Geliştirici modu ve hub günlüğü, `HubSpecValidator` ve `validate()`, Robolectric testleri, Maven yayın ayarı (`io.github.serkantkn:zetahubkit`, yerel depoda denendi), sitede geliştirici rehberi (TR/EN), README | yapıldı (2026-10-22) |
+| 4 | Maven Central'a ilk yayın (`hubkit/PUBLISHING.md`: hesap ve imza anahtarı kullanıcının) | bekliyor |
 | 5 | Hub kataloğu | ayrı karar |
 
 İlk kullanılabilir sürüm (aşama 0–3) kabaca 4–5 hafta.

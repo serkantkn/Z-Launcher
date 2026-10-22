@@ -104,6 +104,7 @@ class SettingsDataStore(private val context: Context) {
         val TILE_LOOKS = stringPreferencesKey("tile_looks")
         val HUB_TARGET_APPS = stringPreferencesKey("hub_target_apps")
         val APPROVED_HUBS = stringPreferencesKey("approved_hubs")
+        val HUB_DEVELOPER_MODE = booleanPreferencesKey("hub_developer_mode")
         val RECENT_APPS = stringPreferencesKey("recent_apps")
         val RECENT_ALBUMS = stringPreferencesKey("recent_albums")
         val QUICKPLAY_PINS = stringPreferencesKey("quickplay_pins")
@@ -237,6 +238,13 @@ class SettingsDataStore(private val context: Context) {
                 current.forEach { (key, cert) -> put(key, cert) }
             }.toString()
         }
+    }
+
+    /** Developer mode for other apps' hubs: their conversation with Zeta is logged (HubLog). */
+    val hubDeveloperMode: Flow<Boolean> = context.settingsDataStore.data.map { prefs -> prefs[HUB_DEVELOPER_MODE] ?: false }
+
+    suspend fun setHubDeveloperMode(on: Boolean) {
+        context.settingsDataStore.edit { prefs -> prefs[HUB_DEVELOPER_MODE] = on }
     }
 
     private fun readApprovedHubs(raw: String?): Map<String, String> {

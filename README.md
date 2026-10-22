@@ -290,6 +290,15 @@ Telefon bağlantısı açıksa aramalar ve mesajlar yalnızca eşlediğin televi
 gider; mesaj metni sen açmadıkça gitmez.
 Ayrıntılar: [PRIVACY.md](PRIVACY.md) · [English](PRIVACY.en.md) · [web](https://serkantkn.github.io/Zeta/gizlilik.html).
 
+## Geliştiriciler: Zeta için hub yaz
+
+Başka uygulamalar da Zeta'ya hub ekleyebilir. Uygulaman hub'ı **ZetaHubKit** ile tarif eder (sayfalar, listeler,
+düğmeler, alt çubuk, canlı karo); Zeta onu telefonda, tablette, Aura'da ve Mozaik'te kendi hub'larından ayırt
+edilmeyecek şekilde çizer. Kod Zeta'ya girmez, kullanıcı onaylamadan hub eklenmez, Zeta hub'a hiçbir veri
+vermez. ZetaHubKit Apache 2.0 lisanslıdır ve [`hubkit/`](hubkit/) klasöründedir; örnek bir hub
+[`hubkit/sample`](hubkit/sample)'da. Rehber: [Zeta için hub yaz](https://serkantkn.github.io/Zeta/gelistiriciler.html) ·
+tasarım: [PLATFORM.md](PLATFORM.md).
+
 ## Derlemek
 
 ```bash
@@ -318,7 +327,8 @@ altında `data` (model, DataStore, depolar), `ui/screens/<hub>` (her hub kendi e
 
 ## Lisans
 
-Kaynak kod görülsün, okunsun, öğrenilsin diye açık; kendi cihazında derleyip deneyebilirsin.
+`hubkit/` klasörü (ZetaHubKit) bunun dışındadır: Apache Lisansı 2.0.
+Geri kalan kaynak kod görülsün, okunsun, öğrenilsin diye açık; kendi cihazında derleyip deneyebilirsin.
 Değiştirip dağıtmak, başka bir yazılımda kullanmak, mağazaya koymak ve gelir elde etmek yazılı izne
 bağlıdır. Tam metin, Türkçe ve İngilizce: [LICENSE](LICENSE). Hata ve öneriler için issue aç;
 kod katkısı göndermeden önce yaz, çünkü katkılar da aynı koşullarla yayımlanır.
@@ -397,6 +407,10 @@ Start, messages, music and the TV all speak one language, and the phone link let
   browser's reading list, PDF, translation and favourites, Zeta's keyboard, volume bar and banners.
   Nothing of yours is locked away: a locked note still opens, saved pages still read, and Pro's settings
   wait, untouched, for Pro.
+- **For developers.** Other apps can add hubs to Zeta: an app describes its hub with **ZetaHubKit** (pages, lists,
+  buttons, the bar, a live tile) and Zeta draws it on phones and tablets, in Aura and in Mosaic, like one of its own.
+  No code goes into Zeta, no hub is added without the person's say, and Zeta gives a hub none of their data.
+  ZetaHubKit is Apache 2.0, in [`hubkit/`](hubkit/); guide: [write a hub for Zeta](https://serkantkn.github.io/Zeta/developers.html).
 - **Privacy.** No server, no ads, no analytics, no account. Only weather, news, lyrics and search suggestions
   (and, with blocking on, a weekly blocklist download) ever leave the phone, and only when you use them. Two
   optional permissions do one thing each: precise location only shows the Wi-Fi network's name (the weather

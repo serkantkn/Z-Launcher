@@ -137,7 +137,8 @@ internal fun HubSettingsPage(
     directCallEnabled: Boolean,
     onDirectCallChanged: (Boolean) -> Unit,
     onOpenSocialSources: () -> Unit = {},
-    onOpenCalendars: () -> Unit = {}
+    onOpenCalendars: () -> Unit = {},
+    onOpenHubLog: () -> Unit = {}
 ) {
     val socialHubLayout by viewModel.socialHubLayout.collectAsState()
     val socialSourceList by viewModel.socialSourceList.collectAsState()
@@ -527,6 +528,7 @@ internal fun HubSettingsPage(
                         color = LocalZuneColors.current.textMuted,
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
+                    val developer by viewModel.hubDeveloperMode.collectAsState()
                     installed.forEach { hub ->
                         SettingSwitchRow(
                             title = hub.label,
@@ -534,6 +536,20 @@ internal fun HubSettingsPage(
                                 else stringResource(R.string.settings_external_hub_newer, hub.appLabel),
                             checked = hub.certificate != null && approved[hub.hub.key] == hub.certificate,
                             onCheckedChange = { on -> if (hub.speakable) viewModel.setExternalHubAdded(hub, on) }
+                        )
+                    }
+                    // For whoever is writing a hub: what Zeta and the hub say to each other.
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_hub_developer),
+                        subtitle = stringResource(R.string.settings_hub_developer_sub),
+                        checked = developer,
+                        onCheckedChange = viewModel::setHubDeveloperMode
+                    )
+                    if (developer) {
+                        SystemSettingRow(
+                            title = stringResource(R.string.settings_hub_log),
+                            subtitle = stringResource(R.string.settings_hub_log_sub),
+                            onClick = onOpenHubLog
                         )
                     }
                 }

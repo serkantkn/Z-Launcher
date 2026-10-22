@@ -66,6 +66,10 @@ class ZuneLauncherApp : Application(), coil.ImageLoaderFactory {
         // Other apps' hubs (PLATFORM.md): which are installed, kept up to date as apps come and go.
         com.serkantkn.zeta.data.hubs.HubDirectory.start(this)
         com.serkantkn.zeta.data.hubs.HubTileStore.start(this)
+        // Developer mode for other apps' hubs turns their log on and off as it is switched.
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            container.settingsDataStore.hubDeveloperMode.collect { com.serkantkn.zeta.data.hubs.HubLog.enabled = it }
+        }
         NoteFallbackTitles.refresh(localized())
         bindTimeText()
         rearmClock()

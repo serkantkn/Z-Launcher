@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZetaHubKit — write a hub for Zeta</title>
+<meta name="description" content="Write a hub for Zeta with ZetaHubKit: your app describes the hub, Zeta draws it on phones, tablets and in each of its designs.">
+<style>
+  :root { --ink:#f2f2f2; --dim:#9a9a9a; --accent:#e3008c; --bg:#0a0a0a; --line:#242424; --code:#141414; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif; font-weight:300; line-height:1.6; }
+  main { max-width:820px; margin:0 auto; padding:48px 24px 96px; }
+  h1 { font-weight:200; font-size:clamp(40px,9vw,72px); letter-spacing:-1px; margin:0; }
+  .lead { font-size:20px; color:var(--dim); margin:4px 0 28px; }
+  h2 { font-weight:300; font-size:26px; color:var(--accent); margin:48px 0 10px; }
+  h3 { font-weight:400; font-size:18px; margin:24px 0 6px; }
+  p { margin:0 0 14px; }
+  a { color:var(--accent); }
+  code { font-family:Consolas,Menlo,monospace; font-size:.9em; color:#d8d8d8; }
+  pre { background:var(--code); border-left:3px solid var(--accent); padding:14px 16px; overflow-x:auto;
+        font-size:13.5px; line-height:1.5; margin:0 0 18px; }
+  pre code { color:#e6e6e6; }
+  table { width:100%; border-collapse:collapse; margin:8px 0 18px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; font-size:15px; }
+  th { color:var(--dim); font-weight:400; }
+  ul { padding-left:20px; margin:0 0 14px; }
+  li { margin-bottom:6px; }
+  .shots { display:flex; gap:14px; overflow-x:auto; padding:6px 0 10px; margin:0 0 8px; }
+  .shots figure { margin:0; flex:0 0 auto; }
+  .shots img { display:block; height:360px; width:auto; border:1px solid var(--line); }
+  .shots figcaption { font-size:13px; color:var(--dim); margin-top:6px; max-width:240px; }
+  .wide img { width:100%; height:auto; border:1px solid var(--line); }
+  .note { border-left:3px solid var(--dim); padding:4px 14px; color:var(--dim); margin:0 0 18px; }
+  .switch { margin-top:40px; font-size:14px; color:var(--dim); }
+  strong { font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+<h1>ZetaHubKit</h1>
+<p class="lead">Write a hub for Zeta. Your app describes it; Zeta draws it.</p>
+
+<div class="shots">
+  <figure><img src="img/hubkit-aura.jpg" alt="A hub open in Aura: the big title, two pages, lines"><figcaption>in Aura: the name in the list flies up to become the title</figcaption></figure>
+  <figure><img src="img/hubkit-alt-sayfa.jpg" alt="A sub-page open over the hub"><figcaption>a sub-page, opened by touching a line</figcaption></figure>
+  <figure><img src="img/hubkit-gunluk.jpg" alt="The hub log in developer mode"><figcaption>the hub log in developer mode</figcaption></figure>
+</div>
+
+<h2>In short</h2>
+<p>Zeta is an interface suite rather than a launcher, and ZetaHubKit makes it a platform others can add hubs to.
+Your hub lives in an ordinary Android app. That app gives Zeta not a screen but a <strong>description</strong>: pages,
+lists, buttons, the bar, the live tile. Zeta draws it with its own parts:</p>
+<ul>
+  <li>pages you swipe on a phone,</li>
+  <li>headings on the left and a pane beside them on a tablet,</li>
+  <li>the big title flying up from the list in Aura,</li>
+  <li>a tile in Mosaic.</li>
+</ul>
+<div class="wide"><img src="img/hubkit-tablet.jpg" alt="An external hub on a tablet: headings on the left, the page beside them, a sub-page in the pane"></div>
+<p>So the hub cannot be told from Zeta's own, and you do not write four layouts. Touches come back to your app; your
+code always runs in your own app, with its own permissions.</p>
+<p>ZetaHubKit is Apache 2.0: free or paid, open or closed source. Other apps' hubs work in Zeta's free edition too.</p>
+
+<h2>1. Add it to your project</h2>
+<pre><code>dependencies {
+    implementation("io.github.serkantkn:zetahubkit:0.1.0")
+}</code></pre>
+<p class="note">The first release is being prepared for Maven Central. Until then, clone
+<a href="https://github.com/serkantkn/Zeta">the repository</a>, run <code>./gradlew :hubkit:publishToMavenLocal</code>
+and add <code>mavenLocal()</code> to your project. Android 9 (API 28) or later; Kotlin 2.0 or later.</p>
+
+<h2>2. Declare the service</h2>
+<pre><code>&lt;service
+    android:name=".TodoHub"
+    android:exported="true"
+    android:icon="@drawable/ic_todo"
+    android:label="@string/hub_name"&gt;
+    &lt;intent-filter&gt;
+        &lt;action android:name="com.serkantkn.zeta.action.HUB" /&gt;
+    &lt;/intent-filter&gt;
+    &lt;meta-data android:name="com.serkantkn.zeta.hub.protocol" android:value="1" /&gt;
+&lt;/service&gt;</code></pre>
+<ul>
+  <li><code>android:label</code> is the hub's name: lowercase and short ("to-do", "my parcels").</li>
+  <li><code>android:icon</code> should be one single-colour shape; it is filled with the tile's ink. Without one, the name's first letter is used.</li>
+  <li>The app needs no other screen.</li>
+</ul>
+
+<h2>3. Describe the hub</h2>
+<pre><code>class TodoHub : ZetaHubService() {
+
+    private var tasks by mutableHubStateOf(listOf(Task(1, "buy milk")))   // changing it describes the hub again
+
+    override fun hub(): HubSpec = zetaHub {
+        page(getString(R.string.page_open)) {
+            val open = tasks.filter { !it.done }
+            if (open.isEmpty()) empty(getString(R.string.nothing_to_do))
+            list(open, key = { it.id }) { task -&gt;
+                item(task.title, subtitle = task.note, opens = { taskPage(task.id) })
+            }
+        }
+        page(getString(R.string.page_done)) { /* … */ }
+
+        bar {
+            action(getString(R.string.add), HubIcon.ADD) { add() }
+            menu(getString(R.string.clear_done)) { tasks = tasks.filterNot { it.done } }
+        }
+
+        liveTile {
+            count = tasks.count { !it.done }
+            line = tasks.firstOrNull { !it.done }?.title
+        }
+    }
+
+    private fun taskPage(id: Int) = subPage(title = find(id).title, key = "task$id") {
+        section(getString(R.string.details))
+        switch(getString(R.string.done), checked = find(id).done) { checked -&gt; setDone(id, checked) }
+        button(getString(R.string.delete)) { delete(id); closeSubPage() }
+    }
+}</code></pre>
+<p><code>hub()</code> runs again after every event, whenever a value kept with <code>mutableHubStateOf</code> changes,
+and when you call <code>invalidate()</code>; ZetaHubKit sends the new description to Zeta. The whole working example
+is in the repository: <a href="https://github.com/serkantkn/Zeta/tree/main/hubkit/sample">hubkit/sample</a>.</p>
+
+<h2>4. Parts</h2>
+<table>
+<thead><tr><th>Part</th><th>What it is for</th></tr></thead>
+<tbody>
+<tr><td><code>page(heading) { }</code></td><td>A heading's page. Swiped on a phone, listed on the left on a tablet.</td></tr>
+<tr><td><code>item(title, subtitle, meta, image, count, opens, onLongClick, onClick)</code></td><td>A line of a list. <code>opens</code> opens a sub-page; in Aura the line's title becomes that page's title.</td></tr>
+<tr><td><code>list(items, key) { }</code></td><td>A changing list; <code>key</code> keeps each line in its place.</td></tr>
+<tr><td><code>section(title, actionLabel) { }</code></td><td>A heading, with an optional link at its end.</td></tr>
+<tr><td><code>text(text, style)</code></td><td>Words: <code>TITLE</code>, <code>BODY</code> or <code>CAPTION</code>.</td></tr>
+<tr><td><code>button(label) { }</code></td><td>A button.</td></tr>
+<tr><td><code>switch(title, checked, subtitle) { }</code></td><td>A switch.</td></tr>
+<tr><td><code>value(title, value) { }</code></td><td>A setting and its value.</td></tr>
+<tr><td><code>empty(message, actionLabel) { }</code></td><td>An empty page.</td></tr>
+<tr><td><code>notice(message, actionLabel) { }</code></td><td>A word to the person, on a line of its own.</td></tr>
+<tr><td><code>loading()</code></td><td>The loading dots.</td></tr>
+<tr><td><code>bar { action(label, icon) { }; menu(label) { } }</code></td><td>The bar: up to four commands with glyphs, any number in the menu.</td></tr>
+<tr><td><code>takeover { }</code></td><td>One screen in place of the pages (sign in, allow something).</td></tr>
+<tr><td><code>subPage(title, key) { }</code></td><td>A page over the hub; slides in on a phone, stands in the pane on a tablet.</td></tr>
+<tr><td><code>liveTile { count; line; title }</code></td><td>What the tile and the line in Aura say.</td></tr>
+</tbody>
+</table>
+<p>From the service: <code>openSubPage(page)</code>, <code>closeSubPage()</code>, <code>toast(text)</code>,
+<code>openUrl(url)</code> (https only, in Zeta's internet hub), <code>share(text)</code>, <code>closeHub()</code>.
+Pictures are <code>content://</code> (ZetaHubKit lets Zeta read them) or <code>https://</code>.</p>
+<p>Need a part that is not here (a map, a chart, a player…)? <a href="https://github.com/serkantkn/Zeta/issues">Open an issue</a>.
+Parts are added as hubs need them, and older hubs always keep working.</p>
+
+<h2>5. Live tile</h2>
+<div class="shots">
+  <figure><img src="img/hubkit-liste.jpg" alt="An external hub with its count and line in the Aura list" style="height:220px"><figcaption>count and line in Aura</figcaption></figure>
+  <figure><img src="img/hubkit-mozaik.jpg" alt="An external hub's tile in Mosaic" style="height:220px"><figcaption>the tile's back in Mosaic</figcaption></figure>
+</div>
+<p>While the hub is open, <code>liveTile { }</code> is enough. When something changes while it is closed (a job, a push, an alarm):</p>
+<pre><code>// inside the service: sends the description's liveTile
+publishTile()
+
+// or from anywhere
+ZetaTiles.update(context, TodoHub::class.java) {
+    count = 3
+    line = "buy milk"
+}</code></pre>
+<p>Zeta takes it only for a hub the person has added, only from that hub's app, and at most four times a minute.</p>
+
+<h2>6. Language</h2>
+<p>Zeta's language may not be the phone's. While Zeta is connected, the service's resources are in Zeta's language:
+<code>getString</code> gives the hub's words in the right one. Format dates and numbers with <code>hubLocale</code>.</p>
+
+<h2>7. Try it</h2>
+<ol>
+  <li>Install Zeta (<a href="index.html">from here</a>) and your hub app on a phone.</li>
+  <li>In Zeta, switch your hub on under <strong>settings › hub › other apps' hubs</strong>, or long-press the Aura list and use <strong>add a hub</strong>.</li>
+  <li>Switch on <strong>developer mode</strong> in the same place. The <strong>hub log</strong>:
+      <ul>
+        <li>shows connections, every description that arrives (with how many parts), touches and commands;</li>
+        <li>marks errors and warnings in the descriptions.</li>
+      </ul></li>
+</ol>
+<div class="wide"><img src="img/hubkit-ekle.jpg" alt="The add-a-hub window: the hub's name, the app it comes from, and the note that no data is shared"></div>
+<p>You can check your description in a test of your own too (with Robolectric):</p>
+<pre><code>@RunWith(RobolectricTestRunner::class)
+class TodoHubTest {
+    @Test fun describesItselfCleanly() {
+        val hub = Robolectric.buildService(TodoHub::class.java).create().get()
+        assertEquals(emptyList&lt;Any&gt;(), hub.validate())
+    }
+}</code></pre>
+
+<h2>8. Rules and safety</h2>
+<ul>
+  <li><strong>No code goes into Zeta.</strong> Zeta only reads the description; nothing in it runs. The hub's code runs in its own app.</li>
+  <li><strong>No hub is added without the person's say.</strong> The approval is tied to the app's signature; a build signed by someone else does not open.</li>
+  <li><strong>Data flows one way.</strong> Zeta gives a hub none of the person's contacts, messages or anything else. Ask for what you need in your own app.</li>
+  <li><strong>A hub talks only to Zeta.</strong> A release (non-debuggable) build answers only signed Zeta builds; while developing (debuggable) it answers any Zeta build.</li>
+  <li><strong>Limits:</strong>
+    <ul>
+      <li>a description may have at most 4000 parts;</li>
+      <li>the app must give its first description within five seconds;</li>
+      <li>while closed, a tile may be written at most four times a minute.</li>
+    </ul>
+    If the app crashes, Zeta says the hub cannot open and offers to try again, and carries on.</li>
+  <li>In the first version, other apps' hubs are not offered on a television.</li>
+</ul>
+
+<h2>Source and licence</h2>
+<p>ZetaHubKit's source, the example and the protocol's design notes are in the repository:
+<a href="https://github.com/serkantkn/Zeta/tree/main/hubkit">hubkit/</a> ·
+<a href="https://github.com/serkantkn/Zeta/blob/main/PLATFORM.md">PLATFORM.md</a> (in Turkish). ZetaHubKit is released
+under the Apache License 2.0; Zeta itself is under its own licence.</p>
+
+<p class="switch"><a href="gelistiriciler.html">Türkçe</a> · <a href="index.html">Zeta</a></p>
+</main>
+</body>
+</html>

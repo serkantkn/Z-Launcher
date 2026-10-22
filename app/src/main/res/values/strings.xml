@@ -2098,6 +2098,13 @@ If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home b
     <string name="settings_external_hubs">other apps\' hubs</string>
     <string name="settings_external_hubs_none">when you install an app that makes a hub for Zeta, it shows here, and is added from here or from \"add a hub\".</string>
     <string name="settings_external_hub_newer">from %1$s · needs a newer Zeta</string>
+    <string name="settings_hub_developer">developer mode</string>
+    <string name="settings_hub_developer_sub">records what hubs and Zeta say to each other and shows what is wrong in their descriptions</string>
+    <string name="settings_hub_log">hub log</string>
+    <string name="settings_hub_log_sub">connections, descriptions, touches and errors</string>
+    <string name="settings_hub_log_count">%1$d entries</string>
+    <string name="settings_hub_log_clear">clear</string>
+    <string name="settings_hub_log_empty">nothing yet. open a hub and what it says shows here.</string>
     <string name="whats_new_title">what is new</string>
     <string name="whats_new_close">got it</string>
     <string name="whats_new_v2_title">second pre-release</string>
