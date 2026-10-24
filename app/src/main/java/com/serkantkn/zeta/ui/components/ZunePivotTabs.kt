@@ -42,7 +42,7 @@ fun ZunePivotTabs(
     tabs: List<String>,
     state: ZuneLoopingPagerState,
     modifier: Modifier = Modifier,
-    fontSize: TextUnit = 72.sp,
+    fontSize: TextUnit = zunePivotFontSize(),
     startPadding: Dp = ZuneDimens.ScreenPaddingHorizontal,
     firstTabAnchor: ZuneZoomAnchor? = null,
     firstTabAlpha: Float = 1f,
@@ -72,7 +72,7 @@ fun ZunePivotTabs(
     pagerState: PagerState,
     onSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    fontSize: TextUnit = 72.sp,
+    fontSize: TextUnit = zunePivotFontSize(),
     /**
      * How far in from the left the first tab starts. The default is the screen's own margin, for
      * a pivot placed against the edge; pass 0 when the pivot already sits inside something padded,
@@ -163,3 +163,7 @@ fun ZunePivotTabs(
         }
     }
 }
+
+/** A pivot's headings: giant on a whole phone, smaller in part of one ([headingScale]). */
+@Composable
+fun zunePivotFontSize(): TextUnit = 72.sp * headingScale()

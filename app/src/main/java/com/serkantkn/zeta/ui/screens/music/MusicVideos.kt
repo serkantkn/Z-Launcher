@@ -85,7 +85,9 @@ internal fun VideosPage(viewModel: MusicHubViewModel) {
                         else -> arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
                     }
                 )
-            }
+            },
+            // The same margin as the videos it stands in for.
+            modifier = Modifier.padding(horizontal = if (isWideScreen) 0.dp else ZuneDimens.ScreenPaddingHorizontal)
         )
         return
     }

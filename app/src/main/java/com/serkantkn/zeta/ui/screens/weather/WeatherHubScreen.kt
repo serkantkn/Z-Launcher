@@ -79,6 +79,7 @@ import com.serkantkn.zeta.ui.components.rememberLoopingPagerState
 import com.serkantkn.zeta.ui.theme.LocalIsWideScreen
 import com.serkantkn.zeta.ui.theme.ZuneDimens
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** How far the title slides left for each pivot page, and how far it runs off the top. */
 private val HEADER_DRIFT_PER_PAGE = 40.dp
@@ -159,8 +160,10 @@ fun WeatherHubScreen(
     val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val parallaxMultiplierPx = with(density) { HEADER_DRIFT_PER_PAGE.toPx() }
     // Negative: the title is meant to run off the top of the screen, as on the People hub.
-    val overflowYPx = with(density) { HEADER_OVERFLOW_Y.toPx() }
-    val headerTrimPx = with(density) { HEADER_TRIM.roundToPx() }
+    // The name is smaller in half a phone (WeatherHeaderTitle), and lifts and trims by as much less.
+    val titleScale = com.serkantkn.zeta.ui.components.headingScale()
+    val overflowYPx = with(density) { HEADER_OVERFLOW_Y.toPx() } * titleScale
+    val headerTrimPx = (with(density) { HEADER_TRIM.toPx() } * titleScale).roundToInt()
     val startPaddingPx = with(density) { ZuneDimens.ScreenPaddingHorizontal.toPx() }
     // Filled in once the title has been laid out; until then the drift is the plain one.
     var titleWidthPx by remember { mutableFloatStateOf(0f) }
@@ -437,13 +440,15 @@ private fun WeatherHeaderTitle(
     translationY: Float,
     onWidthMeasured: (Float) -> Unit = {}
 ) {
+    // Half a phone has it smaller, as every panorama's name is there.
+    val scale = com.serkantkn.zeta.ui.components.headingScale()
     Text(
         text = stringResource(R.string.hub_weather),
         style = MaterialTheme.typography.displayLarge.copy(
             fontWeight = FontWeight.Light,
-            fontSize = 96.sp,
-            letterSpacing = (-4).sp,
-            lineHeight = 96.sp
+            fontSize = 96.sp * scale,
+            letterSpacing = (-4).sp * scale,
+            lineHeight = 96.sp * scale
         ),
         color = Color.White,
         maxLines = 1,

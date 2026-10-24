@@ -147,7 +147,8 @@ fun WeatherTodayPage(
             Text(
                 text = "${temperatureUnit.of(snapshot.now.temperature)}°",
                 style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = 96.sp,
+                    // Half a phone keeps room under it for the rest of the day.
+                    fontSize = 96.sp * com.serkantkn.zeta.ui.components.headingScale(),
                     fontWeight = FontWeight.ExtraLight,
                     letterSpacing = (-4).sp
                 ),

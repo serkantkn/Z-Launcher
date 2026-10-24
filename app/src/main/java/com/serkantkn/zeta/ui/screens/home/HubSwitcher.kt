@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.serkantkn.zeta.R
@@ -173,7 +174,9 @@ fun RunningHubsRow(
     onPick: (HubId) -> Unit,
     onStop: (HubId) -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Smaller cards, for a pane too short to give the full ones room above Start. */
+    compact: Boolean = false
 ) {
     if (hubs.isEmpty()) return
     val zuneColors = LocalZuneColors.current
@@ -182,12 +185,14 @@ fun RunningHubsRow(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(if (zuneColors.isDark) Color(0xCC0B0B0B) else Color(0xCCF4F4F4))
-            .padding(vertical = 12.dp)
+            // Solid: Start runs on underneath, and its words showing through would read as part
+            // of the cards.
+            .background(if (zuneColors.isDark) Color(0xFF0B0B0B) else Color(0xFFF4F4F4))
+            .padding(vertical = if (compact) 8.dp else 12.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, bottom = 10.dp)
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, bottom = if (compact) 6.dp else 10.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -232,6 +237,7 @@ fun RunningHubsRow(
                     preview = previews[hub],
                     onPick = { onPick(hub) },
                     onStop = { onStop(hub) },
+                    cardHeight = if (compact) COMPACT_CARD_HEIGHT else CARD_HEIGHT,
                     modifier = Modifier.animateItem()
                 )
             }
@@ -246,14 +252,16 @@ private fun SwitcherCard(
     onPick: () -> Unit,
     onStop: () -> Unit,
     onSplit: (() -> Unit)? = null,
+    cardHeight: Dp = CARD_HEIGHT,
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
     val name = hubTitle(hub)
     val ink = if (zuneColors.isDark) Color.White else Color.Black
+    val cardWidth = CARD_WIDTH * (cardHeight / CARD_HEIGHT)
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.width(CARD_WIDTH)) {
-        Box(modifier = Modifier.size(width = CARD_WIDTH, height = CARD_HEIGHT)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.width(cardWidth)) {
+        Box(modifier = Modifier.size(width = cardWidth, height = cardHeight)) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -340,3 +348,4 @@ private fun SwitcherCard(
 
 private val CARD_WIDTH = 104.dp
 private val CARD_HEIGHT = 168.dp
+private val COMPACT_CARD_HEIGHT = 104.dp

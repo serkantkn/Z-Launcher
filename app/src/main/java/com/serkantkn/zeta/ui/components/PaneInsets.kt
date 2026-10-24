@@ -77,5 +77,34 @@ fun PaneScope(
     }
 }
 
+/**
+ * Whether the space being drawn in is short: half a phone in a split. The headings that stand
+ * giant across a whole phone - a hub's title, a pivot's, a panorama's name - are drawn smaller
+ * there, so what is under them keeps room enough to be used.
+ */
+@Composable
+fun isShortScreen(): Boolean = LocalConfiguration.current.screenHeightDp < SHORT_BELOW_DP
+
+/** Below this height a space is short ([isShortScreen]). */
+const val SHORT_BELOW_DP = 600
+
+/**
+ * How much of their size the giant headings keep in the space being drawn in: all of it on a whole
+ * phone, two thirds in half of one, under half in a third of one - where at full size the title
+ * and the pivot would leave a single row of what they head.
+ */
+@Composable
+fun headingScale(): Float {
+    val height = LocalConfiguration.current.screenHeightDp
+    return when {
+        height < TINY_BELOW_DP -> 0.45f
+        height < SHORT_BELOW_DP -> 2f / 3f
+        else -> 1f
+    }
+}
+
+/** Below this height a space is a sliver: a third of a phone in a split. */
+private const val TINY_BELOW_DP = 400
+
 /** From this width a hub lays itself out as on a tablet: headings at the side, a pane beside. */
 const val WIDE_FROM_DP = 600

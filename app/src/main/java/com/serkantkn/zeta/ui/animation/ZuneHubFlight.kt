@@ -262,6 +262,7 @@ fun rememberZuneHubFlight(): ZuneHubFlight = remember { ZuneHubFlight() }
  */
 val ZUNE_HUB_TITLE_SIZE = 104.sp
 
+
 /** The room over a main hub's title: just clear of the status bar. */
 val ZUNE_HUB_TITLE_TOP = 26.dp
 
@@ -306,9 +307,12 @@ fun ZuneHubFlightTitle(
             onDispose { flight.unshow(key) }
         }
     }
+    // A short pane - half a phone, a phone on its side - has the title smaller, so the hub keeps
+    // room for what it shows.
+    val scale = com.serkantkn.zeta.ui.components.headingScale()
     Text(
         text = title,
-        style = zuneHubTitleStyle(FontWeight.Bold),
+        style = zuneHubTitleStyle(FontWeight.Bold, ZUNE_HUB_TITLE_SIZE * scale),
         color = ink,
         maxLines = 1,
         softWrap = false,
@@ -344,12 +348,12 @@ fun ZuneHubFlightTitle(
 }
 
 @Composable
-private fun zuneHubTitleStyle(weight: FontWeight): TextStyle =
+private fun zuneHubTitleStyle(weight: FontWeight, size: TextUnit = ZUNE_HUB_TITLE_SIZE): TextStyle =
     MaterialTheme.typography.displayLarge.copy(
         fontWeight = weight,
-        fontSize = ZUNE_HUB_TITLE_SIZE,
-        lineHeight = ZUNE_HUB_TITLE_SIZE,
-        letterSpacing = (-3).sp
+        fontSize = size,
+        lineHeight = size,
+        letterSpacing = (-3).sp * (size.value / ZUNE_HUB_TITLE_SIZE.value)
     )
 
 /**
@@ -381,14 +385,21 @@ fun ZuneHubFlightOverlay(state: ZuneHubFlight) {
     val to = state.target
     // Laid out once at the title's size, and scaled to the name's at the other end.
     val titlePx = with(density) { ZUNE_HUB_TITLE_SIZE.toPx() }
-    val fromScale = with(density) { pending.fromSize.toPx() } / titlePx
-    val toScale = with(density) { pending.toSize.toPx() } / titlePx
+    // The title's end is measured where it stands rather than taken as full size: a title in a
+    // short pane is smaller, and the word lands on it at its size.
+    val measurer = rememberTextMeasurer()
+    val titleStyle = zuneHubTitleStyle(FontWeight.Bold)
+    val fullTitleHeight = measurer.measure(pending.label, titleStyle).size.height.toFloat().coerceAtLeast(1f)
+    val fromScale = if (pending.down) pending.from.height / fullTitleHeight else with(density) { pending.fromSize.toPx() } / titlePx
+    val toScale = when {
+        pending.down -> with(density) { pending.toSize.toPx() } / titlePx
+        to != null -> to.height / fullTitleHeight
+        else -> 1f
+    }
     val t = if (to == null || state.flown !== pending) 0f else state.progress.value
     // A list's line and the title's sit their glyphs differently in their boxes; at the name's
     // end the word is put on the Zune list's baseline, or centred on a page's name, and at the
     // title's it lies exactly on it.
-    val measurer = rememberTextMeasurer()
-    val titleStyle = zuneHubTitleStyle(FontWeight.Bold)
     val listStyle = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Light)
     fun drop(box: Rect, size: TextUnit, scale: Float): Float = if (pending.inList) {
         val listBaseline = measurer.measure(pending.listText ?: pending.label, listStyle.copy(fontSize = size)).firstBaseline

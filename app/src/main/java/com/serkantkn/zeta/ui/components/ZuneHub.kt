@@ -196,7 +196,15 @@ fun ZuneHub(
             pager.scrollToPage(glideFrom!!)
             // Shown once Start is nearly away and the hub has its pages (not a spinner, not a
             // question about permissions). The pages have been laid out unseen meanwhile.
-            snapshotFlow { arrival() >= GLIDE_REVEAL_AT && showingPages }.first { it }
+            snapshotFlow { arrival() >= GLIDE_REVEAL_AT }.first { it }
+            // A question stands in for the pages (a permission not yet given): it is shown as
+            // Start goes, not waited behind - the hub stayed dark for ever - on the first page,
+            // where the pages will open once they come, with nothing to glide round.
+            if (!showingPages) {
+                pager.scrollToPage(0)
+                reveal.animateTo(1f, tween(GLIDE_FADE_MILLIS, easing = LinearOutSlowInEasing))
+                return@LaunchedEffect
+            }
             // Fast out of the distance and easing as it nears; the glide takes the slide over
             // before it has stopped, so the two read as one movement.
             val arriving = launch { reveal.animateTo(1f, tween(GLIDE_FADE_MILLIS, easing = LinearOutSlowInEasing)) }
@@ -576,11 +584,13 @@ private fun PanoramaTitle(title: String, pager: ZuneLoopingPagerState) {
     val density = LocalDensity.current
     val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val travelPx = with(density) { PANORAMA_TITLE_TRAVEL.toPx() }
+    // Half a phone has it smaller, so the sections under it keep their room.
+    val scale = headingScale()
     val style = MaterialTheme.typography.displayLarge.copy(
         fontWeight = FontWeight.Light,
-        fontSize = 96.sp,
-        letterSpacing = (-4).sp,
-        lineHeight = 96.sp
+        fontSize = 96.sp * scale,
+        letterSpacing = (-4).sp * scale,
+        lineHeight = 96.sp * scale
     )
     val ink = if (zuneColors.isDark) Color.White else Color.Black
     Box(
@@ -594,7 +604,7 @@ private fun PanoramaTitle(title: String, pager: ZuneLoopingPagerState) {
             // out of given back, so the sections' headings sit right under it.
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(constraints)
-                val lift = PANORAMA_TITLE_LIFT.roundToPx()
+                val lift = (PANORAMA_TITLE_LIFT * scale).roundToPx()
                 layout(placeable.width, (placeable.height + lift).coerceAtLeast(0)) { placeable.place(0, lift) }
             }
     ) {
@@ -639,13 +649,15 @@ private fun PanoramaTitle(title: String, pager: ZuneLoopingPagerState) {
 /** A panorama section's own heading, above what is in it and moving with it. */
 @Composable
 private fun PanoramaSectionHeading(text: String) {
+    // Smaller in part of a phone, with the name above it, though never so small it stops heading.
+    val scale = maxOf(headingScale(), 2f / 3f)
     Text(
         text = text,
-        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 36.sp),
+        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Light, fontSize = 36.sp * scale),
         color = MaterialTheme.colorScheme.onBackground,
         maxLines = 1,
         softWrap = false,
-        modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+        modifier = Modifier.padding(top = 4.dp, bottom = 10.dp * scale)
     )
 }
 

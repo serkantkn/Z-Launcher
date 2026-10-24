@@ -14,7 +14,14 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
+import com.serkantkn.zeta.ui.components.statusBarTop
+import com.serkantkn.zeta.ui.components.LocalPaneEdges
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,7 +32,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -90,8 +96,11 @@ internal fun SplitScreen(
     modifier: Modifier = Modifier,
     /** Start, in the pane that has no hub yet. */
     start: @Composable () -> Unit,
-    /** What stands over Start in that pane: the hubs already running, offered first. */
-    startOverlay: @Composable BoxScope.() -> Unit = {},
+    /**
+     * What stands above Start in that pane: the hubs already running, offered first. Above it, not
+     * over it - over it, it hid the top of Start, which can scroll no further up to show it.
+     */
+    startAbove: (@Composable () -> Unit)? = null,
     /** A hub, with its ground. */
     hub: @Composable (HubId) -> Unit
 ) {
@@ -178,8 +187,22 @@ internal fun SplitScreen(
             ) { consumed ->
                 Box(modifier = paneModifier.then(consumed)) {
                     if (paneHub == null) {
-                        start()
-                        startOverlay()
+                        if (startAbove == null) {
+                            start()
+                        } else {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                startAbove()
+                                // Under it, Start no longer reaches the top of the pane.
+                                CompositionLocalProvider(LocalPaneEdges provides edges.copy(top = false)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                            .consumeWindowInsets(WindowInsets.statusBars.only(WindowInsetsSides.Top))
+                                    ) { start() }
+                                }
+                            }
+                        }
                     } else {
                         hub(paneHub)
                         PaneButtons(
@@ -190,7 +213,8 @@ internal fun SplitScreen(
                                 navState.focusSplit(newPane)
                                 navState.keepSplitPane(left = !newPane, keepOther = false)
                             },
-                            modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding()
+                            // Under the status bar: touches on the bar itself go to the system.
+                            modifier = Modifier.align(Alignment.TopCenter).padding(top = statusBarTop())
                         )
                     }
                 }
@@ -282,6 +306,7 @@ private fun PaneButtons(
 ) {
     var open by remember { mutableStateOf(false) }
     val ink = if (LocalZuneColors.current.isDark) Color.White else Color.Black
+    val ground = if (LocalZuneColors.current.isDark) Color.Black else Color.White
     if (open) {
         LaunchedEffect(Unit) {
             delay(PANE_BUTTONS_STAY_MILLIS)
@@ -291,7 +316,7 @@ private fun PaneButtons(
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
-                .size(width = 72.dp, height = 24.dp)
+                .size(width = 72.dp, height = PANE_HANDLE_HEIGHT)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -299,11 +324,19 @@ private fun PaneButtons(
                 ) { open = !open },
             contentAlignment = Alignment.Center
         ) {
+            // On a little of the ground, so it reads as a handle where a hub's giant name runs
+            // under it.
             Box(
                 modifier = Modifier
-                    .size(width = HANDLE_LENGTH, height = 4.dp)
-                    .background(ink.copy(alpha = if (open) 0.9f else 0.5f), RoundedCornerShape(2.dp))
-            )
+                    .background(ground.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 6.dp, vertical = 5.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = HANDLE_LENGTH, height = 4.dp)
+                        .background(ink.copy(alpha = if (open) 0.9f else 0.6f), RoundedCornerShape(2.dp))
+                )
+            }
         }
         AnimatedVisibility(visible = open, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             Row(
@@ -351,6 +384,9 @@ private val SNAPS = listOf(1f / 3f, 0.5f, 2f / 3f)
 
 /** Dragged past this share, a pane closes. */
 private const val CLOSE_BELOW = 0.18f
+
+/** The height a pane's handle takes for the finger. */
+private val PANE_HANDLE_HEIGHT = 24.dp
 
 /** How long a pane's buttons stay open untouched. */
 private const val PANE_BUTTONS_STAY_MILLIS = 4_000L

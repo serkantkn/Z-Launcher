@@ -360,7 +360,9 @@ fun MusicHubScreen(
             val density = LocalDensity.current
             val screenWidthPx = with(density) { screenWidthDp.toPx() }
             val parallaxMultiplierPx = with(density) { 40.dp.toPx() }
-            val overflowYPx = with(density) { (-24).dp.toPx() }
+            // Half a phone has the giant name smaller, as every panorama's is there.
+            val titleScale = com.serkantkn.zeta.ui.components.headingScale()
+            val overflowYPx = with(density) { (-24).dp.toPx() } * titleScale
 
             // ── The bottom bar ─────────────────────────────────────────────
             val visibleSongs = when {
@@ -459,9 +461,9 @@ fun MusicHubScreen(
                             text = stringResource(R.string.music_hub),
                             style = MaterialTheme.typography.displayLarge.copy(
                                 fontWeight = FontWeight.Light,
-                                fontSize = 96.sp,
-                                letterSpacing = (-4).sp,
-                                lineHeight = 96.sp
+                                fontSize = 96.sp * titleScale,
+                                letterSpacing = (-4).sp * titleScale,
+                                lineHeight = 96.sp * titleScale
                             ),
                             color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
                             maxLines = 1,
@@ -475,9 +477,9 @@ fun MusicHubScreen(
                             text = stringResource(R.string.music_hub),
                             style = MaterialTheme.typography.displayLarge.copy(
                                 fontWeight = FontWeight.Light,
-                                fontSize = 96.sp,
-                                letterSpacing = (-4).sp,
-                                lineHeight = 96.sp
+                                fontSize = 96.sp * titleScale,
+                                letterSpacing = (-4).sp * titleScale,
+                                lineHeight = 96.sp * titleScale
                             ),
                             color = if (LocalZuneColors.current.isDark) Color.White else Color.Black,
                             maxLines = 1,
@@ -700,7 +702,9 @@ fun MusicHubScreen(
                         title = stringResource(R.string.music_permission_title).lowercase(Locale.getDefault()),
                         message = stringResource(R.string.music_permission_message),
                         buttonLabel = stringResource(R.string.grant_permission).lowercase(Locale.getDefault()),
-                        onRequest = { requestAudioPermission() }
+                        onRequest = { requestAudioPermission() },
+                        // A phone's pages give it no margin of their own.
+                        modifier = Modifier.padding(horizontal = if (isWideScreen) 0.dp else ZuneDimens.ScreenPaddingHorizontal)
                     )
                     else -> MusicPage(
                         page = index,

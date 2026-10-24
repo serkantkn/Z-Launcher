@@ -791,18 +791,20 @@ fun LauncherScreen(
                                 }
                             }
                         },
-                        startOverlay = {
-                            if (offeringRunning && runningChoices.isNotEmpty()) {
+                        startAbove = if (offeringRunning && runningChoices.isNotEmpty()) {
+                            {
                                 com.serkantkn.zeta.ui.screens.home.RunningHubsRow(
                                     hubs = runningChoices,
                                     previews = previews,
                                     onPick = { hub -> navState.openHub(hub) },
                                     onStop = { hub -> navState.stopHub(hub) },
                                     onDismiss = { offeringRunning = false },
-                                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding()
+                                    modifier = Modifier.statusBarsPadding(),
+                                    // Half a phone: the cards keep the room under them for Start.
+                                    compact = com.serkantkn.zeta.ui.components.isShortScreen()
                                 )
                             }
-                        },
+                        } else null,
                         hub = { hub -> hubBackground { hubContentFor(hub)() } }
                     )
                 } else {

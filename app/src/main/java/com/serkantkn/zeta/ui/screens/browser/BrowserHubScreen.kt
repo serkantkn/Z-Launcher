@@ -483,11 +483,13 @@ fun BrowserHubScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     // Room for the status bar. It has no colour of its own: the hub's wallpaper
-                    // shows under the bar, as it does in every other hub.
+                    // shows under the bar, as it does in every other hub. A phone's start page
+                    // leaves its own room over its title, as every hub does, and stood a status
+                    // bar lower than the rest with this under it too.
                     Spacer(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .windowInsetsTopHeight(WindowInsets.statusBars)
+                            .height(if (!isWideScreen && activeTab.showStartScreen) 0.dp else com.serkantkn.zeta.ui.components.statusBarTop())
                     )
 
                     val coroutineScope = rememberCoroutineScope()
