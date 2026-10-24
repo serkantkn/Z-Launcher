@@ -1230,8 +1230,9 @@ private fun HomeHubScreenContent(
                 isMergeTarget = isMergeTarget,
                 cornerStyle = tileCornerStyle,
                 notificationCount = notificationCounts[model.appInfo.packageName] ?: 0,
-                notificationTitle = latestMessages[model.appInfo.packageName]?.title,
-                notificationText = latestMessages[model.appInfo.packageName]?.text,
+                notifications = latestMessages[model.appInfo.packageName].orEmpty().map {
+                    com.serkantkn.zeta.ui.components.TileLine(title = it.title ?: model.appInfo.label, body = it.text)
+                },
                 onClick = { handleLaunch(launchKey) { viewModel.launchApp(model.appInfo.packageName) } },
                 onLongClick = { holdApp(model.appInfo) },
                 onRemoveClick = { onRemoveTile(model.id) },

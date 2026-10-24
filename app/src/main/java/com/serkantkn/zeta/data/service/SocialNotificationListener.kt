@@ -274,16 +274,17 @@ class SocialNotificationListener : NotificationListenerService() {
                     }
                 val fromShade = waiting.groupingBy { it.packageName }.eachCount()
 
-                // The newest with words, per app, for its tile to show.
+                // The newest few with words, per app, for its tile to go round.
                 SocialRepository.updateLatestNotices(
                     waiting.groupBy { it.packageName }.mapNotNull { (packageName, list) ->
-                        list.sortedByDescending { it.postTime }.firstNotNullOfOrNull { sbn ->
+                        val notices = list.sortedByDescending { it.postTime }.mapNotNull { sbn ->
                             val extras = sbn.notification?.extras
                             val title = titleOf(extras)?.take(NOTICE_CHARS)?.takeIf { it.isNotBlank() }
                             val text = textOf(extras)?.take(NOTICE_CHARS)?.takeIf { it.isNotBlank() }
                             if (title == null && text == null) null
-                            else packageName to com.serkantkn.zeta.data.repository.AppNotice(title, text, sbn.postTime)
-                        }
+                            else com.serkantkn.zeta.data.repository.AppNotice(title, text, sbn.postTime)
+                        }.take(SocialRepository.NOTICES_PER_APP)
+                        if (notices.isEmpty()) null else packageName to notices
                     }.toMap()
                 )
 

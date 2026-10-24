@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -137,6 +139,12 @@ val LocalTileFaceOverride = staticCompositionLocalOf<Boolean?> { null }
 
 /** True on the tile of a hub that was left running, which then carries the running mark. */
 val LocalTileRunning = compositionLocalOf { false }
+
+/**
+ * How many times the tile's back has come up before this one, 0 the first time: a back with
+ * several things to say (an app's notifications) shows the next one at each turn.
+ */
+val LocalTileTurn = compositionLocalOf { 0 }
 
 /** The icon a tile was given, ready to draw, or null when it should draw its own. */
 @Composable
@@ -275,6 +283,14 @@ fun W10MTileSurface(
         ).coerceIn(0f, 1f)
     val fillColor = look.color?.let { Color(it) } ?: tileColor ?: zuneColors.accentColor
     val showBack = rememberShowBack(liveKey, back != null, isEditing, animation)
+    // Counted as the back comes up, while it is still out of sight.
+    var backTurns by remember(liveKey) { mutableIntStateOf(0) }
+    LaunchedEffect(showBack) { if (showBack) backTurns++ }
+    val back: (@Composable BoxScope.() -> Unit)? = back?.let { face ->
+        {
+            CompositionLocalProvider(LocalTileTurn provides (backTurns - 1).coerceAtLeast(0)) { face() }
+        }
+    }
     val turn by animateFloatAsState(
         targetValue = if (showBack) 1f else 0f,
         animationSpec = tween(durationMillis = FACE_TURN_MILLIS, easing = FastOutSlowInEasing),

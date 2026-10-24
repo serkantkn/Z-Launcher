@@ -709,18 +709,22 @@ class HomeHubViewModel(application: Application) : AndroidViewModel(application)
     val defaultDialerPackage: StateFlow<String?> = _defaultDialerPackage.asStateFlow()
 
     /**
-     * What each app's tile turns over to show: its newest notification in the shade, or - for the
-     * social hub's sources, whose notifications the hub takes out of the shade - the hub's newest.
+     * What each app's tile turns over to show, one at each turn: its newest notifications in the
+     * shade, and - for the social hub's sources, whose notifications the hub takes out of the
+     * shade - the hub's newest, together, newest first.
      */
-    val latestMessages: StateFlow<Map<String, com.serkantkn.zeta.data.repository.AppNotice>> = combine(
+    val latestMessages: StateFlow<Map<String, List<com.serkantkn.zeta.data.repository.AppNotice>>> = combine(
         SocialRepository.latestNotices,
         SocialRepository.messages
     ) { shade, hub ->
         val fromHub = hub.groupBy { it.packageName }.mapValues { (_, list) ->
-            list.maxBy { it.timestamp }.let { com.serkantkn.zeta.data.repository.AppNotice(it.title, it.text, it.timestamp) }
+            list.map { com.serkantkn.zeta.data.repository.AppNotice(it.title, it.text, it.timestamp) }
         }
         (shade.keys + fromHub.keys).associateWith { pkg ->
-            listOfNotNull(shade[pkg], fromHub[pkg]).maxBy { it.timestamp }
+            ((shade[pkg] ?: emptyList()) + (fromHub[pkg] ?: emptyList()))
+                .sortedByDescending { it.timestamp }
+                .distinctBy { it.title to it.text }
+                .take(SocialRepository.NOTICES_PER_APP)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 

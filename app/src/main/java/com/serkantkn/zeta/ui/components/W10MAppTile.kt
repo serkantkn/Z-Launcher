@@ -50,6 +50,8 @@ fun W10MAppTile(
     notificationCount: Int = 0,
     notificationTitle: String? = null,
     notificationText: String? = null,
+    /** Several notifications, newest first, gone round one at each turn; in place of the two above. */
+    notifications: List<TileLine> = emptyList(),
     cornerStyle: TileCornerStyle = TileCornerStyle.ROUNDED,
     gridColumns: Int = 4,
     spacing: Dp = 8.dp
@@ -59,14 +61,15 @@ fun W10MAppTile(
     // An icon the tile was given wins over the one the app (or the icon pack) brought.
     val face = customTileFace() ?: face
     val label = look.name?.takeIf { it.isNotBlank() } ?: label
-    val hasNotifications = look.notifications && notificationCount > 0 &&
-        (!notificationTitle.isNullOrBlank() || !notificationText.isNullOrBlank())
-    val shape = TileShape.of(span)
-    val notice = if (hasNotifications) listOf(
-        TileLine(title = notificationTitle?.takeIf { it.isNotBlank() } ?: label, body = notificationText?.takeIf { it.isNotBlank() })
-    ) else emptyList()
-    // The wide and large tiles write the notification on their front, so they have no back.
-    val hasBack = hasNotifications && (shape == TileShape.SMALL || shape == TileShape.MEDIUM)
+    val said = notifications.ifEmpty {
+        if (notificationTitle.isNullOrBlank() && notificationText.isNullOrBlank()) emptyList()
+        else listOf(TileLine(title = notificationTitle?.takeIf { it.isNotBlank() } ?: label, body = notificationText?.takeIf { it.isNotBlank() }))
+    }
+    val hasNotifications = look.notifications && notificationCount > 0 && said.isNotEmpty()
+    val notices = if (hasNotifications) said else emptyList()
+    // Every size turns over to what its app has to say, as live tiles did: the icon on the front,
+    // the words on the back.
+    val hasBack = hasNotifications
 
     W10MTileSurface(
         liveKey = "app:$tileKey",
@@ -101,6 +104,9 @@ fun W10MAppTile(
                         }
                         return@TileFace
                     }
+                    // One notification at each turn, the newest first; a large tile has room for them all.
+                    val turn = LocalTileTurn.current
+                    val shown = if (m.shape == TileShape.LARGE) notices else listOf(notices[turn % notices.size])
                     Column(modifier = Modifier.fillMaxSize().padding(m.pad), verticalArrangement = Arrangement.SpaceBetween) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                             if (face != TileIconFace.None) {
@@ -126,7 +132,15 @@ fun W10MAppTile(
                                 )
                             }
                         }
-                        TileLineList(notice, m, fg, maxItems = 1, bodyLines = 4)
+                        TileLineList(
+                            shown, m, fg,
+                            maxItems = shown.size,
+                            bodyLines = when (m.shape) {
+                                TileShape.WIDE -> 2
+                                TileShape.LARGE -> 3
+                                else -> 4
+                            }
+                        )
                     }
                 }
             }
@@ -135,18 +149,6 @@ fun W10MAppTile(
             val fg = tileForegroundColor()
             if (isEditing && !preview) {
                 Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.4f)))
-            }
-            if (notice.isNotEmpty() && !hasBack && !tileHasPicture()) {
-                IconicListFace(
-                    icon = null,
-                    face = face,
-                    title = label,
-                    count = notificationCount,
-                    lines = notice,
-                    span = span,
-                    gridColumns = gridColumns
-                )
-                return@W10MTileSurface
             }
             if (!tileHasPicture()) {
                 TileFace(span) { m ->
