@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_notes_share">note</string>
+    <string name="label_key_service">barra del volume e centro notifiche di Zeta</string>
+    <string name="label_social_listener">hub social di Zeta</string>
+    <string name="label_sms_compose">messaggi di Zeta</string>
+
+    <string name="call_bluetooth">bluetooth</string>
+    <string name="call_swap">scambia</string>
+    <string name="call_number_line">%1$s: %2$s</string>
+    <string name="call_quick_custom_hint">scrivi la tua…</string>
+    <string name="call_quick_send">invia</string>
+    <string name="call_answer_hint">tieni premuto per rispondere</string>
+    <string name="call_ignore_hint">tieni premuto per rifiutare</string>
+    <string name="call_hidden_banner">tocca per tornare alla chiamata</string>
+
+    <string name="phone_private_number">numero privato</string>
+    <string name="phone_paste">incolla</string>
+    <string name="phone_move_up">sposta su</string>
+    <string name="phone_move_down">sposta giù</string>
+    <string name="phone_call_failed">impossibile effettuare la chiamata</string>
+    <string name="phone_missed_call">chiamata persa</string>
+    <plurals name="phone_missed_calls">
+        <item quantity="one">%1$d chiamata persa</item>
+        <item quantity="many">%1$d chiamate perse</item>
+        <item quantity="other">%1$d chiamate perse</item>
+    </plurals>
+
+    <string name="volume_silent_needs_access">per silenziare il telefono, consenti a Zeta l\'accesso a non disturbare</string>
+
+    <string name="msg_mms_arrived">messaggio con immagine arrivato</string>
+    <string name="msg_pick_recipient_to_call">chi chiamare?</string>
+
+    <string name="people_tab_recent">recenti</string>
+    <string name="people_copied">copiato</string>
+
+    <string name="email_error_attachment_unreadable">impossibile leggere l\'allegato: %1$s</string>
+    <string name="email_error_password_store">impossibile salvare la password in modo sicuro</string>
+</resources>

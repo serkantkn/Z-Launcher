@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notes_italic">kursiv</string>
+    <string name="notes_underline">unterstrichen</string>
+    <string name="notes_strike">durchgestrichen</string>
+    <string name="notes_align_left">linksbündig</string>
+    <string name="notes_align_center">zentriert</string>
+    <string name="notes_align_right">rechtsbündig</string>
+    <string name="notes_numbered">nummerierte liste</string>
+    <string name="notes_clear_format">formatierung entfernen</string>
+    <string name="notes_size">größe</string>
+    <string name="notes_subheading">zwischenüberschrift</string>
+    <string name="notes_size_small">klein</string>
+    <string name="notes_size_normal">normal</string>
+    <string name="notes_size_large">groß</string>
+    <string name="notes_size_huge">riesig</string>
+    <string name="notes_text_colour">farbe</string>
+    <string name="notes_highlight">markieren</string>
+    <string name="notes_typeface">schriftart</string>
+    <string name="notes_font_sans">schlicht</string>
+    <string name="notes_font_serif">serif</string>
+    <string name="notes_font_mono">schreibmaschine</string>
+    <string name="notes_font_hand">handschrift</string>
+</resources>

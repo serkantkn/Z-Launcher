@@ -50,7 +50,10 @@ package `com.serkantkn.zeta` (`.dev` for `premium`); `R.string.brand_name` is it
 (the TV's opening logos and shutdown panels show it with `ZetaMark`). The designs have names of their own. In everything a user can read - the app's strings, the store
 text, README, the site, PRIVACY, images and the promo video - they are **Aura** (the Zune layout),
 **Mozaik / Mosaic** (Windows Phone tiles), **Panorama** (the tablet's Windows 8 Start), **Konsol /
-Console** (the TV's Xbox 360 design) and **Salon / Lounge** (the TV's Media Center design). Zune,
+Console** (the TV's Xbox 360 design) and **Salon / Lounge** (the TV's Media Center design). The app also
+speaks French, German, Spanish and Italian (`values-fr`, `-de`, `-es`, `-it`), where the designs are
+Aura, Mosaïque / Mosaik / Mosaico / Mosaico, Panorama, Console / Konsole / Consola / Console and
+Salon / Lounge / Salón / Salotto. A new string goes into all six languages. Zune,
 Windows, Windows Phone, Xbox, Media Center, Metro, Vista and Segoe are Microsoft's and appear in none
 of it; describe what a thing does ("pop-up card", "its own volume bar") rather than where it came
 from. Code names (classes, files, `ZuneHub`, `XboxStart`, `LocalVista`) and developer notes such as

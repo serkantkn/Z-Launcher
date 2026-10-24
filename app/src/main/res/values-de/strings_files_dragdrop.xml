@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_drop_move_folder">Nach %1$s verschieben</string>
+    <string name="files_drop_copy_folder">Nach %1$s kopieren</string>
+    <string name="files_drop_move_place">Nach %1$s verschieben</string>
+    <string name="files_drop_copy_place">Nach %1$s kopieren</string>
+</resources>

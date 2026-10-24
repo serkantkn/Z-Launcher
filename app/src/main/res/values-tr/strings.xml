@@ -211,7 +211,7 @@
     <string name="a11y_disclosure_body_tv">Zeta erişilebilirlik servisini engellilere yönelik bir yardım olarak değil, televizyonda üç iş için kullanır:
 
 • Home tuşu: kumandanın Home tuşuna basıldığını görür ve Google TV\'nin ana ekranı yerine Zeta\'yı açar.
-• Kapat penceresi: Media Center\'daki \"kapat\" penceresinde \"TV\'yi kapat\" ya da \"uyku\"yu seçersen televizyonun kapatma menüsünü açar ya da onu uyutur.
+• Kapat penceresi: Salon\'daki \"kapat\" penceresinde \"TV\'yi kapat\" ya da \"uyku\"yu seçersen televizyonun kapatma menüsünü açar ya da onu uyutur.
 • Telefon bildirimleri: eşlediğin telefondan gelen arama ve mesaj bildirimini, açık olan uygulamanın üstünde ekranın köşesinde gösterir.
 
 Başka hiçbir tuşa karışmaz, ekrandaki yazıları okumaz, hiçbir şeyi kaydetmez ve hiçbir veriyi televizyondan dışarı göndermez. Servisi istediğin an erişilebilirlik ayarlarından kapatabilirsin.
@@ -1632,7 +1632,7 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="browser_new_private_tab">yeni gizli sekme</string>
     <string name="browser_private">gizli</string>
     <string name="settings_search_engine">arama motoru</string>
-    <string name="settings_search_engine_lucky">"kendimi şanslı hissediyorum" var</string>
+    <string name="settings_search_engine_lucky">\"kendimi şanslı hissediyorum\" var</string>
     <string name="settings_search_suggestions">arama önerileri</string>
     <string name="settings_search_suggestions_sub">yazdığın her harf öneri için %1$s\'a gönderilir</string>
     <string name="settings_clear_browsing">tarama verilerini temizle</string>

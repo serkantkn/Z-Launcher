@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_notification_title">alarme</string>
+    <string name="alarm_channel_ringing">alarmes qui sonnent</string>
+    <string name="alarm_channel_missed">alarmes manquées</string>
+    <string name="alarm_missed_title">alarme manquée</string>
+    <string name="alarm_missed_text">%1$s n\'a pas sonné pendant que le téléphone était éteint ; elle a été désactivée</string>
+    <string name="clock_timer_paused_at">en pause • %1$s restantes</string>
+    <string name="common_resume">reprendre</string>
+    <string name="cal_scope_title">événement périodique</string>
+    <string name="cal_scope_edit_message">modifier seulement cet événement, ou toute la série ?</string>
+    <string name="cal_scope_delete_message">supprimer seulement cet événement, ou toute la série ?</string>
+    <string name="cal_scope_this_event">cet événement</string>
+    <string name="cal_scope_whole_series">toute la série</string>
+    <string name="cal_save_failed">l\'agenda n\'a pas accepté la modification</string>
+    <string name="weather_updated_just_now">mis à jour à l\'instant</string>
+    <string name="weather_updated_minutes_ago">mis à jour il y a %1$d min</string>
+    <string name="weather_updated_hours_ago">mis à jour il y a %1$d h</string>
+    <string name="weather_status_quota">limite d\'actualisation atteinte pour aujourd\'hui</string>
+    <string name="weather_status_no_network">pas de réseau</string>
+    <string name="weather_status_fresh">déjà à jour</string>
+    <string name="weather_units_metric">unités métriques</string>
+    <string name="weather_units_imperial">unités impériales</string>
+    <string name="weather_suffix_km">km</string>
+    <string name="weather_suffix_mi">mi</string>
+    <string name="weather_suffix_hpa">hPa</string>
+    <string name="weather_suffix_inhg">inHg</string>
+    <string name="weather_suffix_mm">mm</string>
+    <string name="weather_suffix_in">po</string>
+    <string name="apps_launch_failed">l\'appli n\'a pas pu s\'ouvrir</string>
+    <string name="settings_perm_calendar">agenda</string>
+    <string name="settings_perm_calendar_sub">pour le hub agenda et le programme sur l\'accueil</string>
+    <string name="settings_perm_location">position</string>
+    <string name="settings_perm_location_sub">pour la météo là où tu es</string>
+    <string name="settings_perm_notifications">notifications</string>
+    <string name="settings_perm_notifications_sub">pour les alarmes, minuteurs et rappels</string>
+    <string name="settings_perm_exact_alarms">alarmes exactes</string>
+    <string name="settings_perm_exact_alarms_sub">pour que les alarmes sonnent à la minute prévue</string>
+    <string name="settings_perm_usage_access">accès aux données d\'utilisation</string>
+    <string name="settings_perm_usage_access_sub">pour les applis les plus utilisées dans la liste des applis</string>
+    <string name="settings_image_load_failed">l\'image n\'a pas pu être ouverte</string>
+</resources>

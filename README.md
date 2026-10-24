@@ -124,7 +124,7 @@ beyaz bir çizgi menüye açılır.
   hub: sık ziyaret edilenler, sık kullanılanlar, okuma listesi, geçmiş. Telefonda okurken adres çubuğu ince bir
   şeride iner.
 - **Haberler.** Manşetler, gündem, dünya, ekonomi, teknoloji, spor Google Haberler'den; "kaynaklarım" *(Pro)* takip ettiğin
-  sitelerin RSS akışlarından, hazır Türkçe ve İngilizce kaynaklarla ya da kendi eklediğin adreslerle. Habere
+  sitelerin RSS akışlarından, hazır Türkçe, İngilizce, Fransızca, Almanca, İspanyolca ve İtalyanca kaynaklarla ya da kendi eklediğin adreslerle. Habere
   dokununca resmi ve özeti, devamı sitenin kendi sayfasında.
 - **Video oynatıcı.** Sade kontroller, iki kez dokunup 10 saniye atla, kaldığı yerden devam, ana ekrana dönünce
   küçük pencerede oynamaya devam. Altyazı (videonun yanındaki dosyalar da), ses parçası, hız, ekranı doldurma,
@@ -255,7 +255,7 @@ Mozaik'in ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli anahta
 
 - Zeta klavyesi ve tahmin çubuğu *(Pro)*
 - Ses çubuğundan bildirim şeridine kadar aynı arayüz *(Pro)*
-- Türkçe ve İngilizce
+- Türkçe, İngilizce, Fransızca, Almanca, İspanyolca ve İtalyanca (klavyenin harf düzeni şimdilik Türkçe ve İngilizce)
 - Bölünmüş ekran: tablette dört, telefonda iki parmakla
 
 ## Ücretsiz ve Pro

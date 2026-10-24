@@ -1273,19 +1273,33 @@ internal fun SystemSettingsPage(
 
         item(key = "language") {
             SettingGroup(title = stringResource(R.string.settings_language)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AppLanguage.entries.forEach { language ->
-                        SettingChoiceRow(
-                            title = stringResource(language.titleRes),
-                            subtitle = if (language == AppLanguage.SYSTEM) stringResource(R.string.settings_language_subtitle) else "",
-                            selected = appLanguage == language,
-                            onClick = {
-                                if (appLanguage != language && viewModel.setAppLanguage(language)) {
-                                    context.findActivity()?.recreate()
-                                }
-                            }
-                        )
+                val choose: (AppLanguage) -> Unit = { language ->
+                    if (appLanguage != language && viewModel.setAppLanguage(language)) {
+                        context.findActivity()?.recreate()
                     }
+                }
+                if (isTv) {
+                    // Worked by remote: a row for each, every one a stop for the focus.
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AppLanguage.entries.forEach { language ->
+                            SettingChoiceRow(
+                                title = stringResource(language.titleRes),
+                                subtitle = if (language == AppLanguage.SYSTEM) stringResource(R.string.settings_language_subtitle) else "",
+                                selected = appLanguage == language,
+                                onClick = { choose(language) }
+                            )
+                        }
+                    }
+                } else {
+                    // Seven of them: a box that opens in place, as a phone's settings had it.
+                    com.serkantkn.zeta.ui.components.WpListPicker(
+                        items = AppLanguage.entries,
+                        selected = appLanguage,
+                        label = { stringResource(it.titleRes) },
+                        onSelect = choose,
+                        header = stringResource(R.string.settings_language_subtitle),
+                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                    )
                 }
             }
         }

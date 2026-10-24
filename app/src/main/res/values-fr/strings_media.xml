@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_download_blob">ce lien ne peut pas être téléchargé</string>
+    <string name="browser_page_crashed">la page a planté</string>
+    <string name="browser_page_reload">recharger</string>
+    <string name="browser_permission_title">autorisation du site</string>
+    <string name="browser_permission_body">%1$s veut utiliser : %2$s.</string>
+    <string name="browser_permission_camera">appareil photo</string>
+    <string name="browser_permission_microphone">micro</string>
+    <string name="browser_permission_location">position</string>
+    <string name="browser_permission_allow">autoriser</string>
+    <string name="browser_permission_deny">refuser</string>
+    <string name="files_already_here">déjà ici</string>
+    <string name="files_paste_progress">%1$d / %2$d · %3$s</string>
+    <string name="files_paste_cancelled">collage annulé</string>
+    <string name="files_folder_failed">le dossier n\'a pas pu être créé</string>
+    <string name="files_delete_failed">%1$s n\'a pas pu être supprimé</string>
+    <string name="files_rename_failed">%1$s n\'a pas pu être renommé</string>
+    <string name="pics_save_failed">l\'image n\'a pas pu être enregistrée</string>
+    <string name="editor_load_failed">l\'image n\'a pas pu s\'ouvrir</string>
+    <string name="editor_save_failed">l\'image n\'a pas pu être enregistrée ; essaie un recadrage plus petit</string>
+    <string name="music_sleep_other_app">le minuteur de veille n\'a pas pu mettre l\'autre appli en pause</string>
+</resources>

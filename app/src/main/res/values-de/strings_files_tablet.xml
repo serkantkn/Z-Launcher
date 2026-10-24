@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_pane_device">dieses gerät</string>
+    <string name="files_pane_libraries">bibliotheken</string>
+    <string name="files_free_of">%1$s von %2$s frei</string>
+    <string name="files_col_name">name</string>
+    <string name="files_col_modified">änderungsdatum</string>
+    <string name="files_col_type">typ</string>
+    <string name="files_col_size">größe</string>
+    <string name="files_type_file">%1$s-datei</string>
+    <string name="files_type_plain">datei</string>
+    <plurals name="files_item_count">
+        <item quantity="one">%d element</item>
+        <item quantity="other">%d elemente</item>
+    </plurals>
+    <string name="files_back">zurück</string>
+    <string name="files_path_menu">übergeordnete ordner</string>
+    <string name="files_view_thumbnails">miniaturansicht</string>
+    <string name="files_view_list">listenansicht</string>
+    <string name="files_bar_select_all">alle auswählen</string>
+    <string name="files_bar_clear_selection">auswahl aufheben</string>
+    <string name="files_bar_view">ansicht</string>
+    <string name="files_bar_hidden">versteckte elemente</string>
+    <string name="files_bar_volumes">speicher</string>
+    <string name="files_bar_upload">hochladen</string>
+    <string name="files_bar_clear_clipboard">zwischenablage leeren</string>
+    <string name="files_view_thumbs_short">miniaturen</string>
+    <string name="files_view_details_short">details</string>
+    <string name="files_bar_open_with">öffnen mit</string>
+    <plurals name="files_transfer_copying">
+        <item quantity="one">%d element wird kopiert</item>
+        <item quantity="other">%d elemente werden kopiert</item>
+    </plurals>
+    <plurals name="files_transfer_moving">
+        <item quantity="one">%d element wird verschoben</item>
+        <item quantity="other">%d elemente werden verschoben</item>
+    </plurals>
+    <string name="files_transfer_percent">%1$d %%</string>
+    <string name="files_transfer_speed">%1$s/s</string>
+    <string name="files_transfer_paused">pausiert</string>
+    <string name="files_transfer_pause">pause</string>
+    <string name="files_transfer_resume">fortsetzen</string>
+    <string name="files_conflict_title_file">es gibt schon eine datei mit diesem namen</string>
+    <string name="files_conflict_title_folder">es gibt schon einen ordner mit diesem namen</string>
+    <string name="files_conflict_incoming">die eingefügte</string>
+    <string name="files_conflict_existing">die bereits vorhandene</string>
+    <string name="files_conflict_folder_note">das ersetzen eines ordners löscht alles im bereits vorhandenen</string>
+    <string name="files_conflict_replace">ersetzen</string>
+    <string name="files_conflict_skip">überspringen</string>
+    <string name="files_conflict_keep_both">beide behalten</string>
+    <plurals name="files_conflict_apply_all">
+        <item quantity="one">für alle übernehmen (%d weiteres)</item>
+        <item quantity="other">für alle übernehmen (%d weitere)</item>
+    </plurals>
+    <string name="cloud_error_web_only">diese Google-datei lässt sich nur im web öffnen</string>
+</resources>

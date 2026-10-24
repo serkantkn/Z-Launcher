@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="msg_attachment_picture">bild</string>
+    <string name="msg_attachment_video">video</string>
+    <string name="msg_attachment_audio">sprachaufnahme</string>
+    <string name="msg_attachment_contact">visitenkarte</string>
+    <string name="msg_attachment_open_failed">nichts hier kann das öffnen</string>
+    <string name="msg_select">auswählen</string>
+    <string name="msg_mark_all_read">alle als gelesen markieren</string>
+    <plurals name="msg_selected_count">
+        <item quantity="one">%d ausgewählt</item>
+        <item quantity="other">%d ausgewählt</item>
+    </plurals>
+    <string name="msg_delete_selected">unterhaltungen löschen</string>
+    <plurals name="msg_delete_selected_message">
+        <item quantity="one">%d unterhaltung und alles darin wird gelöscht.</item>
+        <item quantity="other">%d unterhaltungen und alles darin werden gelöscht.</item>
+    </plurals>
+    <string name="msg_or_start_new">oder eine neue nachricht beginnen</string>
+    <string name="msg_recipients">an</string>
+    <string name="msg_write_to">schreiben</string>
+    <string name="msg_add_recipient">zur nachricht hinzufügen</string>
+    <string name="msg_remove_recipient">aus der nachricht entfernen</string>
+    <string name="msg_group_hint">tippe auf den kreis neben einem namen, um mehreren leuten gleichzeitig zu schreiben</string>
+    <string name="email_or_write_new">oder eine neue schreiben</string>
+    <string name="notes_or_write_new">oder eine neue schreiben</string>
+</resources>

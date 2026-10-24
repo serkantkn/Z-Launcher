@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_notification_title">wecker</string>
+    <string name="alarm_channel_ringing">klingelnde wecker</string>
+    <string name="alarm_channel_missed">verpasste wecker</string>
+    <string name="alarm_missed_title">verpasster wecker</string>
+    <string name="alarm_missed_text">%1$s hat nicht geklingelt, weil das handy aus war; er wurde ausgeschaltet</string>
+    <string name="clock_timer_paused_at">pausiert • noch %1$s</string>
+    <string name="common_resume">fortsetzen</string>
+    <string name="cal_scope_title">wiederkehrender termin</string>
+    <string name="cal_scope_edit_message">nur diesen termin ändern oder die ganze serie?</string>
+    <string name="cal_scope_delete_message">nur diesen termin löschen oder die ganze serie?</string>
+    <string name="cal_scope_this_event">dieser termin</string>
+    <string name="cal_scope_whole_series">ganze serie</string>
+    <string name="cal_save_failed">der kalender hat die änderung nicht übernommen</string>
+    <string name="weather_updated_just_now">gerade aktualisiert</string>
+    <string name="weather_updated_minutes_ago">vor %1$d min aktualisiert</string>
+    <string name="weather_updated_hours_ago">vor %1$d h aktualisiert</string>
+    <string name="weather_status_quota">aktualisierungslimit für heute erreicht</string>
+    <string name="weather_status_no_network">kein netz</string>
+    <string name="weather_status_fresh">schon aktuell</string>
+    <string name="weather_units_metric">metrische einheiten</string>
+    <string name="weather_units_imperial">angloamerikanische einheiten</string>
+    <string name="weather_suffix_km">km</string>
+    <string name="weather_suffix_mi">mi</string>
+    <string name="weather_suffix_hpa">hPa</string>
+    <string name="weather_suffix_inhg">inHg</string>
+    <string name="weather_suffix_mm">mm</string>
+    <string name="weather_suffix_in">in</string>
+    <string name="apps_launch_failed">die app konnte nicht geöffnet werden</string>
+    <string name="settings_perm_calendar">kalender</string>
+    <string name="settings_perm_calendar_sub">für den kalender-hub und die agenda auf start</string>
+    <string name="settings_perm_location">standort</string>
+    <string name="settings_perm_location_sub">für das wetter dort, wo du bist</string>
+    <string name="settings_perm_notifications">benachrichtigungen</string>
+    <string name="settings_perm_notifications_sub">für wecker, timer und erinnerungen</string>
+    <string name="settings_perm_exact_alarms">genaue wecker</string>
+    <string name="settings_perm_exact_alarms_sub">damit wecker zur eingestellten minute klingeln</string>
+    <string name="settings_perm_usage_access">nutzungszugriff</string>
+    <string name="settings_perm_usage_access_sub">für die meistgenutzten apps in der app-liste</string>
+    <string name="settings_image_load_failed">das bild konnte nicht geöffnet werden</string>
+</resources>

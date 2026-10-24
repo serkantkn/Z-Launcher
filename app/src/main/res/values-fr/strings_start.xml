@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="start_hub_move_up">monter</string>
+    <string name="start_hub_move_down">descendre</string>
+    <string name="start_pinned_section">épinglés</string>
+    <string name="tile_more_actions">plus</string>
+    <string name="bottom_bar_more">plus</string>
+    <string name="volume_media_apps">MÉDIAS + APPLIS</string>
+    <string name="start_edit_start">modifier l\'accueil</string>
+</resources>

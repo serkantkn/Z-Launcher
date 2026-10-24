@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hub_news">news</string>
+    <string name="news_topic_top">schlagzeilen</string>
+    <string name="news_topic_nation">inland</string>
+    <string name="news_topic_world">welt</string>
+    <string name="news_topic_business">wirtschaft</string>
+    <string name="news_topic_technology">technik</string>
+    <string name="news_topic_science">wissenschaft</string>
+    <string name="news_topic_health">gesundheit</string>
+    <string name="news_topic_sports">sport</string>
+    <string name="news_topic_entertainment">unterhaltung</string>
+    <string name="news_tab_sources">meine quellen</string>
+    <string name="news_refresh">aktualisieren</string>
+    <string name="news_refresh_all">alles aktualisieren</string>
+    <string name="news_settings">einstellungen</string>
+    <string name="news_pick_story">wähl einen artikel</string>
+    <string name="news_loading">news werden geholt…</string>
+    <string name="news_nothing_yet">Hier gibt es noch keine News.</string>
+    <string name="news_no_sources">Du folgst noch keinen Quellen.</string>
+    <string name="news_all_sources">alle</string>
+    <string name="news_status_offline">Keine Internetverbindung; es werden die zuletzt geholten News angezeigt.</string>
+    <string name="news_status_failed">Die News konnten nicht geholt werden; versuch es gleich noch mal.</string>
+    <string name="news_read_on">weiterlesen</string>
+    <string name="news_copy_link">link kopieren</string>
+    <string name="news_related">aus anderen quellen</string>
+    <string name="news_story_footnote">Der ganze Artikel öffnet sich auf der Website, die ihn veröffentlicht hat. Wo die Seite es zulässt, wird neben der Adresse die Leseansicht angeboten.</string>
+    <string name="news_settings_topics">themen</string>
+    <string name="news_settings_topics_hint">Rubriken von Google News. Schlagzeilen kommen immer zuerst.</string>
+    <string name="news_settings_sources">quellen</string>
+    <string name="news_settings_sources_hint">Artikel der hier eingeschalteten Websites werden unter „meine quellen“ gesammelt, neueste zuerst.</string>
+    <string name="news_remove_source">entfernen</string>
+    <string name="news_add_source">quelle hinzufügen</string>
+    <string name="news_add_source_hint">Gib die Adresse des RSS- oder Atom-Feeds einer Website ein.</string>
+    <string name="news_add_source_placeholder">z. B. example.com/rss</string>
+    <string name="news_add">hinzufügen</string>
+    <string name="news_adding">feed wird gelesen…</string>
+    <string name="news_settings_footnote">Themen kommen von Google News, Quellen aus dem eigenen RSS-Feed jeder Website. Der Hub zeigt Schlagzeile und Zusammenfassung eines Artikels; der ganze Artikel wird auf seiner Website gelesen.</string>
+    <string name="news_error_already_added">Dieser Feed ist schon hinzugefügt.</string>
+    <string name="news_error_offline">Keine Internetverbindung.</string>
+    <string name="news_error_unreachable">Diese Adresse ist nicht erreichbar.</string>
+    <string name="news_error_not_a_feed">Unter dieser Adresse wurde kein News-Feed gefunden. Versuch die RSS-Adresse der Website.</string>
+</resources>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hub_news">noticias</string>
+
+    <string name="news_topic_top">destacadas</string>
+    <string name="news_topic_nation">nacional</string>
+    <string name="news_topic_world">mundo</string>
+    <string name="news_topic_business">economía</string>
+    <string name="news_topic_technology">tecnología</string>
+    <string name="news_topic_science">ciencia</string>
+    <string name="news_topic_health">salud</string>
+    <string name="news_topic_sports">deportes</string>
+    <string name="news_topic_entertainment">ocio</string>
+    <string name="news_tab_sources">mis fuentes</string>
+
+    <string name="news_refresh">actualizar</string>
+    <string name="news_refresh_all">actualizar todo</string>
+    <string name="news_settings">ajustes</string>
+    <string name="news_pick_story">elige una noticia</string>
+    <string name="news_loading">obteniendo las noticias…</string>
+    <string name="news_nothing_yet">Aún no hay noticias aquí.</string>
+    <string name="news_no_sources">Aún no sigues ninguna fuente.</string>
+    <string name="news_all_sources">todas</string>
+    <string name="news_status_offline">Sin conexión a internet; se muestran las últimas noticias obtenidas.</string>
+    <string name="news_status_failed">No se pudieron obtener las noticias; inténtalo de nuevo en un momento.</string>
+
+    <string name="news_read_on">leer más</string>
+    <string name="news_copy_link">copiar enlace</string>
+    <string name="news_related">de otras fuentes</string>
+    <string name="news_story_footnote">La noticia completa se abre en el sitio que la publicó. Si la página lo permite, se ofrece la vista de lectura junto a la dirección.</string>
+
+    <string name="news_settings_topics">temas</string>
+    <string name="news_settings_topics_hint">Secciones de Google News. Las destacadas van siempre primero.</string>
+    <string name="news_settings_sources">fuentes</string>
+    <string name="news_settings_sources_hint">Las noticias de los sitios activados aquí se reúnen en \"mis fuentes\", las más nuevas primero.</string>
+    <string name="news_remove_source">quitar</string>
+    <string name="news_add_source">añadir fuente</string>
+    <string name="news_add_source_hint">Escribe la dirección del feed RSS o Atom de un sitio.</string>
+    <string name="news_add_source_placeholder">p. ej. example.com/rss</string>
+    <string name="news_add">añadir</string>
+    <string name="news_adding">leyendo el feed…</string>
+    <string name="news_settings_footnote">Los temas vienen de Google News; las fuentes, del feed RSS de cada sitio. El hub muestra el titular y el resumen de una noticia; la noticia completa se lee en su sitio.</string>
+
+    <string name="news_error_already_added">Este feed ya está añadido.</string>
+    <string name="news_error_offline">Sin conexión a internet.</string>
+    <string name="news_error_unreachable">No se pudo acceder a esta dirección.</string>
+    <string name="news_error_not_a_feed">No se encontró ningún feed de noticias en esta dirección. Prueba con la dirección RSS del sitio.</string>
+</resources>

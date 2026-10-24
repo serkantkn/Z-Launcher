@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_pane_device">questo dispositivo</string>
+    <string name="files_pane_libraries">raccolte</string>
+    <string name="files_free_of">%1$s liberi su %2$s</string>
+    <string name="files_col_name">nome</string>
+    <string name="files_col_modified">ultima modifica</string>
+    <string name="files_col_type">tipo</string>
+    <string name="files_col_size">dimensione</string>
+    <string name="files_type_file">file %1$s</string>
+    <string name="files_type_plain">file</string>
+    <plurals name="files_item_count">
+        <item quantity="one">%d elemento</item>
+        <item quantity="many">%d elementi</item>
+        <item quantity="other">%d elementi</item>
+    </plurals>
+    <string name="files_back">indietro</string>
+    <string name="files_path_menu">cartelle superiori</string>
+    <string name="files_view_thumbnails">vista miniature</string>
+    <string name="files_view_list">vista elenco</string>
+    <string name="files_bar_select_all">seleziona tutto</string>
+    <string name="files_bar_clear_selection">annulla selezione</string>
+    <string name="files_bar_view">vista</string>
+    <string name="files_bar_hidden">elementi nascosti</string>
+    <string name="files_bar_volumes">memoria</string>
+    <string name="files_bar_upload">carica</string>
+    <string name="files_bar_clear_clipboard">svuota appunti</string>
+    <string name="files_view_thumbs_short">miniature</string>
+    <string name="files_view_details_short">dettagli</string>
+    <string name="files_bar_open_with">apri con</string>
+    <plurals name="files_transfer_copying">
+        <item quantity="one">copia di %d elemento</item>
+        <item quantity="many">copia di %d elementi</item>
+        <item quantity="other">copia di %d elementi</item>
+    </plurals>
+    <plurals name="files_transfer_moving">
+        <item quantity="one">spostamento di %d elemento</item>
+        <item quantity="many">spostamento di %d elementi</item>
+        <item quantity="other">spostamento di %d elementi</item>
+    </plurals>
+    <string name="files_transfer_percent">%1$d%%</string>
+    <string name="files_transfer_speed">%1$s/s</string>
+    <string name="files_transfer_paused">in pausa</string>
+    <string name="files_transfer_pause">pausa</string>
+    <string name="files_transfer_resume">riprendi</string>
+    <string name="files_conflict_title_file">c\'è già un file con questo nome</string>
+    <string name="files_conflict_title_folder">c\'è già una cartella con questo nome</string>
+    <string name="files_conflict_incoming">quello che stai incollando</string>
+    <string name="files_conflict_existing">quello già presente</string>
+    <string name="files_conflict_folder_note">sostituire una cartella elimina tutto ciò che c\'è in quella già presente</string>
+    <string name="files_conflict_replace">sostituisci</string>
+    <string name="files_conflict_skip">salta</string>
+    <string name="files_conflict_keep_both">tieni entrambi</string>
+    <plurals name="files_conflict_apply_all">
+        <item quantity="one">applica a tutti (altri %d)</item>
+        <item quantity="many">applica a tutti (altri %d)</item>
+        <item quantity="other">applica a tutti (altri %d)</item>
+    </plurals>
+    <string name="cloud_error_web_only">questo file Google si apre solo sul web</string>
+</resources>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_download_blob">dieser link kann nicht heruntergeladen werden</string>
+    <string name="browser_page_crashed">die seite ist abgestürzt</string>
+    <string name="browser_page_reload">neu laden</string>
+    <string name="browser_permission_title">website-berechtigung</string>
+    <string name="browser_permission_body">%1$s möchte zugriff auf: %2$s.</string>
+    <string name="browser_permission_camera">kamera</string>
+    <string name="browser_permission_microphone">mikrofon</string>
+    <string name="browser_permission_location">standort</string>
+    <string name="browser_permission_allow">erlauben</string>
+    <string name="browser_permission_deny">ablehnen</string>
+    <string name="files_already_here">schon hier</string>
+    <string name="files_paste_progress">%1$d / %2$d · %3$s</string>
+    <string name="files_paste_cancelled">einfügen abgebrochen</string>
+    <string name="files_folder_failed">der ordner konnte nicht erstellt werden</string>
+    <string name="files_delete_failed">%1$s konnte nicht gelöscht werden</string>
+    <string name="files_rename_failed">%1$s konnte nicht umbenannt werden</string>
+    <string name="pics_save_failed">das bild konnte nicht gespeichert werden</string>
+    <string name="editor_load_failed">das bild ließ sich nicht öffnen</string>
+    <string name="editor_save_failed">das bild konnte nicht gespeichert werden; versuch einen kleineren ausschnitt</string>
+    <string name="music_sleep_other_app">der sleep-timer konnte die andere app nicht pausieren</string>
+</resources>

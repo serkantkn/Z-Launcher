@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="msg_attachment_picture">imagen</string>
+    <string name="msg_attachment_video">vídeo</string>
+    <string name="msg_attachment_audio">grabación de voz</string>
+    <string name="msg_attachment_contact">tarjeta de contacto</string>
+    <string name="msg_attachment_open_failed">nada de aquí puede abrir eso</string>
+
+    <string name="msg_select">seleccionar</string>
+    <string name="msg_mark_all_read">marcar todo como leído</string>
+    <plurals name="msg_selected_count">
+        <item quantity="one">%d seleccionada</item>
+        <item quantity="many">%d seleccionadas</item>
+        <item quantity="other">%d seleccionadas</item>
+    </plurals>
+    <string name="msg_delete_selected">borrar las conversaciones</string>
+    <plurals name="msg_delete_selected_message">
+        <item quantity="one">Se borrará %d conversación con todo su contenido.</item>
+        <item quantity="many">Se borrarán %d conversaciones con todo su contenido.</item>
+        <item quantity="other">Se borrarán %d conversaciones con todo su contenido.</item>
+    </plurals>
+
+    <string name="msg_or_start_new">o empieza un mensaje nuevo</string>
+
+    <string name="msg_recipients">para</string>
+    <string name="msg_write_to">escribir</string>
+    <string name="msg_add_recipient">añadir al mensaje</string>
+    <string name="msg_remove_recipient">quitar del mensaje</string>
+    <string name="msg_group_hint">toca el círculo junto a un nombre para escribir a varias personas a la vez</string>
+
+    <string name="email_or_write_new">o escribe uno nuevo</string>
+
+    <string name="notes_or_write_new">o escribe una nueva</string>
+</resources>

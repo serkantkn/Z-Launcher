@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_pane_device">este dispositivo</string>
+    <string name="files_pane_libraries">bibliotecas</string>
+    <string name="files_free_of">%1$s libres de %2$s</string>
+    <string name="files_col_name">nombre</string>
+    <string name="files_col_modified">fecha de modificación</string>
+    <string name="files_col_type">tipo</string>
+    <string name="files_col_size">tamaño</string>
+    <string name="files_type_file">archivo %1$s</string>
+    <string name="files_type_plain">archivo</string>
+    <plurals name="files_item_count">
+        <item quantity="one">%d elemento</item>
+        <item quantity="many">%d elementos</item>
+        <item quantity="other">%d elementos</item>
+    </plurals>
+    <string name="files_back">atrás</string>
+    <string name="files_path_menu">carpetas superiores</string>
+    <string name="files_view_thumbnails">vista de miniaturas</string>
+    <string name="files_view_list">vista de lista</string>
+    <string name="files_bar_select_all">seleccionar todo</string>
+    <string name="files_bar_clear_selection">borrar selección</string>
+    <string name="files_bar_view">vista</string>
+    <string name="files_bar_hidden">elementos ocultos</string>
+    <string name="files_bar_volumes">almacenamiento</string>
+    <string name="files_bar_upload">subir</string>
+    <string name="files_bar_clear_clipboard">vaciar portapapeles</string>
+    <string name="files_view_thumbs_short">miniaturas</string>
+    <string name="files_view_details_short">detalles</string>
+    <string name="files_bar_open_with">abrir con</string>
+    <plurals name="files_transfer_copying">
+        <item quantity="one">copiando %d elemento</item>
+        <item quantity="many">copiando %d elementos</item>
+        <item quantity="other">copiando %d elementos</item>
+    </plurals>
+    <plurals name="files_transfer_moving">
+        <item quantity="one">moviendo %d elemento</item>
+        <item quantity="many">moviendo %d elementos</item>
+        <item quantity="other">moviendo %d elementos</item>
+    </plurals>
+    <string name="files_transfer_percent">%1$d%%</string>
+    <string name="files_transfer_speed">%1$s/s</string>
+    <string name="files_transfer_paused">en pausa</string>
+    <string name="files_transfer_pause">pausar</string>
+    <string name="files_transfer_resume">reanudar</string>
+    <string name="files_conflict_title_file">ya hay un archivo con este nombre</string>
+    <string name="files_conflict_title_folder">ya hay una carpeta con este nombre</string>
+    <string name="files_conflict_incoming">el que se está pegando</string>
+    <string name="files_conflict_existing">el que ya está aquí</string>
+    <string name="files_conflict_folder_note">reemplazar una carpeta borra todo lo que hay en la que ya está aquí</string>
+    <string name="files_conflict_replace">reemplazar</string>
+    <string name="files_conflict_skip">omitir</string>
+    <string name="files_conflict_keep_both">conservar ambos</string>
+    <plurals name="files_conflict_apply_all">
+        <item quantity="one">aplicar a todos (%d más)</item>
+        <item quantity="many">aplicar a todos (%d más)</item>
+        <item quantity="other">aplicar a todos (%d más)</item>
+    </plurals>
+    <string name="cloud_error_web_only">este archivo de Google solo se abre en la web</string>
+</resources>

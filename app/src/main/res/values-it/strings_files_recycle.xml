@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_bin_title">cestino</string>
+    <string name="files_bin_is_empty">il cestino è vuoto</string>
+    <string name="files_bin_note">Gli elementi eliminati restano qui per 30 giorni, poi vengono eliminati definitivamente.</string>
+    <string name="files_bin_restore">ripristina</string>
+    <string name="files_bin_delete_forever">elimina definitivamente</string>
+    <string name="files_bin_empty_action">svuota cestino</string>
+    <string name="files_bin_empty_title">svuota il cestino</string>
+    <string name="files_bin_empty_confirm">Tutto ciò che è nel cestino (%1$d elementi) verrà eliminato definitivamente. Non si può annullare.</string>
+    <string name="files_bin_forever_confirm">\"%1$s\" verrà eliminato definitivamente. Non si può annullare.</string>
+    <string name="files_bin_forever_many_confirm">%1$d elementi verranno eliminati definitivamente. Non si può annullare.</string>
+    <string name="files_bin_col_location">posizione originale</string>
+    <string name="files_bin_col_deleted">data eliminazione</string>
+    <string name="files_bin_deleted_on">eliminato %1$s</string>
+    <string name="files_bin_restore_partial">Impossibile ripristinare %1$d elementi.</string>
+    <string name="files_trash_failed">impossibile spostare %1$s nel cestino</string>
+</resources>

@@ -58,7 +58,7 @@ AYRICA
 • Zeta klavyesi (Pro)
 • Pro'yu 10 gün ücretsiz dene; deneme bitince ayarların silinmez
 • Ses çubuğundan bildirim şeridine kadar aynı arayüz
-• Türkçe ve İngilizce
+• Türkçe, İngilizce, Fransızca, Almanca, İspanyolca ve İtalyanca
 • Karanlık ve aydınlık tema, vurgu rengi seçimi
 • Tablet düzeni ve bölünmüş ekran
 
@@ -129,7 +129,7 @@ ALSO
 • Zeta's own keyboard (Pro)
 • Try Pro free for 10 days; your settings stay when the trial ends
 • The same interface throughout, from the volume bar to the notification banner
-• Turkish and English
+• Turkish, English, French, German, Spanish and Italian
 • Dark and light themes, your choice of accent colour
 • Tablet layout and split screen
 

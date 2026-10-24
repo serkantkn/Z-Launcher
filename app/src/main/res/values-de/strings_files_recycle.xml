@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_bin_title">papierkorb</string>
+    <string name="files_bin_is_empty">der papierkorb ist leer</string>
+    <string name="files_bin_note">Gelöschtes wartet hier 30 Tage und wird dann endgültig gelöscht.</string>
+    <string name="files_bin_restore">wiederherstellen</string>
+    <string name="files_bin_delete_forever">endgültig löschen</string>
+    <string name="files_bin_empty_action">papierkorb leeren</string>
+    <string name="files_bin_empty_title">papierkorb leeren</string>
+    <string name="files_bin_empty_confirm">Alles im Papierkorb (%1$d Elemente) wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.</string>
+    <string name="files_bin_forever_confirm">„%1$s“ wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.</string>
+    <string name="files_bin_forever_many_confirm">%1$d Elemente werden endgültig gelöscht. Das lässt sich nicht rückgängig machen.</string>
+    <string name="files_bin_col_location">ursprünglicher ort</string>
+    <string name="files_bin_col_deleted">löschdatum</string>
+    <string name="files_bin_deleted_on">gelöscht %1$s</string>
+    <string name="files_bin_restore_partial">%1$d Elemente konnten nicht wiederhergestellt werden.</string>
+    <string name="files_trash_failed">%1$s konnte nicht in den papierkorb verschoben werden</string>
+</resources>

@@ -213,7 +213,7 @@
     <string name="a11y_disclosure_body_tv">Zeta uses an accessibility service not as an aid for disabilities but for three things on a television:
 
 • The Home button: it sees the remote\'s Home button pressed and opens Zeta instead of Google TV\'s home screen.
-• The shutdown panel: if you choose \"turn off TV\" or \"sleep\" in Media Center\'s shutdown panel, it opens the TV\'s power menu or puts it to sleep.
+• The shutdown panel: if you choose \"turn off TV\" or \"sleep\" in the shutdown panel, it opens the TV\'s power menu or puts it to sleep.
 • Phone notices: it shows the call and message notices from a phone you paired in a corner of the screen, over whatever app is open.
 
 It touches no other key, reads no text on the screen, records nothing and sends no data off the TV. You can turn the service off at any time in the accessibility settings.
@@ -271,6 +271,11 @@ If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home b
     <string name="language_system">system language</string>
     <string name="language_turkish">Türkçe</string>
     <string name="language_english">English</string>
+    <!-- Each language by its own name, whatever the app speaks. -->
+    <string name="language_french" translatable="false">Français</string>
+    <string name="language_german" translatable="false">Deutsch</string>
+    <string name="language_spanish" translatable="false">Español</string>
+    <string name="language_italian" translatable="false">Italiano</string>
     <string name="hub_phone">phone</string>
     <string name="hub_clock">clock</string>
     <string name="hub_internet">internet</string>
@@ -1321,7 +1326,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home b
     <string name="keyboard_quick_all_settings">all settings</string>
     <string name="keyboard_quick_language">layout</string>
     <string name="keyboard_bottom_padding_group">bottom gap</string>
-    <string name="keyboard_bottom_padding_sub">extra space under the keys, for phones whose "hide keyboard" and "switch keyboard" buttons sit over the bottom row</string>
+    <string name="keyboard_bottom_padding_sub">extra space under the keys, for phones whose \"hide keyboard\" and \"switch keyboard\" buttons sit over the bottom row</string>
     <string name="keyboard_bottom_padding_none">none</string>
     <string name="keyboard_bottom_padding_small">small</string>
     <string name="keyboard_bottom_padding_medium">medium</string>
@@ -1634,7 +1639,7 @@ If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home b
     <string name="browser_new_private_tab">new private tab</string>
     <string name="browser_private">private</string>
     <string name="settings_search_engine">search engine</string>
-    <string name="settings_search_engine_lucky">has "I\'m feeling lucky"</string>
+    <string name="settings_search_engine_lucky">has \"I\'m feeling lucky\"</string>
     <string name="settings_search_suggestions">search suggestions</string>
     <string name="settings_search_suggestions_sub">every keystroke is sent to %1$s to suggest what you are typing</string>
     <string name="settings_clear_browsing">clear browsing data</string>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notes_italic">cursiva</string>
+    <string name="notes_underline">subrayado</string>
+    <string name="notes_strike">tachado</string>
+    <string name="notes_align_left">alinear a la izquierda</string>
+    <string name="notes_align_center">centrar</string>
+    <string name="notes_align_right">alinear a la derecha</string>
+    <string name="notes_numbered">lista numerada</string>
+    <string name="notes_clear_format">borrar formato</string>
+    <string name="notes_size">tamaño</string>
+    <string name="notes_subheading">subtítulo</string>
+    <string name="notes_size_small">pequeño</string>
+    <string name="notes_size_normal">normal</string>
+    <string name="notes_size_large">grande</string>
+    <string name="notes_size_huge">enorme</string>
+    <string name="notes_text_colour">color</string>
+    <string name="notes_highlight">resaltar</string>
+    <string name="notes_typeface">tipo de letra</string>
+    <string name="notes_font_sans">sencilla</string>
+    <string name="notes_font_serif">serif</string>
+    <string name="notes_font_mono">máquina de escribir</string>
+    <string name="notes_font_hand">manuscrita</string>
+</resources>

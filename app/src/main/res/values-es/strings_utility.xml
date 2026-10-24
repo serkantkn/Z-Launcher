@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_notification_title">alarma</string>
+    <string name="alarm_channel_ringing">alarmas sonando</string>
+    <string name="alarm_channel_missed">alarmas perdidas</string>
+    <string name="alarm_missed_title">alarma perdida</string>
+    <string name="alarm_missed_text">%1$s no sonó porque el teléfono estaba apagado; se ha desactivado</string>
+    <string name="clock_timer_paused_at">en pausa • quedan %1$s</string>
+    <string name="common_resume">reanudar</string>
+
+    <string name="cal_scope_title">evento periódico</string>
+    <string name="cal_scope_edit_message">¿cambiar solo este evento o toda la serie?</string>
+    <string name="cal_scope_delete_message">¿borrar solo este evento o toda la serie?</string>
+    <string name="cal_scope_this_event">este evento</string>
+    <string name="cal_scope_whole_series">toda la serie</string>
+    <string name="cal_save_failed">el calendario no ha aceptado el cambio</string>
+
+    <string name="weather_updated_just_now">actualizado ahora mismo</string>
+    <string name="weather_updated_minutes_ago">actualizado hace %1$d min</string>
+    <string name="weather_updated_hours_ago">actualizado hace %1$d h</string>
+    <string name="weather_status_quota">límite de actualizaciones de hoy alcanzado</string>
+    <string name="weather_status_no_network">sin red</string>
+    <string name="weather_status_fresh">ya está actualizado</string>
+    <string name="weather_units_metric">unidades métricas</string>
+    <string name="weather_units_imperial">unidades imperiales</string>
+    <string name="weather_suffix_km">km</string>
+    <string name="weather_suffix_mi">mi</string>
+    <string name="weather_suffix_hpa">hPa</string>
+    <string name="weather_suffix_inhg">inHg</string>
+    <string name="weather_suffix_mm">mm</string>
+    <string name="weather_suffix_in">in</string>
+
+    <string name="apps_launch_failed">no se pudo abrir la app</string>
+
+    <string name="settings_perm_calendar">calendario</string>
+    <string name="settings_perm_calendar_sub">para el hub de calendario y la agenda en inicio</string>
+    <string name="settings_perm_location">ubicación</string>
+    <string name="settings_perm_location_sub">para el tiempo donde estás</string>
+    <string name="settings_perm_notifications">notificaciones</string>
+    <string name="settings_perm_notifications_sub">para alarmas, temporizadores y recordatorios</string>
+    <string name="settings_perm_exact_alarms">alarmas exactas</string>
+    <string name="settings_perm_exact_alarms_sub">para que las alarmas suenen en el minuto exacto</string>
+    <string name="settings_perm_usage_access">acceso de uso</string>
+    <string name="settings_perm_usage_access_sub">para las apps más usadas de la lista de apps</string>
+
+    <string name="settings_image_load_failed">no se pudo abrir la imagen</string>
+</resources>

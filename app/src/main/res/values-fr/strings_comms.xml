@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_notes_share">notes</string>
+    <string name="label_key_service">Barre de volume et centre de notifications Zeta</string>
+    <string name="label_social_listener">Hub social Zeta</string>
+    <string name="label_sms_compose">Messages Zeta</string>
+    <string name="call_bluetooth">bluetooth</string>
+    <string name="call_swap">permuter</string>
+    <string name="call_number_line">%1$s : %2$s</string>
+    <string name="call_quick_custom_hint">écris ton propre message…</string>
+    <string name="call_quick_send">envoyer</string>
+    <string name="call_answer_hint">maintiens pour répondre</string>
+    <string name="call_ignore_hint">maintiens pour refuser</string>
+    <string name="call_hidden_banner">touche pour revenir à l\'appel</string>
+    <string name="phone_private_number">numéro masqué</string>
+    <string name="phone_paste">coller</string>
+    <string name="phone_move_up">monter</string>
+    <string name="phone_move_down">descendre</string>
+    <string name="phone_call_failed">l\'appel n\'a pas pu être passé</string>
+    <string name="phone_missed_call">appel manqué</string>
+    <plurals name="phone_missed_calls">
+        <item quantity="one">%1$d appel manqué</item>
+        <item quantity="many">%1$d appels manqués</item>
+        <item quantity="other">%1$d appels manqués</item>
+    </plurals>
+    <string name="volume_silent_needs_access">pour mettre le téléphone en silencieux, autorise Zeta dans l\'accès à ne pas déranger</string>
+    <string name="msg_mms_arrived">MMS reçu</string>
+    <string name="msg_pick_recipient_to_call">qui appeler ?</string>
+    <string name="people_tab_recent">récents</string>
+    <string name="people_copied">copié</string>
+    <string name="email_error_attachment_unreadable">la pièce jointe n\'a pas pu être lue : %1$s</string>
+    <string name="email_error_password_store">le mot de passe n\'a pas pu être stocké de façon sûre</string>
+</resources>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_security_secure">sichere verbindung</string>
+    <string name="browser_security_secure_detail">Die Verbindung zu dieser Website ist verschlüsselt; was du sendest, kann unterwegs nicht gelesen werden.</string>
+    <string name="browser_security_insecure">nicht sicher</string>
+    <string name="browser_security_insecure_detail">Die Verbindung zu dieser Website ist nicht verschlüsselt. Gib keine Passwörter oder Kartendaten ein.</string>
+    <string name="browser_security_ignored">zertifikatsproblem</string>
+    <string name="browser_security_ignored_detail">Das Zertifikat dieser Website konnte nicht überprüft werden, und du hast dich entschieden, trotzdem fortzufahren. Gib keine persönlichen Daten ein.</string>
+    <string name="browser_cert_title">mit dem sicherheitszertifikat dieser website stimmt etwas nicht</string>
+    <string name="browser_cert_expired">Das Zertifikat der Website ist abgelaufen.</string>
+    <string name="browser_cert_not_yet_valid">Das Zertifikat der Website ist noch nicht gültig. Vielleicht geht die Uhr des Handys falsch.</string>
+    <string name="browser_cert_mismatch">Das Zertifikat gehört zu einer anderen Website; es passt nicht zu dieser Adresse.</string>
+    <string name="browser_cert_untrusted">Das Zertifikat wurde nicht von einer vertrauenswürdigen Stelle ausgestellt.</string>
+    <string name="browser_cert_date_invalid">Das Zertifikat ist abgelaufen oder noch nicht gültig. Wenn die Uhr des Handys falsch geht, stell sie zuerst richtig.</string>
+    <string name="browser_cert_invalid">Das Zertifikat der Website konnte nicht überprüft werden.</string>
+    <string name="browser_cert_advice">Vielleicht versucht jemand, sich zwischen dich und diese Website zu stellen. Gib hier keine Passwörter, Kartennummern oder persönlichen Daten ein.</string>
+    <string name="browser_cert_back">zurück</string>
+    <string name="browser_cert_more">details</string>
+    <string name="browser_cert_less">details ausblenden</string>
+    <string name="browser_cert_proceed_warning">Wenn du sicher bist, dass du dieser Website vertraust, kannst du sie trotzdem öffnen. In dieser Sitzung wirst du dazu nicht noch einmal gefragt.</string>
+    <string name="browser_cert_proceed">trotzdem weiter zu %1$s (nicht empfohlen)</string>
+    <string name="browser_copied">kopiert</string>
+    <string name="browser_open_new_tab">in neuem tab öffnen</string>
+    <string name="browser_open_private_tab">in privatem tab öffnen</string>
+    <string name="browser_copy_link">link kopieren</string>
+    <string name="browser_share_link">link teilen</string>
+    <string name="browser_save_image">bild speichern</string>
+    <string name="browser_open_image">bild in neuem tab öffnen</string>
+    <string name="browser_copy_image_link">bildadresse kopieren</string>
+    <string name="browser_share_image">bild teilen</string>
+    <string name="browser_share_picture_failed">Das Bild konnte zum Teilen nicht geladen werden.</string>
+    <string name="browser_security_problem_detail">Das Zertifikat dieser Website konnte nicht überprüft werden.</string>
+    <string name="browser_text_size">textgröße</string>
+    <string name="browser_text_size_site">für %1$s</string>
+    <string name="browser_text_size_all">diese größe auf allen websites nutzen</string>
+    <string name="browser_print">drucken oder als PDF speichern</string>
+    <string name="browser_translate">seite übersetzen</string>
+    <string name="browser_pull_release">loslassen zum neu laden</string>
+    <string name="browser_blocking">werbe- und tracker-blocker</string>
+    <string name="browser_blocking_on">werbung und tracker blockieren: an</string>
+    <string name="browser_blocking_off">werbung und tracker blockieren: aus</string>
+    <string name="browser_blocking_off_here">blockieren ist auf dieser website aus</string>
+    <string name="browser_blocking_turn_off_here">Tippe, um auf dieser Website nicht mehr zu blockieren, falls sie nicht richtig funktioniert. Sperrliste: Steven Blacks hosts.</string>
+    <string name="browser_blocking_turn_on_here">Tippe, um Werbung und Tracker hier wieder zu blockieren.</string>
+    <plurals name="browser_blocked_count">
+        <item quantity="one">%1$d werbung oder tracker blockiert</item>
+        <item quantity="other">%1$d werbungen und tracker blockiert</item>
+    </plurals>
+    <string name="browser_frequent">meistbesucht</string>
+    <string name="browser_frequent_empty">Die Websites, die du am häufigsten öffnest, sammeln sich hier.</string>
+    <string name="browser_reading_list">leseliste</string>
+    <string name="browser_reading_list_empty">Deine Leseliste ist leer. Füge eine Seite über das Menü hinzu oder halte einen Link gedrückt.</string>
+    <string name="browser_reading_offline">offline lesbar</string>
+    <string name="browser_add_reading">zur leseliste hinzufügen</string>
+    <string name="browser_remove_reading">aus der leseliste entfernen</string>
+    <string name="browser_reading_added">Zur Leseliste hinzugefügt.</string>
+</resources>

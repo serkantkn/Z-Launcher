@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_pick_one">choisis quelqu\'un</string>
+    <string name="people_or_add_new">ou ajoute un nouveau contact</string>
+</resources>

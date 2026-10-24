@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_pane_device">cet appareil</string>
+    <string name="files_pane_libraries">bibliothèques</string>
+    <string name="files_free_of">%1$s libres sur %2$s</string>
+    <string name="files_col_name">nom</string>
+    <string name="files_col_modified">date de modification</string>
+    <string name="files_col_type">type</string>
+    <string name="files_col_size">taille</string>
+    <string name="files_type_file">fichier %1$s</string>
+    <string name="files_type_plain">fichier</string>
+    <plurals name="files_item_count">
+        <item quantity="one">%d élément</item>
+        <item quantity="many">%d éléments</item>
+        <item quantity="other">%d éléments</item>
+    </plurals>
+    <string name="files_back">retour</string>
+    <string name="files_path_menu">dossiers parents</string>
+    <string name="files_view_thumbnails">affichage en miniatures</string>
+    <string name="files_view_list">affichage en liste</string>
+    <string name="files_bar_select_all">tout sélectionner</string>
+    <string name="files_bar_clear_selection">effacer la sélection</string>
+    <string name="files_bar_view">affichage</string>
+    <string name="files_bar_hidden">éléments masqués</string>
+    <string name="files_bar_volumes">stockage</string>
+    <string name="files_bar_upload">envoyer</string>
+    <string name="files_bar_clear_clipboard">vider le presse-papiers</string>
+    <string name="files_view_thumbs_short">miniatures</string>
+    <string name="files_view_details_short">détails</string>
+    <string name="files_bar_open_with">ouvrir avec</string>
+    <plurals name="files_transfer_copying">
+        <item quantity="one">copie de %d élément</item>
+        <item quantity="many">copie de %d éléments</item>
+        <item quantity="other">copie de %d éléments</item>
+    </plurals>
+    <plurals name="files_transfer_moving">
+        <item quantity="one">déplacement de %d élément</item>
+        <item quantity="many">déplacement de %d éléments</item>
+        <item quantity="other">déplacement de %d éléments</item>
+    </plurals>
+    <string name="files_transfer_percent">%1$d %%</string>
+    <string name="files_transfer_speed">%1$s/s</string>
+    <string name="files_transfer_paused">en pause</string>
+    <string name="files_transfer_pause">pause</string>
+    <string name="files_transfer_resume">reprendre</string>
+    <string name="files_conflict_title_file">il y a déjà un fichier portant ce nom</string>
+    <string name="files_conflict_title_folder">il y a déjà un dossier portant ce nom</string>
+    <string name="files_conflict_incoming">celui qui est collé</string>
+    <string name="files_conflict_existing">celui qui est déjà là</string>
+    <string name="files_conflict_folder_note">remplacer un dossier supprime tout le contenu de celui qui est déjà là</string>
+    <string name="files_conflict_replace">remplacer</string>
+    <string name="files_conflict_skip">ignorer</string>
+    <string name="files_conflict_keep_both">garder les deux</string>
+    <plurals name="files_conflict_apply_all">
+        <item quantity="one">appliquer à tous (%d de plus)</item>
+        <item quantity="many">appliquer à tous (%d de plus)</item>
+        <item quantity="other">appliquer à tous (%d de plus)</item>
+    </plurals>
+    <string name="cloud_error_web_only">ce fichier Google ne s\'ouvre que sur le web</string>
+</resources>

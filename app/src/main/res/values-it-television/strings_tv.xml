@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_key_service">tasto Home di Zeta</string>
+    <string name="accessibility_service_description">Su una TV fa tre cose: vede quando premi il tasto Home del telecomando e apre Zeta invece della schermata home della TV; dal pannello \"spegnimento\", quando lo scegli, apre il menu di accensione della TV o la mette in standby; e mostra sopra le altre app gli avvisi di chiamate e messaggi da un telefono che hai associato. Non tocca nessun altro tasto, non legge niente sullo schermo, non registra niente e non invia niente da nessuna parte.</string>
+    <string name="settings_layout_zune">salotto</string>
+    <string name="settings_layout_zune_sub">l\'elenco di Salotto: i luoghi come parole enormi, accanto ciò che contiene ciascuno</string>
+    <string name="settings_layout_win8">console</string>
+    <string name="settings_layout_win8_sub">la bacheca di Console: sezioni in alto, riquadri grandi che scorrono a destra</string>
+    <string name="pics_tab_camera_roll">tutte le immagini</string>
+    <string name="pics_empty_camera_roll">ancora nessuna immagine su questa TV</string>
+    <string name="pics_empty_camera_roll_hint">le immagini copiate, trasmesse o su una chiavetta USB compaiono qui</string>
+    <string name="music_permission_message">Zeta ha bisogno del permesso per leggere la musica su questa TV.</string>
+    <string name="music_no_albums_hint">gli album compaiono quando c\'è musica sulla TV o su una chiavetta USB</string>
+    <string name="music_no_artists_hint">gli artisti compaiono quando c\'è musica sulla TV o su una chiavetta USB</string>
+    <string name="music_not_found_hint">copia un po\' di musica sulla TV o collega una chiavetta USB e comparirà qui</string>
+    <string name="music_online_extras_summary">cerca ciò che manca sulla TV</string>
+    <string name="files_cloud_save">Salva su questa TV</string>
+    <string name="files_cloud_picker_intro">I file su Google Drive, OneDrive, Dropbox e simili si aprono dal selettore della TV, quindi qui non devi accedere a niente.</string>
+    <string name="files_cloud_apps">app cloud su questa TV: %1$s</string>
+    <string name="files_cloud_no_apps">Ancora nessuna app cloud su questa TV. Installa Google Drive, OneDrive o Dropbox e comparirà qui.</string>
+    <string name="files_cloud_no_picker">Questa TV non ha un selettore di documenti.</string>
+    <string name="music_no_videos_hint">i video sulla TV o su una chiavetta USB compaiono qui</string>
+    <string name="music_video_permission_message">Per mostrare i video su questa TV, il launcher deve avere il permesso di vederli.</string>
+</resources>

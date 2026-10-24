@@ -13,7 +13,11 @@ import java.util.Locale
 enum class AppLanguage(val tag: String?, @StringRes val titleRes: Int) {
     SYSTEM(null, R.string.language_system),
     TURKISH("tr", R.string.language_turkish),
-    ENGLISH("en", R.string.language_english);
+    ENGLISH("en", R.string.language_english),
+    FRENCH("fr", R.string.language_french),
+    GERMAN("de", R.string.language_german),
+    SPANISH("es", R.string.language_spanish),
+    ITALIAN("it", R.string.language_italian);
 
     companion object {
         fun fromTag(tag: String?): AppLanguage =

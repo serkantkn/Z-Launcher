@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_bin_title">corbeille</string>
+    <string name="files_bin_is_empty">la corbeille est vide</string>
+    <string name="files_bin_note">Les éléments supprimés attendent ici 30 jours, puis ils sont supprimés définitivement.</string>
+    <string name="files_bin_restore">restaurer</string>
+    <string name="files_bin_delete_forever">supprimer définitivement</string>
+    <string name="files_bin_empty_action">vider la corbeille</string>
+    <string name="files_bin_empty_title">vider la corbeille</string>
+    <string name="files_bin_empty_confirm">Tout le contenu de la corbeille (%1$d éléments) sera supprimé définitivement. Cette action est irréversible.</string>
+    <string name="files_bin_forever_confirm">\"%1$s\" sera supprimé définitivement. Cette action est irréversible.</string>
+    <string name="files_bin_forever_many_confirm">%1$d éléments seront supprimés définitivement. Cette action est irréversible.</string>
+    <string name="files_bin_col_location">emplacement d\'origine</string>
+    <string name="files_bin_col_deleted">date de suppression</string>
+    <string name="files_bin_deleted_on">supprimé %1$s</string>
+    <string name="files_bin_restore_partial">%1$d éléments n\'ont pas pu être restaurés.</string>
+    <string name="files_trash_failed">%1$s n\'a pas pu être déplacé dans la corbeille</string>
+</resources>

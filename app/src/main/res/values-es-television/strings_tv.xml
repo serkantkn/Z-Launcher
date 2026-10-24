@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_key_service">Botón Inicio de Zeta</string>
+    <string name="accessibility_service_description">En una TV hace tres cosas: detecta cuando se pulsa el botón Inicio del mando y abre Zeta en lugar de la pantalla de inicio propia de la TV; desde el panel \"apagar\", cuando lo eliges, abre el menú de encendido de la TV o la pone en reposo; y muestra sobre otras apps los avisos de llamadas y mensajes de un teléfono que hayas vinculado. No toca ninguna otra tecla, no lee nada de la pantalla, no graba nada y no envía nada a ningún sitio.</string>
+    <string name="settings_layout_zune">salón</string>
+    <string name="settings_layout_zune_sub">la lista de Salón: los lugares en palabras enormes, y lo que contiene cada uno a su lado</string>
+    <string name="settings_layout_win8">consola</string>
+    <string name="settings_layout_win8_sub">el tablero de Consola: secciones arriba, mosaicos grandes que se extienden a la derecha</string>
+    <string name="pics_tab_camera_roll">todas las imágenes</string>
+    <string name="pics_empty_camera_roll">aún no hay imágenes en esta TV</string>
+    <string name="pics_empty_camera_roll_hint">las imágenes copiadas, enviadas o en una memoria USB aparecen aquí</string>
+    <string name="music_permission_message">Zeta necesita permiso para leer la música de esta TV.</string>
+    <string name="music_no_albums_hint">los álbumes aparecen cuando hay música en la TV o en una memoria USB</string>
+    <string name="music_no_artists_hint">los artistas aparecen cuando hay música en la TV o en una memoria USB</string>
+    <string name="music_not_found_hint">copia música a la TV o conecta una memoria USB y aparecerá aquí</string>
+    <string name="music_online_extras_summary">busca lo que le falta a la TV</string>
+    <string name="files_cloud_save">Guardar en esta TV</string>
+    <string name="files_cloud_picker_intro">Los archivos de Google Drive, OneDrive, Dropbox y similares se abren con el selector de la propia TV, así que aquí no hay que iniciar sesión en nada.</string>
+    <string name="files_cloud_apps">apps de nube en esta TV: %1$s</string>
+    <string name="files_cloud_no_apps">Aún no hay ninguna app de nube en esta TV. Instala Google Drive, OneDrive o Dropbox y aparecerá aquí.</string>
+    <string name="files_cloud_no_picker">Esta TV no tiene selector de documentos.</string>
+    <string name="music_no_videos_hint">los vídeos de la TV o de una memoria USB aparecen aquí</string>
+    <string name="music_video_permission_message">Para mostrar los vídeos de esta TV, el launcher necesita permiso para verlos.</string>
+</resources>

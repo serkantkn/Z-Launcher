@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="start_hub_move_up">nach oben</string>
+    <string name="start_hub_move_down">nach unten</string>
+    <string name="start_pinned_section">angeheftet</string>
+    <string name="tile_more_actions">mehr</string>
+    <string name="bottom_bar_more">mehr</string>
+    <string name="volume_media_apps">MEDIEN + APPS</string>
+    <string name="start_edit_start">start bearbeiten</string>
+</resources>

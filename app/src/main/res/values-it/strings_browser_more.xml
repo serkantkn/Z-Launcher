@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_security_secure">connessione sicura</string>
+    <string name="browser_security_secure_detail">La connessione a questo sito è crittografata; ciò che invii non può essere letto lungo il percorso.</string>
+    <string name="browser_security_insecure">non sicuro</string>
+    <string name="browser_security_insecure_detail">La connessione a questo sito non è crittografata. Non inserire password o dati della carta.</string>
+    <string name="browser_security_ignored">problema col certificato</string>
+    <string name="browser_security_ignored_detail">Il certificato di questo sito non è stato verificato e hai scelto di proseguire comunque. Non inserire dati personali.</string>
+
+    <string name="browser_cert_title">c\'è un problema con il certificato di sicurezza di questo sito</string>
+    <string name="browser_cert_expired">Il certificato del sito è scaduto.</string>
+    <string name="browser_cert_not_yet_valid">Il certificato del sito non è ancora valido. L\'orologio del telefono potrebbe essere sbagliato.</string>
+    <string name="browser_cert_mismatch">Il certificato appartiene a un altro sito; non corrisponde a questo indirizzo.</string>
+    <string name="browser_cert_untrusted">Il certificato non è stato emesso da un\'autorità attendibile.</string>
+    <string name="browser_cert_date_invalid">Il certificato è scaduto o non è ancora valido. Se l\'orologio del telefono è sbagliato, correggilo prima.</string>
+    <string name="browser_cert_invalid">Impossibile verificare il certificato del sito.</string>
+    <string name="browser_cert_advice">Qualcuno potrebbe cercare di mettersi tra te e questo sito. Non inserire qui password, numeri di carta o dati personali.</string>
+    <string name="browser_cert_back">torna indietro</string>
+    <string name="browser_cert_more">dettagli</string>
+    <string name="browser_cert_less">nascondi dettagli</string>
+    <string name="browser_cert_proceed_warning">Se sei sicuro di fidarti di questo sito, puoi aprirlo comunque. Non ti verrà chiesto di nuovo in questa sessione.</string>
+    <string name="browser_cert_proceed">vai comunque su %1$s (sconsigliato)</string>
+
+    <string name="browser_copied">copiato</string>
+    <string name="browser_open_new_tab">apri in nuova scheda</string>
+    <string name="browser_open_private_tab">apri in scheda privata</string>
+    <string name="browser_copy_link">copia link</string>
+    <string name="browser_share_link">condividi link</string>
+    <string name="browser_save_image">salva immagine</string>
+    <string name="browser_open_image">apri immagine in nuova scheda</string>
+    <string name="browser_copy_image_link">copia indirizzo immagine</string>
+    <string name="browser_share_image">condividi immagine</string>
+    <string name="browser_share_picture_failed">Impossibile recuperare l\'immagine da condividere.</string>
+    <string name="browser_security_problem_detail">Impossibile verificare il certificato di questo sito.</string>
+    <string name="browser_text_size">dimensione testo</string>
+    <string name="browser_text_size_site">per %1$s</string>
+    <string name="browser_text_size_all">usa questa dimensione su tutti i siti</string>
+    <string name="browser_print">stampa o salva come PDF</string>
+    <string name="browser_translate">traduci pagina</string>
+    <string name="browser_pull_release">rilascia per ricaricare</string>
+    <string name="browser_blocking">blocco annunci e tracker</string>
+    <string name="browser_blocking_on">blocco annunci e tracker: attivo</string>
+    <string name="browser_blocking_off">blocco annunci e tracker: disattivo</string>
+    <string name="browser_blocking_off_here">il blocco è disattivato su questo sito</string>
+    <string name="browser_blocking_turn_off_here">Tocca per non bloccare più su questo sito, se non funziona bene. Elenco di blocco: hosts di Steven Black.</string>
+    <string name="browser_blocking_turn_on_here">Tocca per bloccare di nuovo annunci e tracker qui.</string>
+    <plurals name="browser_blocked_count">
+        <item quantity="one">%1$d annuncio o tracker bloccato</item>
+        <item quantity="many">%1$d annunci e tracker bloccati</item>
+        <item quantity="other">%1$d annunci e tracker bloccati</item>
+    </plurals>
+    <string name="browser_frequent">più visitati</string>
+    <string name="browser_frequent_empty">I siti che apri più spesso si raccoglieranno qui.</string>
+    <string name="browser_reading_list">elenco di lettura</string>
+    <string name="browser_reading_list_empty">L\'elenco di lettura è vuoto. Aggiungi una pagina dal menu, o tieni premuto un link.</string>
+    <string name="browser_reading_offline">leggibile offline</string>
+    <string name="browser_add_reading">aggiungi all\'elenco di lettura</string>
+    <string name="browser_remove_reading">rimuovi dall\'elenco di lettura</string>
+    <string name="browser_reading_added">Aggiunto all\'elenco di lettura.</string>
+</resources>

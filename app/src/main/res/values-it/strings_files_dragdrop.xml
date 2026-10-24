@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_drop_move_folder">Sposta in %1$s</string>
+    <string name="files_drop_copy_folder">Copia in %1$s</string>
+    <string name="files_drop_move_place">Sposta in %1$s</string>
+    <string name="files_drop_copy_place">Copia in %1$s</string>
+</resources>

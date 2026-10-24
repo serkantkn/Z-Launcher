@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_notes_share">notas</string>
+    <string name="label_key_service">Barra de volumen y centro de actividades de Zeta</string>
+    <string name="label_social_listener">Hub social de Zeta</string>
+    <string name="label_sms_compose">Mensajes de Zeta</string>
+
+    <string name="call_bluetooth">bluetooth</string>
+    <string name="call_swap">cambiar</string>
+    <string name="call_number_line">%1$s: %2$s</string>
+    <string name="call_quick_custom_hint">escribe el tuyo…</string>
+    <string name="call_quick_send">enviar</string>
+    <string name="call_answer_hint">mantén pulsado para responder</string>
+    <string name="call_ignore_hint">mantén pulsado para rechazar</string>
+    <string name="call_hidden_banner">toca para volver a la llamada</string>
+
+    <string name="phone_private_number">número privado</string>
+    <string name="phone_paste">pegar</string>
+    <string name="phone_move_up">subir</string>
+    <string name="phone_move_down">bajar</string>
+    <string name="phone_call_failed">no se pudo hacer la llamada</string>
+    <string name="phone_missed_call">llamada perdida</string>
+    <plurals name="phone_missed_calls">
+        <item quantity="one">%1$d llamada perdida</item>
+        <item quantity="many">%1$d llamadas perdidas</item>
+        <item quantity="other">%1$d llamadas perdidas</item>
+    </plurals>
+
+    <string name="volume_silent_needs_access">para silenciar el teléfono, permite a Zeta el acceso a no molestar</string>
+
+    <string name="msg_mms_arrived">ha llegado un mensaje multimedia</string>
+    <string name="msg_pick_recipient_to_call">¿a quién llamar?</string>
+
+    <string name="people_tab_recent">recientes</string>
+    <string name="people_copied">copiado</string>
+
+    <string name="email_error_attachment_unreadable">no se pudo leer el adjunto: %1$s</string>
+    <string name="email_error_password_store">no se pudo guardar la contraseña de forma segura</string>
+</resources>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hub_news">actualités</string>
+    <string name="news_topic_top">à la une</string>
+    <string name="news_topic_nation">national</string>
+    <string name="news_topic_world">monde</string>
+    <string name="news_topic_business">économie</string>
+    <string name="news_topic_technology">technologie</string>
+    <string name="news_topic_science">sciences</string>
+    <string name="news_topic_health">santé</string>
+    <string name="news_topic_sports">sports</string>
+    <string name="news_topic_entertainment">divertissement</string>
+    <string name="news_tab_sources">mes sources</string>
+    <string name="news_refresh">actualiser</string>
+    <string name="news_refresh_all">tout actualiser</string>
+    <string name="news_settings">paramètres</string>
+    <string name="news_pick_story">choisis un article</string>
+    <string name="news_loading">récupération des actualités…</string>
+    <string name="news_nothing_yet">Il n\'y a pas encore d\'actualités ici.</string>
+    <string name="news_no_sources">Tu ne suis encore aucune source.</string>
+    <string name="news_all_sources">toutes</string>
+    <string name="news_status_offline">Pas de connexion Internet ; affichage des dernières actualités récupérées.</string>
+    <string name="news_status_failed">Les actualités n\'ont pas pu être récupérées ; réessaie dans un instant.</string>
+    <string name="news_read_on">lire la suite</string>
+    <string name="news_copy_link">copier le lien</string>
+    <string name="news_related">d\'autres sources</string>
+    <string name="news_story_footnote">L\'article complet s\'ouvre sur le site qui l\'a publié. Quand la page s\'y prête, le mode lecture est proposé à côté de l\'adresse.</string>
+    <string name="news_settings_topics">thèmes</string>
+    <string name="news_settings_topics_hint">Rubriques de Google Actualités. Les articles à la une viennent toujours en premier.</string>
+    <string name="news_settings_sources">sources</string>
+    <string name="news_settings_sources_hint">Les articles des sites activés ici sont rassemblés sous \"mes sources\", les plus récents d\'abord.</string>
+    <string name="news_remove_source">supprimer</string>
+    <string name="news_add_source">ajouter une source</string>
+    <string name="news_add_source_hint">Saisis l\'adresse du flux RSS ou Atom d\'un site.</string>
+    <string name="news_add_source_placeholder">ex. example.com/rss</string>
+    <string name="news_add">ajouter</string>
+    <string name="news_adding">lecture du flux…</string>
+    <string name="news_settings_footnote">Les thèmes viennent de Google Actualités, les sources du flux RSS de chaque site. Le hub affiche le titre et le résumé d\'un article ; l\'article complet se lit sur son site.</string>
+    <string name="news_error_already_added">Ce flux est déjà ajouté.</string>
+    <string name="news_error_offline">Pas de connexion Internet.</string>
+    <string name="news_error_unreachable">Cette adresse est injoignable.</string>
+    <string name="news_error_not_a_feed">Aucun flux d\'actualités trouvé à cette adresse. Essaie l\'adresse RSS du site.</string>
+</resources>

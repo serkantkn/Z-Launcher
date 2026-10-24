@@ -66,6 +66,23 @@ object NewsPresets {
         preset("sozcu", "Sözcü", "https://www.sozcu.com.tr/feeds-rss-category-sozcu", "tr"),
         preset("webtekno", "Webtekno", "https://www.webtekno.com/rss.xml", "tr"),
         preset("shiftdelete", "ShiftDelete.Net", "https://shiftdelete.net/feed", "tr"),
+        preset("france24", "France 24", "https://www.france24.com/fr/rss", "fr"),
+        preset("lemonde", "Le Monde", "https://www.lemonde.fr/rss/une.xml", "fr"),
+        preset("franceinfo", "franceinfo", "https://www.francetvinfo.fr/titres.rss", "fr"),
+        preset("numerama", "Numerama", "https://www.numerama.com/feed/", "fr"),
+        preset("tagesschau", "tagesschau", "https://www.tagesschau.de/index~rss2.xml", "de"),
+        preset("dw-deutsch", "DW Deutsch", "https://rss.dw.com/rdf/rss-de-all", "de"),
+        preset("spiegel", "Der Spiegel", "https://www.spiegel.de/schlagzeilen/index.rss", "de"),
+        preset("heise", "heise online", "https://www.heise.de/rss/heise-atom.xml", "de"),
+        preset("bbc-mundo", "BBC News Mundo", "https://feeds.bbci.co.uk/mundo/rss.xml", "es"),
+        preset("elpais", "El País", "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada", "es"),
+        preset("dw-espanol", "DW Español", "https://rss.dw.com/rdf/rss-sp-all", "es"),
+        preset("xataka", "Xataka", "https://www.xataka.com/index.xml", "es"),
+        preset("ansa", "ANSA", "https://www.ansa.it/sito/ansait_rss.xml", "it"),
+        preset("rainews", "RaiNews", "https://www.rainews.it/rss/ultimora", "it"),
+        preset("corriere", "Corriere della Sera", "https://xml2.corriereobjects.it/rss/homepage.xml", "it"),
+        preset("repubblica", "la Repubblica", "https://www.repubblica.it/rss/homepage/rss2.0.xml", "it"),
+        preset("wired-it", "Wired Italia", "https://www.wired.it/feed/rss", "it"),
         preset("bbc-news", "BBC News", "https://feeds.bbci.co.uk/news/rss.xml", "en"),
         preset("guardian-world", "The Guardian", "https://www.theguardian.com/world/rss", "en"),
         preset("nyt", "The New York Times", "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "en"),
@@ -80,6 +97,10 @@ object NewsPresets {
     /** What a new hub follows: a few in the phone's own language, or the English ones. */
     fun defaultIdsFor(language: String): Set<String> = when (language) {
         "tr" -> setOf("bbc-turkce", "dw-turkce", "aa", "ntv")
+        "fr" -> setOf("france24", "lemonde", "franceinfo")
+        "de" -> setOf("tagesschau", "dw-deutsch", "spiegel")
+        "es" -> setOf("bbc-mundo", "elpais", "dw-espanol")
+        "it" -> setOf("ansa", "rainews", "corriere")
         else -> setOf("bbc-news", "guardian-world", "verge")
     }
 

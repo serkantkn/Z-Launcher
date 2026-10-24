@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notes_italic">italique</string>
+    <string name="notes_underline">souligné</string>
+    <string name="notes_strike">barré</string>
+    <string name="notes_align_left">aligner à gauche</string>
+    <string name="notes_align_center">centrer</string>
+    <string name="notes_align_right">aligner à droite</string>
+    <string name="notes_numbered">liste numérotée</string>
+    <string name="notes_clear_format">effacer la mise en forme</string>
+    <string name="notes_size">taille</string>
+    <string name="notes_subheading">sous-titre</string>
+    <string name="notes_size_small">petit</string>
+    <string name="notes_size_normal">normal</string>
+    <string name="notes_size_large">grand</string>
+    <string name="notes_size_huge">énorme</string>
+    <string name="notes_text_colour">couleur</string>
+    <string name="notes_highlight">surligner</string>
+    <string name="notes_typeface">police</string>
+    <string name="notes_font_sans">simple</string>
+    <string name="notes_font_serif">serif</string>
+    <string name="notes_font_mono">machine à écrire</string>
+    <string name="notes_font_hand">manuscrite</string>
+</resources>

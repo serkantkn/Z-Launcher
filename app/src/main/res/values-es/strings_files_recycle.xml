@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_bin_title">papelera</string>
+    <string name="files_bin_is_empty">la papelera está vacía</string>
+    <string name="files_bin_note">Lo que se borra espera aquí 30 días y después se elimina definitivamente.</string>
+    <string name="files_bin_restore">restaurar</string>
+    <string name="files_bin_delete_forever">eliminar definitivamente</string>
+    <string name="files_bin_empty_action">vaciar papelera</string>
+    <string name="files_bin_empty_title">vaciar la papelera</string>
+    <string name="files_bin_empty_confirm">Todo lo que hay en la papelera (%1$d elementos) se eliminará definitivamente. No se puede deshacer.</string>
+    <string name="files_bin_forever_confirm">\"%1$s\" se eliminará definitivamente. No se puede deshacer.</string>
+    <string name="files_bin_forever_many_confirm">%1$d elementos se eliminarán definitivamente. No se puede deshacer.</string>
+    <string name="files_bin_col_location">ubicación original</string>
+    <string name="files_bin_col_deleted">fecha de borrado</string>
+    <string name="files_bin_deleted_on">borrado %1$s</string>
+    <string name="files_bin_restore_partial">%1$d elementos no se pudieron restaurar.</string>
+    <string name="files_trash_failed">%1$s no se pudo mover a la papelera</string>
+</resources>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_notes_share">notizen</string>
+    <string name="label_key_service">Zeta lautstärkeleiste und info-center</string>
+    <string name="label_social_listener">Zeta social-hub</string>
+    <string name="label_sms_compose">Zeta nachrichten</string>
+    <string name="call_bluetooth">bluetooth</string>
+    <string name="call_swap">wechseln</string>
+    <string name="call_number_line">%1$s: %2$s</string>
+    <string name="call_quick_custom_hint">eigene schreiben…</string>
+    <string name="call_quick_send">senden</string>
+    <string name="call_answer_hint">gedrückt halten zum annehmen</string>
+    <string name="call_ignore_hint">gedrückt halten zum ablehnen</string>
+    <string name="call_hidden_banner">tippen, um zum anruf zurückzukehren</string>
+    <string name="phone_private_number">private nummer</string>
+    <string name="phone_paste">einfügen</string>
+    <string name="phone_move_up">nach oben</string>
+    <string name="phone_move_down">nach unten</string>
+    <string name="phone_call_failed">der anruf konnte nicht getätigt werden</string>
+    <string name="phone_missed_call">verpasster anruf</string>
+    <plurals name="phone_missed_calls">
+        <item quantity="one">%1$d verpasster anruf</item>
+        <item quantity="other">%1$d verpasste anrufe</item>
+    </plurals>
+    <string name="volume_silent_needs_access">um das handy stummzuschalten, erlaube Zeta den zugriff auf „bitte nicht stören“</string>
+    <string name="msg_mms_arrived">mms eingegangen</string>
+    <string name="msg_pick_recipient_to_call">wen anrufen?</string>
+    <string name="people_tab_recent">zuletzt</string>
+    <string name="people_copied">kopiert</string>
+    <string name="email_error_attachment_unreadable">anhang konnte nicht gelesen werden: %1$s</string>
+    <string name="email_error_password_store">das passwort konnte nicht sicher gespeichert werden</string>
+</resources>

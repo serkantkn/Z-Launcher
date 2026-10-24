@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browser_download_blob">questo link non si può scaricare</string>
+    <string name="browser_page_crashed">la pagina si è bloccata</string>
+    <string name="browser_page_reload">ricarica</string>
+    <string name="browser_permission_title">autorizzazione del sito</string>
+    <string name="browser_permission_body">%1$s vuole usare: %2$s.</string>
+    <string name="browser_permission_camera">fotocamera</string>
+    <string name="browser_permission_microphone">microfono</string>
+    <string name="browser_permission_location">posizione</string>
+    <string name="browser_permission_allow">consenti</string>
+    <string name="browser_permission_deny">nega</string>
+
+    <string name="files_already_here">già presente</string>
+    <string name="files_paste_progress">%1$d / %2$d · %3$s</string>
+    <string name="files_paste_cancelled">incolla annullato</string>
+    <string name="files_folder_failed">impossibile creare la cartella</string>
+    <string name="files_delete_failed">impossibile eliminare %1$s</string>
+    <string name="files_rename_failed">impossibile rinominare %1$s</string>
+
+    <string name="pics_save_failed">impossibile salvare l\'immagine</string>
+    <string name="editor_load_failed">l\'immagine non si apre</string>
+    <string name="editor_save_failed">impossibile salvare l\'immagine; prova un ritaglio più piccolo</string>
+
+    <string name="music_sleep_other_app">il timer di spegnimento non è riuscito a mettere in pausa l\'altra app</string>
+</resources>

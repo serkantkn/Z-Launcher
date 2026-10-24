@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_welcome_more">primero unas elecciones y después un poco de práctica. lleva menos de dos minutos, y puedes saltar adelante cuando quieras.</string>
+    <string name="onboarding_welcome_line_tablet">tu tableta va a cambiar un poco de aspecto. una pantalla de inicio que va de borde a borde, mosaicos dinámicos y hubs que reúnen a tus contactos, tu música y tus fotos. el lenguaje limpio y audaz de Panorama y Aura, con todo lo que Android puede hacer por debajo.</string>
+
+    <string name="onboarding_tstart_title">inicio</string>
+    <string name="onboarding_tstart_line">tus mosaicos se extienden hacia el lado, tan lejos como los llenes. todo lo demás está a un deslizamiento: tus apps esperan debajo, y social se saca desde el borde izquierdo.</string>
+    <string name="onboarding_tstart_apps">desliza hacia arriba para ver las apps</string>
+    <string name="onboarding_tstart_social">tira a la derecha para social</string>
+    <string name="onboarding_ttile_title">mosaicos</string>
+    <string name="onboarding_ttile_line">mantén pulsado un mosaico para moverlo, cambiar su tamaño o quitarlo. pellizca el tablero con dos dedos y todos los grupos caben en una pantalla.</string>
+    <string name="onboarding_ttile_pinch">pellizca el tablero</string>
+    <string name="onboarding_thub_line">las páginas de un hub están a su izquierda. toca una y se abre a su lado.</string>
+    <string name="onboarding_thub_try">toca otro encabezado</string>
+    <string name="onboarding_pivot_three">agenda</string>
+
+    <string name="onboarding_recap_title">para recordar</string>
+    <string name="onboarding_recap_sides">desliza hacia los lados</string>
+    <string name="onboarding_recap_sides_does">social a la izquierda, tus apps a la derecha</string>
+    <string name="onboarding_recap_up">desliza hacia arriba</string>
+    <string name="onboarding_recap_up_does">todas tus apps, bajo inicio</string>
+    <string name="onboarding_recap_pull">tira de inicio hacia la derecha</string>
+    <string name="onboarding_recap_pull_does">social</string>
+    <string name="onboarding_recap_hold">mantén pulsado un mosaico</string>
+    <string name="onboarding_recap_hold_does">muévelo, cambia su tamaño o quítalo</string>
+    <string name="onboarding_recap_pinch">pellizca inicio</string>
+    <string name="onboarding_recap_pinch_does">todos los grupos en una pantalla</string>
+    <string name="onboarding_recap_home">pulsa inicio dos veces</string>
+    <string name="onboarding_recap_home_does">los hubs que dejaste abiertos</string>
+    <string name="onboarding_recap_top">desliza hacia abajo desde arriba</string>
+    <string name="onboarding_recap_top_does">notificaciones y ajustes rápidos</string>
+
+    <string name="onboarding_sample_from_1">Ayşe</string>
+    <string name="onboarding_sample_text_1">¿vienes a cenar? he reservado mesa para ocho 🍝</string>
+    <string name="onboarding_sample_from_2">Mert</string>
+    <string name="onboarding_sample_group_2">club de lectura</string>
+    <string name="onboarding_sample_text_2">¿alguien ha terminado el libro de este mes? hablamos el sábado</string>
+    <string name="onboarding_sample_from_3">Zeynep</string>
+    <string name="onboarding_sample_text_3">le ha gustado tu foto</string>
+    <string name="onboarding_sample_from_4">Can</string>
+    <string name="onboarding_sample_text_4">he subido los archivos, avísame cuando los hayas visto</string>
+    <string name="onboarding_sample_from_5">Elif</string>
+    <string name="onboarding_sample_text_5">te ha etiquetado en una publicación</string>
+    <string name="onboarding_sample_event_1">café con Deniz</string>
+    <string name="onboarding_sample_place_1">la cafetería de la esquina</string>
+    <string name="onboarding_sample_event_2">reunión de equipo</string>
+    <string name="onboarding_sample_place_2">sala de reuniones 2</string>
+    <string name="onboarding_sample_event_3">gimnasio</string>
+    <string name="onboarding_sample_event_4">dentista</string>
+    <string name="onboarding_sample_place_4">clínica de la ciudad</string>
+    <string name="onboarding_sample_event_5">cumpleaños de mamá</string>
+    <string name="onboarding_sample_event_6">concierto</string>
+    <string name="onboarding_sample_place_6">teatro al aire libre</string>
+</resources>
