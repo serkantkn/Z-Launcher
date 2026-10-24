@@ -15,4 +15,28 @@
         android:languageTag="en-US"
         android:imeSubtypeMode="keyboard"
         android:isAsciiCapable="true" />
+    <subtype
+        android:label="@string/keyboard_subtype_fr"
+        android:imeSubtypeLocale="fr_FR"
+        android:languageTag="fr-FR"
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="false" />
+    <subtype
+        android:label="@string/keyboard_subtype_de"
+        android:imeSubtypeLocale="de_DE"
+        android:languageTag="de-DE"
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="false" />
+    <subtype
+        android:label="@string/keyboard_subtype_es"
+        android:imeSubtypeLocale="es_ES"
+        android:languageTag="es-ES"
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="false" />
+    <subtype
+        android:label="@string/keyboard_subtype_it"
+        android:imeSubtypeLocale="it_IT"
+        android:languageTag="it-IT"
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true" />
 </input-method>

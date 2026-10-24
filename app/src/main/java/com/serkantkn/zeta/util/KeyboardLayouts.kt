@@ -39,6 +39,13 @@ object KeyboardLayouts {
         val rows = when (language) {
             KeyboardLanguage.TURKISH -> listOf("qwertyuıopğü", "asdfghjklşi", "zxcvbnmöç")
             KeyboardLanguage.ENGLISH -> listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")
+            // AZERTY, the apostrophe at the end of the bottom row, where French types it.
+            KeyboardLanguage.FRENCH -> listOf("azertyuiop", "qsdfghjklm", "wxcvbn'")
+            // QWERTZ, with the umlauts and ß on the board rather than behind a hold.
+            KeyboardLanguage.GERMAN -> listOf("qwertzuiopü", "asdfghjklöä", "yxcvbnmß")
+            KeyboardLanguage.SPANISH -> listOf("qwertyuiop", "asdfghjklñ", "zxcvbnm")
+            // Italian keeps QWERTY; its accented vowels are a hold away.
+            KeyboardLanguage.ITALIAN -> listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")
         }
         val total = rows[0].length.toFloat()
         val middleMargin = (total - rows[1].length) / 2f
@@ -86,7 +93,7 @@ object KeyboardLayouts {
         variant = variant,
         languageKey = languageKey,
         first = DIGIT_ROW,
-        second = "-/:;()₺&@\"",
+        second = "-/:;()${currencyOf(language)}&@\"",
         third = ".,?!'+=",
         switchLabel = MORE_LABEL,
         switchTarget = KeyboardPage.MORE_SYMBOLS
@@ -184,6 +191,13 @@ object KeyboardLayouts {
         }
     }
 
+    /** The money a language writes with: the lira in Turkish, the dollar in English, else the euro. */
+    fun currencyOf(language: KeyboardLanguage): String = when (language) {
+        KeyboardLanguage.TURKISH -> "₺"
+        KeyboardLanguage.ENGLISH -> "$"
+        else -> "€"
+    }
+
     /** Locale-aware upper case, so Turkish "i" becomes "İ" and "ı" becomes "I". */
     fun shifted(text: String, language: KeyboardLanguage): String =
         text.uppercase(Locale.forLanguageTag(language.tag))
@@ -196,6 +210,8 @@ object KeyboardLayouts {
         val base = char.toString()
         return KeyboardKey(base, altKeys = extraAlternates + (ACCENTS[base] ?: emptyList()))
     }
+
+    private val CURRENCIES = listOf("₺", "$", "€", "£", "¥", "₽")
 
     private fun symbolBoard(
         page: KeyboardPage,
@@ -211,7 +227,9 @@ object KeyboardLayouts {
         val total = first.length.toFloat()
         fun symbolKey(char: Char): KeyboardKey {
             val base = char.toString()
-            return KeyboardKey(base, altKeys = SYMBOL_ALTERNATES[base] ?: emptyList())
+            // The currency key holds the others.
+            val alternates = SYMBOL_ALTERNATES[base] ?: if (base in CURRENCIES) CURRENCIES - base else emptyList()
+            return KeyboardKey(base, altKeys = alternates)
         }
         return KeyboardLayout(
             page = page,
@@ -295,14 +313,14 @@ object KeyboardLayouts {
 
     /** Hold-to-type alternates: accents first, then the characters of the other alphabet. */
     private val ACCENTS: Map<String, List<String>> = mapOf(
-        "a" to listOf("â", "ä", "à", "á", "ã", "å"),
+        "a" to listOf("à", "â", "ä", "á", "æ", "ã", "å"),
         "c" to listOf("ç", "ć"),
-        "e" to listOf("ê", "ë", "è", "é"),
+        "e" to listOf("é", "è", "ê", "ë", "€"),
         "g" to listOf("ğ"),
         "i" to listOf("î", "ï", "ì", "í", "ı"),
         "ı" to listOf("i", "î"),
         "n" to listOf("ñ"),
-        "o" to listOf("ö", "ô", "ò", "ó", "õ"),
+        "o" to listOf("ö", "ô", "ò", "ó", "œ", "õ"),
         "s" to listOf("ş", "ß"),
         "u" to listOf("ü", "û", "ù", "ú"),
         "y" to listOf("ý", "ÿ"),
@@ -312,6 +330,10 @@ object KeyboardLayouts {
         "ö" to listOf("o", "ô", "ò", "ó"),
         "ş" to listOf("s"),
         "ü" to listOf("u", "û", "ù", "ú"),
+        "ä" to listOf("a", "à", "â"),
+        "ß" to listOf("s", "ẞ"),
+        "ñ" to listOf("n"),
+        "'" to listOf("’", "\""),
         "." to listOf(",", "?", "!", ":", ";", "…"),
         "," to listOf(".", "?", "!", "'", "\"")
     )
@@ -321,7 +343,6 @@ object KeyboardLayouts {
         "/" to listOf("\\"),
         "(" to listOf("[", "{", "<"),
         ")" to listOf("]", "}", ">"),
-        "₺" to listOf("$", "€", "£", "¥", "₽"),
         "&" to listOf("§"),
         "\"" to listOf("“", "”", "«", "»"),
         "'" to listOf("‘", "’"),

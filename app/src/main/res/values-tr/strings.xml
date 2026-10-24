@@ -1245,6 +1245,10 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="keyboard_name">Z Klavye</string>
     <string name="keyboard_subtype_tr">Türkçe</string>
     <string name="keyboard_subtype_en">İngilizce</string>
+    <string name="keyboard_subtype_fr">Fransızca</string>
+    <string name="keyboard_subtype_de">Almanca</string>
+    <string name="keyboard_subtype_es">İspanyolca</string>
+    <string name="keyboard_subtype_it">İtalyanca</string>
     <string name="settings_tab_keyboard">klavye</string>
     <string name="keyboard_setup_group">kurulum</string>
     <string name="keyboard_enable_title">klavyeyi etkinleştir</string>
@@ -1263,7 +1267,7 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="keyboard_height_small">kısa</string>
     <string name="keyboard_height_medium">standart</string>
     <string name="keyboard_height_large">uzun</string>
-    <string name="keyboard_language_note">harf düzeni uygulamanın dilini izler: Türkçe veya İngilizce</string>
+    <string name="keyboard_language_note">yukarıda dil açmadıysan harf düzeni uygulamanın dilini izler</string>
     <string name="ime_action_go">git</string>
     <string name="ime_action_search">ara</string>
     <string name="ime_action_send">gönder</string>

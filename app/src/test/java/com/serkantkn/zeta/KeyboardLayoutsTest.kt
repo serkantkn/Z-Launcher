@@ -86,6 +86,35 @@ class KeyboardLayoutsTest {
         assertEquals(26, letters.size)
     }
 
+    private fun KeyboardLanguage.letterRows(): List<String> =
+        KeyboardLayouts.letters(this, KeyboardVariant.NORMAL).rows.take(3).map { row ->
+            row.keys.filter { it.action == KeyAction.CHARACTER }.joinToString("") { it.label }
+        }
+
+    @Test
+    fun frenchIsAzerty() {
+        assertEquals(listOf("azertyuiop", "qsdfghjklm", "wxcvbn'"), KeyboardLanguage.FRENCH.letterRows())
+    }
+
+    @Test
+    fun germanIsQwertzWithItsOwnLetters() {
+        assertEquals(listOf("qwertzuiopü", "asdfghjklöä", "yxcvbnmß"), KeyboardLanguage.GERMAN.letterRows())
+    }
+
+    @Test
+    fun spanishHasEnye() {
+        assertTrue("ñ" in KeyboardLanguage.SPANISH.letterRows()[1])
+    }
+
+    @Test
+    fun theSymbolBoardCarriesTheLanguagesMoney() {
+        fun money(language: KeyboardLanguage) =
+            KeyboardLayouts.symbols(language, KeyboardVariant.NORMAL).rows[1].keys.map { it.label }
+        assertTrue("₺" in money(KeyboardLanguage.TURKISH))
+        assertTrue("$" in money(KeyboardLanguage.ENGLISH))
+        assertTrue("€" in money(KeyboardLanguage.ITALIAN))
+    }
+
     @Test
     fun emailAndUrlBoardsGetTheirOwnBottomRow() {
         val email = KeyboardLayouts.letters(KeyboardLanguage.TURKISH, KeyboardVariant.EMAIL).characters()
@@ -165,7 +194,9 @@ class KeyboardLayoutsTest {
         assertEquals(KeyboardLanguage.TURKISH, KeyboardLanguage.fromTag("tr_TR"))
         assertEquals(KeyboardLanguage.ENGLISH, KeyboardLanguage.fromTag("en-US"))
         assertEquals(KeyboardLanguage.ENGLISH, KeyboardLanguage.fromTag(null))
-        assertEquals(KeyboardLanguage.ENGLISH, KeyboardLanguage.fromTag("de-DE"))
+        assertEquals(KeyboardLanguage.GERMAN, KeyboardLanguage.fromTag("de-DE"))
+        assertEquals(KeyboardLanguage.FRENCH, KeyboardLanguage.fromTag("fr_CA"))
+        assertEquals(KeyboardLanguage.ENGLISH, KeyboardLanguage.fromTag("pt-BR"))
     }
 
     @Test

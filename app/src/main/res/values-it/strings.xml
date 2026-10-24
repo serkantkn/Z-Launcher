@@ -1248,6 +1248,10 @@ Se accetti, si aprono le impostazioni di accessibilità di Android; lì attiva i
     <string name="keyboard_name">Tastiera Z</string>
     <string name="keyboard_subtype_tr">Turco</string>
     <string name="keyboard_subtype_en">Inglese</string>
+    <string name="keyboard_subtype_fr">Francese</string>
+    <string name="keyboard_subtype_de">Tedesco</string>
+    <string name="keyboard_subtype_es">Spagnolo</string>
+    <string name="keyboard_subtype_it">Italiano</string>
     <string name="settings_tab_keyboard">tastiera</string>
     <string name="keyboard_setup_group">configurazione</string>
     <string name="keyboard_enable_title">attiva la tastiera</string>
@@ -1266,7 +1270,7 @@ Se accetti, si aprono le impostazioni di accessibilità di Android; lì attiva i
     <string name="keyboard_height_small">bassa</string>
     <string name="keyboard_height_medium">standard</string>
     <string name="keyboard_height_large">alta</string>
-    <string name="keyboard_language_note">la disposizione delle lettere segue la lingua dell\'app: turco o inglese</string>
+    <string name="keyboard_language_note">senza lingue attivate qui sopra, la disposizione delle lettere segue la lingua dell\'app</string>
     <string name="ime_action_go">vai</string>
     <string name="ime_action_search">cerca</string>
     <string name="ime_action_send">invia</string>

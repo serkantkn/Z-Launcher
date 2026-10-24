@@ -28,7 +28,11 @@ enum class ShiftState { OFF, SHIFTED, LOCKED }
 /** Letter arrangements the keyboard ships with. */
 enum class KeyboardLanguage(val tag: String, val displayLabel: String) {
     TURKISH("tr", "Türkçe"),
-    ENGLISH("en", "English");
+    ENGLISH("en", "English"),
+    FRENCH("fr", "Français"),
+    GERMAN("de", "Deutsch"),
+    SPANISH("es", "Español"),
+    ITALIAN("it", "Italiano");
 
     companion object {
         /** Matches a locale/language tag ("tr", "tr-TR", "en_US") to a layout; English is the fallback. */

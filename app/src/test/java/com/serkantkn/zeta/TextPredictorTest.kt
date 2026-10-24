@@ -21,6 +21,7 @@ class TextPredictorTest {
         when (language) {
             KeyboardLanguage.TURKISH -> turkish
             KeyboardLanguage.ENGLISH -> english
+            else -> emptyList()
         }
     }
 

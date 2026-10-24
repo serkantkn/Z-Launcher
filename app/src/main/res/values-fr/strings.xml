@@ -1248,6 +1248,10 @@ Si tu acceptes, les paramètres d\'accessibilité d\'Android s\'ouvrent ; active
     <string name="keyboard_name">Clavier Z</string>
     <string name="keyboard_subtype_tr">Turc</string>
     <string name="keyboard_subtype_en">Anglais</string>
+    <string name="keyboard_subtype_fr">Français</string>
+    <string name="keyboard_subtype_de">Allemand</string>
+    <string name="keyboard_subtype_es">Espagnol</string>
+    <string name="keyboard_subtype_it">Italien</string>
     <string name="settings_tab_keyboard">clavier</string>
     <string name="keyboard_setup_group">configuration</string>
     <string name="keyboard_enable_title">activer le clavier</string>
@@ -1266,7 +1270,7 @@ Si tu acceptes, les paramètres d\'accessibilité d\'Android s\'ouvrent ; active
     <string name="keyboard_height_small">basse</string>
     <string name="keyboard_height_medium">standard</string>
     <string name="keyboard_height_large">haute</string>
-    <string name="keyboard_language_note">la disposition des lettres suit la langue de l\'appli : turc ou anglais</string>
+    <string name="keyboard_language_note">sans langue activée ci-dessus, la disposition des lettres suit la langue de l\'appli</string>
     <string name="ime_action_go">ok</string>
     <string name="ime_action_search">rechercher</string>
     <string name="ime_action_send">envoyer</string>

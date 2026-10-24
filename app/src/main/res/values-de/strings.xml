@@ -1244,6 +1244,10 @@ Wenn du zustimmst, öffnen sich die Bedienungshilfen von Android; schalte dort d
     <string name="keyboard_name">Z Tastatur</string>
     <string name="keyboard_subtype_tr">Türkisch</string>
     <string name="keyboard_subtype_en">Englisch</string>
+    <string name="keyboard_subtype_fr">Französisch</string>
+    <string name="keyboard_subtype_de">Deutsch</string>
+    <string name="keyboard_subtype_es">Spanisch</string>
+    <string name="keyboard_subtype_it">Italienisch</string>
     <string name="settings_tab_keyboard">tastatur</string>
     <string name="keyboard_setup_group">einrichtung</string>
     <string name="keyboard_enable_title">tastatur einschalten</string>
@@ -1262,7 +1266,7 @@ Wenn du zustimmst, öffnen sich die Bedienungshilfen von Android; schalte dort d
     <string name="keyboard_height_small">niedrig</string>
     <string name="keyboard_height_medium">standard</string>
     <string name="keyboard_height_large">hoch</string>
-    <string name="keyboard_language_note">das buchstabenlayout folgt der app-sprache: türkisch oder englisch</string>
+    <string name="keyboard_language_note">ohne oben eingeschaltete sprache folgt das buchstabenlayout der app-sprache</string>
     <string name="ime_action_go">los</string>
     <string name="ime_action_search">suchen</string>
     <string name="ime_action_send">senden</string>

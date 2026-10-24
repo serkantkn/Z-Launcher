@@ -255,7 +255,7 @@ Mozaik'in ayarlar dili: pivot başlıklar, ince kaydırıcılar, köşeli anahta
 
 - Zeta klavyesi ve tahmin çubuğu *(Pro)*
 - Ses çubuğundan bildirim şeridine kadar aynı arayüz *(Pro)*
-- Türkçe, İngilizce, Fransızca, Almanca, İspanyolca ve İtalyanca (klavyenin harf düzeni şimdilik Türkçe ve İngilizce)
+- Türkçe, İngilizce, Fransızca, Almanca, İspanyolca ve İtalyanca (klavye de: Fransızca AZERTY, Almanca QWERTZ, İspanyolca ñ ile)
 - Bölünmüş ekran: tablette dört, telefonda iki parmakla
 
 ## Ücretsiz ve Pro
