@@ -2125,6 +2125,14 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="split_open">bölünmüş ekranda aç</string>
     <string name="whats_new_title">neler değişti</string>
     <string name="whats_new_close">anladım</string>
+    <string name="whats_new_v3_title">üçüncü ön sürüm</string>
+    <string name="whats_new_v3_line1">Pro\'yu 10 gün ücretsiz dene: uygulama bir kez sorar, istersen sonra ayarlar › hakkında › Zeta Pro\'dan başlatırsın; deneme bitince Pro için yaptığın ayarlar silinmez</string>
+    <string name="whats_new_v3_line2">bölünmüş ekran yenilendi: aradaki çubuğu sürükleyerek üçte bir, yarı ya da üçte iki yap, kenara çekip bir bölmeyi kapat, iki kez dokunup yerlerini değiştir; tablette de iki parmakla yukarı çekince açılır, çalışan hub\'lardan da açılabilir</string>
+    <string name="whats_new_v3_line3">hub\'lar bölmenin boyutuna göre düzen kurar; dar bölmede telefon gibi durur, büyük başlıklar kısa bölmede küçülür</string>
+    <string name="whats_new_v3_line4">eylem merkezi baştan: uygulamalara göre kartlar, bildirimlerin kendi düğmeleri, erteleme ve geri alma, sessiz bildirimler katlanmış, kendi hızlı eylemlerini seç</string>
+    <string name="whats_new_v3_line5">bildirim ve ses kartları karolar gibi buzlu, yukarı kaydırınca kapanır; sabitlenmiş uygulamaların karoları bildirimlerini gösterir</string>
+    <string name="whats_new_v3_line6">diğer uygulamaların hub\'ları: geliştiriciler Zeta için hub yazabilir, Zeta onları kendi hub\'ları gibi çizer</string>
+    <string name="whats_new_v3_line7">bütün hareketler biraz daha hızlı</string>
     <string name="whats_new_v2_title">ikinci ön sürüm</string>
     <string name="whats_new_v2_line1">Aura\'da hub kapanınca büyük başlık listedeki adının üstüne geri iner</string>
     <string name="whats_new_v2_line2">kamera dışında bütün hub\'lar Aura\'da büyük başlıkla ve uçan adla açılır: internet, saat, takvim, notlar, e-posta, hesap makinesi, hava durumu, haberler, dosyalar, ayarlar</string>
