@@ -17,6 +17,13 @@ object ReleaseNotes {
 
     val ALL: List<ReleaseNote> = listOf(
         ReleaseNote(
+            version = 4,
+            name = "0.9.1 beta 3.1",
+            released = "2026-10-24",
+            titleRes = R.string.whats_new_v4_title,
+            lineRes = listOf(R.string.whats_new_v4_line1)
+        ),
+        ReleaseNote(
             version = 3,
             name = "0.9.0 beta 3",
             released = "2026-10-24",

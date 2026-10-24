@@ -2127,6 +2127,8 @@ If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home b
     <string name="split_open">open split</string>
     <string name="whats_new_title">what is new</string>
     <string name="whats_new_close">got it</string>
+    <string name="whats_new_v4_title">beta 3.1</string>
+    <string name="whats_new_v4_line1">app tiles turn over at every size: wide and large ones show the notification on their back too, and each turn goes on to the next of the app\'s three newest notifications</string>
     <string name="whats_new_v3_title">third pre-release</string>
     <string name="whats_new_v3_line1">try Pro free for 10 days: the app asks once, or start it later from settings › about › Zeta Pro; when it ends, the settings you made for Pro are kept</string>
     <string name="whats_new_v3_line2">split screen, renewed: drag the bar between to a third, a half or two thirds, drag it to the edge to close a pane, touch it twice to swap them; on a tablet two fingers drawn up open it too, and so do the running hubs</string>

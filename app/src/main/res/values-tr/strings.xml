@@ -2125,6 +2125,8 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="split_open">bölünmüş ekranda aç</string>
     <string name="whats_new_title">neler değişti</string>
     <string name="whats_new_close">anladım</string>
+    <string name="whats_new_v4_title">beta 3.1</string>
+    <string name="whats_new_v4_line1">uygulama karoları her boyutta döner: geniş ve büyük karolar da arka yüzlerinde bildirimi gösterir, karo her dönüşte uygulamanın son üç bildiriminden sıradakine geçer</string>
     <string name="whats_new_v3_title">üçüncü ön sürüm</string>
     <string name="whats_new_v3_line1">Pro\'yu 10 gün ücretsiz dene: uygulama bir kez sorar, istersen sonra ayarlar › hakkında › Zeta Pro\'dan başlatırsın; deneme bitince Pro için yaptığın ayarlar silinmez</string>
     <string name="whats_new_v3_line2">bölünmüş ekran yenilendi: aradaki çubuğu sürükleyerek üçte bir, yarı ya da üçte iki yap, kenara çekip bir bölmeyi kapat, iki kez dokunup yerlerini değiştir; tablette de iki parmakla yukarı çekince açılır, çalışan hub\'lardan da açılabilir</string>

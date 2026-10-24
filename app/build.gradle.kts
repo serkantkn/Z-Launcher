@@ -13,8 +13,8 @@ android {
         applicationId = "com.serkantkn.zeta"
         minSdk = 28
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.9.0_beta-3"
+        versionCode = 4
+        versionName = "0.9.1_beta-3.1"
     }
 
     buildFeatures {
