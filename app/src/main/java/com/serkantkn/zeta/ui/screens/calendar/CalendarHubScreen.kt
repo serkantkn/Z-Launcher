@@ -201,7 +201,7 @@ fun CalendarHubScreen(
     }
 
     val listBottomPadding =
-        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp
+        com.serkantkn.zeta.ui.components.navigationBarBottom() + 96.dp
     val pageContentPadding = PaddingValues(top = 8.dp, bottom = listBottomPadding)
 
     @Composable

@@ -1009,7 +1009,7 @@ internal fun FileDetailsPanel(
     LaunchedEffect(current.file.absolutePath) { measured = measure(current) }
     val facts = fileFacts(current, measured)
     val panelPx = with(LocalDensity.current) { PANEL_WIDTH.toPx() }
-    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBottom = com.serkantkn.zeta.ui.components.navigationBarBottom()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(

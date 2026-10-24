@@ -2103,6 +2103,9 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="settings_hub_log_count">%1$d kayıt</string>
     <string name="settings_hub_log_clear">temizle</string>
     <string name="settings_hub_log_empty">henüz kayıt yok. bir hub açınca konuştukları burada görünür.</string>
+    <string name="split_options">bölme seçenekleri</string>
+    <string name="split_swap">bölmelerin yerini değiştir</string>
+    <string name="split_open">bölünmüş ekranda aç</string>
     <string name="whats_new_title">neler değişti</string>
     <string name="whats_new_close">anladım</string>
     <string name="whats_new_v2_title">ikinci ön sürüm</string>

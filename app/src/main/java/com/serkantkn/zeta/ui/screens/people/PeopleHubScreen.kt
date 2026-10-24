@@ -1103,7 +1103,9 @@ private fun PeoplePermissionRequest(onRequestPermission: () -> Unit) {
         title = stringResource(R.string.contacts_permission_title).lowercase(java.util.Locale.getDefault()),
         message = stringResource(R.string.contacts_permission_message),
         buttonLabel = stringResource(R.string.grant_permission).lowercase(java.util.Locale.getDefault()),
-        onRequest = onRequestPermission
+        onRequest = onRequestPermission,
+        // A phone's hub gives what stands in for its pages no margin of its own.
+        modifier = Modifier.padding(horizontal = if (LocalIsWideScreen.current) 0.dp else ZuneDimens.ScreenPaddingHorizontal)
     )
 }
 

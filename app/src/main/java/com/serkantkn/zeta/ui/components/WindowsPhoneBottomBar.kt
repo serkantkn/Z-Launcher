@@ -49,7 +49,9 @@ data class WpBarMenuItem(
  */
 @Composable
 fun barBottomInset(): androidx.compose.ui.unit.Dp =
-    WindowInsets.navigationBars.exclude(WindowInsets.ime).asPaddingValues().calculateBottomPadding()
+    // A pane of a split that does not reach the bottom of the screen has no navigation bar under it.
+    if (!LocalPaneEdges.current.bottom) 0.dp
+    else WindowInsets.navigationBars.exclude(WindowInsets.ime).asPaddingValues().calculateBottomPadding()
 
 /**
  * How much of the bottom of the screen the bar covers, edge and all: Windows Phone's 56dp bar on

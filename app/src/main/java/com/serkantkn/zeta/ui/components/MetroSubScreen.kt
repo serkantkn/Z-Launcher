@@ -55,7 +55,7 @@ fun MetroSubScreen(
 ) {
     BackHandler { onClose() }
 
-    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val bottomInset = navigationBarBottom()
     val tv = com.serkantkn.zeta.ui.theme.LocalIsTv.current
     val side = if (tv) com.serkantkn.zeta.ui.tv.MEDIA_CENTER_SIDE else ZuneDimens.ScreenPaddingHorizontal
 

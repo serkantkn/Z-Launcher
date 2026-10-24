@@ -459,7 +459,7 @@ fun FilesHubScreen(
     }
 
     val listBottomPadding =
-        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp
+        com.serkantkn.zeta.ui.components.navigationBarBottom() + 96.dp
     val pagePadding = PaddingValues(top = 4.dp, bottom = listBottomPadding)
 
     // ── The pages ──────────────────────────────────────────────────────────

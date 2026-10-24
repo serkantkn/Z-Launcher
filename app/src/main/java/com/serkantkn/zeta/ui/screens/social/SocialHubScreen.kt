@@ -102,7 +102,7 @@ fun SocialHubScreen(
     }
 
     val listBottomPadding =
-        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp
+        com.serkantkn.zeta.ui.components.navigationBarBottom() + 96.dp
 
     Box(modifier = modifier.fillMaxSize()) {
         val overflowYPx = with(density) { (-24).dp.toPx() }

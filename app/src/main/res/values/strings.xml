@@ -2105,6 +2105,9 @@ If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home b
     <string name="settings_hub_log_count">%1$d entries</string>
     <string name="settings_hub_log_clear">clear</string>
     <string name="settings_hub_log_empty">nothing yet. open a hub and what it says shows here.</string>
+    <string name="split_options">pane options</string>
+    <string name="split_swap">swap the panes</string>
+    <string name="split_open">open split</string>
     <string name="whats_new_title">what is new</string>
     <string name="whats_new_close">got it</string>
     <string name="whats_new_v2_title">second pre-release</string>

@@ -2,6 +2,7 @@ package com.serkantkn.zeta.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
@@ -48,6 +49,71 @@ class ZuneNavigationState {
     var isSplitMode by mutableStateOf(false)
         private set
 
+    /**
+     * How the split shares the screen: the part the first pane on screen takes, 0-1 - the left one
+     * on a tablet, the top one on a phone. Set by dragging the bar between them.
+     */
+    var splitFraction by mutableFloatStateOf(DEFAULT_SPLIT)
+        private set
+
+    /** The two panes the other way round from where they first stood. */
+    var splitSwapped by mutableStateOf(false)
+        private set
+
+    /**
+     * Which pane is in use - the last one touched: Back goes to it. True for the pane that was
+     * opened beside the first hub ([leftHub], or Start while it is empty).
+     */
+    var splitFocusLeft by mutableStateOf(true)
+        private set
+
+    /** The hub in the pane in use; null when it is Start's. */
+    val focusedSplitHub: HubId?
+        get() = if (!isSplitMode) null else if (splitFocusLeft) leftHub else rightHub
+
+    fun focusSplit(left: Boolean) {
+        if (splitFocusLeft != left) splitFocusLeft = left
+    }
+
+    fun setSplit(fraction: Float) {
+        splitFraction = fraction.coerceIn(MIN_SPLIT, 1f - MIN_SPLIT)
+    }
+
+    /** The two panes change places. */
+    fun swapSplit() {
+        splitSwapped = !splitSwapped
+    }
+
+    /**
+     * One pane takes the whole screen. [left] is the pane that stays; Start staying means the split
+     * is over and Start is in front. The other hub keeps running if [keepOther] - it was dragged
+     * off or made way for a full screen - and is closed if not (Back).
+     */
+    fun keepSplitPane(left: Boolean, keepOther: Boolean = true) {
+        val leaving = if (left) rightHub else leftHub
+        if (left) {
+            if (leftHub != null) {
+                expandLeftSplitHubToFullscreen()
+            } else {
+                hubStack = emptyList()
+                exitSplitMode()
+            }
+        } else {
+            expandRightSplitHubToFullscreen()
+        }
+        if (leaving != null && keepOther && leaving.runsInBackground) {
+            backgroundHubs = (listOf(leaving) + backgroundHubs).distinct().take(MAX_BACKGROUND_HUBS)
+        }
+    }
+
+    /** Opens [hub] split, with Start beside it to choose the other half from. */
+    fun openSplit(hub: HubId) {
+        backgroundHubs = backgroundHubs - hub
+        hubStack = listOf(hub)
+        lastHub = hub
+        enterSplitMode()
+    }
+
     /** Currently active hub at the top of the stack, or null if on main pager. */
     val currentHub: HubId?
         get() = if (isSplitMode) (leftHub ?: rightHub) else hubStack.lastOrNull()
@@ -61,6 +127,10 @@ class ZuneNavigationState {
         if (current != null) {
             rightHub = current
             leftHub = null
+            splitFraction = DEFAULT_SPLIT
+            splitSwapped = false
+            // The empty pane is where the next hub is chosen: it is the one in use.
+            splitFocusLeft = true
             isSplitMode = true
         }
     }
@@ -85,7 +155,15 @@ class ZuneNavigationState {
             if (hub != HubType.INTERNET && (rightHub == hub || leftHub == hub)) {
                 return
             }
-            leftHub = hub
+            // A hub opened while the split is up goes into the pane in use, as Start does: the
+            // one touched last. Into the first hub's pane only when that one is in use and the
+            // other is still empty there is nowhere else to choose from.
+            if (!splitFocusLeft && rightHub != null && leftHub != null) {
+                rightHub = hub
+            } else {
+                leftHub = hub
+                splitFocusLeft = true
+            }
         } else {
             if (currentHub != hub) {
                 lastHub = hub
@@ -155,7 +233,9 @@ class ZuneNavigationState {
 
     fun popHub(): Boolean {
         if (isSplitMode) {
-            closeHub()
+            // Back is the pane's in use: that pane goes, and the other has the screen. Back on
+            // Start beside a hub puts the split away and leaves the hub.
+            keepSplitPane(left = !splitFocusLeft, keepOther = false)
             return true
         }
         if (hubStack.size > 1) {
@@ -182,12 +262,16 @@ class ZuneNavigationState {
     companion object {
         private const val NONE = ""
 
+        /** The split's first share, and the least either pane may have. */
+        const val DEFAULT_SPLIT = 0.5f
+        const val MIN_SPLIT = 0.25f
+
         /** How many hubs may be left running at once. Each one holds on to its whole composition. */
         const val MAX_BACKGROUND_HUBS = 4
 
         /**
          * Persists the full navigation state as a flat list of Strings so it fits in a Bundle.
-         * Layout: [hubStack joined by ",", rightHub, leftHub, isSplitMode, lastHub].
+         * Layout: [hubStack joined by ",", rightHub, leftHub, isSplitMode, lastHub, background hubs, split fraction, swapped, focus].
          * Unknown keys (a hub removed in a future version, an app that was uninstalled) are skipped safely.
          */
         val Saver: Saver<ZuneNavigationState, Any> = listSaver(
@@ -198,7 +282,10 @@ class ZuneNavigationState {
                     state.leftHub?.key ?: NONE,
                     state.isSplitMode.toString(),
                     state.lastHub.key,
-                    state.backgroundHubs.joinToString(",") { it.key }
+                    state.backgroundHubs.joinToString(",") { it.key },
+                    state.splitFraction.toString(),
+                    state.splitSwapped.toString(),
+                    state.splitFocusLeft.toString()
                 )
             },
             restore = { saved ->
@@ -219,6 +306,10 @@ class ZuneNavigationState {
                         ?.mapNotNull { it.toHubIdOrNull() }
                         ?.take(MAX_BACKGROUND_HUBS)
                         ?: emptyList()
+
+                    splitFraction = saved.getOrNull(6)?.toFloatOrNull()?.coerceIn(MIN_SPLIT, 1f - MIN_SPLIT) ?: DEFAULT_SPLIT
+                    splitSwapped = saved.getOrNull(7)?.toBoolean() ?: false
+                    splitFocusLeft = saved.getOrNull(8)?.toBoolean() ?: true
 
                     // Split mode without a docked hub is meaningless; fall back to stack mode.
                     if (isSplitMode && rightHub == null && leftHub == null) {

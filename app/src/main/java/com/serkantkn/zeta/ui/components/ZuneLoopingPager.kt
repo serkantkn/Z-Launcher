@@ -8,6 +8,7 @@ import androidx.compose.foundation.pager.PagerScope
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
@@ -112,6 +113,20 @@ fun rememberLoopingPagerState(
             if (looping) ZUNE_PAGER_LOOP_COUNT * pageCountState.value else pageCountState.value
         }
     )
+    // The raw index is a multiple of the old count: when the count changes (a hub drawn as a
+    // tablet's and then a phone's, with a heading only one of them has), it stands on the page it
+    // stood on rather than wherever the old index falls among the new pages.
+    val counted = remember { intArrayOf(pageCount) }
+    if (looping) {
+        LaunchedEffect(pageCount) {
+            val old = counted[0]
+            counted[0] = pageCount
+            if (old != pageCount && old > 0 && pageCount > 0) {
+                val logical = ((pagerState.currentPage % old) + old) % old
+                pagerState.scrollToPage((ZUNE_PAGER_LOOP_COUNT / 2) * pageCount + logical.coerceAtMost(pageCount - 1))
+            }
+        }
+    }
     return remember(pagerState, looping) {
         ZuneLoopingPagerState(pagerState, pageCountState, looping)
     }

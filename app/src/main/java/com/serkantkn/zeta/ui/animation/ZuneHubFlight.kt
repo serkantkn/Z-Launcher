@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -295,9 +296,9 @@ fun ZuneHubFlightTitle(
     val flight = LocalZuneHubFlight.current
     val ink = if (LocalZuneColors.current.isDark) Color.White else Color.Black
     val density = LocalDensity.current
-    val screenPx = with(density) { androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val minStepPx = with(density) { TITLE_STEP_MIN.toPx() }
-    var right by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    // How far the word runs past the right of what holds it - the screen, or a pane of a split.
+    var overflow by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     val back = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     if (flight != null) {
         androidx.compose.runtime.DisposableEffect(flight, key) {
@@ -315,14 +316,15 @@ fun ZuneHubFlightTitle(
             // As wide as the word is, not as the screen: the rest runs off to the right.
             .wrapContentWidth(Alignment.Start, unbounded = true)
             .onGloballyPositioned { coordinates ->
-                right = coordinates.positionInWindow().x + coordinates.size.width
+                val holder = coordinates.parentLayoutCoordinates ?: return@onGloballyPositioned
+                val right = holder.localPositionOf(coordinates, Offset.Zero).x + coordinates.size.width
+                overflow = (right - holder.size.width).coerceAtLeast(0f)
             }
             .graphicsLayer {
                 alpha = if (flight?.hides(key) == true) 0f else ZUNE_HUB_TITLE_ALPHA
                 val turn = cycle ?: return@graphicsLayer
                 if (pageCount < 2) return@graphicsLayer
                 val last = (pageCount - 1).toFloat()
-                val overflow = (right - screenPx).coerceAtLeast(0f)
                 val step = maxOf(overflow / last, minStepPx)
                 val c = turn()
                 translationX = if (c <= last) -c * step else -step * last * (1f - (c - last))

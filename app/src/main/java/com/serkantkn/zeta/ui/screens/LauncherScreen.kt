@@ -29,6 +29,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -486,19 +488,19 @@ fun LauncherScreen(
         }
     }
 
-    // 4-finger swipe gesture detection to trigger split screen mode on Tablet
     val canSplit = navState.currentHub != null && !navState.isSplitMode
-    // Two fingers drawn up the screen splits it on a phone. Two, not four, because a phone has
-    // no room for four; and counted over the whole gesture rather than one event at a time, so
-    // that a two-fingered scroll does not creep into it.
-    val phoneSplitModifier = if (!isWideScreen && canSplit) {
+    // Two fingers drawn up the screen split it. Two, not four, because a phone has no room for
+    // four; a tablet takes it as well as its four fingers, so the split is one gesture anywhere.
+    // It is read before the hub sees the fingers - a list under them would otherwise take the
+    // drag as its own scroll and the split could never be pulled over one - and each finger has
+    // to travel up on its own, so a pinch (fingers going opposite ways) is never taken for it.
+    val phoneSplitModifier = if (canSplit) {
         Modifier.pointerInput(Unit) {
             awaitPointerEventScope {
-                var travelY = 0f
-                var travelX = 0f
+                val travel = mutableMapOf<PointerId, Offset>()
                 var fired = false
                 while (true) {
-                    val event = awaitPointerEvent()
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
                     // Once it has fired, the rest of the gesture belongs to nobody: the fingers
                     // are still down and the pane that has just appeared under them would read
                     // what is left as a press of its own.
@@ -506,23 +508,19 @@ fun LauncherScreen(
                         event.changes.forEach { it.consume() }
                         if (event.changes.none { it.pressed }) {
                             fired = false
-                            travelY = 0f
-                            travelX = 0f
+                            travel.clear()
                         }
                         continue
                     }
-                    // Two fingers already busy with a list, a browser page or a pinch belong
-                    // to it: a child that consumed any of them has claimed the gesture.
-                    if (event.changes.size != 2 || event.changes.any { it.isConsumed }) {
-                        travelY = 0f
-                        travelX = 0f
+                    if (event.changes.count { it.pressed } != 2) {
+                        travel.clear()
                         continue
                     }
                     event.changes.forEach { change ->
-                        travelY += change.position.y - change.previousPosition.y
-                        travelX += change.position.x - change.previousPosition.x
+                        travel[change.id] = (travel[change.id] ?: Offset.Zero) + (change.position - change.previousPosition)
                     }
-                    if (travelY < -SPLIT_PULL_PX && kotlin.math.abs(travelX) < -travelY) {
+                    val moves = travel.values
+                    if (moves.size == 2 && moves.all { it.y < -SPLIT_PULL_PX / 2 && kotlin.math.abs(it.x) < -it.y }) {
                         event.changes.forEach { it.consume() }
                         fired = true
                         navState.enterSplitMode()
@@ -580,7 +578,6 @@ fun LauncherScreen(
                 }
 
                 val messagingViewModel: com.serkantkn.zeta.ui.screens.messaging.MessagingHubViewModel = viewModel()
-                val screenWidthPx = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
 
                 // The Start page is the same page whichever pane it is drawn in, so it is given
                 // the same ways out: the two split layouts used to leave it unable to swipe to
@@ -725,7 +722,10 @@ fun LauncherScreen(
                 } else {
                     setOfNotNull(visibleHub)
                 }
-                SideEffect { liveHubs.value = shownHubs }
+                // Back goes to the hub in use: in a split, the pane last touched.
+                SideEffect {
+                    liveHubs.value = if (navState.isSplitMode) setOfNotNull(navState.focusedSplitHub) else shownHubs
+                }
 
                 // LAYER 0 — every open hub that is not on screen: composed so it goes on living,
                 // drawn by nobody, and deaf to touch. The pointer events are consumed on the
@@ -758,220 +758,53 @@ fun LauncherScreen(
                     }
                 }
 
-                if (isWideScreen && navState.isSplitMode) {
+                if (navState.isSplitMode) {
                     // ════════════════════════════════════════════════════════
-                    // TABLET SPLIT SCREEN DUAL-HUB MODE (50% / 50%)
-                    // Hubs & Left Home Screen inside split panes forced to PHONE DESIGN MODE!
-                    // ════════════════════════════════════════════════════════
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        // ── Left Pane (50% width) ──
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .graphicsLayer {
-                                    alpha = splitAnimProgress.value
-                                }
-                        ) {
-                            if (navState.leftHub == null) {
-                                // Main Launcher Pager on the left side (Forced to Phone Design Mode)
-                                CompositionLocalProvider(LocalIsWideScreen provides false) {
-                                    HorizontalPager(
-                                        state = pagerState,
-                                        modifier = Modifier.fillMaxSize(),
-                                        userScrollEnabled = true
-                                    ) { page ->
-                                        when (page) {
-                                            0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
-                                            1 -> startPage(false)
-                                            2 -> if (hasTilesPage) {
-                                                tilesPage()
-                                            } else {
-                                                AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
-                                            }
-                                            3 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 3)
-                                        }
-                                    }
-                                }
-                            } else {
-                                // Left Docked Hub (Forced to Phone Design Mode)
-                                CompositionLocalProvider(LocalIsWideScreen provides false) {
-                                    hubBackground { hubContentFor(navState.leftHub!!)() }
-                                }
-
-                                // Action Buttons (Maximize & Close) for Left Hub
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .statusBarsPadding()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = { navState.expandLeftSplitHubToFullscreen() },
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Fullscreen,
-                                            contentDescription = stringResource(R.string.launcher_fullscreen),
-                                            tint = Color.White
-                                        )
-                                    }
-
-                                    IconButton(
-                                        onClick = { navState.closeLeftSplitHub() },
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = stringResource(R.string.launcher_close_hub),
-                                            tint = Color.White
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Divider line
-                        Box(
-                            modifier = Modifier
-                                .width(2.dp)
-                                .fillMaxHeight()
-                                .background(zuneColors.accentColor.copy(alpha = 0.6f))
-                        )
-
-                        // ── Right Pane (50% width) ──
-                        // Animates smoothly from left to right as it shrinks
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .graphicsLayer {
-                                    val progress = splitAnimProgress.value
-                                    translationX = (1f - progress) * (-screenWidthPx / 2f)
-                                    alpha = (progress * 1.5f - 0.2f).coerceIn(0f, 1f)
-                                }
-                        ) {
-                            if (navState.rightHub != null) {
-                                // Right Docked Hub (Forced to Phone Design Mode)
-                                CompositionLocalProvider(LocalIsWideScreen provides false) {
-                                    hubBackground { hubContentFor(navState.rightHub!!)() }
-                                }
-
-                                // Action Buttons (Maximize & Close) for Right Hub
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .statusBarsPadding()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = { navState.expandRightSplitHubToFullscreen() },
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Fullscreen,
-                                            contentDescription = stringResource(R.string.launcher_fullscreen),
-                                            tint = Color.White
-                                        )
-                                    }
-
-                                    IconButton(
-                                        onClick = { navState.closeRightSplitHub() },
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = stringResource(R.string.launcher_close_hub),
-                                            tint = Color.White
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (navState.isSplitMode) {
-                    // ════════════════════════════════════════════════════════
-                    // PHONE SPLIT — the same idea as the tablet's, stacked instead of side by
-                    // side: the hub that was open keeps the top half, and the bottom half is
-                    // where the next one is chosen. What is already running is offered first,
-                    // because that is nearly always what the split is being opened for; Start is
-                    // underneath it for anything else.
+                    // SPLIT — two hubs, or a hub and Start to choose the other from: side by side
+                    // on a tablet, one over the other on a phone (SplitScreen). What is already
+                    // running is offered first in the empty pane, because that is nearly always
+                    // what the split is being opened for; Start is underneath it for anything else.
                     // ════════════════════════════════════════════════════════
                     var offeringRunning by remember(navState.isSplitMode) { mutableStateOf(true) }
-                    val runningChoices = navState.backgroundHubs.filter { it != navState.rightHub }
+                    val runningChoices = navState.backgroundHubs.filter { it != navState.rightHub && it != navState.leftHub }
                     val previews by com.serkantkn.zeta.data.repository.HubPreviewStore
                         .previews.collectAsState()
-
-                    Column(modifier = Modifier.fillMaxSize().zIndex(3f)) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .graphicsLayer { alpha = splitAnimProgress.value }
-                        ) {
-                            if (navState.rightHub != null) {
-                                hubBackground { hubContentFor(navState.rightHub!!)() }
-                                SplitPaneButtons(
-                                    onExpand = { navState.expandRightSplitHubToFullscreen() },
-                                    onClose = { navState.closeRightSplitHub() },
-                                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding()
-                                )
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .graphicsLayer { alpha = splitAnimProgress.value }
-                        ) {
-                            if (navState.leftHub != null) {
-                                hubBackground { hubContentFor(navState.leftHub!!)() }
-                                SplitPaneButtons(
-                                    onExpand = { navState.expandLeftSplitHubToFullscreen() },
-                                    onClose = { navState.closeLeftSplitHub() },
-                                    modifier = Modifier.align(Alignment.TopEnd)
-                                )
-                            } else {
-                                HorizontalPager(
-                                    state = pagerState,
-                                    modifier = Modifier.fillMaxSize()
-                                ) { page ->
-                                    when (page) {
-                                        0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
-                                        1 -> startPage(false)
-                                        2 -> if (hasTilesPage) {
-                                            tilesPage()
-                                        } else {
-                                            AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
-                                        }
-                                        3 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 3)
+                    SplitScreen(
+                        navState = navState,
+                        vertical = !isWideScreen,
+                        appear = { splitAnimProgress.value },
+                        modifier = Modifier.zIndex(3f),
+                        start = {
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.fillMaxSize()
+                            ) { page ->
+                                when (page) {
+                                    0 -> SocialHubScreen(isCurrentPage = pagerState.currentPage == 0)
+                                    1 -> startPage(false)
+                                    2 -> if (hasTilesPage) {
+                                        tilesPage()
+                                    } else {
+                                        AppsHubScreen(isCurrentPage = pagerState.currentPage == 2)
                                     }
-                                }
-
-                                if (offeringRunning && runningChoices.isNotEmpty()) {
-                                    com.serkantkn.zeta.ui.screens.home.RunningHubsRow(
-                                        hubs = runningChoices,
-                                        previews = previews,
-                                        onPick = { hub -> navState.openHub(hub) },
-                                        onStop = { hub -> navState.stopHub(hub) },
-                                        onDismiss = { offeringRunning = false },
-                                        modifier = Modifier.align(Alignment.TopCenter)
-                                    )
+                                    3 -> AppsHubScreen(isCurrentPage = pagerState.currentPage == 3)
                                 }
                             }
-                        }
-                    }
+                        },
+                        startOverlay = {
+                            if (offeringRunning && runningChoices.isNotEmpty()) {
+                                com.serkantkn.zeta.ui.screens.home.RunningHubsRow(
+                                    hubs = runningChoices,
+                                    previews = previews,
+                                    onPick = { hub -> navState.openHub(hub) },
+                                    onStop = { hub -> navState.stopHub(hub) },
+                                    onDismiss = { offeringRunning = false },
+                                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding()
+                                )
+                            }
+                        },
+                        hub = { hub -> hubBackground { hubContentFor(hub)() } }
+                    )
                 } else {
                     // ════════════════════════════════════════════════════════
                     // NORMAL SINGLE HUB LAUNCHER MODE
@@ -1201,6 +1034,10 @@ fun LauncherScreen(
                             navState.openHub(hub)
                         },
                         onStop = { hub -> navState.stopHub(hub) },
+                        onSplit = if (isTv) null else ({ hub ->
+                            switcherOpen = false
+                            navState.openSplit(hub)
+                        }),
                         onDismiss = { switcherOpen = false }
                     )
                     }
@@ -1473,42 +1310,6 @@ private const val SPLIT_PULL_PX = 400f
 
 /** The longest the pager stays hidden waiting for the stored Start layout on a cold start. */
 private const val LAYOUT_WAIT_MILLIS = 1_500L
-
-/**
- * The two buttons a docked hub carries: fill the screen with it, or send it away.
- */
-@Composable
-private fun SplitPaneButtons(
-    onExpand: () -> Unit,
-    onClose: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        IconButton(
-            onClick = onExpand,
-            modifier = Modifier.size(36.dp).background(Color.Black.copy(alpha = 0.65f), CircleShape)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Fullscreen,
-                contentDescription = stringResource(R.string.launcher_fullscreen),
-                tint = Color.White
-            )
-        }
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier.size(36.dp).background(Color.Black.copy(alpha = 0.65f), CircleShape)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(R.string.launcher_close_hub),
-                tint = Color.White
-            )
-        }
-    }
-}
 
 /** Takes every touch before anything inside can, so nothing under it answers. */
 private fun Modifier.blockPointerInput(): Modifier = pointerInput(Unit) {

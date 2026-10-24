@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.VerticalSplit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -73,6 +74,8 @@ fun HubSwitcher(
     previews: Map<HubId, ImageBitmap>,
     onPick: (HubId) -> Unit,
     onStop: (HubId) -> Unit,
+    /** Opens the hub split, with Start beside it to choose the other half from. */
+    onSplit: ((HubId) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val zuneColors = LocalZuneColors.current
@@ -150,6 +153,7 @@ fun HubSwitcher(
                         preview = previews[hub],
                         onPick = { closing = true; onPick(hub) },
                         onStop = { onStop(hub) },
+                        onSplit = onSplit?.let { split -> { closing = true; split(hub) } },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -241,6 +245,7 @@ private fun SwitcherCard(
     preview: ImageBitmap?,
     onPick: () -> Unit,
     onStop: () -> Unit,
+    onSplit: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val zuneColors = LocalZuneColors.current
@@ -297,6 +302,27 @@ private fun SwitcherCard(
                     tint = Color.White,
                     modifier = Modifier.size(12.dp)
                 )
+            }
+            // Beside another: opens it split, with Start in the other half.
+            if (onSplit != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp)
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.65f))
+                        .border(0.5.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                        .clickable(onClick = onSplit),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VerticalSplit,
+                        contentDescription = stringResource(R.string.split_open),
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(6.dp))

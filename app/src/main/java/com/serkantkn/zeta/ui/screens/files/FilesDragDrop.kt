@@ -419,6 +419,7 @@ internal fun Modifier.fileDropTarget(
 @Composable
 private fun FilesDragGhost(state: FilesDragState, modifier: Modifier) {
     val density = LocalDensity.current
+    val statusTop = com.serkantkn.zeta.ui.components.statusBarTop()
     val animationsOn = LocalAnimationsEnabled.current
     var origin by remember { mutableStateOf(Offset.Zero) }
     Box(modifier = modifier.onGloballyPositioned { origin = it.positionInRoot() }) {
@@ -431,7 +432,7 @@ private fun FilesDragGhost(state: FilesDragState, modifier: Modifier) {
             // Room the ghost and its words need over the finger, under the status bar. Near the
             // top - over a path step or a back arrow - there is none, and both go under the
             // finger instead of off the screen.
-            val ceiling = WindowInsets.statusBars.getTop(density) + with(density) { CAPTION_ROOM.toPx() }
+            val ceiling = with(density) { statusTop.toPx() + CAPTION_ROOM.toPx() }
             val above = { state.finger.y - origin.y - lift - side / 2f - gap > ceiling }
             val centre = {
                 if (above()) state.finger - origin - Offset(0f, lift) else state.finger - origin + Offset(0f, lift)
