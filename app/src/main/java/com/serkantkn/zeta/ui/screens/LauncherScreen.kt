@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
@@ -48,6 +50,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
@@ -1071,6 +1074,34 @@ fun LauncherScreen(
                 }
                 }
 
+                // Pro's trial, offered once on Start - after the tour and what is new, never over
+                // them - and begun only if the answer is yes; settings › about › Zeta Pro has it
+                // for later.
+                val decided by onboardingViewModel.decided.collectAsState()
+                val trialState by com.serkantkn.zeta.data.billing.ProTrial.state.collectAsState()
+                val trialOffered by com.serkantkn.zeta.data.billing.ProTrial.offered.collectAsState()
+                var offeringTrial by remember { mutableStateOf(false) }
+                val mayOffer = decided && firstRun == FirstRunScreen.None && !trialOffered &&
+                    trialState == com.serkantkn.zeta.data.billing.ProTrial.State.Available && !com.serkantkn.zeta.util.Pro.purchased
+                LaunchedEffect(mayOffer) {
+                    if (!mayOffer) return@LaunchedEffect
+                    // A moment on Start first, so it is not the first thing in the way.
+                    com.serkantkn.zeta.ui.animation.motionDelay(TRIAL_OFFER_DELAY_MILLIS)
+                    offeringTrial = true
+                }
+                if (offeringTrial) {
+                    ProTrialOffer(
+                        onStart = {
+                            offeringTrial = false
+                            com.serkantkn.zeta.data.billing.ProTrial.begin()
+                        },
+                        onLater = {
+                            offeringTrial = false
+                            com.serkantkn.zeta.data.billing.ProTrial.markOffered()
+                        }
+                    )
+                }
+
                 // On a television, the white frame round whatever the remote is on (ui/tv).
                 if (isTv) {
                     com.serkantkn.zeta.ui.tv.TvFocusFrame(
@@ -1306,6 +1337,40 @@ private const val WIN8_HUB_FADE_OUT_MILLIS = 240
 
 /** Long enough for the hinge to have put the hub away before the balloon comes. */
 private const val SWITCHER_TIP_DELAY_MILLIS = 600L
+
+/** How long Start stands before the Pro trial is offered on it. */
+private const val TRIAL_OFFER_DELAY_MILLIS = 1_500L
+
+/** The Pro trial, offered: begin it now, or not now (settings has it for later). */
+@Composable
+private fun ProTrialOffer(onStart: () -> Unit, onLater: () -> Unit) {
+    val zuneColors = LocalZuneColors.current
+    com.serkantkn.zeta.ui.components.ZuneFlipDialog(
+        onDismissRequest = onLater,
+        title = stringResource(R.string.pro_trial_offer_title),
+        confirmButton = {
+            com.serkantkn.zeta.ui.components.ZuneDialogButton(
+                text = stringResource(R.string.pro_trial_offer_start),
+                onClick = { dismissWithAnim { onStart() } },
+                borderColor = zuneColors.accentColor
+            )
+        },
+        dismissButton = {
+            com.serkantkn.zeta.ui.components.ZuneDialogButton(
+                text = stringResource(R.string.pro_trial_offer_later),
+                onClick = { dismissWithAnim { onLater() } },
+                borderColor = zuneColors.textMuted
+            )
+        }
+    ) {
+        Text(
+            text = stringResource(R.string.pro_trial_offer_body),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
+            // The dialog is dark in either theme.
+            color = Color.White.copy(alpha = 0.9f)
+        )
+    }
+}
 
 /** How far two fingers have to be drawn up a phone before the hub steps into the top half. */
 private const val SPLIT_PULL_PX = 400f

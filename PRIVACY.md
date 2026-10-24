@@ -125,11 +125,12 @@ telefondan çıkmaz: e-posta hesapları ve önbelleği, notlar ve ekleri, klavye
 kelimeler ve pano geçmişi, bulut hesapları, takvim kayıtları, gezinme geçmişi, okuma listesi, videoların kaldığınız
 yerleri, konum tercihi, şifre kasası.
 
-**Pro denemesi.** Google Play'den kurulan uygulamada 10 günlük denemenin başladığı an (bir tarih,
-başka hiçbir şey) uygulamanın ayarlarında ve Google Play hizmetlerinin Block Store alanında tutulur.
-Telefonun yedeklemesi açıksa uygulama kaldırılıp yeniden kurulduğunda da korunur; uçtan uca
-şifreli yedekleme varsa Google hesabınızın yedeğiyle yeni telefona geçer. Kimliğiniz, hesabınız
-ya da cihaz numaranız eklenmez; bize gelmez.
+**Pro denemesi.** 10 günlük denemeyi başlattığınızda, başladığı an (bir tarih, başka hiçbir şey)
+uygulamanın ayarlarında, Google Play hizmetlerinin Block Store alanında ve gün olarak, Android'in
+uygulama için tuttuğu bileşen ayarlarında saklanır; sonuncusu, uygulamanın verisi temizlense de
+denemenin yeniden başlamaması içindir ve uygulama kaldırılınca silinir. Telefonun yedeklemesi açıksa
+tarih, uygulama kaldırılıp yeniden kurulduğunda da korunur; uçtan uca şifreli yedekleme varsa Google
+hesabınızın yedeğiyle yeni telefona geçer. Kimliğiniz, hesabınız ya da cihaz numaranız eklenmez; bize gelmez.
 
 ## Çocuklar
 

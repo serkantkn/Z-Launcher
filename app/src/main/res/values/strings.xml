@@ -578,6 +578,14 @@ If you accept, Android\'s accessibility settings open; turn on the \"Zeta Home b
     <string name="pro_trial_over_body">The settings you made for Pro are still here; buy Pro and they all come back as they were.</string>
     <string name="pro_trial_over_reason">Your 10-day trial is over.</string>
     <string name="pro_settings_row_trial_over">trial over · what Pro adds, and buying it</string>
+    <string name="pro_trial_offer_title">Try Zeta Pro</string>
+    <string name="pro_trial_offer_body">You can use all of Pro free for 10 days: every accent colour, your own wallpaper, frosted tiles, each tile\'s own look, the social hub, Zeta\'s keyboard and more. When the trial ends, the settings you made for Pro are not deleted.\n\nIf not now, you can start it whenever you like from settings › about › Zeta Pro.</string>
+    <string name="pro_trial_offer_start">Start the trial</string>
+    <string name="pro_trial_offer_later">Not now</string>
+    <string name="pro_trial_available">Try it free for 10 days</string>
+    <string name="pro_trial_available_body">For the trial, everything in Pro is open; when it ends, the settings you made for Pro are not deleted. The trial can be started once.</string>
+    <string name="pro_trial_start">start the trial</string>
+    <string name="pro_settings_row_trial_available">try it free for 10 days · what Pro adds</string>
     <string name="pro_settings_row">Zeta Pro</string>
     <string name="pro_settings_row_owned">yours · thank you</string>
     <string name="pro_settings_row_free">what Pro adds, and buying it</string>

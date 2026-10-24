@@ -137,9 +137,16 @@ private fun ProPage(@StringRes reason: Int?, onBuy: () -> Unit, onRestore: () ->
                 modifier = Modifier.padding(top = 8.dp)
             )
 
-            // The trial, while Pro has not been bought: how long is left, or that it is over.
+            // The trial, while Pro has not been bought: the way to begin it, how long is left,
+            // or that it is over.
             if (status != ProStore.Status.OWNED) {
                 when (val t = trial) {
+                    com.serkantkn.zeta.data.billing.ProTrial.State.Available -> TrialNote(
+                        title = stringResource(R.string.pro_trial_available),
+                        body = stringResource(R.string.pro_trial_available_body),
+                        action = stringResource(R.string.pro_trial_start),
+                        onAction = { com.serkantkn.zeta.data.billing.ProTrial.begin() }
+                    )
                     is com.serkantkn.zeta.data.billing.ProTrial.State.Running -> TrialNote(
                         title = pluralStringResource(R.plurals.pro_trial_days_left, t.daysLeft, t.daysLeft),
                         body = stringResource(R.string.pro_trial_running_body)
@@ -217,7 +224,7 @@ private fun ProGroup(@StringRes title: Int, @StringRes body: Int) {
 
 /** The trial's state, under the lead: a line of the accent, and what it means. */
 @Composable
-private fun TrialNote(title: String, body: String) {
+private fun TrialNote(title: String, body: String, action: String? = null, onAction: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .padding(top = 20.dp)
@@ -236,6 +243,18 @@ private fun TrialNote(title: String, body: String) {
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(top = 4.dp)
         )
+        if (action != null) {
+            Text(
+                text = action,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                color = Color.White,
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .background(LocalZuneColors.current.accentColor)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onAction)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            )
+        }
     }
 }
 

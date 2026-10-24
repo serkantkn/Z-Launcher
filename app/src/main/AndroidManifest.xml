@@ -298,6 +298,24 @@
             android:exported="false"
             android:theme="@style/Theme.ZuneLauncher" />
 
+        <!--
+          The day the Pro trial began, as twelve bits (ProTrial). Never opened and never shown:
+          no icon, no intent filter, off unless a bit is set. Android keeps which components are
+          on outside the app's data, so clearing the data does not start the trial again.
+        -->
+        <activity-alias android:name=".trial.Mark0" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark1" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark2" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark3" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark4" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark5" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark6" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark7" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark8" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark9" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark10" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+        <activity-alias android:name=".trial.Mark11" android:targetActivity=".ui.pro.ProActivity" android:enabled="false" android:exported="false" />
+
         <!-- System-wide Windows Phone keyboard (premium only: disabled via @bool in the free flavour) -->
         <service
             android:name=".data.service.ZuneKeyboardService"

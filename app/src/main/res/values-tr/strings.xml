@@ -576,6 +576,14 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="pro_trial_over_body">Pro için yaptığın ayarlar duruyor; Pro\'yu aldığında hepsi olduğu gibi geri gelir.</string>
     <string name="pro_trial_over_reason">10 günlük deneme süren bitti.</string>
     <string name="pro_settings_row_trial_over">deneme bitti · Pro neler getirir, satın alma</string>
+    <string name="pro_trial_offer_title">Zeta Pro\'yu dene</string>
+    <string name="pro_trial_offer_body">Pro\'nun her şeyini 10 gün ücretsiz kullanabilirsin: tüm vurgu renkleri, kendi duvar kağıdın, buzlu karolar, karo başına görünüm, sosyal hub, Zeta klavyesi ve fazlası. Deneme bitince Pro için yaptığın ayarlar silinmez.\n\nŞimdi istemezsen ayarlar › hakkında › Zeta Pro\'dan istediğin zaman başlatabilirsin.</string>
+    <string name="pro_trial_offer_start">Denemeyi başlat</string>
+    <string name="pro_trial_offer_later">Şimdi değil</string>
+    <string name="pro_trial_available">10 gün ücretsiz dene</string>
+    <string name="pro_trial_available_body">Deneme süresince Pro\'nun her şeyi açık; bitince Pro için yaptığın ayarlar silinmez. Deneme bir kez başlatılabilir.</string>
+    <string name="pro_trial_start">denemeyi başlat</string>
+    <string name="pro_settings_row_trial_available">10 gün ücretsiz dene · Pro neler getirir</string>
     <string name="pro_settings_row">Zeta Pro</string>
     <string name="pro_settings_row_owned">senin · teşekkürler</string>
     <string name="pro_settings_row_free">Pro neler getirir, satın alma</string>

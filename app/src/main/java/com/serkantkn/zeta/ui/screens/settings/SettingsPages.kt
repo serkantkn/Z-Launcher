@@ -1473,6 +1473,7 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
                                 androidx.compose.ui.res.pluralStringResource(R.plurals.pro_trial_days_left, days, days)
                             }
                             trial == com.serkantkn.zeta.data.billing.ProTrial.State.Over -> stringResource(R.string.pro_settings_row_trial_over)
+                            trial == com.serkantkn.zeta.data.billing.ProTrial.State.Available -> stringResource(R.string.pro_settings_row_trial_available)
                             else -> stringResource(R.string.pro_settings_row_free)
                         },
                         isActive = pro,

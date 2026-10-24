@@ -65,8 +65,8 @@ so never read `BuildConfig.IS_PREMIUM`: use `util/Pro.kt` - `Pro.unlocked` while
 recomposes), `Pro.flow` to combine with flows, `Pro.tell`/`Pro.orTell` to send the user to the Pro
 page - and, in settings, `ui/components/ProLock.kt` (`ProLocked { }`).
 
-- An install from Google Play is Pro for its first 10 days (`data/billing/ProTrial.kt`); `Pro.unlocked`
-  and `Pro.flow` include the trial, `Pro.purchased` does not. Because everyone passes through Pro,
+- Pro has a 10-day trial, offered once on Start and startable from the Pro page
+  (`data/billing/ProTrial.kt`); `Pro.unlocked` and `Pro.flow` include the trial, `Pro.purchased` does not. Because everyone passes through Pro,
   every Pro setting must be gated where it is read - one that is only locked in its settings page
   stays on after the trial.
 - A Pro setting is gated where it is read (the DataStore flow returns the free default), never

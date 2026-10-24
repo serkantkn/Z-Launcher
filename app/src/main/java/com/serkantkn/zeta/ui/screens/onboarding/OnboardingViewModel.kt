@@ -85,6 +85,11 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
     private val _screen = MutableStateFlow<FirstRunScreen>(FirstRunScreen.None)
     val screen: StateFlow<FirstRunScreen> = _screen.asStateFlow()
 
+    private val _decided = MutableStateFlow(false)
+
+    /** Whether it has been decided what to show; until then [screen] being None means nothing yet. */
+    val decided: StateFlow<Boolean> = _decided.asStateFlow()
+
     init {
         decideWhatToShow()
     }
@@ -132,6 +137,7 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 }
             }
+            _decided.value = true
         }
     }
 
