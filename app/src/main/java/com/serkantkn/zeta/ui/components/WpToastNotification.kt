@@ -185,7 +185,15 @@ fun WpToastNotification(
                 }
                 // In the launcher, the wallpaper behind it frosted as behind the tiles; over another
                 // app its window blurs what is there instead.
-                .then(if (cardAlpha < 1f) Modifier.frostedBackdrop() else Modifier),
+                // Kept to the card: the frosted wallpaper is the whole screen's, and unclipped it
+                // covered the tiles under the card from edge to edge.
+                .then(
+                    if (cardAlpha < 1f) {
+                        Modifier
+                            .clip(RoundedCornerShape(if (isWideScreen) 2.dp else 0.dp))
+                            .frostedBackdrop()
+                    } else Modifier
+                ),
             shape = RoundedCornerShape(if (isWideScreen) 2.dp else 0.dp),
             color = bannerBgColor,
             // A shadow under glass shows through it.
