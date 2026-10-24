@@ -123,6 +123,9 @@ dependencies {
     implementation(libs.android.activation)
     // Pro, bought once inside the app through Google Play.
     implementation(libs.billing.ktx)
+    // When the Pro trial began, kept by Google Play services where clearing the app's data does
+    // not reach it (ProTrial).
+    implementation(libs.play.services.blockstore)
 
     // What Zeta and other apps' hubs speak (ZetaHubKit, PLATFORM.md).
     implementation(project(":hubkit-protocol"))

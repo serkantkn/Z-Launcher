@@ -337,6 +337,12 @@ class MainActivity : FragmentActivity() {
         com.serkantkn.zeta.data.service.WpToastOverlay.hide()
         com.serkantkn.zeta.data.service.WpVolumeOverlay.hide()
         com.serkantkn.zeta.ui.tv.TvIdle.onResume()
+        // The Pro trial looked at again; the first time back after it has ended, the Pro page
+        // says so, rather than Pro's things simply going.
+        com.serkantkn.zeta.data.billing.ProTrial.check()
+        if (com.serkantkn.zeta.data.billing.ProTrial.takeOverNotice()) {
+            com.serkantkn.zeta.util.Pro.tell(this, R.string.pro_trial_over_reason)
+        }
     }
 
     override fun onPause() {

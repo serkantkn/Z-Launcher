@@ -381,17 +381,23 @@ class SettingsDataStore(private val context: Context) {
             .getOrDefault(com.serkantkn.zeta.data.model.ZuneGlow.ZUNE)
     }
 
-    /** The accent as chosen in settings, [AccentColor.LAYOUT] until one is. */
-    val accentChoice: Flow<AccentColor> = context.settingsDataStore.data.map { prefs -> choiceOf(prefs) }
+    /**
+     * The accent as chosen in settings, [AccentColor.LAYOUT] until one is. A Pro colour chosen
+     * in Pro (or on the trial) is, to the free build, "by design" - and stays stored for Pro.
+     */
+    val accentChoice: Flow<AccentColor> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro -> choiceOf(prefs, pro) }
 
     /** The accent to draw with: a choice of "by design" turned into that design's colour. */
-    val accentColor: Flow<AccentColor> = context.settingsDataStore.data.map { prefs ->
-        val choice = choiceOf(prefs)
+    val accentColor: Flow<AccentColor> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        val choice = choiceOf(prefs, pro)
         if (choice != AccentColor.LAYOUT) choice else layoutAccent(prefs)
     }
 
-    private fun choiceOf(prefs: Preferences): AccentColor =
-        runCatching { AccentColor.valueOf(prefs[ACCENT_COLOR] ?: AccentColor.LAYOUT.name) }.getOrDefault(AccentColor.LAYOUT)
+    private fun choiceOf(prefs: Preferences, pro: Boolean): AccentColor {
+        val chosen = runCatching { AccentColor.valueOf(prefs[ACCENT_COLOR] ?: AccentColor.LAYOUT.name) }
+            .getOrDefault(AccentColor.LAYOUT)
+        return if (pro || chosen.isFree) chosen else AccentColor.LAYOUT
+    }
 
     /**
      * Each design's own colour: Konsol green on a TV, Panorama red on a tablet, Aura orange with its
@@ -546,8 +552,9 @@ class SettingsDataStore(private val context: Context) {
             .ifEmpty { defaultStartTiles.withoutRemovedHubs() }
     }
 
-    val customWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->
-        prefs[CUSTOM_WALLPAPER_PATH]
+    /** The launcher's own wallpaper, Pro's: kept for Pro, and the system's is shown meanwhile. */
+    val customWallpaperPath: Flow<String?> = context.settingsDataStore.data.combine(Pro.flow) { prefs, pro ->
+        if (pro) prefs[CUSTOM_WALLPAPER_PATH] else null
     }
 
     val customHubWallpaperPath: Flow<String?> = context.settingsDataStore.data.map { prefs ->

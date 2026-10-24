@@ -11,6 +11,7 @@ coil = "2.7.0"
 richeditor = "1.1.0"
 androidMail = "1.6.7"
 billing = "8.3.0"
+blockstore = "16.4.0"
 palette = "1.0.0"
 media3 = "1.10.1"
 camerax = "1.6.2"
@@ -73,6 +74,7 @@ android-activation = { group = "com.sun.mail", name = "android-activation", vers
 
 # Google sign-in / OAuth authorization for Gmail (XOAUTH2)
 billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
+play-services-blockstore = { group = "com.google.android.gms", name = "play-services-auth-blockstore", version.ref = "blockstore" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

@@ -567,6 +567,15 @@ Kabul edersen Android\'in erişilebilirlik ayarları açılır; orada \"Zeta Hom
     <string name="pro_pending">Ödeme henüz tamamlanmadı. Tamamlanınca Pro kendiliğinden açılır.</string>
     <string name="pro_owned">Pro senin. Teşekkürler!</string>
     <string name="pro_restore">satın alımı geri yükle</string>
+    <plurals name="pro_trial_days_left">
+        <item quantity="one">deneme · %d gün kaldı</item>
+        <item quantity="other">deneme · %d gün kaldı</item>
+    </plurals>
+    <string name="pro_trial_running_body">Deneme süresince Pro\'nun her şeyi açık. Süre bitince Pro\'ya ait özellikler kapanır; Pro için yaptığın ayarlar silinmez, Pro\'yu aldığında olduğu gibi geri gelir.</string>
+    <string name="pro_trial_over">10 günlük deneme bitti</string>
+    <string name="pro_trial_over_body">Pro için yaptığın ayarlar duruyor; Pro\'yu aldığında hepsi olduğu gibi geri gelir.</string>
+    <string name="pro_trial_over_reason">10 günlük deneme süren bitti.</string>
+    <string name="pro_settings_row_trial_over">deneme bitti · Pro neler getirir, satın alma</string>
     <string name="pro_settings_row">Zeta Pro</string>
     <string name="pro_settings_row_owned">senin · teşekkürler</string>
     <string name="pro_settings_row_free">Pro neler getirir, satın alma</string>

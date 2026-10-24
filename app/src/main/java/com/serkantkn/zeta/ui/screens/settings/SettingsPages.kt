@@ -1460,11 +1460,21 @@ internal fun AboutSettingsPage(onOpenVersion: () -> Unit = {}) {
         item(key = "about") {
             SettingGroup(title = stringResource(R.string.settings_about_group)) {
                 Column(modifier = Modifier.padding(bottom = 8.dp)) {
-                    // Pro: what it adds and the way to buy it, or that it is already bought.
+                    // Pro: what it adds and the way to buy it, that it is already bought, or how
+                    // much of the trial is left.
                     val pro = com.serkantkn.zeta.util.Pro.unlocked
+                    val trial by com.serkantkn.zeta.data.billing.ProTrial.state.collectAsState()
                     SystemSettingRow(
                         title = stringResource(R.string.pro_settings_row),
-                        subtitle = stringResource(if (pro) R.string.pro_settings_row_owned else R.string.pro_settings_row_free),
+                        subtitle = when {
+                            com.serkantkn.zeta.util.Pro.purchased -> stringResource(R.string.pro_settings_row_owned)
+                            trial is com.serkantkn.zeta.data.billing.ProTrial.State.Running -> {
+                                val days = (trial as com.serkantkn.zeta.data.billing.ProTrial.State.Running).daysLeft
+                                androidx.compose.ui.res.pluralStringResource(R.plurals.pro_trial_days_left, days, days)
+                            }
+                            trial == com.serkantkn.zeta.data.billing.ProTrial.State.Over -> stringResource(R.string.pro_settings_row_trial_over)
+                            else -> stringResource(R.string.pro_settings_row_free)
+                        },
                         isActive = pro,
                         onClick = {
                             context.startActivity(Intent(context, com.serkantkn.zeta.ui.pro.ProActivity::class.java))

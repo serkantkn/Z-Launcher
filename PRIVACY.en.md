@@ -122,6 +122,12 @@ email accounts and cached messages, notes and their attachments, the keyboard's 
 and clipboard history, cloud accounts, calendar entries, browsing history, the reading list, where you
 left each video, the location you watch the weather for, and the password vault.
 
+**The Pro trial.** In an app installed from Google Play, the moment the 10-day trial began (a date,
+nothing else) is kept in the app's settings and in Google Play services' Block Store. With the
+phone's backup on it survives an uninstall and reinstall; with end-to-end encrypted backup it moves
+to a new phone with your Google account's backup. Nothing identifying you, your account or your
+device is attached, and none of it comes to us.
+
 ## Children
 
 The app is not directed at children and collects no age information.

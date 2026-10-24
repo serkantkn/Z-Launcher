@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * What the free build leaves to Pro, in one place.
  *
  * Pro is bought once inside the app, through Google Play (see ProStore); the premium flavour is
- * always Pro. Whether it is Pro can change while the launcher runs - a purchase, a refund - so it
+ * always Pro, and an install from Play is Pro for its first ten days (ProTrial). Whether it is Pro can change while the launcher runs - a purchase, a refund - so it
  * is held twice over: as Compose state, so anything drawn reading [unlocked] is drawn again, and
  * as [flow], for the settings and repositories that combine with it.
  *
@@ -40,9 +40,26 @@ object Pro {
 
     private val main = Handler(Looper.getMainLooper())
 
+    @Volatile private var bought = BuildConfig.IS_PREMIUM
+    @Volatile private var trying = false
+
+    /** Bought (or the premium flavour): Pro for good, not for a trial's ten days. */
+    val purchased: Boolean get() = bought
+
     /** Whether Pro has been bought; the premium flavour is Pro whatever this says. */
     fun setPurchased(purchased: Boolean) {
-        val value = BuildConfig.IS_PREMIUM || purchased
+        bought = BuildConfig.IS_PREMIUM || purchased
+        publish()
+    }
+
+    /** Whether the trial's ten days are running (ProTrial). */
+    fun setTrial(running: Boolean) {
+        trying = running
+        publish()
+    }
+
+    private fun publish() {
+        val value = bought || trying
         _flow.value = value
         if (Looper.myLooper() == Looper.getMainLooper()) state = value else main.post { state = value }
     }

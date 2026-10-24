@@ -174,8 +174,7 @@ internal fun AccentColorChoiceRow(
                 rowItems.forEach { color ->
                     val isSelected = selectedColor == color
                     // "By design" is the default, so it stays everyone's to go back to.
-                    val isAllowed = com.serkantkn.zeta.util.Pro.unlocked ||
-                        color in listOf(AccentColor.LAYOUT, AccentColor.RED, AccentColor.BLUE, AccentColor.GREEN)
+                    val isAllowed = com.serkantkn.zeta.util.Pro.unlocked || color.isFree
 
                     val baseModifier = Modifier
                         .size(if (isSelected) 48.dp else 40.dp)

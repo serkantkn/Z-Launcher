@@ -82,6 +82,9 @@ object ProStore {
         }
         val remembered = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_OWNED, false)
         apply(owned = remembered)
+        ProTrial.start(app)
+        // The keyboard is Pro's, bought or on trial: it comes and goes with Pro itself.
+        scope.launch { Pro.flow.collect { setKeyboardEnabled(it) } }
         connect()
     }
 
@@ -122,7 +125,7 @@ object ProStore {
             })
         }.onFailure {
             ZuneLog.w(TAG, "Google Play could not be reached", it)
-            _status.value = if (Pro.unlocked) Status.OWNED else Status.UNAVAILABLE
+            _status.value = if (Pro.purchased) Status.OWNED else Status.UNAVAILABLE
         }
     }
 
@@ -162,7 +165,7 @@ object ProStore {
         }
         if (_status.value == Status.CONNECTING || _status.value == Status.READY || _status.value == Status.UNAVAILABLE) {
             _status.value = when {
-                Pro.unlocked -> Status.OWNED
+                Pro.purchased -> Status.OWNED
                 _product.value != null -> Status.READY
                 else -> Status.UNAVAILABLE
             }
@@ -206,7 +209,6 @@ object ProStore {
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_OWNED, owned).apply()
         Pro.setPurchased(owned)
         if (owned) _status.value = Status.OWNED
-        setKeyboardEnabled(owned)
     }
 
     /** Opens Google Play's own purchase sheet for Pro. False when Play has nothing to sell yet. */

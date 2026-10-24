@@ -274,7 +274,10 @@ hesabıyla her telefonda geçerlidir; ayarların yerinde kalır. Pro şunları e
   hava durumu şehri
 - **Sistem:** Zeta klavyesi, ses çubuğu ve bildirim şeridi
 
-Satın alma yalnızca Google Play'den kurulan uygulamada yapılabilir; GitHub'daki APK ücretsiz sürümdür.
+Google Play'den kurulan uygulama **ilk 10 gün Pro'nun her şeyiyle açılır**; deneme bitince Pro'ya ait
+özellikler kapanır, deneme sırasında yaptığın Pro ayarları ise silinmez, Pro'yu alınca olduğu gibi geri
+gelir. Denemenin başladığı gün telefonda tutulur ve uygulamanın verisi temizlense de değişmez.
+Satın alma ve deneme yalnızca Google Play'den kurulan uygulamada vardır; GitHub'daki APK ücretsiz sürümdür.
 Ücretsiz sürüm hiçbir verini Pro'ya kilitlemez: kilitli bir not yine açılır, okuma listesindekiler yine
 okunur, Pro ayarları silinmez, Pro'ya geçince olduğu gibi geri gelir.
 
@@ -405,6 +408,8 @@ Start, messages, music and the TV all speak one language, and the phone link let
   the hubs' background settings, the video player's subtitles, sound tracks, speed, fill, next episode and
   small window, online lyrics and covers, the social hub, locked notes, the news hub's own RSS sources, the
   browser's reading list, PDF, translation and favourites, Zeta's keyboard, volume bar and banners.
+  Installed from Google Play, the app is Pro for its first 10 days; then Pro's features close, and what was
+  set in Pro waits, untouched, for Pro to be bought. The day the trial began survives clearing the app's data.
   Nothing of yours is locked away: a locked note still opens, saved pages still read, and Pro's settings
   wait, untouched, for Pro.
 - **For developers.** Other apps can add hubs to Zeta: an app describes its hub with **ZetaHubKit** (pages, lists,

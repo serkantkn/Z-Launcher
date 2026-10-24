@@ -22,5 +22,12 @@ enum class AccentColor {
     COBALT,
     AMBER,
     BROWN,
-    CUSTOM
+    CUSTOM;
+
+    /** In the free build: the design's own colour and three more; the rest are Pro's. */
+    val isFree: Boolean get() = this in FREE
+
+    private companion object {
+        val FREE = setOf(LAYOUT, RED, BLUE, GREEN)
+    }
 }

@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,7 @@ class ProActivity : ComponentActivity() {
         enableEdgeToEdge()
         val reason = intent.getIntExtra(EXTRA_REASON, 0).takeIf { it != 0 }
         ProStore.restore()
+        com.serkantkn.zeta.data.billing.ProTrial.check()
         window.decorView.installZetaMotion(lifecycle)
         setContent {
             val settings = appContainer.settingsDataStore
@@ -92,6 +94,7 @@ private fun ProPage(@StringRes reason: Int?, onBuy: () -> Unit, onRestore: () ->
     val status by ProStore.status.collectAsState()
     val product by ProStore.product.collectAsState()
     val price = product?.oneTimePurchaseOfferDetails?.formattedPrice
+    val trial by com.serkantkn.zeta.data.billing.ProTrial.state.collectAsState()
 
     Box(
         modifier = Modifier
@@ -133,6 +136,21 @@ private fun ProPage(@StringRes reason: Int?, onBuy: () -> Unit, onRestore: () ->
                 color = ink.copy(alpha = 0.85f),
                 modifier = Modifier.padding(top = 8.dp)
             )
+
+            // The trial, while Pro has not been bought: how long is left, or that it is over.
+            if (status != ProStore.Status.OWNED) {
+                when (val t = trial) {
+                    is com.serkantkn.zeta.data.billing.ProTrial.State.Running -> TrialNote(
+                        title = pluralStringResource(R.plurals.pro_trial_days_left, t.daysLeft, t.daysLeft),
+                        body = stringResource(R.string.pro_trial_running_body)
+                    )
+                    com.serkantkn.zeta.data.billing.ProTrial.State.Over -> TrialNote(
+                        title = stringResource(R.string.pro_trial_over),
+                        body = stringResource(R.string.pro_trial_over_body)
+                    )
+                    com.serkantkn.zeta.data.billing.ProTrial.State.None -> Unit
+                }
+            }
 
             ProGroup(R.string.pro_group_looks, R.string.pro_group_looks_body)
             ProGroup(R.string.pro_group_media, R.string.pro_group_media_body)
@@ -195,6 +213,30 @@ private fun ProGroup(@StringRes title: Int, @StringRes body: Int) {
         color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.padding(top = 4.dp)
     )
+}
+
+/** The trial's state, under the lead: a line of the accent, and what it means. */
+@Composable
+private fun TrialNote(title: String, body: String) {
+    Column(
+        modifier = Modifier
+            .padding(top = 20.dp)
+            .fillMaxWidth()
+            .background(LocalZuneColors.current.accentColor.copy(alpha = 0.14f))
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+            color = LocalZuneColors.current.accentColor
+        )
+        Text(
+            text = body,
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
 }
 
 @Composable

@@ -56,6 +56,7 @@ Android TV ve Google TV'de Zeta iki tasarımdan biriyle kumandayla kullanılır:
 
 AYRICA
 • Zeta klavyesi (Pro)
+• Pro'yu 10 gün ücretsiz dene; deneme bitince ayarların silinmez
 • Ses çubuğundan bildirim şeridine kadar aynı arayüz
 • Türkçe ve İngilizce
 • Karanlık ve aydınlık tema, vurgu rengi seçimi
@@ -126,6 +127,7 @@ On Android TV and Google TV, Zeta is worked with the remote in one of two design
 
 ALSO
 • Zeta's own keyboard (Pro)
+• Try Pro free for 10 days; your settings stay when the trial ends
 • The same interface throughout, from the volume bar to the notification banner
 • Turkish and English
 • Dark and light themes, your choice of accent colour
